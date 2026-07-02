@@ -59,9 +59,9 @@ if [ ! -d "client/node_modules" ]; then
     cd client && npm install && cd ..
 fi
 
-# 构建前端（如果dist不存在或已过期）
-if [ ! -d "client/dist" ] || [ "client/src/App.jsx" -nt "client/dist/index.html" ]; then
-    echo -e "${YELLOW}构建前端...${NC}"
+# 构建前端（如果dist不存在或源码已更新）
+if [ ! -d "client/dist" ] || [ -n "$(find client/src -newer client/dist/index.html 2>/dev/null)" ]; then
+    echo -e "${YELLOW}检测到前端源码已更新，正在重新构建前端...${NC}"
     cd client && npm run build && cd ..
     echo -e "${GREEN}前端构建完成${NC}"
 fi
