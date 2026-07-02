@@ -1256,9 +1256,10 @@ async function saveAutoRecordedData(duration) {
     return;
   }
   
-  // 普通模式：不再进行自动相似度匹配合并，一律直接自动创建新赛道（合并交由用户手动在赛道管理中进行）
+  // 普通模式：不再进行自动相似度匹配合并，一律直接自动创建新赛道并立即生成中线与弯道（合并交由用户手动在赛道管理中进行）
   const newTrackId = 'track_' + ts;
   const trackLength = calculateTrackLength(autoRacePositions);
+  const trackData = buildTrackFromTrajectories([autoRacePositions]);
   
   tracks[newTrackId] = {
     id: newTrackId,
@@ -1268,8 +1269,10 @@ async function saveAutoRecordedData(duration) {
     length: trackLength,
     trajectories: [autoRacePositions],
     trajectoryCount: 1,
-    centerline: null,
-    turns: null,
+    centerline: trackData ? trackData.centerline : null,
+    turns: trackData ? trackData.turns : null,
+    sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
+    navigation: trackData ? generateNavigationData(trackData) : null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -1806,25 +1809,7 @@ app.post('/api/record/save', express.json(), (req, res) => {
   saveSession(sessionData.id, sessionData);
   
   // 处理赛道数据
-  if(isNewTrack && trackName){
-    // 新赛道：创建新赛道
-    const newTrackId = 'track_' + ts;
-    const trackLength = calculateTrackLength(manualRacePositions);
-    tracks[newTrackId] = {
-      id: newTrackId,
-      name: trackName,
-      points: manualRacePositions,
-      pointCount: manualRacePositions.length,
-      length: trackLength,
-      trajectories: [manualRacePositions], // 保存所有轨迹用于聚合
-      centerline: null, // 中心线（待生成）
-      turns: null, // 弯道（待生成）
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    saveTracksDatabase(tracks);
-    res.json({ status: 'ok', filename, count: manualRecordedData.length, positions: manualRacePositions.length, trackId: newTrackId });
-  } else if(trackId && tracks[trackId]){
+  if (trackId && tracks[trackId]) {
     // 历史赛道：合并轨迹并重新生成中心线
     const track = tracks[trackId];
     const existingTrajectories = track.trajectories || [];
@@ -1866,7 +1851,39 @@ app.post('/api/record/save', express.json(), (req, res) => {
       trackLength: track.length || 0
     });
   } else {
-    res.json({ status: 'ok', filename, count: manualRecordedData.length, positions: manualRacePositions.length });
+    // 默认直接创建新赛道并立即生成中线与弯道数据（包括手动录制结束保存）
+    const newTrackId = 'track_' + ts;
+    const trackLength = calculateTrackLength(manualRacePositions);
+    const trackData = buildTrackFromTrajectories([manualRacePositions]);
+    
+    tracks[newTrackId] = {
+      id: newTrackId,
+      name: trackName,
+      points: manualRacePositions,
+      pointCount: manualRacePositions.length,
+      length: trackLength,
+      trajectories: [manualRacePositions], // 保存所有轨迹用于聚合
+      trajectoryCount: 1,
+      centerline: trackData ? trackData.centerline : null,
+      turns: trackData ? trackData.turns : null,
+      sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
+      navigation: trackData ? generateNavigationData(trackData) : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    saveTracksDatabase(tracks);
+    
+    // 同步更新session关联的trackId
+    sessionData.trackId = newTrackId;
+    saveSession(sessionData.id, sessionData);
+    
+    res.json({ 
+      status: 'ok', 
+      filename, 
+      count: manualRecordedData.length, 
+      positions: manualRacePositions.length, 
+      trackId: newTrackId 
+    });
   }
 });
 
