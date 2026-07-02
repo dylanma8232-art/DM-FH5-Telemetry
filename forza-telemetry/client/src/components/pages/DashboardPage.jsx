@@ -14,13 +14,43 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
   const [trackData, setTrackData] = useState(null);
   const [vehiclesList, setVehiclesList] = useState({});
 
-  // 加载车辆列表
+  // 加载车辆列表及当前活动赛道模式状态
   useEffect(() => {
     fetch('/api/vehicles')
       .then(res => res.json())
       .then(data => setVehiclesList(data || {}))
       .catch(() => {});
+
+    // 获取当前是否有正在运行的活动赛道模式
+    fetch('/api/trackMode/status')
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.active && resData.trackId) {
+          fetch(`/api/tracks/${resData.trackId}`)
+            .then(res2 => res2.json())
+            .then(t => setTrackData(t))
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  // 监听赛道模式变更事件
+  useEffect(() => {
+    if (!socket) return;
+    const handleTrackModeChanged = (payload) => {
+      if (payload.active && payload.trackId) {
+        fetch(`/api/tracks/${payload.trackId}`)
+          .then(res => res.json())
+          .then(t => setTrackData(t))
+          .catch(() => {});
+      } else {
+        setTrackData(null);
+      }
+    };
+    socket.on('trackModeChanged', handleTrackModeChanged);
+    return () => socket.off('trackModeChanged', handleTrackModeChanged);
+  }, [socket]);
 
   // 监听赛道识别确认事件
   useEffect(() => {
