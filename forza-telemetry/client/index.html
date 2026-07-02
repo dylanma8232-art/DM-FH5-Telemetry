@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1117" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FH5遥测" />
+    <meta name="description" content="Forza Horizon 5 遥测数据分析工具" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>FH5 遥测仪表盘</title>
+    <style>
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --bg-hover: rgba(255,255,255,0.04);
+        --text-primary: #c9d1d9;
+        --text-secondary: #8b949e;
+        --text-muted: #484f58;
+        --border: #21262d;
+        --border-hover: #30363d;
+        --accent: #58a6ff;
+        --accent-light: rgba(88,166,255,0.15);
+        --success: #3fb950;
+        --success-light: rgba(63,185,80,0.15);
+        --warning: #d29922;
+        --warning-light: rgba(210,153,34,0.15);
+        --danger: #f85149;
+        --danger-light: rgba(248,81,73,0.15);
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --font-xs: 9px;
+        --font-sm: 11px;
+        --font-md: 12px;
+        --font-lg: 14px;
+        --font-xl: 16px;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      html, body, #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        overscroll-behavior: none;
+      }
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+        touch-action: manipulation;
+      }
+      #root {
+        display: flex;
+        flex-direction: column;
+      }
+      button {
+        transition: all 0.2s ease;
+      }
+      button:hover {
+        transform: translateY(-0.5px);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+      button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+      a { color: var(--accent); }
+      a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // 注册Service Worker（PWA支持）
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[SW] 已注册'))
+            .catch(err => console.log('[SW] 注册失败:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
