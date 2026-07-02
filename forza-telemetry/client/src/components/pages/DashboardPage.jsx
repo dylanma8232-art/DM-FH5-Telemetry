@@ -86,17 +86,18 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
   // 车辆基本属性解析
   const car = telemetryData.car || {};
   const ordinal = car.ordinal;
-  const vehicleInfo = ordinal ? vehiclesList[String(ordinal)] : null;
+  const vehicleInfo = ordinal !== undefined && ordinal !== null ? vehiclesList[String(ordinal)] : null;
 
   const carClasses = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
-  const carClassLabel = carClasses[car.class] ?? '-';
-  const pi = car.performanceIndex || '-';
+  const carClassLabel = car.class !== undefined && car.class !== null ? (carClasses[car.class] ?? '-') : '-';
+  const pi = car.performanceIndex !== undefined && car.performanceIndex !== null ? car.performanceIndex : '-';
   const drivetrainLabels = ['FWD', 'RWD', 'AWD'];
-  const drivetrainLabel = drivetrainLabels[car.drivetrainType] ?? '-';
+  const drivetrainLabel = car.drivetrainType !== undefined && car.drivetrainType !== null ? (drivetrainLabels[car.drivetrainType] ?? '-') : '-';
 
+  const hasCarData = ordinal !== undefined && ordinal !== null;
   const carName = vehicleInfo?.name && !vehicleInfo.name.startsWith('Car #')
     ? vehicleInfo.name
-    : (ordinal ? `#${ordinal}` : '待机');
+    : (hasCarData ? `#${ordinal}` : '待机');
 
   const classColors = {
     'D': '#8b949e', 'C': '#3fb950', 'B': '#58a6ff',
@@ -192,6 +193,18 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
               lineHeight: 1.2
             }}>
               {carName}
+              {ordinal && (
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: '#8b949e',
+                  marginLeft: 6,
+                  fontFamily: 'monospace',
+                  opacity: 0.8
+                }}>
+                  #{ordinal}
+                </span>
+              )}
             </div>
 
             {/* 三枚徽章：级别 / PI / 驱动 */}
@@ -205,11 +218,6 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
               <span style={{ ...badgeBase, color: '#58a6ff', background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)' }}>
                 {drivetrainLabel}
               </span>
-              {ordinal && (
-                <span style={{ ...badgeBase, color: '#484f58', background: 'transparent', border: '1px solid #21262d', fontFamily: 'monospace' }}>
-                  #{ordinal}
-                </span>
-              )}
             </div>
           </div>
 

@@ -73,9 +73,9 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
     ip.name.startsWith('en') || ip.name.startsWith('eth') || ip.name.startsWith('wlan')
   )?.address || (serverStatus.ips.length > 0 ? serverStatus.ips[0].address : '127.0.0.1');
 
-  // 比赛状态判定
-  const isFreeRoam = isRaceOn && racePosition === 0 && currentRaceTime === 0 && (lapNumber === 0 || lapNumber === undefined);
-  const isInRace = isRaceOn && !isFreeRoam && (currentRaceTime > 0 || racePosition > 0 || (lapNumber !== undefined && lapNumber > 0));
+  // 比赛状态判定 - racePosition > 0 是区分比赛和漫游的可靠字段
+  const isFreeRoam = isRaceOn && racePosition === 0;
+  const isInRace = isRaceOn && racePosition > 0;
   
   const raceStateText = isInRace ? '比赛中' : isRaceOn ? '漫游中' : '待机';
   const raceStateColor = isInRace ? '#3fb950' : isRaceOn ? '#58a6ff' : '#8b949e';

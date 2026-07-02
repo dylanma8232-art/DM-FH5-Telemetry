@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useReducer } from 'react';
+import React, { useState, useRef, useEffect, useReducer, useMemo } from 'react';
 
 // Sector Timer Reducer
 const initialSectorState = {
@@ -224,205 +224,211 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#8b949e', fontWeight: 700 }}>名次</span>
-          <span style={{ fontSize: 24, fontWeight: 900, color: '#ffb454', fontFamily: 'monospace', lineHeight: 1 }}>
-            {racePosition > 0 ? racePosition : '-'}
+          <span style={{ fontSize: 11, color: '#8b949e', fontWeight: 700 }}>{racePosition > 0 ? '名次' : '状态'}</span>
+          <span style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1, color: racePosition > 0 ? '#ffb454' : '#58a6ff' }}>
+            {racePosition > 0 ? racePosition : '漫游'}
           </span>
-          <span style={{ fontSize: 12, color: '#8b949e' }}>/ 12</span>
+          {racePosition > 0 && <span style={{ fontSize: 12, color: '#8b949e' }}>/ 12</span>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>比赛时间</span>
+          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>{racePosition > 0 ? '比赛时间' : '状态'}</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 1 }}>
-            {formatTime(currentRaceTime, 2)}
+            {racePosition > 0 ? formatTime(currentRaceTime, 2) : '--:--.--'}
           </span>
         </div>
       </div>
 
       {/* 中部区：圈速对比与实时 Delta */}
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        alignItems: 'center',
-        paddingBottom: 8,
-        borderBottom: '1px solid rgba(48, 54, 61, 0.4)',
-        marginBottom: 8,
-        flexShrink: 0
-      }}>
-        {/* 单圈详情 - 字体加大 */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-            <span style={{ color: '#8b949e', fontWeight: 600 }}>上一圈:</span>
-            <span style={{ color: '#c9d1d9', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(lastLap)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-            <span style={{ color: '#8b949e', fontWeight: 600 }}>当前圈:</span>
-            <span style={{ color: '#58a6ff', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(currentLap)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-            <span style={{ color: '#8b949e', fontWeight: 600 }}>最快圈:</span>
-            <span style={{ color: '#3fb950', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(bestLap)}</span>
-          </div>
-        </div>
-
-        {/* 核心 Delta */}
+      {racePosition > 0 && (
         <div style={{
-          flex: '0 0 110px',
-          background: '#0d1117',
-          borderRadius: 6,
-          border: '1px solid #30363d',
-          padding: '6px 8px',
           display: 'flex',
-          flexDirection: 'column',
+          gap: 12,
           alignItems: 'center',
-          justifyContent: 'center'
+          paddingBottom: 8,
+          borderBottom: '1px solid rgba(48, 54, 61, 0.4)',
+          marginBottom: 8,
+          flexShrink: 0
         }}>
-          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 700, letterSpacing: 0.5 }}>当前圈速差</span>
-          <span style={{
-            fontSize: 20,
-            fontWeight: 900,
-            fontFamily: 'monospace',
-            color: deltaDisplay.color,
-            textShadow: deltaDisplay.color === '#3fb950' ? '0 0 8px rgba(63,185,80,0.3)' : 'none',
-            lineHeight: 1.2
+          {/* 单圈详情 - 字体加大 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#8b949e', fontWeight: 600 }}>上一圈:</span>
+              <span style={{ color: '#c9d1d9', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(lastLap)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#8b949e', fontWeight: 600 }}>当前圈:</span>
+              <span style={{ color: '#58a6ff', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(currentLap)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span style={{ color: '#8b949e', fontWeight: 600 }}>最快圈:</span>
+              <span style={{ color: '#3fb950', fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{formatTime(bestLap)}</span>
+            </div>
+          </div>
+
+          {/* 核心 Delta */}
+          <div style={{
+            flex: '0 0 110px',
+            background: '#0d1117',
+            borderRadius: 6,
+            border: '1px solid #30363d',
+            padding: '6px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
-            {deltaDisplay.text}
-          </span>
-          <span style={{ fontSize: 8.5, color: '#484f58' }}>估算差距</span>
+            <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 700, letterSpacing: 0.5 }}>当前圈速差</span>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 900,
+              fontFamily: 'monospace',
+              color: deltaDisplay.color,
+              textShadow: deltaDisplay.color === '#3fb950' ? '0 0 8px rgba(63,185,80,0.3)' : 'none',
+              lineHeight: 1.2
+            }}>
+              {deltaDisplay.text}
+            </span>
+            <span style={{ fontSize: 8.5, color: '#484f58' }}>估算差距</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 下部区：分段计时 - 样式增大 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6, flexShrink: 0 }}>
-          分段计时
-        </div>
+      {racePosition > 0 && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6, flexShrink: 0 }}>
+            分段计时
+          </div>
 
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 5,
-          overflowY: 'auto',
-          minHeight: 0
-        }}>
-          {state.sectors.length === 0 ? (
-            <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>
-              等待载入赛道分段数据...
-            </div>
-          ) : (
-            state.sectors.map((sector, index) => {
-              const isActive = index === state.currentSector;
-              const time = isActive ? currentSectorTime : (state.sectorTimes[index] || 0);
-              const best = state.bestSectorTimes[index] || 0;
-              const isWeak = index === state.weakSector;
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 5,
+            overflowY: 'auto',
+            minHeight: 0
+          }}>
+            {state.sectors.length === 0 ? (
+              <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>
+                等待载入赛道分段数据...
+              </div>
+            ) : (
+              state.sectors.map((sector, index) => {
+                const isActive = index === state.currentSector;
+                const time = isActive ? currentSectorTime : (state.sectorTimes[index] || 0);
+                const best = state.bestSectorTimes[index] || 0;
+                const isWeak = index === state.weakSector;
 
-              // 分段差值计算与颜色
-              let secDelta = '';
-              let secColor = '#c9d1d9';
-              if (!isActive && time > 0 && best > 0) {
-                const diff = time - best;
-                if (diff === 0) {
-                  secDelta = '最佳';
-                  secColor = '#3fb950';
-                } else if (diff < 0) {
-                  secDelta = `${diff.toFixed(2)}s`;
-                  secColor = '#3fb950';
-                } else {
-                  secDelta = `+${diff.toFixed(2)}s`;
-                  secColor = diff > 0.5 ? '#f85149' : '#d29922';
+                // 分段差值计算与颜色
+                let secDelta = '';
+                let secColor = '#c9d1d9';
+                if (!isActive && time > 0 && best > 0) {
+                  const diff = time - best;
+                  if (diff === 0) {
+                    secDelta = '最佳';
+                    secColor = '#3fb950';
+                  } else if (diff < 0) {
+                    secDelta = `${diff.toFixed(2)}s`;
+                    secColor = '#3fb950';
+                  } else {
+                    secDelta = `+${diff.toFixed(2)}s`;
+                    secColor = diff > 0.5 ? '#f85149' : '#d29922';
+                  }
+                } else if (isActive) {
+                  secDelta = '进行中';
+                  secColor = '#58a6ff';
                 }
-              } else if (isActive) {
-                secDelta = '进行中';
-                secColor = '#58a6ff';
-              }
 
-              return (
-                <div
-                  key={sector.index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    borderRadius: 4,
-                    background: isActive ? 'rgba(88,166,255,0.08)' : isWeak ? 'rgba(248,81,73,0.04)' : '#0d1117',
-                    border: `1px solid ${isActive ? 'rgba(88,166,255,0.3)' : isWeak ? 'rgba(248,81,73,0.2)' : 'rgba(48,54,61,0.3)'}`
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: isActive ? '#58a6ff' : '#8b949e',
-                      fontFamily: 'monospace'
-                    }}>
-                      S{index + 1}
-                    </span>
-                    {isWeak && (
+                return (
+                  <div
+                    key={sector.index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      background: isActive ? 'rgba(88,166,255,0.08)' : isWeak ? 'rgba(248,81,73,0.04)' : '#0d1117',
+                      border: `1px solid ${isActive ? 'rgba(88,166,255,0.3)' : isWeak ? 'rgba(248,81,73,0.2)' : 'rgba(48,54,61,0.3)'}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{
-                        fontSize: 8,
-                        background: '#f85149',
-                        color: '#fff',
-                        padding: '1px 4px',
-                        borderRadius: 2,
-                        fontWeight: 700
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: isActive ? '#58a6ff' : '#8b949e',
+                        fontFamily: 'monospace'
                       }}>
-                        慢
+                        S{index + 1}
                       </span>
-                    )}
+                      {isWeak && (
+                        <span style={{
+                          fontSize: 8,
+                          background: '#f85149',
+                          color: '#fff',
+                          padding: '1px 4px',
+                          borderRadius: 2,
+                          fontWeight: 700
+                        }}>
+                          慢
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, fontFamily: 'monospace', fontSize: 11 }}>
+                      <span style={{ color: isActive ? '#58a6ff' : '#c9d1d9', fontWeight: 700 }}>
+                        {formatSecTime(time)}
+                      </span>
+                      <span style={{ color: secColor, fontWeight: 800, width: 50, textAlign: 'right' }}>
+                        {secDelta}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 16, fontFamily: 'monospace', fontSize: 11 }}>
-                    <span style={{ color: isActive ? '#58a6ff' : '#c9d1d9', fontWeight: 700 }}>
-                      {formatSecTime(time)}
-                    </span>
-                    <span style={{ color: secColor, fontWeight: 800, width: 50, textAlign: 'right' }}>
-                      {secDelta}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 底部区：最近圈速记录 */}
-      <div style={{
-        marginTop: 10,
-        borderTop: '1px solid rgba(48, 54, 61, 0.4)',
-        paddingTop: 8,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-        flexShrink: 0
-      }}>
-        <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6 }}>
-          最近圈速记录
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 85 }}>
-          {lapHistory.length === 0 ? (
-            <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 4 }}>
-              暂无历史圈速记录
-            </div>
-          ) : (
-            [...lapHistory].reverse().map((record) => (
-              <div key={record.lap} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '4px 8px',
-                background: '#0d1117',
-                border: '1px solid rgba(48,54,61,0.2)',
-                borderRadius: 4,
-                fontSize: 10.5,
-                fontFamily: 'monospace'
-              }}>
-                <span style={{ color: '#8b949e' }}>第 {record.lap} 圈</span>
-                <span style={{ color: '#c9d1d9', fontWeight: 700 }}>{formatTime(record.time)}</span>
+      {racePosition > 0 && (
+        <div style={{
+          marginTop: 10,
+          borderTop: '1px solid rgba(48, 54, 61, 0.4)',
+          paddingTop: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          flexShrink: 0
+        }}>
+          <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6 }}>
+            最近圈速记录
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 85 }}>
+            {lapHistory.length === 0 ? (
+              <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 4 }}>
+                暂无历史圈速记录
               </div>
-            ))
-          )}
+            ) : (
+              [...lapHistory].reverse().map((record) => (
+                <div key={record.lap} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '4px 8px',
+                  background: '#0d1117',
+                  border: '1px solid rgba(48,54,61,0.2)',
+                  borderRadius: 4,
+                  fontSize: 10.5,
+                  fontFamily: 'monospace'
+                }}>
+                  <span style={{ color: '#8b949e' }}>第 {record.lap} 圈</span>
+                  <span style={{ color: '#c9d1d9', fontWeight: 700 }}>{formatTime(record.time)}</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

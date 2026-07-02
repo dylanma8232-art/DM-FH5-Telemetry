@@ -47,13 +47,18 @@ export function useSocket() {
       setPacketCount(prev => prev + 1);
       packetCounterRef.current += 1;
       
-      // 使用rAF批量更新，避免每帧都触发重渲染
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          setRenderData(dataRef.current);
-          rafRef.current = null;
+      if (packetCounterRef.current <= 3) {
+        console.log('[Socket] Received telemetry:', { 
+          isRaceOn: telemetry.isRaceOn, 
+          rpm: telemetry.currentEngineRpm?.toFixed(0),
+          carOrdinal: telemetry.car?.ordinal,
+          lapNumber: telemetry.lapNumber,
+          hasCar: !!telemetry.car,
+          performanceIndex: telemetry.car?.performanceIndex
         });
       }
+      
+      setRenderData(telemetry);
     });
 
     // 每秒钟计算一次接收到的UDP遥测包数 (帧率)

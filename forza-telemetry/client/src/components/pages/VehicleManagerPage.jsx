@@ -1,4 +1,4 @@
-
+import React, { useState, useEffect, useMemo } from 'react';
 
 const CLASS_LABELS = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
 
