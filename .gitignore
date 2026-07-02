@@ -1,0 +1,43 @@
+# System files
+.DS_Store
+Thumbs.db
+*.log
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds
+dist/
+build/
+out/
+
+# IDE / Config
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Telemetry data (Ignore local recorded run data files, keeping structure)
+forza-telemetry/server/data/session_*.json
+forza-telemetry/server/data/sessions/session_*.json
+forza-telemetry/data/sessions/
+forza-telemetry/data/*.gz
+forza-telemetry/data/session_*.json
+forza-telemetry/server/data/tracks-database.json
+
+# Codegraph files (Ignore local databases, socket, daemon files)
+.codegraph/codegraph.db
+.codegraph/codegraph.db-shm
+.codegraph/codegraph.db-wal
+.codegraph/daemon.pid
+.codegraph/sockets/
+.codegraph/logs/
+**/codegraph.db
+**/codegraph.db-shm
+**/codegraph.db-wal

@@ -1,0 +1,1161 @@
+/**
+ * FH5 调校预设 - 驾驶问题诊断与遥测数据分析
+ *
+ * 功能说明:
+ * 1. 常用驾驶问题 → 调校参数建议 (25个预设问题)
+ * 2. 遥测数据诊断 → 自动检测问题并返回调校建议
+ */
+
+// ============================================================
+// 问题分类定义
+// ============================================================
+export const PROBLEM_CATEGORIES = [
+  { id: 'steering', label: '转向', color: '#f85149' },
+  { id: 'braking', label: '刹车', color: '#d29922' },
+  { id: 'chassis', label: '底盘', color: '#58a6ff' },
+  { id: 'traction', label: '抓地力', color: '#3fb950' },
+  { id: 'stability', label: '稳定性', color: '#bc8cff' },
+  { id: 'acceleration', label: '加速', color: '#f778ba' },
+  { id: 'speed', label: '速度', color: '#79c0ff' },
+  { id: 'gearbox', label: '变速', color: '#ffa657' },
+  { id: 'aero', label: '空力', color: '#56d4dd' },
+  { id: 'tires', label: '轮胎', color: '#8b949e' }
+]
+
+// ============================================================
+// 常用驾驶问题 → 调校参数建议
+// ============================================================
+export const DRIVING_PROBLEMS = [
+  // ========== 转向类 ==========
+  {
+    id: 'understeer_mid',
+    name: '中速弯转向不足',
+    category: 'steering',
+    description: '入弯时车头不肯转，推头明显',
+    symptoms: '弯道中需要多打方向盘才能过弯，前轮抓地力不足',
+    fixes: {
+      frontTirePressure: { delta: -2, reason: '降低前胎压增加接地面积，提升前轮弯道抓地力' },
+      rearTirePressure: { delta: 1, reason: '适当提高后胎压，减少后轮抓地力以平衡前后' },
+      frontCamber: { delta: -0.5, reason: '增加前轮负外倾角，增强弯道中前轮接地面积' },
+      frontARB: { delta: -3, reason: '减小前防倾杆硬度，让前轮在弯道中更灵活接地' },
+      frontSpring: { delta: -1, reason: '稍微降低前弹簧硬度，增加前轮载荷转移' },
+      rearARB: { delta: 2, reason: '适当增加后防倾杆，让后轮分担更多侧向力' }
+    },
+    requiresParts: ['street_tires', 'sport_suspension']
+  },
+  {
+    id: 'understeer_high',
+    name: '高速弯转向不足',
+    category: 'steering',
+    description: '高速弯道车头外推',
+    symptoms: '高速弯中车辆有明显的向外推的趋势，前轮打滑',
+    fixes: {
+      frontCamber: { delta: -1.0, reason: '大幅增加前轮负外倾角，高速弯中保持前轮接触面' },
+      rearToe: { delta: 0.1, reason: '微调后轮前束为正值，增强直线稳定性以减少入弯干扰' },
+      frontDownforce: { delta: 5, reason: '增加前部下压力，提高前轮在高速时的载荷' },
+      rearDownforce: { delta: -2, reason: '适当减少后部下压力，平衡前后轴载荷分配' },
+      frontARB: { delta: -2, reason: '减小前防倾杆让前轮更接地' },
+      frontRideHeight: { delta: -1, reason: '降低前部车身高度，减少前部气流分离提升前下压力' }
+    },
+    requiresParts: ['sport_tires', 'sport_suspension', 'sport_aero']
+  },
+  {
+    id: 'oversteer_entry',
+    name: '入弯过度转向',
+    category: 'steering',
+    description: '入弯时车尾外甩',
+    symptoms: '入弯瞬间车尾突然失去抓地力向外滑出',
+    fixes: {
+      rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积，提升后轮抓地力' },
+      frontTirePressure: { delta: 1, reason: '适当提高前胎压，增加前轮响应速度' },
+      rearCamber: { delta: 0.3, reason: '减小后轮负外倾角(趋于0)，提升直线/入弯时的后轮抓地' },
+      rearARB: { delta: -3, reason: '减小后防倾杆，让后轮在入弯时保持更好的接地' },
+      rearSpring: { delta: -1, reason: '适当降低后弹簧硬度，改善入弯载荷转移' },
+      rearDamping: { delta: -0.5, reason: '减少后阻尼压缩速度，让后轮更平滑地承受载荷转移' }
+    },
+    requiresParts: ['street_tires', 'sport_suspension']
+  },
+  {
+    id: 'oversteer_exit',
+    name: '出弯过度转向',
+    category: 'steering',
+    description: '出弯加油时车尾甩出',
+    symptoms: '出弯踩油门时车尾突然外甩，难以控制出弯线路',
+    fixes: {
+      diffAccel: { delta: 10, reason: '提高加速差速锁，增加内轮扭矩传递减少出弯打滑' },
+      rearSpring: { delta: 2, reason: '增加后弹簧硬度，减少出弯加油时的后部下蹲' },
+      rearARB: { delta: 2, reason: '增加后防倾杆，抑制出弯时后部侧倾引起的甩尾' },
+      rearTirePressure: { delta: -1, reason: '降低后胎压增加出弯时后轮接地面积' },
+      rearDamping: { delta: 1, reason: '增加后阻尼回弹速度，更快稳定出弯车身姿态' }
+    },
+    requiresParts: ['sport_tires', 'sport_suspension', 'sport_diff']
+  },
+  {
+    id: 'oversteer_power',
+    name: '大油门甩尾',
+    category: 'steering',
+    description: '直线或弯中重油门时后轮打滑甩尾',
+    symptoms: '大油门输出超出后轮抓地极限，后轮空转甩尾',
+    fixes: {
+      diffAccel: { delta: 15, reason: '大幅提高加速差速锁，减少动力造成的内轮打滑' },
+      rearTirePressure: { delta: -2, reason: '降低后胎压，最大化后轮接地面积' },
+      rearSpring: { delta: 3, reason: '增加后弹簧硬度，减少大油门时后部下蹲带来的载荷变化' },
+      rearDamping: { delta: 1.5, reason: '增加后回弹阻尼，更快抑制动力引起的车身摆动' },
+      rearRideHeight: { delta: 1, reason: '适当抬高后部，改善加速时的重量转移分布' }
+    },
+    requiresParts: ['sport_tires', 'sport_suspension', 'sport_diff']
+  },
+
+  // ========== 刹车类 ==========
+  {
+    id: 'brake_dive',
+    name: '刹车点头严重',
+    category: 'braking',
+    description: '重刹时车头明显下沉',
+    symptoms: '重刹时车头大幅下沉，刹车后车身姿态恢复慢',
+    fixes: {
+      frontSpring: { delta: 5, reason: '增加前弹簧硬度，抵抗刹车时的前部下沉' },
+      frontDamping: { delta: 2, reason: '增加前压缩阻尼，减缓前悬挂压缩速度' },
+      rearDamping: { delta: 1, reason: '增加后回弹阻尼，防止后部过度抬起' },
+      frontRideHeight: { delta: 1, reason: '稍微增加前部高度，提供更多悬挂行程应对刹车下蹲' },
+      brakeBias: { delta: -2, reason: '略向前移刹车偏置，配合前弹簧减少点头幅度' }
+    },
+    requiresParts: ['sport_suspension']
+  },
+  {
+    id: 'brake_lock',
+    name: '刹车容易锁死',
+    category: 'braking',
+    description: '重刹时轮胎抱死打滑',
+    symptoms: '重刹时轮胎突然抱死，方向盘失去控制力，刹车距离反而增加',
+    fixes: {
+      brakeBias: { delta: -3, reason: '将刹车偏置向前移，平衡前后刹车力度' },
+      frontTirePressure: { delta: -1, reason: '降低前胎压增加接触面积，减少锁死概率' },
+      rearTirePressure: { delta: -1, reason: '降低后胎压增加接触面积' },
+      frontDamping: { delta: 1, reason: '增加前压缩阻尼，让刹车载荷转移更平滑' },
+      rearSpring: { delta: 1, reason: '稍微增加后弹簧硬度，减少后部在刹车时过度抬起导致的载荷集中前轮' }
+    },
+    requiresParts: ['street_tires', 'sport_suspension']
+  },
+  {
+    id: 'brake_fade',
+    name: '刹车热衰减',
+    category: 'braking',
+    description: '连续刹车后制动力下降',
+    symptoms: '连续弯道/下山路段刹车后，刹车踏板感觉变软，制动距离变长',
+    fixes: {
+      brakeBias: { delta: -2, reason: '前移刹车偏置，减少后轮刹车负担，降低整体热负荷' },
+      frontDucts: { delta: 3, reason: '增加前刹车导管开度，提升刹车散热效率（建议升级刹车配件）' },
+      rearDucts: { delta: 2, reason: '增加后刹车导管开度，提升散热' },
+      tireCompound: { delta: 1, reason: '建议升级至更高等级轮胎，耐热性更好' }
+    },
+    requiresParts: ['sport_brakes'],
+    upgradeAdvice: '建议升级刹车系统至运动级或竞赛级，高等级刹车耐热性显著提升'
+  },
+
+  // ========== 底盘类 ==========
+  {
+    id: 'body_roll_large',
+    name: '弯道侧倾过大',
+    category: 'chassis',
+    description: '弯道中车身侧倾角度大',
+    symptoms: '进弯和弯道中车身明显向一侧倾斜，影响驾驶信心和响应速度',
+    fixes: {
+      frontARB: { delta: 5, reason: '增加前防倾杆硬度，直接抵抗侧倾' },
+      rearARB: { delta: 5, reason: '增加后防倾杆硬度，整体减少车身侧倾' },
+      frontSpring: { delta: 3, reason: '增加前弹簧硬度，提供更强的侧倾支撑' },
+      rearSpring: { delta: 3, reason: '增加后弹簧硬度，整体提升侧倾刚度' },
+      frontDamping: { delta: 1, reason: '增加前阻尼，控制侧倾建立速度' },
+      rearDamping: { delta: 1, reason: '增加后阻尼，整体抑制侧倾运动' },
+      frontRideHeight: { delta: -2, reason: '降低车身高度，降低重心减少侧倾' },
+      rearRideHeight: { delta: -2, reason: '降低后部车身高度' }
+    },
+    requiresParts: ['sport_suspension']
+  },
+  {
+    id: 'body_roll_wobble',
+    name: '过弯后车身摇摆',
+    category: 'chassis',
+    description: '过弯后车身左右摇摆不止',
+    symptoms: '出弯后车身像船一样左右摇晃，影响出弯加速和直线稳定性',
+    fixes: {
+      frontARB: { delta: 3, reason: '增加前防倾杆，更快抑制车身左右摇摆' },
+      rearARB: { delta: 3, reason: '增加后防倾杆，前后配合快速稳定车身' },
+      frontDamping: { delta: 2, reason: '大幅增加前回弹阻尼，快速消耗摇摆能量' },
+      rearDamping: { delta: 2, reason: '大幅增加后回弹阻尼' },
+      frontSpring: { delta: 2, reason: '增加前弹簧硬度，提高车身固有频率远离摇摆频率' },
+      rearSpring: { delta: 2, reason: '增加后弹簧硬度，整体提高刚性' }
+    },
+    requiresParts: ['sport_suspension']
+  },
+  {
+    id: 'bump_stiff',
+    name: '过坑洼太颠',
+    category: 'chassis',
+    description: '经过不平路面时弹跳厉害',
+    symptoms: '过颠簸路面时车身剧烈弹跳，轮胎离地失去抓地力',
+    fixes: {
+      frontSpring: { delta: -4, reason: '降低前弹簧硬度，让悬挂更好吸收路面冲击' },
+      rearSpring: { delta: -4, reason: '降低后弹簧硬度，整体提升舒适性' },
+      frontDamping: { delta: -2, reason: '减小前阻尼，让悬挂压缩更顺畅' },
+      rearDamping: { delta: -2, reason: '减小后阻尼，让悬挂更快响应路面变化' },
+      frontRideHeight: { delta: 2, reason: '适当增加车身高度，提供更多悬挂行程' },
+      rearRideHeight: { delta: 2, reason: '增加后部高度，增加悬挂行程余量' }
+    },
+    requiresParts: ['sport_suspension']
+  },
+  {
+    id: 'bump_float',
+    name: '悬挂太软',
+    category: 'chassis',
+    description: '悬挂行程过大，车身晃动',
+    symptoms: '车身像船一样晃动，转向反应迟钝，过弯缺乏支撑',
+    fixes: {
+      frontSpring: { delta: 5, reason: '增加前弹簧硬度，减少悬挂行程和车身晃动' },
+      rearSpring: { delta: 5, reason: '增加后弹簧硬度，整体提升支撑性' },
+      frontARB: { delta: 3, reason: '增加前防倾杆，减少侧倾和晃动' },
+      rearARB: { delta: 3, reason: '增加后防倾杆，配合前部抑制车身晃动' },
+      frontDamping: { delta: 1, reason: '增加前阻尼，控制悬挂运动速度' },
+      rearDamping: { delta: 1, reason: '增加后阻尼' }
+    },
+    requiresParts: ['sport_suspension']
+  },
+
+  // ========== 抓地力类 ==========
+  {
+    id: 'traction_low',
+    name: '抓地力不足',
+    category: 'traction',
+    description: '加速/弯道中轮胎容易打滑',
+    symptoms: '加速时轮胎空转，弯道中轮胎尖叫明显，整体抓地力感觉不够',
+    fixes: {
+      frontTirePressure: { delta: -2, reason: '降低前胎压，增加接地面积提升抓地力' },
+      rearTirePressure: { delta: -2, reason: '降低后胎压，增加接地面积提升抓地力' },
+      frontCamber: { delta: -0.3, reason: '微调前轮负外倾角，优化弯道接地面积' },
+      rearCamber: { delta: -0.5, reason: '增加后轮负外倾角，改善后轮弯道抓地力' },
+      frontARB: { delta: -2, reason: '减小前防倾杆，让前轮在颠簸路面保持接地' },
+      rearARB: { delta: -2, reason: '减小后防倾杆，让后轮在弯道中保持更好的接地' }
+    },
+    requiresParts: ['street_tires'],
+    upgradeAdvice: '建议升级轮胎至更高等级(运动/竞赛)，高等级轮胎提供显著更好的抓地力'
+  },
+  {
+    id: 'traction_uneven',
+    name: '左右抓地不均',
+    category: 'traction',
+    description: '左右轮温度或磨损差异大',
+    symptoms: '车辆跑偏，某一侧轮胎磨损明显更快，左右温度差距大',
+    fixes: {
+      frontToe: { delta: -0.1, reason: '微调前束角，确保左右轮负载均匀' },
+      rearToe: { delta: 0.1, reason: '微调后束角，辅助校正左右不平衡' },
+      frontCamber: { delta: -0.2, reason: '微调前外倾角，校正左右不平衡' },
+      rearCamber: { delta: -0.2, reason: '微调后外倾角，确保左右后轮负载一致' },
+      frontSpring: { delta: 1, reason: '微调弹簧确保左右平衡（检查左右是否设置一致）' },
+      rearSpring: { delta: 1, reason: '微调后弹簧确保左右一致' }
+    },
+    requiresParts: ['street_tires'],
+    upgradeAdvice: '建议检查悬挂几何是否对称，左右参数设置应保持一致'
+  },
+
+  // ========== 稳定性类 ==========
+  {
+    id: 'unstable_straight',
+    name: '直线不稳',
+    category: 'stability',
+    description: '高速直行时车身不稳发飘',
+    symptoms: '高速直行时感觉车身发飘，微小的路面变化就会引起车身晃动',
+    fixes: {
+      frontToe: { delta: -0.1, reason: '微调前束为负值(前束内八字)，增强直线稳定性' },
+      rearToe: { delta: 0.1, reason: '微调后束为正值(后展外八字)，辅助稳定后轴' },
+      rearDownforce: { delta: 8, reason: '增加后部下压力，压住车尾提升高速稳定性' },
+      frontDownforce: { delta: 3, reason: '适当增加前部下压力，保持前后平衡' },
+      rearARB: { delta: 2, reason: '增加后防倾杆，抑制高速时后部微摆' },
+      rearDamping: { delta: 1, reason: '增加后阻尼，更快抑制高速时的微小振动' },
+      rearSpring: { delta: 2, reason: '增加后弹簧硬度，提升后部高速支撑' }
+    },
+    requiresParts: ['street_tires', 'sport_suspension', 'sport_aero']
+  },
+  {
+    id: 'snap_oversteer',
+    name: '突然甩尾',
+    category: 'stability',
+    description: '不经意间突然大幅甩尾',
+    symptoms: '正常行驶中突然出现不可预料的剧烈甩尾，难以提前预防',
+    fixes: {
+      diffDecel: { delta: 15, reason: '大幅提高减速差速锁，防止收油/刹车时内轮突然锁止导致甩尾' },
+      diffAccel: { delta: 10, reason: '提高加速差速锁，防止动力突变引起后轮打滑' },
+      rearARB: { delta: -3, reason: '减小后防倾杆，让后轮在突变工况下保持更渐进的滑动特性' },
+      rearDamping: { delta: -1, reason: '减小后回弹阻尼，让后悬挂在突变时更柔和地响应' },
+      rearSpring: { delta: -2, reason: '降低后弹簧硬度，增加后轮在突变时的容错空间' },
+      rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积，提供更多抓地裕量' }
+    },
+    requiresParts: ['sport_tires', 'sport_suspension', 'sport_diff']
+  },
+
+  // ========== 加速类 ==========
+  {
+    id: 'launch_wheel_spin',
+    name: '起步打滑',
+    category: 'acceleration',
+    description: '起步时前轮或后轮空转',
+    symptoms: '起步瞬间轮胎空转，动力无法有效传递到地面，起步加速慢',
+    fixes: {
+      diffAccel: { delta: 20, reason: '大幅提高加速差速锁，将扭矩更均匀地分配到左右轮' },
+      frontTirePressure: { delta: -2, reason: '降低前胎压增加起步接地面积（适用于前驱/四驱）' },
+      rearTirePressure: { delta: -2, reason: '降低后胎压增加起步接地面积（适用于后驱/四驱）' },
+      rearSpring: { delta: 3, reason: '增加后弹簧硬度，减少起步时后部下蹲导致的载荷过度集中' },
+      rearDamping: { delta: 1, reason: '增加后压缩阻尼，控制起步时的悬挂压缩速度' }
+    },
+    requiresParts: ['street_tires', 'sport_suspension', 'sport_diff']
+  },
+  {
+    id: 'accel_slow',
+    name: '加速缓慢',
+    category: 'acceleration',
+    description: '油门踩到底加速慢',
+    symptoms: '全油门加速时感觉动力输出不足，加速G力低',
+    fixes: {
+      finalDrive: { delta: -0.3, reason: '缩短最终传动比，提升每个档位的加速G力（牺牲尾速）' },
+      rearRideHeight: { delta: -1, reason: '降低后部高度，减少空气阻力提升加速效率' },
+      frontRideHeight: { delta: -1, reason: '降低前部高度，减少迎风面积' },
+      tireCompound: { delta: 1, reason: '更高等级轮胎提供更好的加速抓地力' }
+    },
+    requiresParts: ['sport_trans'],
+    upgradeAdvice: '如果已优化齿比仍加速慢，建议升级引擎/涡轮增加动力输出'
+  },
+
+  // ========== 速度类 ==========
+  {
+    id: 'top_speed_low',
+    name: '尾速不够',
+    category: 'speed',
+    description: '直道尾速低于预期',
+    symptoms: '长直道尾段速度不够高，被对手在直道超越',
+    fixes: {
+      finalDrive: { delta: 0.3, reason: '加长最终传动比，降低各档转速让引擎在更高速域发力' },
+      rearDownforce: { delta: -10, reason: '减少后部下压力，降低高速空气阻力' },
+      frontDownforce: { delta: -5, reason: '减少前部下压力，降低整体阻力' },
+      frontRideHeight: { delta: 2, reason: '抬高前部，减少前部气流阻塞降低风阻' },
+      rearRideHeight: { delta: 1, reason: '适当抬高后部' }
+    },
+    requiresParts: ['sport_trans', 'sport_aero']
+  },
+
+  // ========== 变速类 ==========
+  {
+    id: 'gear_too_long',
+    name: '档位过长',
+    category: 'gearbox',
+    description: '某档位加速区间太短就到红线',
+    fixes: {
+      gearAdjustment: { delta: 'shorten', reason: '该档位齿比过长(数值太小)，需要缩短齿比(增大数值)让加速区间更长' },
+      finalDrive: { delta: -0.2, reason: '配合缩短最终传动比，让每个档位在更合适的转速区间发力' }
+    },
+    requiresParts: ['sport_trans'],
+    upgradeAdvice: '需要运动级或更高等级变速箱才能自定义齿比'
+  },
+  {
+    id: 'gear_too_short',
+    name: '档位过短',
+    category: 'gearbox',
+    description: '某档位到达红线时速度不够',
+    fixes: {
+      gearAdjustment: { delta: 'lengthen', reason: '该档位齿比过短(数值太大)，需要加长齿比(减小数值)让该档位能拉到更高速度' },
+      finalDrive: { delta: 0.2, reason: '配合加长最终传动比，让每个档位覆盖更宽的速度范围' }
+    },
+    requiresParts: ['sport_trans'],
+    upgradeAdvice: '需要运动级或更高等级变速箱才能自定义齿比'
+  },
+
+  // ========== 空力类 ==========
+  {
+    id: 'nose_heavy',
+    name: '车头过重',
+    category: 'aero',
+    description: '入弯迟钝，车头感觉重',
+    symptoms: '高速时车头感觉重，入弯反应慢，直线刹车后前部恢复慢',
+    fixes: {
+      rearDownforce: { delta: 5, reason: '增加后部下压力，把高速时的载荷更多压在后轴上' },
+      frontDownforce: { delta: -3, reason: '适当减少前部下压力，减轻高速时前轴载荷' },
+      rearRideHeight: { delta: -1, reason: '降低后部高度，增加后下压力效果' },
+      frontSpring: { delta: -2, reason: '适当降低前弹簧硬度，让前部更灵活响应转向输入' },
+      frontARB: { delta: -2, reason: '减小前防倾杆，增加前轮接地灵活性' }
+    },
+    requiresParts: ['sport_suspension', 'sport_aero']
+  },
+  {
+    id: 'loose_rear',
+    name: '车尾轻盈',
+    category: 'aero',
+    description: '高速时车尾感觉轻飘不稳固',
+    symptoms: '高速直行或弯道中感觉车尾不稳固，容易甩尾或不安定',
+    fixes: {
+      rearDownforce: { delta: 10, reason: '大幅增加后部下压力，把车尾压向地面' },
+      rearARB: { delta: 3, reason: '增加后防倾杆，抑制高速时后部摇摆' },
+      rearSpring: { delta: 2, reason: '增加后弹簧硬度，提升后部高速支撑性' },
+      rearDamping: { delta: 1, reason: '增加后阻尼，快速稳定后部运动' },
+      diffDecel: { delta: 5, reason: '提高减速差速锁，防止高速收油时后轮突然失去稳定性' }
+    },
+    requiresParts: ['sport_suspension', 'sport_aero', 'sport_diff']
+  },
+
+  // ========== 轮胎类 ==========
+  {
+    id: 'tire_wear_fast',
+    name: '轮胎磨损过快',
+    category: 'tires',
+    description: '轮胎温度上升过快或磨损过快',
+    symptoms: '比赛中段轮胎温度就达到过热区间，抓地力明显下降',
+    fixes: {
+      frontTirePressure: { delta: 2, reason: '提高前胎压，减少胎面弯曲变形产生的热量' },
+      rearTirePressure: { delta: 2, reason: '提高后胎压，减少胎面弯曲变形产生的热量' },
+      frontCamber: { delta: 0.3, reason: '减小前轮负外倾角(趋于0)，减少弯道中胎面内侧过度磨损' },
+      rearCamber: { delta: 0.3, reason: '减小后轮负外倾角，减少后轮磨损' },
+      frontARB: { delta: -2, reason: '减小前防倾杆，让轮胎在弯道中更均匀接地，减少局部磨损' },
+      rearARB: { delta: -2, reason: '减小后防倾杆，均匀分布后轮接地压力' },
+      tireCompound: { delta: -1, reason: '使用更耐久的轮胎配方（牺牲少量抓地力换取耐久性）' }
+    },
+    requiresParts: ['street_tires'],
+    upgradeAdvice: '如果需要兼顾抓地力和耐久，竞赛级轮胎是最平衡的选择'
+  },
+  {
+    id: 'tire_wear_uneven',
+    name: '轮胎磨损不均',
+    category: 'tires',
+    description: '内侧或外侧磨损明显多于另一侧',
+    symptoms: '轮胎一侧磨损严重，另一侧几乎没有磨损，胎面呈锥形',
+    fixes: {
+      frontCamber: { delta: 0.5, reason: '减小前轮负外倾角，减少胎面内侧过度磨损（如果内侧磨损大）' },
+      rearCamber: { delta: 0.5, reason: '减小后轮负外倾角，减少后轮内侧磨损' },
+      frontToe: { delta: 0.1, reason: '微调前束角校正左右磨损不均（外八字磨损内侧则减小）' },
+      rearToe: { delta: 0.1, reason: '微调后束角校正磨损方向' }
+    },
+    requiresParts: ['street_tires'],
+    upgradeAdvice: '磨损不均通常是外倾角或束角设置不当导致，建议逐项微调并观察'
+  }
+]
+
+// ============================================================
+// 问题分类索引 (按分类快速查找问题)
+// ============================================================
+export function getProblemsByCategory(categoryId) {
+  return DRIVING_PROBLEMS.filter(p => p.category === categoryId)
+}
+
+// ============================================================
+// 根据问题ID获取调校建议
+// ============================================================
+export function getProblemById(problemId) {
+  return DRIVING_PROBLEMS.find(p => p.id === problemId) || null
+}
+
+// ============================================================
+// 检查配件是否满足调校建议的最低要求
+// ============================================================
+export function checkPartRequirements(problemId, currentParts) {
+  const problem = getProblemById(problemId)
+  if (!problem) return { met: true, missing: [] }
+
+  const missing = []
+  for (const req of problem.requiresParts) {
+    // 检查配件等级是否达到要求
+    const [cat, tier] = req.split('_') // e.g. 'sport_tires' -> cat='sport', partType='tires'
+    const partType = req.replace(`${cat}_`, '')
+    const minTierOrder = { street: 1, sport: 2, race: 3, extreme: 4 }
+    const currentTierOrder = minTierOrder[currentParts?.[partType]?.tier] || 0
+    const requiredTierOrder = minTierOrder[cat] || 0
+
+    if (currentTierOrder < requiredTierOrder) {
+      missing.push({
+        partType,
+        requiredTier: cat,
+        currentTier: currentParts?.[partType]?.tier || 'stock'
+      })
+    }
+  }
+
+  return {
+    met: missing.length === 0,
+    missing,
+    upgradeAdvice: problem.upgradeAdvice || null
+  }
+}
+
+// ============================================================
+// 将问题建议应用到当前调校 (生成新调校值)
+// ============================================================
+export function applyProblemFix(problemId, currentTune, paramConstraints) {
+  const problem = getProblemById(problemId)
+  if (!problem || !currentTune) return null
+
+  const newTune = JSON.parse(JSON.stringify(currentTune))
+  const appliedFixes = {}
+  const skippedFixes = []
+
+  // 参数名到currentTune路径的映射
+  const paramPathMap = {
+    frontTirePressure: 'tires.frontPressure',
+    rearTirePressure: 'tires.rearPressure',
+    frontCamber: 'tires.frontCamber',
+    rearCamber: 'tires.rearCamber',
+    frontToe: 'tires.frontToe',
+    rearToe: 'tires.rearToe',
+    frontSpring: 'suspension.frontSpring',
+    rearSpring: 'suspension.rearSpring',
+    frontDamping: 'suspension.frontDamping',
+    rearDamping: 'suspension.rearDamping',
+    frontARB: 'suspension.frontARB',
+    rearARB: 'suspension.rearARB',
+    frontRideHeight: 'suspension.frontRideHeight',
+    rearRideHeight: 'suspension.rearRideHeight',
+    diffAccel: 'drivetrain.diffAccel',
+    diffDecel: 'drivetrain.diffDecel',
+    diffCenter: 'drivetrain.diffCenter',
+    finalDrive: 'drivetrain.finalDrive',
+    frontDownforce: 'aero.frontDownforce',
+    rearDownforce: 'aero.rearDownforce'
+  }
+
+  for (const [param, fix] of Object.entries(problem.fixes)) {
+    const path = paramPathMap[param]
+    if (!path) {
+      skippedFixes.push({ param, reason: '未知参数' })
+      continue
+    }
+
+    // 检查参数是否锁定
+    const constraint = paramConstraints?.[path]
+    if (constraint?.locked) {
+      skippedFixes.push({ param, reason: '参数被锁定，需要升级配件' })
+      continue
+    }
+
+    // 获取当前值
+    const pathParts = path.split('.')
+    let current = newTune
+    for (const part of pathParts) {
+      if (current[part] === undefined) current[part] = {}
+      if (part === pathParts[pathParts.length - 1]) break
+      current = current[part]
+    }
+    const currentValue = current[pathParts[pathParts.length - 1]]
+    if (currentValue === undefined) {
+      skippedFixes.push({ param, reason: '无当前值' })
+      continue
+    }
+
+    // 计算新值
+    let newValue
+    if (typeof fix.delta === 'string') {
+      // 字符串类型的调整(如齿比加长/缩短)不直接计算数值
+      appliedFixes[param] = { ...fix, currentValue, note: '需要手动调整' }
+      continue
+    }
+
+    newValue = currentValue + fix.delta
+
+    // 约束范围
+    if (constraint) {
+      newValue = Math.max(constraint.min, Math.min(constraint.max, newValue))
+    }
+
+    // 精度处理
+    if (Number.isInteger(currentValue)) {
+      newValue = Math.round(newValue)
+    } else {
+      newValue = Math.round(newValue * 10) / 10
+    }
+
+    current[pathParts[pathParts.length - 1]] = newValue
+    appliedFixes[param] = {
+      delta: fix.delta,
+      reason: fix.reason,
+      oldValue: currentValue,
+      newValue
+    }
+  }
+
+  return {
+    newTune,
+    appliedFixes,
+    skippedFixes
+  }
+}
+
+// ============================================================
+// 遥测数据诊断 → 调校建议
+// ============================================================
+
+/**
+ * 分析遥测帧数据，检测问题并返回调校建议
+ *
+ * @param {Array} frames - 遥测帧数据数组，每帧包含:
+ *   - timestamp: 时间戳(ms)
+ *   - speed: 当前速度(km/h)
+ *   - throttle: 油门开度(0-1)
+ *   - brake: 刹车力度(0-1)
+ *   - steerAngle: 转向角(度，正值为左转)
+ *   - lateralG: 横向G力
+ *   - longitudinalG: 纵向G力
+ *   - suspension: { frontLeft, frontRight, rearLeft, rearRight } 悬挂压缩量(0-1)
+ *   - tireTemp: { frontLeft, frontRight, rearLeft, rearRight } 轮胎温度(°C)
+ *   - rpm: 引擎转速
+ *   - gear: 当前档位
+ *   - yawRate: 偏航角速率(度/秒)
+ *   - pitchAngle: 俯仰角(度)
+ *   - rollAngle: 侧倾角(度)
+ * @param {Object} currentTune - 当前调校参数
+ * @returns {Array} 建议列表，每项包含: { problem, severity, fix, details }
+ */
+export function diagnoseFromTelemetry(frames, currentTune = {}) {
+  if (!frames || frames.length === 0) return []
+
+  const suggestions = []
+
+  // ----------------------------------------------------------
+  // 1. 悬挂触底检测
+  // ----------------------------------------------------------
+  const suspensionFrames = frames.filter(f => f.suspension)
+  if (suspensionFrames.length > 0) {
+    const totalSuspFrames = suspensionFrames.length
+    const bottomOuts = suspensionFrames.filter(
+      f =>
+        f.suspension.frontLeft > 0.9 ||
+        f.suspension.frontRight > 0.9 ||
+        f.suspension.rearLeft > 0.9 ||
+        f.suspension.rearRight > 0.9
+    ).length
+
+    const bottomOutRatio = bottomOuts / totalSuspFrames
+    if (bottomOutRatio > 0.05) {
+      const severity = bottomOutRatio > 0.15 ? 'high' : 'medium'
+      const springDelta = severity === 'high' ? 8 : 5
+      suggestions.push({
+        problem: '悬挂频繁触底',
+        severity,
+        details: `触底率 ${(bottomOutRatio * 100).toFixed(1)}%，${severity === 'high' ? '严重影响抓地力和稳定性' : '可能影响弯道表现'}`,
+        fix: {
+          frontSpring: { delta: springDelta, reason: `悬挂触底率${(bottomOutRatio * 100).toFixed(1)}%，增加前弹簧硬度防止触底` },
+          rearSpring: { delta: Math.round(springDelta * 0.8), reason: '同步增加后弹簧硬度，保持前后平衡' },
+          frontRideHeight: { delta: 2, reason: '适当增加前部车身高度，提供更多悬挂行程' },
+          rearRideHeight: { delta: 1, reason: '适当增加后部车身高度' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 2. 入弯转向不足检测 (横向G和转向角的比值异常)
+  // ----------------------------------------------------------
+  const corneringFrames = frames.filter(
+    f => f.lateralG && Math.abs(f.lateralG) > 0.3 && f.steerAngle !== undefined
+  )
+  if (corneringFrames.length > 10) {
+    // 计算转向效率 = 横向G / 期望转向G (期望值基于转向角)
+    const understeerEvents = corneringFrames.filter(f => {
+      const steerInput = Math.abs(f.steerAngle)
+      const lateralAccel = Math.abs(f.lateralG)
+      // 如果转向角很大但横向G力没有成比例增大，说明转向不足
+      const expectedG = steerInput * 0.015 // 经验系数: 每度转向约产生0.015G
+      return steerInput > 5 && lateralAccel < expectedG * 0.6
+    })
+
+    const understeerRatio = understeerEvents.length / corneringFrames.length
+    if (understeerRatio > 0.3) {
+      suggestions.push({
+        problem: '入弯转向不足',
+        severity: understeerRatio > 0.5 ? 'high' : 'medium',
+        details: `转向效率低下帧占比 ${(understeerRatio * 100).toFixed(1)}%，${understeerRatio > 0.5 ? '转向不足严重' : '转向效率偏低'}`,
+        fix: {
+          frontTirePressure: { delta: -2, reason: '降低前胎压增加接地面积' },
+          frontCamber: { delta: -0.5, reason: '增加前轮负外倾角增强弯道抓地' },
+          frontARB: { delta: -3, reason: '减小前防倾杆让前轮更灵活接地' },
+          frontSpring: { delta: -1, reason: '降低前弹簧硬度，增加前轮弯道载荷' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 3. 刹车点头检测 (悬挂前后行程差)
+  // ----------------------------------------------------------
+  const brakingFrames = frames.filter(f => f.brake > 0.5 && f.suspension)
+  if (brakingFrames.length > 5) {
+    let totalPitch = 0
+    for (const f of brakingFrames) {
+      const frontAvg = (f.suspension.frontLeft + f.suspension.frontRight) / 2
+      const rearAvg = (f.suspension.rearLeft + f.suspension.rearRight) / 2
+      totalPitch += frontAvg - rearAvg // 前压缩多后压缩少 = 点头
+    }
+    const avgPitch = totalPitch / brakingFrames.length
+
+    if (avgPitch > 0.35) {
+      suggestions.push({
+        problem: '刹车点头严重',
+        severity: avgPitch > 0.55 ? 'high' : 'medium',
+        details: `刹车时前后悬挂差值 ${avgPitch.toFixed(2)}，${avgPitch > 0.55 ? '点头严重需要重点改善' : '点头偏大影响刹车后恢复'}`,
+        fix: {
+          frontSpring: { delta: 5, reason: `刹车点头值${avgPitch.toFixed(2)}，增加前弹簧硬度抵抗下沉` },
+          frontDamping: { delta: 2, reason: '增加前压缩阻尼减缓点头速度' },
+          rearDamping: { delta: 1, reason: '增加后回弹阻尼防止后部过度抬起' },
+          frontRideHeight: { delta: 1, reason: '增加前部高度提供更多行程余量' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 4. 轮胎温度不均检测
+  // ----------------------------------------------------------
+  const tireTempFrames = frames.filter(f => f.tireTemp)
+  if (tireTempFrames.length > 20) {
+    // 取后半段帧的平均温度(排除冷胎阶段)
+    const warmFrames = tireTempFrames.slice(Math.floor(tireTempFrames.length * 0.5))
+    const avgTemps = { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 }
+
+    for (const f of warmFrames) {
+      avgTemps.frontLeft += f.tireTemp.frontLeft
+      avgTemps.frontRight += f.tireTemp.frontRight
+      avgTemps.rearLeft += f.tireTemp.rearLeft
+      avgTemps.rearRight += f.tireTemp.rearRight
+    }
+
+    const n = warmFrames.length
+    for (const k of Object.keys(avgTemps)) avgTemps[k] /= n
+
+    const maxTempDiff = Math.max(
+      Math.abs(avgTemps.frontLeft - avgTemps.frontRight),
+      Math.abs(avgTemps.rearLeft - avgTemps.rearRight),
+      Math.abs(avgTemps.frontLeft - avgTemps.rearLeft),
+      Math.abs(avgTemps.frontRight - avgTemps.rearRight)
+    )
+
+    if (maxTempDiff > 8) {
+      const isLeftRight = Math.abs(avgTemps.frontLeft - avgTemps.frontRight) > Math.abs(avgTemps.frontLeft - avgTemps.rearLeft)
+      const isFrontRear = !isLeftRight && Math.abs(avgTemps.frontLeft - avgTemps.rearLeft) > 5
+
+      let tempIssueDetail = ''
+      if (isLeftRight) {
+        tempIssueDetail = `左右温差 ${maxTempDiff.toFixed(1)}°C，可能存在外倾角或束角不对称`
+      } else if (isFrontRear) {
+        tempIssueDetail = `前后温差 ${maxTempDiff.toFixed(1)}°C，可能需要调整前后刹车偏置或弹簧平衡`
+      } else {
+        tempIssueDetail = `轮胎温差 ${maxTempDiff.toFixed(1)}°C，温差偏大影响抓地力均匀性`
+      }
+
+      suggestions.push({
+        problem: '轮胎温度不均',
+        severity: maxTempDiff > 15 ? 'high' : 'medium',
+        details: tempIssueDetail,
+        fix: isLeftRight ? {
+          frontCamber: { delta: avgTemps.frontLeft > avgTemps.frontRight ? 0.3 : -0.3, reason: '校正前轮外倾角让左右温度均匀' },
+          rearCamber: { delta: avgTemps.rearLeft > avgTemps.rearRight ? 0.3 : -0.3, reason: '校正后轮外倾角让左右温度均匀' },
+          frontToe: { delta: -0.05, reason: '微调前束角辅助校正左右不平衡' },
+          rearToe: { delta: 0.05, reason: '微调后束角辅助校正' }
+        } : {
+          brakeBias: { delta: avgTemps.frontLeft > avgTemps.rearLeft ? -2 : 2, reason: '调整刹车偏置平衡前后轮温度' },
+          frontSpring: { delta: avgTemps.frontLeft > avgTemps.rearLeft ? 2 : -1, reason: '调整前弹簧平衡前后载荷分配' },
+          rearSpring: { delta: avgTemps.rearLeft > avgTemps.frontLeft ? 2 : -1, reason: '调整后弹簧平衡前后载荷' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 5. 侧倾角度过大检测
+  // ----------------------------------------------------------
+  const rollFrames = frames.filter(f => f.rollAngle !== undefined && f.lateralG && Math.abs(f.lateralG) > 0.2)
+  if (rollFrames.length > 10) {
+    const maxRoll = Math.max(...rollFrames.map(f => Math.abs(f.rollAngle)))
+    const avgRollAtCorner = rollFrames.reduce((sum, f) => sum + Math.abs(f.rollAngle), 0) / rollFrames.length
+
+    if (maxRoll > 3.5 || avgRollAtCorner > 2.0) {
+      suggestions.push({
+        problem: '弯道侧倾过大',
+        severity: maxRoll > 5.0 ? 'high' : 'medium',
+        details: `最大侧倾角 ${maxRoll.toFixed(1)}°，平均弯道侧倾 ${avgRollAtCorner.toFixed(1)}°，${maxRoll > 5.0 ? '侧倾严重需要大幅增加刚性' : '侧倾偏大影响弯道响应'}`,
+        fix: {
+          frontARB: { delta: maxRoll > 5.0 ? 6 : 4, reason: `最大侧倾${maxRoll.toFixed(1)}°，增加前防倾杆直接抵抗侧倾` },
+          rearARB: { delta: maxRoll > 5.0 ? 6 : 4, reason: '增加后防倾杆整体减少侧倾' },
+          frontSpring: { delta: maxRoll > 5.0 ? 4 : 2, reason: '增加前弹簧硬度提升侧倾刚度' },
+          rearSpring: { delta: maxRoll > 5.0 ? 4 : 2, reason: '增加后弹簧硬度' },
+          frontDamping: { delta: 1, reason: '增加前阻尼控制侧倾速度' },
+          rearDamping: { delta: 1, reason: '增加后阻尼' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 6. 出弯打滑检测 (偏航角速率异常)
+  // ----------------------------------------------------------
+  const accelFrames = frames.filter(f => f.throttle > 0.7 && f.yawRate !== undefined)
+  if (accelFrames.length > 10) {
+    const slipEvents = accelFrames.filter(f => {
+      // 偏航角速率与横向G力的关系异常 = 打滑
+      const isSliding = Math.abs(f.yawRate) > 15 && f.lateralG !== undefined && Math.abs(f.lateralG) < 0.5
+      return isSliding
+    })
+
+    const slipRatio = slipEvents.length / accelFrames.length
+    if (slipRatio > 0.1) {
+      suggestions.push({
+        problem: '出弯打滑/甩尾',
+        severity: slipRatio > 0.25 ? 'high' : 'medium',
+        details: `加速时打滑帧占比 ${(slipRatio * 100).toFixed(1)}%，${slipRatio > 0.25 ? '出弯控制困难' : '出弯时偶发打滑'}`,
+        fix: {
+          diffAccel: { delta: slipRatio > 0.25 ? 15 : 10, reason: `加速打滑率${(slipRatio * 100).toFixed(1)}%，提高加速差速锁分配扭矩` },
+          rearARB: { delta: 3, reason: '增加后防倾杆抑制出弯时车尾侧摆' },
+          rearSpring: { delta: 2, reason: '增加后弹簧硬度减少出弯下蹲引起的载荷变化' },
+          rearDamping: { delta: 1, reason: '增加后阻尼快速稳定出弯姿态' },
+          rearTirePressure: { delta: -2, reason: '降低后胎压增加出弯抓地力' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 7. 刹车锁死检测 (刹车时速度骤降+轮胎滑动特征)
+  // ----------------------------------------------------------
+  const hardBrakeFrames = frames.filter(f => f.brake > 0.8)
+  if (hardBrakeFrames.length > 5) {
+    // 检测刹车时的车轮滑动(通过纵向G力和速度变化的突变)
+    let lockEvents = 0
+    for (let i = 1; i < hardBrakeFrames.length; i++) {
+      const prev = hardBrakeFrames[i - 1]
+      const curr = hardBrakeFrames[i]
+      const speedDiff = Math.abs(prev.speed - curr.speed)
+      const dt = (curr.timestamp - prev.timestamp) / 1000
+      if (dt > 0) {
+        const decel = speedDiff / dt / 3.6 // m/s^2
+        // 突然大幅减速且纵向G异常大 = 可能锁死
+        if (decel > 15 && Math.abs(curr.longitudinalG || 0) > 1.5) {
+          lockEvents++
+        }
+      }
+    }
+
+    const lockRatio = lockEvents / hardBrakeFrames.length
+    if (lockRatio > 0.15) {
+      suggestions.push({
+        problem: '刹车容易锁死',
+        severity: lockRatio > 0.3 ? 'high' : 'medium',
+        details: `重刹时疑似锁死帧占比 ${(lockRatio * 100).toFixed(1)}%，${lockRatio > 0.3 ? '锁死频繁严重影响操控' : '偶发锁死影响刹车效率'}`,
+        fix: {
+          brakeBias: { delta: -3, reason: '前移刹车偏置，平衡前后刹车力度避免后轮先锁死' },
+          frontTirePressure: { delta: -1, reason: '降低前胎压增加接触面积减少锁死概率' },
+          rearTirePressure: { delta: -1, reason: '降低后胎压增加接触面积' },
+          frontDamping: { delta: 1, reason: '增加前阻尼让刹车载荷转移更平滑' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 8. 直线不稳定检测 (高速时偏航角速率波动大)
+  // ----------------------------------------------------------
+  const highSpeedFrames = frames.filter(f => f.speed > 200 && f.yawRate !== undefined)
+  if (highSpeedFrames.length > 10) {
+    const yawRates = highSpeedFrames.map(f => Math.abs(f.yawRate))
+    const avgYaw = yawRates.reduce((a, b) => a + b, 0) / yawRates.length
+    const maxYaw = Math.max(...yawRates)
+    // 计算偏航波动标准差
+    const variance = yawRates.reduce((sum, v) => sum + Math.pow(v - avgYaw, 2), 0) / yawRates.length
+    const yawStdDev = Math.sqrt(variance)
+
+    if (yawStdDev > 3.0 || maxYaw > 10) {
+      suggestions.push({
+        problem: '直线不稳定',
+        severity: yawStdDev > 5.0 ? 'high' : 'medium',
+        details: `高速段偏航波动标准差 ${yawStdDev.toFixed(1)}°/s，最大偏航 ${maxYaw.toFixed(1)}°/s`,
+        fix: {
+          frontToe: { delta: -0.1, reason: '微调前束为负值增强直线稳定性' },
+          rearDownforce: { delta: 8, reason: '增加后部下压力压住车尾' },
+          frontDownforce: { delta: 3, reason: '适当增加前部下压力保持平衡' },
+          rearARB: { delta: 2, reason: '增加后防倾杆抑制高速时后部微摆' },
+          rearDamping: { delta: 1, reason: '增加后阻尼快速抑制高速微振' },
+          rearSpring: { delta: 2, reason: '增加后弹簧提升高速支撑' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 9. 突然甩尾检测 (偏航角速率突变)
+  // ----------------------------------------------------------
+  if (frames.length > 20) {
+    let snapCount = 0
+    for (let i = 2; i < frames.length; i++) {
+      if (frames[i].yawRate === undefined) continue
+      const prevRate = Math.abs(frames[i - 2].yawRate || 0)
+      const currRate = Math.abs(frames[i].yawRate || 0)
+      // 短时间内偏航角速率突然大幅增加
+      if (currRate - prevRate > 20 && currRate > 25) {
+        snapCount++
+      }
+    }
+
+    if (snapCount > 3) {
+      suggestions.push({
+        problem: '突然甩尾',
+        severity: snapCount > 8 ? 'high' : 'medium',
+        details: `检测到 ${snapCount} 次偏航角突变，${snapCount > 8 ? '甩尾频繁非常危险' : '偶发甩尾影响驾驶节奏'}`,
+        fix: {
+          diffDecel: { delta: 15, reason: `检测到${snapCount}次突变，大幅提高减速差速锁防止收油甩尾` },
+          diffAccel: { delta: 10, reason: '提高加速差速锁防止动力突变甩尾' },
+          rearARB: { delta: -3, reason: '减小后防倾杆让后轮在突变时有更渐进的滑动' },
+          rearDamping: { delta: -1, reason: '减小后回弹阻尼让后悬挂更柔顺响应突变' },
+          rearSpring: { delta: -2, reason: '降低后弹簧增加容错空间' },
+          rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 10. 起步打滑检测 (低速大油门时速度增长缓慢)
+  // ----------------------------------------------------------
+  const launchFrames = frames.filter(f => f.speed < 60 && f.throttle > 0.9 && f.speed !== undefined)
+  if (launchFrames.length > 10) {
+    // 计算起步阶段的加速效率
+    let slowAccelCount = 0
+    for (let i = 1; i < launchFrames.length; i++) {
+      const prev = launchFrames[i - 1]
+      const curr = launchFrames[i]
+      const dt = (curr.timestamp - prev.timestamp) / 1000
+      if (dt > 0 && dt < 0.5) {
+        const accel = (curr.speed - prev.speed) / dt // km/h/s
+        // 全油门但加速不到预期 = 打滑
+        if (accel < 30) { // 正常起步加速应在50-100 km/h/s
+          slowAccelCount++
+        }
+      }
+    }
+
+    const spinRatio = slowAccelCount / launchFrames.length
+    if (spinRatio > 0.3) {
+      suggestions.push({
+        problem: '起步打滑',
+        severity: spinRatio > 0.5 ? 'high' : 'medium',
+        details: `起步阶段低加速帧占比 ${(spinRatio * 100).toFixed(1)}%，轮胎可能在空转`,
+        fix: {
+          diffAccel: { delta: 20, reason: `起步打滑率${(spinRatio * 100).toFixed(1)}%，大幅提高加速差速锁` },
+          rearTirePressure: { delta: -2, reason: '降低后胎压增加起步接地面积' },
+          rearSpring: { delta: 3, reason: '增加后弹簧减少起步下蹲' },
+          rearDamping: { delta: 1, reason: '增加后压缩阻尼控制起步姿态' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 11. 过弯后摇摆检测 (出弯后偏航角速率振荡)
+  // ----------------------------------------------------------
+  if (frames.length > 30) {
+    let wobbleCount = 0
+    for (let i = 4; i < frames.length; i++) {
+      if (frames[i].yawRate === undefined) continue
+      // 检测偏航角速率的正负交替(振荡)
+      const r1 = frames[i - 3].yawRate || 0
+      const r2 = frames[i - 1].yawRate || 0
+      const r3 = frames[i].yawRate || 0
+      // 连续3个点偏航方向交替 = 摇摆
+      if (Math.abs(r2) > 2 && Math.abs(r3) > 2) {
+        if ((r1 > 0 && r2 < 0 && r3 > 0) || (r1 < 0 && r2 > 0 && r3 < 0)) {
+          wobbleCount++
+        }
+      }
+    }
+
+    if (wobbleCount > 5) {
+      suggestions.push({
+        problem: '过弯后车身摇摆',
+        severity: wobbleCount > 15 ? 'high' : 'medium',
+        details: `检测到 ${wobbleCount} 次偏航振荡，${wobbleCount > 15 ? '摇摆严重' : '车身摇摆明显'}`,
+        fix: {
+          frontARB: { delta: 3, reason: `检测到${wobbleCount}次振荡，增加前防倾杆快速抑制摇摆` },
+          rearARB: { delta: 3, reason: '增加后防倾杆配合前部稳定车身' },
+          frontDamping: { delta: 2, reason: '大幅增加前回弹阻尼消耗摇摆能量' },
+          rearDamping: { delta: 2, reason: '大幅增加后回弹阻尼' },
+          frontSpring: { delta: 2, reason: '增加前弹簧硬度远离摇摆共振频率' },
+          rearSpring: { delta: 2, reason: '增加后弹簧硬度' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 12. 轮胎过热检测
+  // ----------------------------------------------------------
+  if (tireTempFrames.length > 30) {
+    const warmFrames = tireTempFrames.slice(Math.floor(tireTempFrames.length * 0.3))
+    const avgTempByPosition = { FL: 0, FR: 0, RL: 0, RR: 0 }
+    const maxTempByPosition = { FL: -Infinity, FR: -Infinity, RL: -Infinity, RR: -Infinity }
+    let overheatCount = 0
+
+    for (const f of warmFrames) {
+      const temps = [
+        { key: 'FL', val: f.tireTemp.frontLeft },
+        { key: 'FR', val: f.tireTemp.frontRight },
+        { key: 'RL', val: f.tireTemp.rearLeft },
+        { key: 'RR', val: f.tireTemp.rearRight }
+      ]
+      for (const t of temps) {
+        avgTempByPosition[t.key] += t.val
+        if (t.val > maxTempByPosition[t.key]) maxTempByPosition[t.key] = t.val
+        if (t.val > 90) overheatCount++ // FH5中超过90°C为过热
+      }
+    }
+
+    const n4 = warmFrames.length * 4
+    for (const k of Object.keys(avgTempByPosition)) avgTempByPosition[k] /= warmFrames.length
+
+    const overallMaxTemp = Math.max(...Object.values(maxTempByPosition))
+    const overheatRatio = overheatCount / n4
+
+    if (overheatRatio > 0.1 || overallMaxTemp > 95) {
+      suggestions.push({
+        problem: '轮胎温度过高/磨损过快',
+        severity: overheatRatio > 0.25 ? 'high' : 'medium',
+        details: `过热帧占比 ${(overheatRatio * 100).toFixed(1)}%，最高温度 ${overallMaxTemp.toFixed(0)}°C，平均温度 FL:${avgTempByPosition.FL.toFixed(0)} FR:${avgTempByPosition.FR.toFixed(0)} RL:${avgTempByPosition.RL.toFixed(0)} RR:${avgTempByPosition.RR.toFixed(0)}°C`,
+        fix: {
+          frontTirePressure: { delta: 2, reason: '提高前胎压减少胎面变形生热' },
+          rearTirePressure: { delta: 2, reason: '提高后胎压减少胎面变形生热' },
+          frontCamber: { delta: 0.3, reason: '减小前轮负外倾角减少弯道内侧过度磨损生热' },
+          rearCamber: { delta: 0.3, reason: '减小后轮负外倾角' },
+          frontARB: { delta: -2, reason: '减小前防倾杆让轮胎更均匀接地减少局部过热' },
+          rearARB: { delta: -2, reason: '减小后防倾杆均匀分布后轮接地压力' }
+        }
+      })
+    }
+  }
+
+  // ----------------------------------------------------------
+  // 去重与排序 (严重程度高的排在前面)
+  // ----------------------------------------------------------
+  suggestions.sort((a, b) => {
+    const severityOrder = { high: 0, medium: 1, low: 2 }
+    return (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2)
+  })
+
+  return suggestions
+}
+
+// ============================================================
+// 批量应用遥测诊断建议到当前调校
+// ============================================================
+export function applyTelemetrySuggestions(suggestions, currentTune, paramConstraints) {
+  if (!suggestions || suggestions.length === 0 || !currentTune) return { newTune: currentTune, summary: [] }
+
+  const newTune = JSON.parse(JSON.stringify(currentTune))
+  const summary = []
+
+  // 参数名到currentTune路径的映射
+  const paramPathMap = {
+    frontTirePressure: 'tires.frontPressure',
+    rearTirePressure: 'tires.rearPressure',
+    frontCamber: 'tires.frontCamber',
+    rearCamber: 'tires.rearCamber',
+    frontToe: 'tires.frontToe',
+    rearToe: 'tires.rearToe',
+    frontSpring: 'suspension.frontSpring',
+    rearSpring: 'suspension.rearSpring',
+    frontDamping: 'suspension.frontDamping',
+    rearDamping: 'suspension.rearDamping',
+    frontARB: 'suspension.frontARB',
+    rearARB: 'suspension.rearARB',
+    frontRideHeight: 'suspension.frontRideHeight',
+    rearRideHeight: 'suspension.rearRideHeight',
+    diffAccel: 'drivetrain.diffAccel',
+    diffDecel: 'drivetrain.diffDecel',
+    diffCenter: 'drivetrain.diffCenter',
+    finalDrive: 'drivetrain.finalDrive',
+    frontDownforce: 'aero.frontDownforce',
+    rearDownforce: 'aero.rearDownforce',
+    brakeBias: 'brakes.bias'
+  }
+
+  // 累积每个参数的总调整量
+  const totalDeltas = {}
+
+  for (const suggestion of suggestions) {
+    if (!suggestion.fix) continue
+
+    for (const [param, fix] of Object.entries(suggestion.fix)) {
+      if (typeof fix.delta === 'string') continue // 跳过字符串类型的调整
+
+      if (!totalDeltas[param]) {
+        totalDeltas[param] = 0
+      }
+      totalDeltas[param] += fix.delta
+    }
+  }
+
+  // 应用累积的调整量
+  for (const [param, totalDelta] of Object.entries(totalDeltas)) {
+    const path = paramPathMap[param]
+    if (!path) continue
+
+    const constraint = paramConstraints?.[path]
+    if (constraint?.locked) continue
+
+    const pathParts = path.split('.')
+    let current = newTune
+    for (const part of pathParts) {
+      if (current[part] === undefined) current[part] = {}
+      if (part === pathParts[pathParts.length - 1]) break
+      current = current[part]
+    }
+
+    const currentValue = current[pathParts[pathParts.length - 1]]
+    if (currentValue === undefined) continue
+
+    let newValue = currentValue + totalDelta
+
+    if (constraint) {
+      newValue = Math.max(constraint.min, Math.min(constraint.max, newValue))
+    }
+
+    if (Number.isInteger(currentValue)) {
+      newValue = Math.round(newValue)
+    } else {
+      newValue = Math.round(newValue * 10) / 10
+    }
+
+    current[pathParts[pathParts.length - 1]] = newValue
+    summary.push({
+      param,
+      path,
+      oldValue: currentValue,
+      newValue,
+      totalDelta,
+      applied: newValue !== currentValue
+    })
+  }
+
+  return { newTune, summary }
+}
+
+// ============================================================
+// 问题严重程度配置
+// ============================================================
+export const SEVERITY_CONFIG = {
+  high: {
+    label: '严重',
+    color: '#f85149',
+    bgColor: 'rgba(248, 81, 73, 0.1)',
+    description: '严重影响驾驶表现，建议立即调整'
+  },
+  medium: {
+    label: '中等',
+    color: '#d29922',
+    bgColor: 'rgba(210, 153, 34, 0.1)',
+    description: '影响驾驶体验，建议尽快调整'
+  },
+  low: {
+    label: '轻微',
+    color: '#3fb950',
+    bgColor: 'rgba(63, 185, 80, 0.1)',
+    description: '轻微影响，可在后续调校中优化'
+  }
+}
