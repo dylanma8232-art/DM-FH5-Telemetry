@@ -1256,95 +1256,37 @@ async function saveAutoRecordedData(duration) {
     return;
   }
   
-  // 普通模式：检查是否与已有赛道匹配
-  let matchedTrackId = null;
-  let matchedTrackName = null;
+  // 普通模式：不再进行自动相似度匹配合并，一律直接自动创建新赛道（合并交由用户手动在赛道管理中进行）
+  const newTrackId = 'track_' + ts;
+  const trackLength = calculateTrackLength(autoRacePositions);
   
-  for (const [tid, track] of Object.entries(tracks)) {
-    if (track.trajectories && track.trajectories.length > 0) {
-      const similarity = calculateTrackSimilarity(autoRacePositions, track.points);
-      if (similarity > 0.6) { // 60%相似度认为是同一条赛道
-        matchedTrackId = tid;
-        matchedTrackName = track.name;
-        break;
-      }
-    }
-  }
+  tracks[newTrackId] = {
+    id: newTrackId,
+    name: trackName,
+    points: autoRacePositions,
+    pointCount: autoRacePositions.length,
+    length: trackLength,
+    trajectories: [autoRacePositions],
+    trajectoryCount: 1,
+    centerline: null,
+    turns: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
   
-  if (matchedTrackId) {
-    // 匹配到已有赛道，自动合并
-    sessionData.trackId = matchedTrackId;
-    sessionData.trackName = matchedTrackName;
-    saveSession(sessionData.id, sessionData);
-    
-    // 合并轨迹到赛道
-    const track = tracks[matchedTrackId];
-    const existingTrajectories = track.trajectories || [];
-    existingTrajectories.push(autoRacePositions);
-    
-    // 降采样历史轨迹（保留最新一条不降采样，历史轨迹每10点取1）
-    for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = downsampleTrajectory(existingTrajectories[i]);
-    }
-    // 限制最多5条轨迹
-    const trimmed = trimTrajectories(existingTrajectories, 5);
-    
-    const trackData = buildTrackFromTrajectories(trimmed);
-    track.trajectories = trimmed;
-    track.trajectoryCount = trimmed.length;
-    track.updatedAt = new Date().toISOString();
-    
-    if (trackData) {
-      track.centerline = trackData.centerline;
-      track.turns = trackData.turns;
-      track.length = trackData.length;
-      track.sectors = generateSectors(trackData.centerline, trackData.turns);
-      track.navigation = generateNavigationData(trackData);
-    }
-    
-    saveTracksDatabase(tracks);
-    
-    console.log(`[自动录制] 匹配到赛道: ${matchedTrackName}，轨迹已合并`);
-    io.emit('autoRecordStatus', { 
-      state: 'COMPLETED', 
-      message: `比赛结束，已保存到赛道: ${matchedTrackName}`,
-      sessionId: sessionData.id,
-      trackId: matchedTrackId,
-      trackName: matchedTrackName
-    });
-  } else {
-    // 未匹配到赛道，自动创建新赛道
-    const newTrackId = 'track_' + ts;
-    const trackLength = calculateTrackLength(autoRacePositions);
-    
-    tracks[newTrackId] = {
-      id: newTrackId,
-      name: trackName,
-      points: autoRacePositions,
-      pointCount: autoRacePositions.length,
-      length: trackLength,
-      trajectories: [autoRacePositions],
-      trajectoryCount: 1,
-      centerline: null,
-      turns: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    // 更新session的trackId
-    sessionData.trackId = newTrackId;
-    saveSession(sessionData.id, sessionData);
-    saveTracksDatabase(tracks);
-    
-    console.log(`[自动录制] 创建新赛道: ${trackName}，长度: ${trackLength}米`);
-    io.emit('autoRecordStatus', { 
-      state: 'COMPLETED', 
-      message: `比赛结束，已创建赛道: ${trackName}`,
-      sessionId: sessionData.id,
-      trackId: newTrackId,
-      trackName: trackName
-    });
-  }
+  // 更新session的trackId
+  sessionData.trackId = newTrackId;
+  saveSession(sessionData.id, sessionData);
+  saveTracksDatabase(tracks);
+  
+  console.log(`[自动录制] 创建新赛道: ${trackName}，长度: ${trackLength}米`);
+  io.emit('autoRecordStatus', { 
+    state: 'COMPLETED', 
+    message: `比赛结束，已创建新赛道: ${trackName}`,
+    sessionId: sessionData.id,
+    trackId: newTrackId,
+    trackName: trackName
+  });
 
   // 更新车辆统计
   const vehicleOrdinal = sessionData.vehicle ? sessionData.vehicle.ordinal : null;
