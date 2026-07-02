@@ -115,8 +115,19 @@ function saveJSON(file, data) {
 // ===== 赛道与遥测数据优化辅助方法 =====
 
 function loadTracksDatabase() {
+  const brPath = DATA_DIR + '/tracks.json.br';
   const gzPath = DATA_DIR + '/tracks.json.gz';
   const jsonPath = DATA_DIR + '/tracks.json';
+  
+  if (fs.existsSync(brPath)) {
+    try {
+      const buffer = fs.readFileSync(brPath);
+      const decompressed = zlib.brotliDecompressSync(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (err) {
+      console.error('[loadTracksDatabase] 读取 tracks.json.br 失败:', err.message);
+    }
+  }
   
   if (fs.existsSync(gzPath)) {
     try {
@@ -158,14 +169,23 @@ function loadTracksDatabase() {
 }
 
 function saveTracksDatabase(data) {
+  const brPath = DATA_DIR + '/tracks.json.br';
   const gzPath = DATA_DIR + '/tracks.json.gz';
   try {
     const jsonStr = JSON.stringify(data);
-    const compressed = zlib.gzipSync(Buffer.from(jsonStr));
-    fs.writeFileSync(gzPath, compressed);
+    const compressed = zlib.brotliCompressSync(Buffer.from(jsonStr), {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 6
+      }
+    });
+    fs.writeFileSync(brPath, compressed);
+    // 清理旧的 gz 文件以节省空间
+    if (fs.existsSync(gzPath)) {
+      try { fs.unlinkSync(gzPath); } catch {}
+    }
     return true;
   } catch (err) {
-    console.error(`[saveTracksDatabase] 写入 ${gzPath} 失败:`, err.message);
+    console.error(`[saveTracksDatabase] 写入 ${brPath} 失败:`, err.message);
     return false;
   }
 }
@@ -204,9 +224,19 @@ function saveSession(sessionId, sessionData) {
         data: sessionData.data,
         positions: sessionData.positions || []
       };
-      const detailPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
-      const compressed = zlib.gzipSync(Buffer.from(JSON.stringify(detailData)));
+      const detailPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+      const compressed = zlib.brotliCompressSync(Buffer.from(JSON.stringify(detailData)), {
+        params: {
+          [zlib.constants.BROTLI_PARAM_QUALITY]: 5
+        }
+      });
       fs.writeFileSync(detailPath, compressed);
+      
+      // 清理旧的 gz 格式以节省空间
+      const oldGzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+      if (fs.existsSync(oldGzPath)) {
+        try { fs.unlinkSync(oldGzPath); } catch {}
+      }
     }
     
     autoCleanupSessionDetails(10);
@@ -228,15 +258,27 @@ function loadSession(sessionId) {
       Object.defineProperty(summary, 'data', {
         get() {
           if (this._data) return this._data;
-          const detailPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
-          if (fs.existsSync(detailPath)) {
+          const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+          const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+          
+          if (fs.existsSync(brPath)) {
             try {
-              const buffer = fs.readFileSync(detailPath);
+              const buffer = fs.readFileSync(brPath);
+              const decompressed = zlib.brotliDecompressSync(buffer);
+              const detail = JSON.parse(decompressed.toString('utf8'));
+              this._data = detail.data || [];
+            } catch (e) {
+              console.error(`[loadSession] 解压 ${sessionId} Brotli 细节数据失败:`, e.message);
+              this._data = [];
+            }
+          } else if (fs.existsSync(gzPath)) {
+            try {
+              const buffer = fs.readFileSync(gzPath);
               const decompressed = zlib.gunzipSync(buffer);
               const detail = JSON.parse(decompressed.toString('utf8'));
               this._data = detail.data || [];
             } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} 细节数据失败:`, e.message);
+              console.error(`[loadSession] 解压 ${sessionId} Gzip 细节数据失败:`, e.message);
               this._data = [];
             }
           } else {
@@ -254,15 +296,27 @@ function loadSession(sessionId) {
       Object.defineProperty(summary, 'positions', {
         get() {
           if (this._positions) return this._positions;
-          const detailPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
-          if (fs.existsSync(detailPath)) {
+          const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+          const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+          
+          if (fs.existsSync(brPath)) {
             try {
-              const buffer = fs.readFileSync(detailPath);
+              const buffer = fs.readFileSync(brPath);
+              const decompressed = zlib.brotliDecompressSync(buffer);
+              const detail = JSON.parse(decompressed.toString('utf8'));
+              this._positions = detail.positions || [];
+            } catch (e) {
+              console.error(`[loadSession] 解压 ${sessionId} Brotli 轨迹位置失败:`, e.message);
+              this._positions = [];
+            }
+          } else if (fs.existsSync(gzPath)) {
+            try {
+              const buffer = fs.readFileSync(gzPath);
               const decompressed = zlib.gunzipSync(buffer);
               const detail = JSON.parse(decompressed.toString('utf8'));
               this._positions = detail.positions || [];
             } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} 轨迹位置失败:`, e.message);
+              console.error(`[loadSession] 解压 ${sessionId} Gzip 轨迹位置失败:`, e.message);
               this._positions = [];
             }
           } else {
@@ -316,12 +370,20 @@ function autoCleanupSessionDetails(maxDetailsToKeep = 10) {
       const toCleanup = summaries.slice(maxDetailsToKeep);
       let cleanedCount = 0;
       for (const session of toCleanup) {
-        const detailPath = path.join(sessionsDir, `${session.id}_detail.json.gz`);
-        if (fs.existsSync(detailPath)) {
+        const brPath = path.join(sessionsDir, `${session.id}_detail.json.br`);
+        const gzPath = path.join(sessionsDir, `${session.id}_detail.json.gz`);
+        let deleted = false;
+        
+        if (fs.existsSync(brPath)) {
+          try { fs.unlinkSync(brPath); deleted = true; } catch {}
+        }
+        if (fs.existsSync(gzPath)) {
+          try { fs.unlinkSync(gzPath); deleted = true; } catch {}
+        }
+        
+        if (deleted) {
           try {
-            fs.unlinkSync(detailPath);
             cleanedCount++;
-            
             const summaryPath = path.join(sessionsDir, session.file);
             const summaryData = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
             if (summaryData.hasDetail !== false) {
@@ -390,8 +452,12 @@ function migrateOldSessions() {
               data: sessionData.data,
               positions: sessionData.positions || []
             };
-            const detailPath = path.join(sessionsDir, `${id}_detail.json.gz`);
-            const compressed = zlib.gzipSync(Buffer.from(JSON.stringify(detailData)));
+            const detailPath = path.join(sessionsDir, `${id}_detail.json.br`);
+            const compressed = zlib.brotliCompressSync(Buffer.from(JSON.stringify(detailData)), {
+              params: {
+                [zlib.constants.BROTLI_PARAM_QUALITY]: 5
+              }
+            });
             fs.writeFileSync(detailPath, compressed);
           }
           
@@ -1956,15 +2022,20 @@ app.delete('/api/sessions/:id', (req, res) => {
   try {
     const sessionsDir = DATA_DIR + '/sessions';
     const summaryPath = path.join(sessionsDir, `${req.params.id}_summary.json`);
-    const detailPath = path.join(sessionsDir, `${req.params.id}_detail.json.gz`);
+    const brPath = path.join(sessionsDir, `${req.params.id}_detail.json.br`);
+    const gzPath = path.join(sessionsDir, `${req.params.id}_detail.json.gz`);
     
     let deleted = false;
     if (fs.existsSync(summaryPath)) {
       fs.unlinkSync(summaryPath);
       deleted = true;
     }
-    if (fs.existsSync(detailPath)) {
-      fs.unlinkSync(detailPath);
+    if (fs.existsSync(brPath)) {
+      fs.unlinkSync(brPath);
+      deleted = true;
+    }
+    if (fs.existsSync(gzPath)) {
+      fs.unlinkSync(gzPath);
       deleted = true;
     }
     
@@ -3859,7 +3930,7 @@ function readDirRecursive(dir) {
       } catch (e) {
         result[item] = null;
       }
-    } else if (item.endsWith('.gz')) {
+    } else if (item.endsWith('.gz') || item.endsWith('.br')) {
       try {
         const buffer = fs.readFileSync(fullPath);
         result[item] = buffer.toString('base64');
@@ -3881,7 +3952,7 @@ function writeDirRecursive(dir, data) {
       } else {
         writeDirRecursive(fullPath, value);
       }
-    } else if (key.endsWith('.gz') && typeof value === 'string') {
+    } else if ((key.endsWith('.gz') || key.endsWith('.br')) && typeof value === 'string') {
       fs.writeFileSync(fullPath, Buffer.from(value, 'base64'));
     }
   }
