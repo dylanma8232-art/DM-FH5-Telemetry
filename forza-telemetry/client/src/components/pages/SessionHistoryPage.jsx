@@ -67,15 +67,19 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [sessionPage, setSessionPage] = useState(1);
   const SESSION_PAGE_SIZE = 20;
 
-  // Round 9: 分页后的session列表
-  const paginatedSessions = useMemo(() => {
-    const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
-    return filteredSessions.slice(start, start + SESSION_PAGE_SIZE);
-  }, [filteredSessions, sessionPage]);
-  const totalPages = Math.ceil(filteredSessions.length / SESSION_PAGE_SIZE);
-
   // Round 5: 可用的sub-tabs
   const allSubTabs = ['overview', 'style', 'tires', 'sectors', 'shifts', 'braking', 'accel', 'comparison', 'replay', 'heatmap'];
+
+  // 赛道标签筛选器
+  const uniqueTracks = useMemo(() => {
+    return [...new Set(sessions.map(s => s.trackName || '未知赛道'))].filter(Boolean)
+  }, [sessions])
+
+  const myFilteredSessions = sessions.filter(s => {
+    const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
+    const matchTrack = !trackFilter || (s.trackName || '未知赛道') === trackFilter
+    return matchSearch && matchTrack
+  });
 
   useEffect(() => {
     loadSessions();
@@ -91,12 +95,12 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         // 左右箭头切换Session
         e.preventDefault();
-        const idx = filteredSessions.findIndex(s => s.id === selectedSession);
-        if (e.key === 'ArrowLeft' && idx > 0) {
-          loadAnalysis(filteredSessions[idx - 1].id);
-        } else if (e.key === 'ArrowRight' && idx < filteredSessions.length - 1) {
-          loadAnalysis(filteredSessions[idx + 1].id);
-        }
+        const idx = myFilteredSessions.findIndex(s => s.id === selectedSession);
+          if (e.key === 'ArrowLeft' && idx > 0) {
+            loadAnalysis(myFilteredSessions[idx - 1].id);
+          } else if (e.key === 'ArrowRight' && idx < myFilteredSessions.length - 1) {
+            loadAnalysis(myFilteredSessions[idx + 1].id);
+          }
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         // 上下箭头切换Tab
         e.preventDefault();
@@ -120,7 +124,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredSessions, selectedSession, activeChart, allSubTabs, detailLoaded]);
+  }, [myFilteredSessions, selectedSession, activeChart, allSubTabs, detailLoaded]);
 
   // Round 5: 批量删除
   const batchDelete = async () => {
@@ -774,19 +778,12 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
     return { data, bestTime }
   }, [sessionDetail?.data])
 
-  // 赛道标签筛选器
-  const uniqueTracks = useMemo(() => {
-    return [...new Set(sessions.map(s => s.trackName || '未知赛道'))].filter(Boolean)
-  }, [sessions])
-
-  // 过滤后的session列表
-  const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
-      const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
-      const matchTrack = !trackFilter || (s.trackName || '未知赛道') === trackFilter
-      return matchSearch && matchTrack
-    })
-  }, [sessions, sessionSearchQuery, trackFilter]);
+  // Round 9: 分页后的session列表
+  const paginatedSessions = useMemo(() => {
+    const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
+    return myFilteredSessions.slice(start, start + SESSION_PAGE_SIZE);
+  }, [myFilteredSessions, sessionPage]);
+  const totalPages = Math.ceil(myFilteredSessions.length / SESSION_PAGE_SIZE);
 
   // Round 1: 改进优先级 - 从5维度中找得分最低的3个
   const worst3 = useMemo(() => {
@@ -859,10 +856,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   导出CSV ({selectedSessionIds.size})
                 </button>
                 <button onClick={() => setSelectedSessionIds(new Set(prev => {
-                  const next = new Set(filteredSessions.map(s => s.id));
+                  const next = new Set(myFilteredSessions.map(s => s.id));
                   return next.size === prev.size ? new Set() : next;
                 }))} style={{ ...btnSmallStyle, fontSize: 9 }}>
-                  {selectedSessionIds.size === filteredSessions.length ? '取消全选' : '全选'}
+                  {selectedSessionIds.size === myFilteredSessions.length ? '取消全选' : '全选'}
                 </button>
               </>
             )}
@@ -919,7 +916,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               </select>
             </div>
           )}
-          {filteredSessions.length === 0 ? (
+          {myFilteredSessions.length === 0 ? (
             <EmptyState icon="📋" title="暂无比赛记录" description="在游戏中完成比赛后会自动录制。" />
           ) : (
             paginatedSessions.map((session) => (

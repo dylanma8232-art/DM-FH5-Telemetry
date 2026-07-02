@@ -511,6 +511,33 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*' } });
 
+let currentData = null;
+
+io.on('connection', (socket) => {
+  console.log('[Socket] 客户端已连接:', socket.id);
+  if (currentData) {
+    socket.emit('telemetry', currentData);
+    console.log('[Socket] 已发送当前遥测数据给新客户端');
+  } else {
+    const defaultData = {
+      isRaceOn: false,
+      car: { ordinal: 0, class: 0, performanceIndex: 0, drivetrainType: 0 },
+      controls: { gear: 0 },
+      currentEngineRpm: 0,
+      engineMaxRpm: 8000,
+      speedKmh: 0,
+      lapNumber: 0,
+      racePosition: 0
+    };
+    currentData = defaultData;
+    socket.emit('telemetry', defaultData);
+    console.log('[Socket] 已发送默认遥测数据给新客户端');
+  }
+  socket.on('disconnect', () => {
+    console.log('[Socket] 客户端已断开:', socket.id);
+  });
+});
+
 udpServer.on('error', (err) => {
   console.error('[UDP] 错误:', err.message);
   if (err.code === 'EADDRINUSE') {
@@ -534,7 +561,7 @@ if (fs.existsSync(STATIC_DIR)) {
   console.log('[Server] 静态文件目录不存在，仅API模式运行: ' + STATIC_DIR);
 }
 
-let packetCount = 0, lastPacketTime = null, currentData = null;
+let packetCount = 0, lastPacketTime = null;
 
 // 数据节流配置
 const EMIT_INTERVAL_MS = 33; // ~30fps (原来60fps)
@@ -599,6 +626,7 @@ udpServer.on('message', (msg, rinfo) => {
     
     if (packetCount % 100 === 1) {
       console.log('[调试] isRaceOn=' + telemetry.isRaceOn + ' rpm=' + telemetry.currentEngineRpm?.toFixed(0) + ' pos=' + telemetry.racePosition + ' lap=' + telemetry.lapNumber + ' isManual=' + isManualRecording + ' trackMode=' + !!trackMode + ' pos=(' + telemetry.position?.x?.toFixed(0) + ',' + telemetry.position?.z?.toFixed(0) + ')');
+      console.log('[车辆] ordinal=' + telemetry.car?.ordinal + ' class=' + telemetry.car?.class + ' PI=' + telemetry.car?.performanceIndex);
     }
     
     // 车辆自动识别 - 当检测到新的carOrdinal时自动添加到车辆管理
@@ -1240,6 +1268,11 @@ async function saveAutoRecordedData(duration) {
     trackName = '赛道_' + dateStr + '_' + timeStr;
   }
   
+  const validLaps = autoRecordedData.filter(d => d.bestLap && d.bestLap > 0);
+  const bestLap = validLaps.length > 0 ? Math.min(...validLaps.map(d => d.bestLap)) : 0;
+  const lastLap = autoRecordedData.length > 0 ? autoRecordedData[autoRecordedData.length - 1].lastLap || 0 : 0;
+  const maxLap = autoRecordedData.length > 0 ? Math.max(...autoRecordedData.map(d => d.lapNumber || 0)) : 0;
+  
   const sessionData = {
     id: 'session_' + ts,
     trackName: trackName,
@@ -1255,9 +1288,9 @@ async function saveAutoRecordedData(duration) {
     },
     vehicle: autoRecordedData.length > 0 ? autoRecordedData[0].car : null,
     laps: {
-      best: autoRecordedData.length > 0 ? autoRecordedData[0].bestLap : 0,
-      last: autoRecordedData.length > 0 ? autoRecordedData[0].lastLap : 0,
-      count: autoRecordedData.length > 0 ? autoRecordedData[0].lapNumber : 0,
+      best: bestLap,
+      last: lastLap,
+      count: maxLap,
     },
     data: autoRecordedData,
     positions: autoRacePositions,
@@ -1850,6 +1883,11 @@ app.post('/api/record/save', express.json(), (req, res) => {
   const filename = 'session_' + ts + '.json';
   
   // 保存全量数据
+  const validLaps = manualRecordedData.filter(d => d.bestLap && d.bestLap > 0);
+  const bestLap = validLaps.length > 0 ? Math.min(...validLaps.map(d => d.bestLap)) : 0;
+  const lastLap = manualRecordedData.length > 0 ? manualRecordedData[manualRecordedData.length - 1].lastLap || 0 : 0;
+  const maxLap = manualRecordedData.length > 0 ? Math.max(...manualRecordedData.map(d => d.lapNumber || 0)) : 0;
+  
   const sessionData = {
     id: 'session_' + ts,
     trackName: trackName,
@@ -1864,9 +1902,9 @@ app.post('/api/record/save', express.json(), (req, res) => {
     },
     vehicle: manualRecordedData.length > 0 ? manualRecordedData[0].car : null,
     laps: {
-      best: manualRecordedData.length > 0 ? manualRecordedData[0].bestLap : 0,
-      last: manualRecordedData.length > 0 ? manualRecordedData[0].lastLap : 0,
-      count: manualRecordedData.length > 0 ? manualRecordedData[0].lapNumber : 0,
+      best: bestLap,
+      last: lastLap,
+      count: maxLap,
     },
     data: manualRecordedData,
     positions: manualRacePositions,
