@@ -87,6 +87,8 @@
   - 📄 [workshop-round6-10.md](file:///forza-telemetry/docs/workshop-round6-10.md) 
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh) 
 - 📄 [package.json](file:///forza-telemetry/package.json) 
+- 📂 **scripts/**
+  - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
@@ -111,7 +113,7 @@
 * **`client/src/components/dashboard/RacePerformanceTimingPanel.jsx`**: 比赛时间与分段计时器（S1/S2/S3），支持计算实时 Delta（相较最快圈）以及展示最近 10 圈的历史纪录。
 
 ### 2. 后端服务端 (`forza-telemetry/server`)
-* **`server/src/index.js`**: 主要的 API 服务端，启动 9188 端口的 Express/WebSocket 监听，接收 UDP 数据包，并管理赛道和录制文件的存取。
+* **`server/src/index.js`**: 主要的 API 服务端，启动 9188 端口 of Express/WebSocket 监听，接收 UDP 数据包，并管理赛道和录制文件的存取。
 * **`server/src/telemetry-parser.js`**: Forza UDP 字节流解析器，根据官方结构体提取车速、引擎转速、胎温、轮速、重力、比赛状态（isRaceOn）等数据。
 * **`server/src/speech-worker.js`**: 语音合成与下发接口。
 * **`server/src/track-manager.js`**: 赛道曲线几何分析器，提取车辆行驶轨迹，通过曲线聚合重算赛道中线及检测弯道。
