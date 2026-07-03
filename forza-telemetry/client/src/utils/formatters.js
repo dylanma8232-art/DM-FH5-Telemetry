@@ -6,10 +6,10 @@ export function formatTime(seconds) {
 }
 
 export function formatGear(gear) {
-  // FH5 协议: 0 = 空档(N), 1-10 = 1档-10档, 倒车通常用负值或单独字段
+  // 极限竞速地平线5协议：0为空档(N)，11或255或小于0为倒车档(R)
   if (gear === undefined || gear === null) return '-';
   if (gear === 0) return 'N';
-  if (gear < 0) return 'R';
+  if (gear === 11 || gear === 255 || gear < 0) return 'R';
   return gear.toString();
 }
 

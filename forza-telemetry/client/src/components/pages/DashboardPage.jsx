@@ -138,7 +138,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
 
   let gearColor = 'var(--text-primary, #c9d1d9)';
   if (gear === 0) gearColor = '#d29922';
-  if (gear < 0) gearColor = '#f85149';
+  if (gear === 11 || gear === 255 || gear < 0) gearColor = '#f85149';
 
   // 输入控制条
   const throttlePct = controls.accel ? (controls.accel / 255) * 100 : 0;
