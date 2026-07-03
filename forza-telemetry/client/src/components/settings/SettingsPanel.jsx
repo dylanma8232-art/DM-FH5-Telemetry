@@ -473,7 +473,7 @@ export function SettingsPanel({ onClose }) {
         {activeTab === 'ai' && (
           <div>
             <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
-              阿里云百炼平台 (DashScope) 大模型服务密钥与参数配置。在此配置后，AI 驾驶教练诊断将在本机会话中直接生效并存入本地 .env 环境变量。
+              阿里云百炼平台大模型服务密钥与参数配置。在此配置后，AI 驾驶教练诊断将在本机会话中直接生效并存入本地 .env 环境变量。
             </div>
             {loadingKey ? (
               <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -483,7 +483,7 @@ export function SettingsPanel({ onClose }) {
               <form onSubmit={handleSaveAiConfig} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    百炼 API Key (sk-...)
+                    百炼 API 密钥
                   </label>
                   <input
                     type="password"
@@ -503,7 +503,7 @@ export function SettingsPanel({ onClose }) {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    百炼兼容接口端点 (Base URL)
+                    百炼兼容接口端点
                   </label>
                   <input
                     type="text"

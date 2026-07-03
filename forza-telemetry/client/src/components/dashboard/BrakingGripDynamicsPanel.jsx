@@ -162,7 +162,7 @@ export function BrakingGripDynamicsPanel({ data }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: 0.5 }}>
-              抓地力物理极限利用率 (TOTAL GRIP LIMIT)
+              抓地力物理极限利用率
             </span>
             <span style={{
               fontSize: 9,
@@ -266,7 +266,7 @@ export function BrakingGripDynamicsPanel({ data }) {
         }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>横向 G力 (过弯)</span>
+              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>横向过弯力</span>
               <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>峰值: {peakLat.toFixed(2)} G</span>
             </div>
             
@@ -436,7 +436,7 @@ export function BrakingGripDynamicsPanel({ data }) {
         }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>纵向 G力 (油刹)</span>
+              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>纵向油刹力</span>
               <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>峰值: {peakLon.toFixed(2)} G</span>
             </div>
 
