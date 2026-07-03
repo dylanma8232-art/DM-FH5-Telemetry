@@ -39,20 +39,6 @@ export function BrakingGripDynamicsPanel({ data }) {
   const [peakLat, setPeakLat] = useState(0);
   const [peakLon, setPeakLon] = useState(0);
 
-  // 声音报警静音状态 (持久化存储)
-  const [isMuted, setIsMuted] = useState(() => {
-    try {
-      return localStorage.getItem('hud_audio_muted') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  // 音频发生器引用
-  const audioCtxRef = useRef(null);
-  const oscRef = useRef(null);
-  const gainNodeRef = useRef(null);
-
   useEffect(() => {
     const absLat = Math.abs(latG);
     const absLon = Math.abs(lonG);
@@ -90,79 +76,7 @@ export function BrakingGripDynamicsPanel({ data }) {
   const isABSActive = Object.values(wheelStatuses).some(s => s.type === 'abs' && s.active);
   const isTCSActive = Object.values(wheelStatuses).some(s => s.type === 'tc' && s.active);
 
-  // ── 实时音频警报 ───────────────────────────────────
-  const startBeep = (freq, isAbs) => {
-    if (isMuted) return;
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
 
-      if (oscRef.current) {
-        oscRef.current.frequency.setValueAtTime(freq, ctx.currentTime);
-        return;
-      }
-
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      if (isAbs) {
-        osc.type = 'sawtooth'; // 锯齿波，刺耳，代表刹车抱死
-      } else {
-        osc.type = 'triangle'; // 三角波，警示，代表加速打滑
-      }
-
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gainNode.gain.setValueAtTime(0.04, ctx.currentTime); // 极低音量防止吵耳
-
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      osc.start();
-
-      oscRef.current = osc;
-      gainNodeRef.current = gainNode;
-    } catch {}
-  };
-
-  const stopBeep = () => {
-    if (oscRef.current) {
-      try {
-        oscRef.current.stop();
-        oscRef.current.disconnect();
-      } catch {}
-      oscRef.current = null;
-    }
-    if (gainNodeRef.current) {
-      try {
-        gainNodeRef.current.disconnect();
-      } catch {}
-      gainNodeRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (isABSActive) {
-      startBeep(980, true); // 980Hz ABS 尖锐警报
-    } else if (isTCSActive) {
-      startBeep(490, false); // 490Hz TCS 打滑警报
-    } else {
-      stopBeep();
-    }
-    return () => stopBeep();
-  }, [isABSActive, isTCSActive, isMuted]);
-
-  // 切换静音
-  const toggleMute = () => {
-    const nextVal = !isMuted;
-    setIsMuted(nextVal);
-    try {
-      localStorage.setItem('hud_audio_muted', String(nextVal));
-    } catch {}
-  };
 
   // 决定当前安全利用率颜色
   let safetyColor = '#3fb950'; // 稳定
@@ -309,24 +223,6 @@ export function BrakingGripDynamicsPanel({ data }) {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1 }}>
           底盘极限与重力监测（全新超大视觉 HUD）
         </div>
-        <button
-          onClick={toggleMute}
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(48,54,61,0.6)',
-            borderRadius: 4,
-            padding: '2px 8px',
-            fontSize: 9.5,
-            color: isMuted ? '#8b949e' : '#58a6ff',
-            cursor: 'pointer',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4
-          }}
-        >
-          {isMuted ? '🔇 声音报警: 关' : '🔊 声音报警: 开'}
-        </button>
       </div>
 
       <div style={{
