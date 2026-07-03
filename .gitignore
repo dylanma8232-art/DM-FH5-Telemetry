@@ -25,12 +25,13 @@ out/
 *.sln
 *.sw?
 
-# Telemetry data (Ignore local recorded run data files, keeping structure)
+# Telemetry and Database files (Ignore all local databases/runs, keeping code clean)
 forza-telemetry/server/data/session_*.json
 forza-telemetry/server/data/sessions/session_*.json
 forza-telemetry/data/sessions/
 forza-telemetry/data/*.gz
-forza-telemetry/data/session_*.json
+forza-telemetry/data/*.br
+forza-telemetry/data/*.json
 forza-telemetry/server/data/tracks-database.json
 
 # Codegraph files (Ignore local databases, socket, daemon files)
