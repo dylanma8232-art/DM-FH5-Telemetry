@@ -254,6 +254,9 @@ function loadSession(sessionId) {
   if (fs.existsSync(summaryPath)) {
     try {
       const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+      if (typeof tracks !== 'undefined' && summary.trackId && tracks[summary.trackId]) {
+        summary.trackName = tracks[summary.trackId].name;
+      }
       
       Object.defineProperty(summary, 'data', {
         get() {
@@ -2002,10 +2005,13 @@ app.get('/api/sessions', (req, res) => {
       try {
         const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
         const tune = data.tuneId && tunes[data.tuneId] ? tunes[data.tuneId] : null;
+        const trackName = (typeof tracks !== 'undefined' && data.trackId && tracks[data.trackId])
+          ? tracks[data.trackId].name
+          : (data.trackName || '未知赛道');
         return {
           id: data.id,
           filename: f,
-          trackName: data.trackName || '未知赛道',
+          trackName: trackName,
           trackId: data.trackId || null,
           vehicle: data.vehicle || null,
           laps: data.laps || {},
@@ -3219,6 +3225,245 @@ app.get('/api/analysis/:sessionId/shifts', (req, res) => {
     res.json(calculateShiftAnalysis(session.data || []));
   } catch (e) {
     res.status(500).json({ error: 'Failed to generate shift analysis' });
+  }
+});
+
+// 获取最佳圈号辅助函数
+function getBestLapNum(data) {
+  if (!data || data.length === 0) return 1;
+  let minBestLap = Infinity;
+  let bestLapNum = 0;
+  for (const d of data) {
+    const bl = d.bestLap || 0;
+    const ln = d.lapNumber || d.lapNum || 0;
+    if (bl > 0 && bl < minBestLap) {
+      minBestLap = bl;
+      bestLapNum = ln;
+    }
+  }
+  if (bestLapNum === 0) {
+    const laps = data.map(d => d.lapNumber || d.lapNum || 0).filter(l => l > 0);
+    if (laps.length > 0) {
+      const counts = {};
+      laps.forEach(l => counts[l] = (counts[l] || 0) + 1);
+      bestLapNum = parseInt(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+    } else {
+      bestLapNum = 1;
+    }
+  }
+  return bestLapNum;
+}
+
+// 空间最接近点匹配辅助函数
+function findClosestPoint(targetX, targetZ, lapPoints) {
+  let closest = null;
+  let minD2 = Infinity;
+  for (const p of lapPoints) {
+    const px = p.position?.x || p.positionX || p.x || 0;
+    const pz = p.position?.z || p.positionZ || p.z || 0;
+    const d2 = (px - targetX) ** 2 + (pz - targetZ) ** 2;
+    if (d2 < minD2) {
+      minD2 = d2;
+      closest = p;
+    }
+  }
+  return minD2 < 6400 ? closest : null; // 80米内有效
+}
+
+// 新增合并通道遥测数据接口
+app.get('/api/analysis/:sessionId/telemetry-channels', (req, res) => {
+  try {
+    const session = loadSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const rawData = session.data || [];
+    if (rawData.length === 0) {
+      return res.json({ lapNum: 0, channels: [] });
+    }
+    
+    let targetLapNum = parseInt(req.query.lapNum);
+    if (isNaN(targetLapNum) || targetLapNum <= 0) {
+      targetLapNum = getBestLapNum(rawData);
+    }
+    
+    const lapFrames = rawData.filter(d => (d.lapNumber || d.lapNum || 0) === targetLapNum);
+    if (lapFrames.length === 0) {
+      return res.json({ lapNum: targetLapNum, channels: [] });
+    }
+    
+    const step = parseInt(req.query.downsampleStep) || 4;
+    let cumulativeDistance = 0;
+    const channels = [];
+    
+    for (let i = 0; i < lapFrames.length; i++) {
+      const d = lapFrames[i];
+      const px = d.position?.x || d.positionX || 0;
+      const pz = d.position?.z || d.positionZ || 0;
+      const py = d.position?.y || d.positionY || 0;
+      
+      if (i > 0) {
+        const prev = lapFrames[i - 1];
+        const pprevX = prev.position?.x || prev.positionX || 0;
+        const pprevZ = prev.position?.z || prev.positionZ || 0;
+        const dist = Math.sqrt((px - pprevX) ** 2 + (pz - pprevZ) ** 2);
+        if (dist < 100) {
+          cumulativeDistance += dist;
+        }
+      }
+      
+      if (i % step === 0 || i === lapFrames.length - 1) {
+        channels.push({
+          distance: Math.round(cumulativeDistance * 10) / 10,
+          lapTime: d.currentLap || 0,
+          speed: Math.round(d.speedKmh || (d.speed ? d.speed * 3.6 : 0)),
+          rpm: Math.round(d.currentEngineRpm || d.rpm || 0),
+          gear: d.gear || 0,
+          throttle: Math.round((d.controls?.accel || d.accel || 0) / 2.55),
+          brake: Math.round((d.controls?.brake || d.brake || 0) / 2.55),
+          steer: d.controls?.steer || d.steer || 0,
+          gLong: d.gForce?.long || d.accelerationZ || 0,
+          gLat: d.gForce?.lat || d.accelerationX || 0,
+          x: px,
+          y: py,
+          z: pz,
+          tempFL: Math.round(d.tireTemp?.frontLeft || d.tireTempFrontLeft || 0),
+          tempFR: Math.round(d.tireTemp?.frontRight || d.tireTempFrontRight || 0),
+          tempRL: Math.round(d.tireTemp?.rearLeft || d.tireTempRearLeft || 0),
+          tempRR: Math.round(d.tireTemp?.rearRight || d.tireTempRearRight || 0),
+          slipFL: d.tireSlipRatio?.frontLeft || d.tireSlipRatioFrontLeft || 0,
+          slipFR: d.tireSlipRatio?.frontRight || d.tireSlipRatioFrontRight || 0,
+          slipRL: d.tireSlipRatio?.rearLeft || d.tireSlipRatioRearLeft || 0,
+          slipRR: d.tireSlipRatio?.rearRight || d.tireSlipRatioRearRight || 0,
+          angleFL: d.tireSlipAngle?.frontLeft || d.tireSlipAngleFrontLeft || 0,
+          angleFR: d.tireSlipAngle?.frontRight || d.tireSlipAngleFrontRight || 0,
+          angleRL: d.tireSlipAngle?.rearLeft || d.tireSlipAngleRearLeft || 0,
+          angleRR: d.tireSlipAngle?.rearRight || d.tireSlipAngleRearRight || 0
+        });
+      }
+    }
+    
+    res.json({
+      lapNum: targetLapNum,
+      channels
+    });
+  } catch (e) {
+    console.error('[channels API] error:', e.message);
+    res.status(500).json({ error: 'Failed to generate channels' });
+  }
+});
+
+// 新增弯道速度分析与历史对比接口
+app.get('/api/analysis/:sessionId/turns', (req, res) => {
+  try {
+    const session = loadSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const trackId = session.trackId;
+    if (!trackId || !tracks[trackId]) {
+      return res.json({ turns: [] });
+    }
+    
+    const track = tracks[trackId];
+    const trackTurns = track.turns || [];
+    if (trackTurns.length === 0) {
+      return res.json({ turns: [] });
+    }
+    
+    const rawData = session.data || [];
+    const bestLapNum = getBestLapNum(rawData);
+    const currentLapFrames = rawData.filter(d => (d.lapNumber || d.lapNum || 0) === bestLapNum);
+    
+    // 找出历史会话 (同赛道, 同款车, 最多5个)
+    const sessionsDir = path.join(DATA_DIR, 'sessions');
+    const files = fs.readdirSync(sessionsDir).filter(f => f.endsWith('_summary.json'));
+    const historySummaries = [];
+    
+    for (const f of files) {
+      try {
+        const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
+        if (data.trackId === trackId && data.vehicle === session.vehicle) {
+          historySummaries.push(data);
+        }
+      } catch (e) {}
+    }
+    
+    // 按时间升序（从旧到新），取前5个（包含当前Session）
+    historySummaries.sort((a, b) => new Date(a.savedAt) - new Date(b.savedAt));
+    const recentHistories = historySummaries.slice(-5);
+    
+    // 预先解压这几个历史 session 并提取它们的最快圈帧
+    const historyLapsData = recentHistories.map(hist => {
+      const hSession = loadSession(hist.id);
+      if (!hSession) return null;
+      const hRaw = hSession.data || [];
+      const hBestNum = getBestLapNum(hRaw);
+      return {
+        id: hist.id,
+        savedAt: hist.savedAt,
+        bestLap: hist.laps?.best || 0,
+        frames: hRaw.filter(d => (d.lapNumber || d.lapNum || 0) === hBestNum)
+      };
+    }).filter(h => h !== null);
+    
+    // 对每个弯道提取当前和历史数据
+    const analysisTurns = trackTurns.map((turn, tIdx) => {
+      const entryPt = findClosestPoint(turn.startX, turn.startZ, currentLapFrames);
+      const apexPt = findClosestPoint(turn.x, turn.z, currentLapFrames);
+      const exitPt = findClosestPoint(turn.endX, turn.endZ, currentLapFrames);
+      const brakePt = findClosestPoint(turn.brakePointX || turn.startX, turn.brakePointZ || turn.startZ, currentLapFrames);
+      
+      const entrySpeed = entryPt ? Math.round(entryPt.speedKmh || (entryPt.speed ? entryPt.speed * 3.6 : 0)) : 0;
+      const apexSpeed = apexPt ? Math.round(apexPt.speedKmh || (apexPt.speed ? apexPt.speed * 3.6 : 0)) : 0;
+      const exitSpeed = exitPt ? Math.round(exitPt.speedKmh || (exitPt.speed ? exitPt.speed * 3.6 : 0)) : 0;
+      const brakeSpeed = brakePt ? Math.round(brakePt.speedKmh || (brakePt.speed ? brakePt.speed * 3.6 : 0)) : 0;
+      const gear = apexPt ? (apexPt.gear || 0) : 0;
+      
+      // 提取历史进化曲线
+      const historySeries = historyLapsData.map(h => {
+        const hEntry = findClosestPoint(turn.startX, turn.startZ, h.frames);
+        const hApex = findClosestPoint(turn.x, turn.z, h.frames);
+        const hExit = findClosestPoint(turn.endX, turn.endZ, h.frames);
+        
+        return {
+          sessionId: h.id,
+          savedAt: h.savedAt,
+          bestLap: h.bestLap,
+          entrySpeed: hEntry ? Math.round(hEntry.speedKmh || (hEntry.speed ? hEntry.speed * 3.6 : 0)) : 0,
+          apexSpeed: hApex ? Math.round(hApex.speedKmh || (hApex.speed ? hApex.speed * 3.6 : 0)) : 0,
+          exitSpeed: hExit ? Math.round(hExit.speedKmh || (hExit.speed ? hExit.speed * 3.6 : 0)) : 0
+        };
+      });
+      
+      return {
+        index: tIdx,
+        name: `T${tIdx + 1}`,
+        type: turn.type,
+        turnCategory: turn.turnCategory || turn.type,
+        direction: turn.direction,
+        recommendedSpeed: turn.recommendedSpeed || 0,
+        speedHint: turn.speedHint || '',
+        radius: turn.radius || 9999,
+        current: {
+          entrySpeed,
+          apexSpeed,
+          exitSpeed,
+          brakeSpeed,
+          gear
+        },
+        history: historySeries
+      };
+    });
+    
+    res.json({
+      turns: analysisTurns
+    });
+  } catch (e) {
+    console.error('[turns API] error:', e.message);
+    res.status(500).json({ error: 'Failed to generate turns analysis' });
   }
 });
 
