@@ -17,13 +17,6 @@ function getGripInfo(slip) {
   return { val: grip, color: '#f85149', text: '失控' };
 }
 
-// 避震行程颜色
-function getSuspColor(val) {
-  if (val > 0.85 || val < 0.15) return '#f85149'; // 避震底极限或离地
-  if (val > 0.7 || val < 0.3) return '#d29922';  // 重量大幅度转移
-  return '#3fb950';                              // 稳定范围
-}
-
 export function BrakingGripDynamicsPanel({ data }) {
   const telemetryData = data || {};
   const acceleration = telemetryData.acceleration || { x: 0, y: 0, z: 0 };
@@ -46,7 +39,7 @@ export function BrakingGripDynamicsPanel({ data }) {
     if (absLon > peakLon) setPeakLon(absLon);
   }, [latG, lonG]);
 
-  // 根据车辆性能等级动态推算G力极限线
+  // 根据车辆级别动态推算重力极限线
   const limitG = useMemo(() => {
     const cls = car.class;
     if (cls === 0) return 0.95; // D
@@ -76,99 +69,52 @@ export function BrakingGripDynamicsPanel({ data }) {
   const isABSActive = Object.values(wheelStatuses).some(s => s.type === 'abs' && s.active);
   const isTCSActive = Object.values(wheelStatuses).some(s => s.type === 'tc' && s.active);
 
-
-
   // 决定当前安全利用率颜色
   let safetyColor = '#3fb950'; // 稳定
   let safetyText = '稳定行驶';
   if (utilizationPercent > 95) {
     safetyColor = '#f85149'; // 突破极限
-    safetyText = '超越极限/打滑';
+    safetyText = '超越抓地极限';
   } else if (utilizationPercent > 75) {
     safetyColor = '#d29922'; // 黄金物理极限区
-    safetyText = '黄金极限边缘';
+    safetyText = '极限边缘 (最佳)';
   }
 
-  // 四轮映射
-  const flInfo = { label: '前左 (FL)', key: 'FL', slip: tireCombinedSlip.frontLeft || 0, susp: suspension.frontLeft || 0.5, status: wheelStatuses.FL };
-  const frInfo = { label: '前右 (FR)', key: 'FR', slip: tireCombinedSlip.frontRight || 0, susp: suspension.frontRight || 0.5, status: wheelStatuses.FR };
-  const rlInfo = { label: '后左 (RL)', key: 'RL', slip: tireCombinedSlip.rearLeft || 0, susp: suspension.rearLeft || 0.5, status: wheelStatuses.RL };
-  const rrInfo = { label: '后右 (RR)', key: 'RR', slip: tireCombinedSlip.rearRight || 0, susp: suspension.rearRight || 0.5, status: wheelStatuses.RR };
+  // 四轮数据整理
+  const tires = useMemo(() => {
+    return {
+      FL: { label: 'FL', grip: getGripInfo(tireCombinedSlip.frontLeft || 0), status: wheelStatuses.FL },
+      FR: { label: 'FR', grip: getGripInfo(tireCombinedSlip.frontRight || 0), status: wheelStatuses.FR },
+      RL: { label: 'RL', grip: getGripInfo(tireCombinedSlip.rearLeft || 0), status: wheelStatuses.RL },
+      RR: { label: 'RR', grip: getGripInfo(tireCombinedSlip.rearRight || 0), status: wheelStatuses.RR },
+    };
+  }, [tireCombinedSlip, wheelStatuses]);
 
-  // 渲染极简四轮底盘车模
-  const renderWheelCard = (wheel) => {
-    const grip = getGripInfo(wheel.slip);
-    const suspColor = getSuspColor(wheel.susp);
-    const isSlipping = wheel.status.type !== 'none' && (wheel.status.active || wheel.status.text.includes('临界'));
-    const isHeavy = wheel.status.active;
-
-    let cardBorder = 'rgba(48, 54, 61, 0.8)';
-    let cardBg = 'rgba(22, 27, 34, 0.8)';
-    let glowClass = '';
-
-    if (isSlipping) {
-      cardBorder = wheel.status.color;
-      cardBg = isHeavy ? 'rgba(248, 81, 73, 0.15)' : 'rgba(210, 153, 34, 0.1)';
-      glowClass = isHeavy ? 'wheel-flash-heavy' : 'wheel-flash-light';
-    }
-
+  // 渲染简易轮胎单元
+  const renderTireNode = (tire) => {
+    const isSlipping = tire.status.type !== 'none' && tire.status.active;
+    const color = isSlipping ? tire.status.color : tire.grip.color;
     return (
-      <div
-        key={wheel.key}
-        className={glowClass}
-        style={{
-          background: cardBg,
-          border: `2px solid ${cardBorder}`,
-          borderRadius: 6,
-          padding: '8px 10px',
-          width: 140,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          boxSizing: 'border-box',
-          transition: 'all 0.08s linear'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 10.5, fontWeight: 900, color: isSlipping ? wheel.status.color : '#c9d1d9', fontFamily: 'monospace' }}>
-            {wheel.label}
-          </span>
-          {isSlipping && (
-            <span style={{
-              fontSize: 8,
-              fontWeight: 900,
-              background: wheel.status.color,
-              color: '#fff',
-              padding: '1px 4px',
-              borderRadius: 2,
-              animation: 'textPulse 0.3s infinite'
-            }}>
-              {wheel.status.type === 'abs' ? 'ABS' : 'TC'}
-            </span>
-          )}
-        </div>
-
-        {/* 抓地力进度条 */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: '#8b949e', marginBottom: 2 }}>
-            <span>抓地力</span>
-            <strong style={{ color: grip.color, fontFamily: 'monospace' }}>{grip.val.toFixed(0)}%</strong>
-          </div>
-          <div style={{ height: 5, background: '#21262d', borderRadius: 2.5, overflow: 'hidden' }}>
-            <div style={{ width: `${grip.val}%`, height: '100%', background: grip.color, borderRadius: 2.5 }} />
-          </div>
-        </div>
-
-        {/* 避震压缩进度条 */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: '#8b949e', marginBottom: 2 }}>
-            <span>避震压缩</span>
-            <strong style={{ color: suspColor, fontFamily: 'monospace' }}>{(wheel.susp * 100).toFixed(0)}%</strong>
-          </div>
-          <div style={{ height: 5, background: '#21262d', borderRadius: 2.5, overflow: 'hidden' }}>
-            <div style={{ width: `${wheel.susp * 100}%`, height: '100%', background: suspColor, borderRadius: 2.5 }} />
-          </div>
-        </div>
+      <div style={{
+        width: 32,
+        height: 48,
+        borderRadius: 4,
+        border: `2px solid ${isSlipping ? '#fff' : 'rgba(48, 54, 61, 0.8)'}`,
+        background: isSlipping ? color : 'rgba(22, 27, 34, 0.9)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: isSlipping ? `0 0 10px ${color}` : 'none',
+        animation: isSlipping ? 'alarmBlink 0.15s infinite alternate' : 'none',
+        transition: 'all 0.08s linear'
+      }}>
+        <span style={{ fontSize: 9, fontWeight: 900, color: isSlipping ? '#fff' : '#c9d1d9', fontFamily: 'monospace' }}>
+          {tire.label}
+        </span>
+        <span style={{ fontSize: 8, fontWeight: 700, color: isSlipping ? '#fff' : '#8b949e', marginTop: 2, fontFamily: 'monospace' }}>
+          {tire.grip.val.toFixed(0)}
+        </span>
       </div>
     );
   };
@@ -182,10 +128,11 @@ export function BrakingGripDynamicsPanel({ data }) {
       border: '1px solid var(--border, #21262d)',
       borderRadius: 8,
       boxSizing: 'border-box',
-      padding: '10px 14px',
+      padding: '12px 16px',
       position: 'relative',
       overflow: 'hidden'
     }}>
+      
       {/* 极速状态下如果过载失控，全屏边缘亮起红色闪烁报警呼吸灯 */}
       {isABSActive && (
         <div style={{
@@ -210,21 +157,93 @@ export function BrakingGripDynamicsPanel({ data }) {
         }} />
       )}
 
-      {/* 楼层总标题 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-        flexShrink: 0,
-        borderBottom: '1px solid rgba(48, 54, 61, 0.3)',
-        paddingBottom: 4
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1 }}>
-          底盘极限与重力监测（全新超大视觉 HUD）
+      {/* ================= 第一层：超大“物理极限利用率”进度横条 (100% 宽度) ================= */}
+      <div style={{ width: '100%', marginBottom: 16, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: 0.5 }}>
+              抓地力物理极限利用率 (TOTAL GRIP LIMIT)
+            </span>
+            <span style={{
+              fontSize: 9,
+              fontWeight: 800,
+              color: safetyColor,
+              background: `${safetyColor}12`,
+              padding: '1px 6px',
+              borderRadius: 3,
+              border: `1px solid ${safetyColor}25`
+            }}>
+              {safetyText}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: '#8b949e' }}>
+            估算上限: <strong style={{ color: '#fff', fontFamily: 'monospace' }}>{limitG.toFixed(2)} G</strong>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* 超大百分比数值 */}
+          <div style={{ fontSize: 44, fontWeight: 900, fontFamily: 'monospace', color: safetyColor, lineHeight: 1, minWidth: 100 }}>
+            {utilizationPercent.toFixed(0)}<span style={{ fontSize: 18, fontWeight: 700 }}>%</span>
+          </div>
+          
+          {/* 超粗且带有LED网格的进度条 */}
+          <div style={{
+            flex: 1,
+            height: 24,
+            background: '#161b22',
+            borderRadius: 4,
+            border: '1px solid #30363d',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            gap: 2,
+            padding: 2,
+            boxSizing: 'border-box'
+          }}>
+            {/* 75% 黄金线刻度 */}
+            <div style={{
+              position: 'absolute',
+              left: '75%',
+              top: 0,
+              bottom: 0,
+              width: 2,
+              background: '#fff',
+              opacity: 0.4,
+              zIndex: 3
+            }} />
+            
+            {/* 20个LED格组成的进度指示器 */}
+            {Array.from({ length: 20 }).map((_, idx) => {
+              const valThreshold = (idx + 1) * 5; // 每个格子代表 5%
+              const isActive = utilizationPercent >= valThreshold;
+              
+              let ledBg = '#21262d';
+              if (isActive) {
+                if (valThreshold > 90) ledBg = '#f85149'; // 红色
+                else if (valThreshold > 70) ledBg = '#d29922'; // 黄色
+                else ledBg = '#3fb950'; // 绿色
+              }
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    background: ledBg,
+                    borderRadius: 1,
+                    transition: 'background 0.05s linear',
+                    opacity: isActive ? 1 : 0.2
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
+      {/* ================= 第二层：三列布局 (横向G力 | 中控报警底盘 | 纵向G力) ================= */}
       <div style={{
         flex: 1,
         display: 'flex',
@@ -232,209 +251,250 @@ export function BrakingGripDynamicsPanel({ data }) {
         alignItems: 'stretch',
         minHeight: 0
       }}>
-        {/* ================= 左半区：巨型环形极少量规 + ABS/TC 巨型指示灯 ================= */}
+        
+        {/* 1. 左侧：横向重力中心 (过弯) */}
         <div style={{
-          flex: '0 0 45%',
+          flex: '0 0 35%',
+          background: 'rgba(0,0,0,0.15)',
+          borderRadius: 6,
+          border: '1px solid rgba(48,54,61,0.2)',
+          padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
           justifyContent: 'space-between',
-          borderRight: '1px solid rgba(48, 54, 61, 0.3)',
-          paddingRight: 16,
           boxSizing: 'border-box'
         }}>
-          
-          {/* 巨型仪表盘圆环 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'center' }}>
-            <div style={{ position: 'relative', width: 100, height: 100 }}>
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                {/* 背景底圈 */}
-                <circle cx="50" cy="50" r="42" fill="none" stroke="#21262d" strokeWidth="8" />
-                {/* 75% 刻度标记 */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="8"
-                  strokeDasharray="2, 195"
-                  transform="rotate(180 50 50)"
-                />
-                {/* 动态指示圆环 */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="none"
-                  stroke={safetyColor}
-                  strokeWidth="8"
-                  strokeDasharray={`${(utilizationPercent / 100) * 263.89} 263.89`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                  style={{ transition: 'stroke-dasharray 0.05s linear, stroke 0.1s linear' }}
-                />
-              </svg>
-              {/* 圆环中间显示超大百分比 */}
-              <div style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}>
-                <span style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', color: safetyColor, lineHeight: 1 }}>
-                  {utilizationPercent.toFixed(0)}%
-                </span>
-                <span style={{ fontSize: 7, color: '#8b949e', marginTop: 2, fontWeight: 600 }}>极限使用率</span>
-              </div>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>横向 G力 (过弯)</span>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>峰值: {peakLat.toFixed(2)} G</span>
             </div>
-
-            {/* 文字大标签配合 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>极限载荷合力</div>
-              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'monospace', color: '#fff' }}>
-                {currentTotalG.toFixed(2)} <span style={{ fontSize: 10, color: '#8b949e' }}>G</span>
-              </div>
-              <div style={{ fontSize: 8.5, color: '#8b949e' }}>
-                估算上限: {limitG.toFixed(2)} G
-              </div>
-              <span style={{
-                fontSize: 9,
-                fontWeight: 800,
-                color: safetyColor,
-                background: `${safetyColor}15`,
-                padding: '2px 6px',
-                borderRadius: 4,
-                border: `1px solid ${safetyColor}30`,
-                marginTop: 2,
-                width: 'fit-content'
-              }}>
-                {safetyText}
-              </span>
+            
+            {/* 超大横向G值 */}
+            <div style={{ fontSize: 44, fontWeight: 900, fontFamily: 'monospace', color: '#fff', marginTop: 6, lineHeight: 1 }}>
+              {Math.abs(latG).toFixed(2)} <span style={{ fontSize: 16, fontWeight: 600, color: '#8b949e' }}>G</span>
+            </div>
+            
+            <div style={{
+              fontSize: 10.5,
+              fontWeight: 800,
+              color: latG < -0.1 ? '#58a6ff' : latG > 0.1 ? '#f85149' : 'var(--text-muted)',
+              marginTop: 4
+            }}>
+              {latG < -0.1 ? '← 向右过弯 (载荷压在左侧)' : latG > 0.1 ? '向左过弯 (载荷压在右侧) →' : '直行'}
             </div>
           </div>
 
-          {/* 防抱死与防打滑巨型闪烁双色警报灯 */}
-          <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 8 }}>
-            {/* 巨型防抱死闪光灯 */}
+          {/* 横向重力天平动态指示器 */}
+          <div style={{ width: '100%', marginTop: 10 }}>
+            <div style={{ height: 12, background: '#161b22', borderRadius: 6, border: '1px solid #30363d', position: 'relative', overflow: 'hidden' }}>
+              {/* 中心零点 */}
+              <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: 'rgba(255,255,255,0.3)', zIndex: 2 }} />
+              
+              {/* 动态天平滑条 */}
+              {latG < 0 ? (
+                <div style={{
+                  position: 'absolute',
+                  right: '50%',
+                  left: `${Math.max(0, 50 - (Math.abs(latG) / limitG) * 50)}%`,
+                  top: 0,
+                  bottom: 0,
+                  background: '#58a6ff',
+                  borderRadius: '3px 0 0 3px'
+                }} />
+              ) : (
+                <div style={{
+                  position: 'absolute',
+                  left: '50%',
+                  right: `${Math.max(0, 50 - (Math.abs(latG) / limitG) * 50)}%`,
+                  top: 0,
+                  bottom: 0,
+                  background: '#f85149',
+                  borderRadius: '0 3px 3px 0'
+                }} />
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--text-muted)', marginTop: 4 }}>
+              <span>2.0G 左</span>
+              <span>0.0G 中</span>
+              <span>2.0G 右</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. 中间：巨型状态指示灯与底盘结合舱 */}
+        <div style={{
+          flex: '0 0 30%',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxSizing: 'border-box'
+        }}>
+          {/* 巨型防抱死与防打滑状态块 */}
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            {/* ABS */}
             <div
               className={isABSActive ? 'abs-active-glow' : ''}
               style={{
                 flex: 1,
-                padding: '12px 0',
+                padding: '10px 0',
                 borderRadius: 6,
                 textAlign: 'center',
                 background: isABSActive ? '#f85149' : '#161b22',
                 border: `2px solid ${isABSActive ? '#ff7b72' : '#30363d'}`,
-                color: isABSActive ? '#fff' : 'rgba(139,148,158,0.3)',
-                boxSizing: 'border-box',
+                color: isABSActive ? '#fff' : 'rgba(139,148,158,0.25)',
                 transition: 'all 0.05s linear'
               }}
             >
-              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'monospace', letterSpacing: 0.5, lineHeight: 1 }}>
-                ABS
-              </div>
-              <div style={{ fontSize: 8, fontWeight: 800, marginTop: 2, textTransform: 'uppercase', opacity: isABSActive ? 1 : 0.4 }}>
-                {isABSActive ? '制动锁死报警' : '制动安全'}
-              </div>
+              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1 }}>ABS</div>
+              <div style={{ fontSize: 8, fontWeight: 800, marginTop: 2 }}>{isABSActive ? '制动抱死' : '安全'}</div>
             </div>
 
-            {/* 巨型防打滑防防滑闪光灯 */}
+            {/* TCS */}
             <div
               className={isTCSActive ? 'tc-active-glow' : ''}
               style={{
                 flex: 1,
-                padding: '12px 0',
+                padding: '10px 0',
                 borderRadius: 6,
                 textAlign: 'center',
                 background: isTCSActive ? '#f0883e' : '#161b22',
                 border: `2px solid ${isTCSActive ? '#f8a060' : '#30363d'}`,
-                color: isTCSActive ? '#fff' : 'rgba(139,148,158,0.3)',
-                boxSizing: 'border-box',
+                color: isTCSActive ? '#fff' : 'rgba(139,148,158,0.25)',
                 transition: 'all 0.05s linear'
               }}
             >
-              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'monospace', letterSpacing: 0.5, lineHeight: 1 }}>
-                TCS
-              </div>
-              <div style={{ fontSize: 8, fontWeight: 800, marginTop: 2, textTransform: 'uppercase', opacity: isTCSActive ? 1 : 0.4 }}>
-                {isTCSActive ? '轮胎空转打滑' : '驱动安全'}
-              </div>
+              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1 }}>TCS</div>
+              <div style={{ fontSize: 8, fontWeight: 800, marginTop: 2 }}>{isTCSActive ? '车轮打滑' : '安全'}</div>
             </div>
           </div>
 
-        </div>
-
-        {/* ================= 右半区：精细 G 值看板 + 四轮工字底盘分布 ================= */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          paddingLeft: 8,
-          boxSizing: 'border-box'
-        }}>
-          
-          {/* 横/纵向 G 力看板 */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <div style={{ flex: 1, background: 'rgba(0,0,0,0.15)', padding: '6px 10px', borderRadius: 4, border: '1px solid rgba(48,54,61,0.2)' }}>
-              <div style={{ fontSize: 8.5, color: '#8b949e', display: 'flex', justifyContent: 'space-between' }}>
-                <span>横向力 (过弯)</span>
-                <span>峰: {peakLat.toFixed(2)}G</span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 900, fontFamily: 'monospace', color: '#fff', marginTop: 2 }}>
-                {Math.abs(latG).toFixed(2)} G
-                <span style={{ fontSize: 8, marginLeft: 4, color: latG < -0.1 ? '#58a6ff' : latG > 0.1 ? '#f85149' : '#8b949e' }}>
-                  {latG < -0.1 ? '←右弯' : latG > 0.1 ? '左弯→' : ''}
-                </span>
-              </div>
-            </div>
-            <div style={{ flex: 1, background: 'rgba(0,0,0,0.15)', padding: '6px 10px', borderRadius: 4, border: '1px solid rgba(48,54,61,0.2)' }}>
-              <div style={{ fontSize: 8.5, color: '#8b949e', display: 'flex', justifyContent: 'space-between' }}>
-                <span>纵向力 (油刹)</span>
-                <span>峰: {peakLon.toFixed(2)}G</span>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 900, fontFamily: 'monospace', color: '#fff', marginTop: 2 }}>
-                {Math.abs(lonG).toFixed(2)} G
-                <span style={{ fontSize: 8, marginLeft: 4, color: lonG > 0.1 ? '#f85149' : lonG < -0.1 ? '#3fb950' : '#8b949e' }}>
-                  {lonG > 0.1 ? '↑刹车' : lonG < -0.1 ? '↓给油' : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 四轮物理分布图 (2x2 工字底盘视图) */}
+          {/* 工字型极简物理车模（方程式底盘指示器） */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
             alignItems: 'center',
             justifyContent: 'center',
-            flex: 1,
-            position: 'relative'
+            position: 'relative',
+            height: '110px',
+            width: '100%'
           }}>
             {/* 前轴 */}
-            <div style={{ display: 'flex', gap: 16 }}>
-              {renderWheelCard(flInfo)}
-              {renderWheelCard(frInfo)}
+            <div style={{ display: 'flex', gap: 24, zIndex: 2 }}>
+              {renderTireNode(tires.FL)}
+              {renderTireNode(tires.FR)}
             </div>
+
+            {/* 纵向车轴骨架线 */}
+            <div style={{
+              position: 'absolute',
+              width: 4,
+              height: 70,
+              background: 'linear-gradient(to bottom, rgba(88,166,255,0.05) 0%, rgba(88,166,255,0.3) 50%, rgba(88,166,255,0.05) 100%)',
+              top: 20,
+              zIndex: 1
+            }} />
             
-            {/* 极简底盘工字钢轴线 */}
-            <div style={{ width: 2, height: 18, background: 'rgba(88,166,255,0.2)' }} />
+            {/* 横轴连接线 */}
+            <div style={{
+              position: 'absolute',
+              width: 50,
+              height: 2,
+              background: 'rgba(88,166,255,0.2)',
+              top: '40px',
+              zIndex: 1
+            }} />
+            <div style={{
+              position: 'absolute',
+              width: 50,
+              height: 2,
+              background: 'rgba(88,166,255,0.2)',
+              bottom: '40px',
+              zIndex: 1
+            }} />
 
             {/* 后轴 */}
-            <div style={{ display: 'flex', gap: 16 }}>
-              {renderWheelCard(rlInfo)}
-              {renderWheelCard(rrInfo)}
+            <div style={{ display: 'flex', gap: 24, zIndex: 2, marginTop: 12 }}>
+              {renderTireNode(tires.RL)}
+              {renderTireNode(tires.RR)}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. 右侧：纵向重力中心 (油刹) */}
+        <div style={{
+          flex: '0 0 35%',
+          background: 'rgba(0,0,0,0.15)',
+          borderRadius: 6,
+          border: '1px solid rgba(48,54,61,0.2)',
+          padding: '10px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          boxSizing: 'border-box'
+        }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700 }}>纵向 G力 (油刹)</span>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>峰值: {peakLon.toFixed(2)} G</span>
+            </div>
+
+            {/* 超大纵向G值 */}
+            <div style={{ fontSize: 44, fontWeight: 900, fontFamily: 'monospace', color: '#fff', marginTop: 6, lineHeight: 1 }}>
+              {Math.abs(lonG).toFixed(2)} <span style={{ fontSize: 16, fontWeight: 600, color: '#8b949e' }}>G</span>
+            </div>
+
+            <div style={{
+              fontSize: 10.5,
+              fontWeight: 800,
+              color: lonG > 0.1 ? '#f85149' : lonG < -0.1 ? '#3fb950' : 'var(--text-muted)',
+              marginTop: 4
+            }}>
+              {lonG > 0.1 ? '↑ 重刹车制动 (重心前倾)' : lonG < -0.1 ? '↓ 全力加速给油 (重心后仰)' : '匀速'}
             </div>
           </div>
 
+          {/* 纵向重力天平动态指示器 */}
+          <div style={{ width: '100%', marginTop: 10 }}>
+            <div style={{ height: 12, background: '#161b22', borderRadius: 6, border: '1px solid #30363d', position: 'relative', overflow: 'hidden' }}>
+              {/* 中心零点 */}
+              <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: 'rgba(255,255,255,0.3)', zIndex: 2 }} />
+              
+              {/* 动态纵向天平滑条 */}
+              {lonG < 0 ? (
+                <div style={{
+                  position: 'absolute',
+                  left: '50%',
+                  right: `${Math.max(0, 50 - (Math.abs(lonG) / limitG) * 50)}%`,
+                  top: 0,
+                  bottom: 0,
+                  background: '#3fb950', // 绿色代表加速推进
+                  borderRadius: '0 3px 3px 0'
+                }} />
+              ) : (
+                <div style={{
+                  position: 'absolute',
+                  right: '50%',
+                  left: `${Math.max(0, 50 - (Math.abs(lonG) / limitG) * 50)}%`,
+                  top: 0,
+                  bottom: 0,
+                  background: '#f85149', // 红色代表减速负载
+                  borderRadius: '3px 0 0 3px'
+                }} />
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--text-muted)', marginTop: 4 }}>
+              <span>2.0G 刹车</span>
+              <span>0.0G 中</span>
+              <span>2.0G 加速</span>
+            </div>
+          </div>
         </div>
+
       </div>
 
-      {/* 动画与高对比度警报闪烁样式 */}
+      {/* 警报与高对比度闪烁样式 */}
       <style>{`
         .abs-active-glow {
           box-shadow: 0 0 16px #f85149;
@@ -444,31 +504,13 @@ export function BrakingGripDynamicsPanel({ data }) {
           box-shadow: 0 0 16px #f0883e;
           animation: alarmBlink 0.25s infinite alternate;
         }
-        .wheel-flash-heavy {
-          animation: borderBlinkHeavy 0.15s infinite alternate;
-        }
-        .wheel-flash-light {
-          animation: borderBlinkLight 0.3s infinite alternate;
-        }
         @keyframes alarmBlink {
-          0% { filter: brightness(1); }
-          100% { filter: brightness(1.3); }
-        }
-        @keyframes borderBlinkHeavy {
-          0% { border-color: rgba(248, 81, 73, 0.4); box-shadow: 0 0 3px rgba(248, 81, 73, 0.2); }
-          100% { border-color: #f85149; box-shadow: 0 0 12px #f85149; }
-        }
-        @keyframes borderBlinkLight {
-          0% { border-color: rgba(210, 153, 34, 0.4); }
-          100% { border-color: #d29922; box-shadow: 0 0 8px rgba(210, 153, 34, 0.4); }
-        }
-        @keyframes textPulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
+          0% { filter: brightness(0.9); }
+          100% { filter: brightness(1.4); }
         }
         @keyframes screenWarning {
-          0% { border-color: rgba(248, 81, 73, 0.2); box-shadow: inset 0 0 20px rgba(248, 81, 73, 0.2); }
-          100% { border-color: rgba(248, 81, 73, 0.8); box-shadow: inset 0 0 40px rgba(248, 81, 73, 0.6); }
+          0% { border-color: rgba(248, 81, 73, 0.2); box-shadow: inset 0 0 15px rgba(248, 81, 73, 0.2); }
+          100% { border-color: rgba(248, 81, 73, 0.8); box-shadow: inset 0 0 30px rgba(248, 81, 73, 0.5); }
         }
       `}</style>
     </div>
