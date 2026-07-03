@@ -2235,7 +2235,14 @@ function CornerEvolutionPanel({ turns }) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)' }}>
               <span>弯心: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>{t.current?.apexSpeed || t.apexSpeed} km/h</span></span>
-              <span>档位: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#58a6ff' }}>{t.current?.gear || t.gear || 0} 档</span></span>
+              <span>档位: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#58a6ff' }}>
+                {(() => {
+                  const g = t.current?.gear !== undefined ? t.current.gear : t.gear;
+                  if (g === 0) return '空档';
+                  if (g === 11 || g === 255 || g < 0) return '倒车档';
+                  return `${g} 档`;
+                })()}
+              </span></span>
             </div>
           </div>
         ))}
