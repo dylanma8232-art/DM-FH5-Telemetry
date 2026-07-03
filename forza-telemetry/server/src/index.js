@@ -4051,24 +4051,49 @@ function buildLeaderboard() {
       improvement = firstBest.bestLap - lastBest.bestLap;
     }
 
+    // 动态查询最新赛道名称
+    const latestTrackName = tracks[g.trackId]?.name || g.trackName || '未知赛道';
+
+    // 首圈（第一次有有效圈速的session）
+    const firstValidSession = g.sessions.find(s => s.bestLap > 0);
+    const firstLap = firstValidSession ? firstValidSession.bestLap : 0;
+
+    // 最近一次 session 是否刷新了记录（最近5次session里有新最快）
+    const recentSessions = g.sessions.slice(-5);
+    const recentBest = recentSessions.filter(s => s.bestLap > 0).reduce((m, s) => s.bestLap < m ? s.bestLap : m, Infinity);
+    const recentBreakthrough = recentBest < Infinity && recentBest === (g.bestLap === Infinity ? 0 : g.bestLap);
+
+    // 距上次跑该赛道的天数
+    const lastSession = g.sessions[g.sessions.length - 1];
+    const daysSinceLastSession = lastSession
+      ? Math.floor((Date.now() - new Date(lastSession.savedAt).getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+
     result.push({
       trackId: g.trackId,
-      trackName: g.trackName,
+      trackName: latestTrackName,
       vehicleOrdinal: g.vehicleOrdinal,
       vehicleClass: g.vehicleClass,
       vehiclePI: g.vehiclePI,
       bestLap: g.bestLap === Infinity ? 0 : g.bestLap,
+      firstLap,
       avgBestLap: g.avgBestLap,
       totalLaps: g.totalLaps,
       sessionCount: g.sessionCount,
       improvement,
+      recentBreakthrough,
+      daysSinceLastSession,
       tunesUsed: Array.from(g.tunesUsed.values()).sort((a, b) => a.bestLap - b.bestLap),
-      lastSessionAt: g.sessions.length > 0 ? g.sessions[g.sessions.length - 1].savedAt : null
+      lastSessionAt: g.sessions.length > 0 ? g.sessions[g.sessions.length - 1].savedAt : null,
+      // 最近5次session的圈速（用于主卡片迷你趋势图）
+      recentBestLaps: recentSessions
+        .filter(s => s.bestLap > 0)
+        .map((s, i) => ({ index: i + 1, bestLap: s.bestLap, savedAt: s.savedAt }))
     });
   });
 
-  // 按最佳圈速排序（圈速越小越好）
-  result.sort((a, b) => (a.bestLap || Infinity) - (b.bestLap || Infinity));
+  // 按最后跑的时间倒序排列（最近活跃的赛道优先）
+  result.sort((a, b) => new Date(b.lastSessionAt) - new Date(a.lastSessionAt));
 
   // 写入缓存
   leaderboardCache = result;
@@ -4138,6 +4163,8 @@ app.get('/api/leaderboard/trend', (req, res) => {
       } catch (e) { }
     });
     sessions.sort((a, b) => new Date(a.savedAt) - new Date(b.savedAt));
+    // 添加 sessionIndex：第 N 次跑该赛道（用于学习曲线 X 轴）
+    sessions.forEach((s, i) => { s.sessionIndex = i + 1; });
 
     // 计算Optimal Lap：每个sector取所有session中的最短时间（使用中位数过滤异常值）
     let optimalLap = 0;

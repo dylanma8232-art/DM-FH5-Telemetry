@@ -981,11 +981,7 @@ export function TrackManagerPage({ onNavigate }) {
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>入弯</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>弯中</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>出弯</th>
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>推荐</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>降档</th>
                 </tr>
               </thead>
               <tbody>
@@ -1002,15 +998,6 @@ export function TrackManagerPage({ onNavigate }) {
                       </td>
                       <td style={{ padding: '4px 4px', fontFamily: 'monospace' }}>
                         {turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}
-                      </td>
-                      <td style={{ padding: '4px 4px', fontFamily: 'monospace', color: turn.entrySpeed ? '#c9d1d9' : '#484f58' }}>
-                        {turn.entrySpeed || '-'}
-                      </td>
-                      <td style={{ padding: '4px 4px', fontFamily: 'monospace', color: turn.apexSpeed ? '#c9d1d9' : '#484f58' }}>
-                        {turn.apexSpeed || '-'}
-                      </td>
-                      <td style={{ padding: '4px 4px', fontFamily: 'monospace', color: turn.exitSpeed ? '#c9d1d9' : '#484f58' }}>
-                        {turn.exitSpeed || '-'}
                       </td>
                       <td style={{ padding: '4px 4px' }}>
                         <input
@@ -1046,9 +1033,6 @@ export function TrackManagerPage({ onNavigate }) {
                             fontFamily: 'monospace'
                           }}
                         />
-                      </td>
-                      <td style={{ padding: '4px 4px', fontFamily: 'monospace', color: turn.suggestedGearDrop > 0 ? '#d29922' : '#484f58' }}>
-                        {turn.suggestedGearDrop > 0 ? '-' + turn.suggestedGearDrop : '-'}
                       </td>
                     </tr>
                   );
@@ -1389,9 +1373,7 @@ function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>方向</th>
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>角度</th>
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>半径</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>入/弯中/出弯</th>
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>推荐</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>降档</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1406,13 +1388,7 @@ function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
                         </td>
                         <td style={{ padding: 5, fontFamily: 'monospace' }}>{turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}</td>
                         <td style={{ padding: 5, fontFamily: 'monospace', color: '#8b949e' }}>{turn.radius ? turn.radius + 'm' : '-'}</td>
-                        <td style={{ padding: 5, fontFamily: 'monospace', fontSize: 9 }}>
-                          {turn.entrySpeed || '-'} / {turn.apexSpeed || '-'} / {turn.exitSpeed || '-'}
-                        </td>
                         <td style={{ padding: 5, fontFamily: 'monospace' }}>{turn.speedHint || turn.recommendedSpeed || '-'}</td>
-                        <td style={{ padding: 5, fontFamily: 'monospace', color: turn.suggestedGearDrop > 0 ? '#d29922' : '#484f58' }}>
-                          {turn.suggestedGearDrop > 0 ? '-' + turn.suggestedGearDrop : '-'}
-                        </td>
                       </tr>
                     );
                   })}
