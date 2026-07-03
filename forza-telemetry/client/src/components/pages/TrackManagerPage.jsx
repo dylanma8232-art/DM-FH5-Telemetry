@@ -981,7 +981,6 @@ export function TrackManagerPage({ onNavigate }) {
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
                   <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>推荐</th>
                 </tr>
               </thead>
               <tbody>
@@ -998,41 +997,6 @@ export function TrackManagerPage({ onNavigate }) {
                       </td>
                       <td style={{ padding: '4px 4px', fontFamily: 'monospace' }}>
                         {turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}
-                      </td>
-                      <td style={{ padding: '4px 4px' }}>
-                        <input
-                          value={turn.speedHint || (turn.recommendedSpeed ? turn.recommendedSpeed + '' : '')}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const newTurns = [...selectedTrackData.turns];
-                            newTurns[idx] = { ...newTurns[idx], speedHint: val };
-                            setTracks(prev => ({
-                              ...prev,
-                              [selectedTrack]: { ...prev[selectedTrack], turns: newTurns }
-                            }));
-                          }}
-                          onBlur={() => {
-                            fetch(`/api/tracks/${selectedTrack}/turns/${idx}/speedHint`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ speedHint: turn.speedHint || '' })
-                            }).catch(() => toast('保存速度建议失败', 'error'));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') e.target.blur();
-                          }}
-                          placeholder="km/h"
-                          style={{
-                            width: 52,
-                            padding: '2px 4px',
-                            background: 'var(--bg-primary)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 3,
-                            color: 'var(--text-primary)',
-                            fontSize: 10,
-                            fontFamily: 'monospace'
-                          }}
-                        />
                       </td>
                     </tr>
                   );
@@ -1373,7 +1337,6 @@ function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>方向</th>
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>角度</th>
                     <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>半径</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>推荐</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1388,7 +1351,6 @@ function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
                         </td>
                         <td style={{ padding: 5, fontFamily: 'monospace' }}>{turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}</td>
                         <td style={{ padding: 5, fontFamily: 'monospace', color: '#8b949e' }}>{turn.radius ? turn.radius + 'm' : '-'}</td>
-                        <td style={{ padding: 5, fontFamily: 'monospace' }}>{turn.speedHint || turn.recommendedSpeed || '-'}</td>
                       </tr>
                     );
                   })}
