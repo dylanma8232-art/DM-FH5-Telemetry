@@ -2,6 +2,8 @@
 .DS_Store
 Thumbs.db
 *.log
+.env
+.env.*
 
 # Dependencies
 node_modules/
