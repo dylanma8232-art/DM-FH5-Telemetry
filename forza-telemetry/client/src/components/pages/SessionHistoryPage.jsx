@@ -9,8 +9,6 @@ import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 
 export function SessionHistoryPage({ onNavigate, navIntent }) {
-  // 主Tab: 'sessions' = 比赛记录, 'leaderboard' = 圈速排行榜
-  const [mainTab, setMainTab] = useState('sessions');
 
   // 比赛记录状态
   const [sessions, setSessions] = useState([]);
@@ -237,20 +235,27 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   // 处理跨页导航意图
   useEffect(() => {
     if (!navIntent) return;
-    // 从其他模块跳转到圈速榜（通过_subTab标记或仅传trackId无trackName）
+    // 从其他模块跳转到圈速榜
     if (navIntent._subTab === 'leaderboard') {
-      setMainTab('leaderboard');
-      if (navIntent.trackId) setLbTrackFilter(navIntent.trackId);
+      setTrackFilter('');
+      setSelectedSession(null);
+      if (navIntent.trackId && sessions.length > 0) {
+        const matched = sessions.find(s => s.trackId === navIntent.trackId);
+        if (matched) setTrackFilter(matched.trackName);
+      }
     } else if (navIntent.trackId && !navIntent.trackName) {
-      setMainTab('leaderboard');
-      setLbTrackFilter(navIntent.trackId);
+      setSelectedSession(null);
+      if (sessions.length > 0) {
+        const matched = sessions.find(s => s.trackId === navIntent.trackId);
+        if (matched) setTrackFilter(matched.trackName);
+      }
     } else if (navIntent.trackName) {
       setTrackFilter(navIntent.trackName);
     }
     if (navIntent.tuneId) {
       setSessionSearchQuery(tunes[navIntent.tuneId]?.name || '');
     }
-  }, [navIntent, tunes]);
+  }, [navIntent, tunes, sessions]);
 
   const loadSessions = async () => {
     try {
@@ -435,12 +440,6 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     }
   };
 
-  // 切换到排行榜Tab时自动加载数据
-  useEffect(() => {
-    if (mainTab === 'leaderboard' && !lbLoaded) {
-      loadLeaderboard();
-    }
-  }, [mainTab, lbLoaded]);
 
   const loadLbTrend = async (trackId, vehicleOrdinal) => {
     const key = trackId + '_' + vehicleOrdinal;
@@ -836,6 +835,24 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
   }, [myFilteredSessions, sessionPage]);
   const totalPages = Math.ceil(myFilteredSessions.length / SESSION_PAGE_SIZE);
 
+  // 计算当前 Session 在赛道历史学习曲线上的位置
+  const sessionLearningData = useMemo(() => {
+    if (!analysis?.trackId) return null;
+    const trackSessions = [...sessions].filter(s => s.trackId === analysis.trackId).reverse();
+    const data = trackSessions
+      .filter(s => s.laps?.best > 0)
+      .map((s, idx) => ({
+        index: idx + 1,
+        bestLap: s.laps.best,
+        sessionId: s.id,
+        isCurrent: s.id === selectedSession
+      }));
+    if (data.length === 0) return null;
+    const best = Math.min(...data.map(d => d.bestLap));
+    const current = data.find(d => d.sessionId === selectedSession)?.bestLap || 0;
+    return { data, best, current };
+  }, [sessions, analysis?.trackId, selectedSession]);
+
   // Round 1: 改进优先级 - 从5维度中找得分最低的3个
   const worst3 = useMemo(() => {
     if (!analysis?.驾驶评分?.维度) return [];
@@ -849,37 +866,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
-      {/* 主Tab栏: 比赛记录 / 圈速排行榜 */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
-      }}>
-        {[
-          { id: 'sessions', label: '比赛记录' },
-          { id: 'leaderboard', label: '圈速排行榜' },
-        ].map(tab => (
-          <div
-            key={tab.id}
-            onClick={() => setMainTab(tab.id)}
-            style={{
-              padding: '10px 20px',
-              cursor: 'pointer',
-              color: mainTab === tab.id ? 'var(--accent)' : 'var(--text-secondary)',
-              borderBottom: mainTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
-              fontSize: 13,
-              fontWeight: mainTab === tab.id ? 600 : 400,
-              transition: 'all 0.2s',
-            }}
-          >
-            {tab.label}
-          </div>
-        ))}
-      </div>
-
-      {/* ===== 比赛记录视图 ===== */}
-      {mainTab === 'sessions' && (
-    <div style={{ display: 'flex', flex: 1 }}>
+      <div style={{ display: 'flex', flex: 1 }}>
       <div style={{ 
         width: 320, 
         borderRight: '1px solid var(--border)',
@@ -1066,13 +1053,26 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         {loading ? (
           <LoadingSpinner />
-        ) : !analysis ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 14, marginBottom: 8 }}>选择左侧比赛记录查看分析</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>点击任意记录以加载分析数据</div>
-          </div>
-        ) : (
+        ) : selectedSession && analysis ? (
           <div>
+            {/* Breadcrumb Navigation */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
+              <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setSelectedSession(null); setTrackFilter(''); }}>
+                赛道成就墙
+              </span>
+              <span>&gt;</span>
+              {trackFilter ? (
+                <>
+                  <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setSelectedSession(null)}>
+                    {trackFilter} 轨迹概览
+                  </span>
+                  <span>&gt;</span>
+                </>
+              ) : null}
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                单场遥测分析 ({selectedSession.substring(0, 8)})
+              </span>
+            </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
               {[
                 { id: 'overview', label: '总览 (诊断与弯角)' },
@@ -1173,6 +1173,53 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         </ul>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* 赛道学习曲线位置 */}
+                {sessionLearningData && sessionLearningData.data.length > 1 && (
+                  <div style={{
+                    ...sectionStyle,
+                    marginBottom: 16
+                  }}>
+                    <h3 style={sectionTitleStyle}>本场比赛在赛道成长轨迹中的位置</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'center' }}>
+                      <div style={{ height: 100 }}>
+                        <ResponsiveContainer width="100%" height={100}>
+                          <LineChart data={sessionLearningData.data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 8, fill: '#8b949e' }} />
+                            <YAxis domain={['auto', 'auto']} tickFormatter={v => formatTime(v)} tick={{ fontSize: 8, fill: '#8b949e' }} width={55} reversed />
+                            <Line
+                              type="monotone" dataKey="bestLap"
+                              stroke="#58a6ff" strokeWidth={1.5}
+                              dot={(props) => {
+                                const { cx, cy, payload } = props;
+                                if (payload.isCurrent) {
+                                  return <circle cx={cx} cy={cy} r={6} fill="#ff9500" stroke="#fff" strokeWidth={2} />;
+                                }
+                                return <circle cx={cx} cy={cy} r={3} fill="#58a6ff" stroke="none" />;
+                              }}
+                              isAnimationActive={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: 12 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>历史最好成绩：</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace', marginBottom: 6 }}>
+                          {formatTime(sessionLearningData.best)}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>本场成绩差距：</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>
+                          {sessionLearningData.current <= sessionLearningData.best ? (
+                            <span style={{ color: '#d29922' }}>🎉 本场创下新纪录(PB)！</span>
+                          ) : (
+                            <span style={{ color: '#ff9500' }}>慢了 {(sessionLearningData.current - sessionLearningData.best).toFixed(3)} 秒</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1550,332 +1597,281 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
-      )}
-
-      {/* ===== 圈速排行榜视图 ===== */}
-      {mainTab === 'leaderboard' && (
-        <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 600 }}>圈速排行榜</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                共 {lbEntries.length} 个赛道-车辆组合
+        ) : trackFilter ? (
+          // State 2: 赛道成长轨迹看板
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* 导航面包屑 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
+                <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setTrackFilter(''); }}>
+                  赛道成就墙
+                </span>
+                <span>&gt;</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                  {trackFilter} 轨迹概览
+                </span>
               </div>
-            </div>
-            <button onClick={clearAllLbTrendCache} style={lbBtnPrimaryStyle}>
-              刷新
-            </button>
-          </div>
-
-          {/* 筛选栏 */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              value={lbSearchQuery}
-              onChange={e => setLbSearchQuery(e.target.value)}
-              placeholder="搜索赛道或车辆..."
-              style={{ ...lbInputStyle, width: 200, marginBottom: 0 }}
-            />
-            <select
-              value={lbTrackFilter}
-              onChange={e => setLbTrackFilter(e.target.value)}
-              style={{ ...lbInputStyle, width: 180, marginBottom: 0 }}
-            >
-              <option value="">全部赛道</option>
-              {lbAllTracks.map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </select>
-            {/* Round 8: 时间范围筛选 */}
-            <select
-              value={lbTimeRange}
-              onChange={e => setLbTimeRange(e.target.value)}
-              style={{ ...lbInputStyle, width: 120, marginBottom: 0 }}
-            >
-              <option value="all">全部时间</option>
-              <option value="7d">最近7天</option>
-              <option value="30d">最近30天</option>
-            </select>
-            {/* Round 3: 车辆筛选 */}
-            <select
-              value={lbVehicleFilter}
-              onChange={e => setLbVehicleFilter(e.target.value)}
-              style={{ ...lbInputStyle, width: 160, marginBottom: 0 }}
-            >
-              <option value="">全部车辆</option>
-              {lbAllVehicles.map(v => (
-                <option key={v.ordinal} value={v.ordinal}>
-                  #{v.ordinal} · {v.name} ({getVehicleClass(v.cls)} {v.PI || v.pi}PI)
-                </option>
-              ))}
-            </select>
-            {(lbSearchQuery || lbTrackFilter || lbTimeRange !== 'all' || lbVehicleFilter) && (
-              <button onClick={() => { setLbSearchQuery(''); setLbTrackFilter(''); setLbTimeRange('all'); setLbVehicleFilter(''); }} style={btnSmallStyle}>
-                清除筛选
-              </button>
-            )}
-          </div>
-
-          {lbLoading && <LoadingSpinner />}
-
-          {!lbLoading && lbFiltered.length === 0 && (
-            <EmptyState icon="🏁" title="暂无排行榜数据" description="完成比赛并保存记录后，此处将显示你的圈速排行榜。" />
-          )}
-
-          {!lbLoading && lbFiltered.map((entry, idx) => {
-            const key = entry.trackId + '_' + entry.vehicleOrdinal;
-            const isExpanded = lbExpandedKeys.has(key);
-            // Round 7: 每项独立从缓存读取趋势数据和加载状态
-            const cachedTrend = lbTrendCacheRef.current.get(key);
-            const isTrendLoading = lbTrendLoadingSetRef.current.has(key);
-            // Round 7 + 9: 每项独立的chartData，包含详细信息供tooltip使用
-            const trendBestLap = cachedTrend?.bestLap || Infinity;
-            const entryChartData = cachedTrend?.sessions ? cachedTrend.sessions.map((s, i) => ({
-              index: i + 1,
-              date: formatDate(s.savedAt).split(' ')[0],
-              dateFull: formatDate(s.savedAt),
-              bestLap: s.bestLap > 0 ? s.bestLap : null,
-              lastLap: s.lastLap > 0 ? s.lastLap : null,
-              delta: s.bestLap > 0 && trendBestLap > 0 ? s.bestLap - trendBestLap : null,
-            })) : [];
-            return (
-              <div key={key} style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                marginBottom: 10,
-                overflow: 'hidden',
+              <button onClick={() => setTrackFilter('')} style={{
+                ...btnSmallStyle, background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)'
               }}>
-                {/* 主行 */}
-                <div
-                  onClick={() => toggleLbExpand(entry)}
-                  style={{
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    display: 'grid',
-                    gridTemplateColumns: '32px 1fr 100px 80px 60px',
-                    gap: 8,
-                    alignItems: 'center',
-                    fontSize: 11,
-                    borderBottom: '1px solid #21262d',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: '#58a6ff', fontSize: 12 }}>#{idx + 1}</div>
-                  <div>
-                    <div style={{ fontWeight: 600, color: '#c9d1d9' }}>{entry.trackName}</div>
-                    <div style={{ fontSize: 9, color: '#8b949e', marginTop: 1 }}>
-                      #{entry.vehicleOrdinal} · {getVehicleClass(entry.vehicleClass)} {entry.vehiclePI} PI
+                返回成就墙
+              </button>
+            </div>
+
+            {/* 看板主体 */}
+            {(() => {
+              const matchedSession = sessions.find(s => s.trackName === trackFilter);
+              const trackId = matchedSession?.trackId;
+
+              // 过滤出该赛道的所有比赛记录
+              const matchedEntries = lbEntries.filter(e => e.trackName === trackFilter);
+              const trackSessions = [...myFilteredSessions].reverse(); // 从老到新
+              const learningData = trackSessions
+                .filter(s => s.laps?.best > 0)
+                .map((s, idx) => ({
+                  index: idx + 1,
+                  bestLap: s.laps.best,
+                  date: s.savedAt ? new Date(s.savedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : '',
+                  car: s.vehicle?.name || `车辆 #${s.vehicle?.ordinal}`,
+                  sessionId: s.id
+                }));
+
+              const minLap = learningData.length > 0 ? Math.min(...learningData.map(d => d.bestLap)) : 0;
+              const maxLap = learningData.length > 0 ? Math.max(...learningData.map(d => d.bestLap)) : 0;
+              const yDomain = learningData.length > 0 ? [Math.max(0, minLap - 2), maxLap + 2] : [0, 100];
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* 首部概览与缩略图 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16, background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    {trackId ? <TrackThumbnail trackId={trackId} /> : <div style={{ width: 120, height: 80, background: 'rgba(255,255,255,0.02)' }} />}
+                    <div>
+                      <h2 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 700 }}>{trackFilter}</h2>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>历史最快圈速</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
+                            {minLap > 0 ? lbFormatTime(minLap) : '-'}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>总出赛次数</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace' }}>
+                            {trackSessions.length} 次
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>总跑圈数</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace' }}>
+                            {trackSessions.reduce((sum, s) => sum + (s.laps?.count || 0), 0)} 圈
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  {/* Round 3: 趋势箭头 + 最佳圈速 */}
-                  <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    {/* Round 3: 趋势箭头 */}
-                    {entry.improvement > 0 && (
-                      <span style={{ color: '#3fb950', fontSize: 12, fontWeight: 700 }}>&#9650;</span>
-                    )}
-                    {entry.improvement < 0 && (
-                      <span style={{ color: '#f85149', fontSize: 12, fontWeight: 700 }}>&#9660;</span>
-                    )}
-                    {(!entry.improvement || entry.improvement === 0) && entry.sessionCount > 1 && (
-                      <span style={{ color: '#8b949e', fontSize: 10 }}>=</span>
-                    )}
-                    <div style={{ fontFamily: 'monospace', fontWeight: 700,
-                      color: entry.optimalLap && entry.bestLap > 0 && entry.bestLap <= entry.optimalLap ? '#d29922' : '#3fb950'
-                    }}>
-                      {lbFormatTime(entry.bestLap)}
+
+                  {/* 学习曲线折线图 */}
+                  {learningData.length > 1 ? (
+                    <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>学习曲线 · 赛道圈速演进</div>
+                      <div style={{ height: 200 }}>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <LineChart data={learningData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 9, fill: '#8b949e' }} />
+                            <YAxis domain={yDomain} tickFormatter={v => lbFormatTime(v)} tick={{ fontSize: 9, fill: '#8b949e' }} width={55} reversed />
+                            <Tooltip
+                              formatter={(v, name, props) => [
+                                `${lbFormatTime(v)} (${props.payload.car})`,
+                                '圈速'
+                              ]}
+                              labelFormatter={(label, payload) => {
+                                const item = payload?.[0]?.payload;
+                                return `第 ${label} 次出赛 · ${item?.date || ''}`;
+                              }}
+                              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
+                            />
+                            <ReferenceLine y={minLap} stroke="#d29922" strokeDasharray="4 2" label={{ value: '最快', fill: '#d29922', fontSize: 9, position: 'right' }} />
+                            <Line
+                              type="monotone" dataKey="bestLap"
+                              stroke="#3fb950" strokeWidth={2}
+                              dot={{ r: 4, fill: '#3fb950', stroke: '#0d1117', strokeWidth: 1 }}
+                              activeDot={{ r: 6 }}
+                              isAnimationActive={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                    {entry.optimalLap && entry.bestLap > 0 && entry.bestLap <= entry.optimalLap && (
-                      <span style={{ fontSize: 8, color: '#d29922', fontWeight: 700 }} title="理论最佳">TL</span>
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'monospace', color: '#8b949e' }}>{lbFormatTime(entry.avgBestLap)}</div>
-                    <div style={{ fontSize: 9, color: '#484f58' }}>平均</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 600, color: '#8b949e' }}>{entry.sessionCount}次</div>
-                    <div style={{ fontSize: 9, color: '#484f58' }}>{entry.totalLaps}圈</div>
-                  </div>
-                </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 30, background: 'var(--bg-secondary)', borderRadius: 8, color: 'var(--text-secondary)', fontSize: 11 }}>
+                      需要至少 2 次比赛记录来绘制学习曲线趋势图
+                    </div>
+                  )}
 
-                {/* 展开详情 */}
-                {isExpanded && (
-                  <div style={{
-                    borderTop: '1px solid #21262d',
-                    padding: '10px 12px',
-                    background: '#0d1117',
-                  }}>
-                    {isTrendLoading && <div style={{ textAlign: 'center', padding: 12, color: '#8b949e', fontSize: 11 }}>加载趋势...</div>}
-
-                    {!isTrendLoading && cachedTrend && (
-                      <div>
-                        {/* Round 6: 单项刷新按钮 */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-                          <button
-                            onClick={() => {
-                              clearLbTrendCache(key);
-                              loadLbTrend(entry.trackId, entry.vehicleOrdinal);
-                            }}
-                            style={{ ...btnSmallStyle, fontSize: 9, color: 'var(--text-secondary)' }}
-                          >
-                            刷新趋势
-                          </button>
-                        </div>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-                          gap: 6,
-                          marginBottom: 10,
-                        }}>
-                          <LbStatCard label="最佳" value={lbFormatTime(cachedTrend.bestLap)} color="#3fb950" />
-                          <LbStatCard label="平均" value={lbFormatTime(cachedTrend.avgBestLap)} color="#58a6ff" />
-                          {/* Round 3: 理论最佳圈速金色高亮 */}
-                          {cachedTrend.optimalLap > 0 && (
-                            <LbStatCard label="理论最佳" value={lbFormatTime(cachedTrend.optimalLap)} color="#d29922" highlight />
-                          )}
-                          <LbStatCard label="总圈" value={cachedTrend.totalLaps} color="#fff" />
-                          <LbStatCard label="次数" value={cachedTrend.sessionCount} color="#fff" />
-                          {cachedTrend.improvement > 0 && (
-                            <LbStatCard label="进步" value={'-' + cachedTrend.improvement.toFixed(2) + 's'} color="#3fb950" />
-                          )}
-                        </div>
-
-                        {/* 理论最佳Sector详情 */}
-                        {cachedTrend.optimalSectors && cachedTrend.optimalSectors.length > 0 && cachedTrend.bestLap > 0 && (
-                          <div style={{ marginBottom: 10, padding: 8, background: 'rgba(210, 153, 34, 0.08)', border: '1px solid rgba(210, 153, 34, 0.25)', borderRadius: 6 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 4, color: '#d29922' }}>
-                              理论潜力: 可提升 {(cachedTrend.bestLap - cachedTrend.optimalLap).toFixed(2)}s
+                  {/* 出赛车辆排行列表 */}
+                  {matchedEntries.length > 0 && (
+                    <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>该赛道出赛车辆与PB</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {matchedEntries.map(e => (
+                          <div key={e.vehicleOrdinal} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border)'
+                          }}>
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 600 }}>{e.vehicleName || `Car #${e.vehicleOrdinal}`}</div>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                #{e.vehicleOrdinal} · {getVehicleClass(e.vehicleClass)} {e.vehiclePI} PI
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {cachedTrend.optimalSectors.map(os => (
-                                <div key={os.sectorIndex} style={{
-                                  background: '#161b22',
-                                  border: '1px solid #21262d',
-                                  borderRadius: 4,
-                                  padding: '4px 8px',
-                                  fontSize: 9,
-                                  minWidth: 70,
-                                }}>
-                                  <div style={{ color: '#8b949e', marginBottom: 1 }}>S{os.sectorIndex}</div>
-                                  <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#d29922' }}>
-                                    {lbFormatTime(os.optimalTime)}
-                                  </div>
-                                </div>
-                              ))}
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
+                                {lbFormatTime(e.bestLap)}
+                              </div>
+                              <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginTop: 2 }}>
+                                {e.sessionCount}次出赛 · {e.totalLaps}圈
+                              </div>
                             </div>
                           </div>
-                        )}
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        ) : (
+          // State 1: 我的赛道成就墙 (首屏)
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>我的赛道成就墙</h2>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  共跑过 {lbEntries.length} 个赛道-车辆组合，点击卡片聚焦该赛道
+                </div>
+              </div>
+              <button onClick={loadLeaderboard} style={{
+                padding: '6px 12px', background: 'rgba(88,166,255,0.12)',
+                border: '1px solid rgba(88,166,255,0.3)', borderRadius: 6,
+                color: '#58a6ff', cursor: 'pointer', fontSize: 11
+              }}>
+                刷新成就
+              </button>
+            </div>
 
-                        {/* 趋势图 */}
-                        {entryChartData.length >= 2 && (
-                          <div style={{ marginBottom: 16 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>圈速趋势</div>
-                            <div style={{ width: '100%', height: 220 }}>
-                              <ResponsiveContainer>
-                                <LineChart data={entryChartData}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                                  <XAxis dataKey="index" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
-                                  <YAxis
-                                    tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
-                                    domain={['auto', 'auto']}
-                                    tickFormatter={(v) => {
-                                      const m = Math.floor(v / 60);
-                                      const s = Math.floor(v % 60);
-                                      return `${m}:${s.toString().padStart(2, '0')}`;
-                                    }}
+            {/* 卡片网格 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+              {(() => {
+                const filteredAchievements = lbEntries.filter(entry => {
+                  return !sessionSearchQuery.trim() || entry.trackName.toLowerCase().includes(sessionSearchQuery.toLowerCase());
+                });
+
+                if (filteredAchievements.length === 0) {
+                  return <div style={{ gridColumn: '1/-1' }}><EmptyState icon="🏆" title="暂无成就卡片" description="在不同赛道跑圈并保存记录后将自动生成成就卡片" /></div>;
+                }
+
+                return filteredAchievements.map(entry => {
+                  const improvementSec = entry.firstLap > 0 && entry.bestLap > 0 ? entry.firstLap - entry.bestLap : 0;
+                  const badges = [];
+                  if (entry.recentBreakthrough) badges.push({ icon: '🔥', label: '突破', color: '#ff9500' });
+                  if (entry.daysSinceLastSession > 30) badges.push({ icon: '❄️', label: '冷落', color: '#58a6ff' });
+
+                  return (
+                    <div
+                      key={entry.trackId + '_' + entry.vehicleOrdinal}
+                      onClick={() => {
+                        setTrackFilter(entry.trackName);
+                      }}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8,
+                        padding: 12,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <div>
+                        {/* 赛道名称与标签 */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 170 }}>
+                            {entry.trackName}
+                          </span>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {badges.map(b => (
+                              <span key={b.label} style={{
+                                fontSize: 8, padding: '1px 4px',
+                                background: `${b.color}22`, border: `1px solid ${b.color}55`,
+                                borderRadius: 8, color: b.color
+                              }}>
+                                {b.icon} {b.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 车辆信息 */}
+                        <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                          {entry.vehicleName || `Car #${entry.vehicleOrdinal}`} ({getVehicleClass(entry.vehicleClass)} {entry.vehiclePI} PI)
+                        </div>
+
+                        {/* 最佳圈速与微缩趋势线 */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#3fb950', fontFamily: 'monospace' }}>
+                              {lbFormatTime(entry.bestLap)}
+                            </div>
+                            {improvementSec > 0 && (
+                              <div style={{ fontSize: 9, color: '#3fb950', marginTop: 2, fontWeight: 600 }}>
+                                ▼ {improvementSec.toFixed(2)}s (超越首圈)
+                              </div>
+                            )}
+                          </div>
+                          {entry.recentBestLaps && entry.recentBestLaps.length > 1 && (
+                            <div style={{ width: 80, height: 24 }}>
+                              <ResponsiveContainer width="100%" height={24}>
+                                <LineChart data={entry.recentBestLaps}>
+                                  <Line
+                                    type="monotone" dataKey="bestLap"
+                                    stroke="#3fb950" strokeWidth={1}
+                                    dot={false} isAnimationActive={false}
                                   />
-                                  <Tooltip
-                                    contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
-                                    formatter={(value, name, props) => {
-                                      if (value == null) return ['-', name === 'bestLap' ? '最佳圈速' : '末圈圈速'];
-                                      const label = name === 'bestLap' ? '最佳圈速' : '末圈圈速';
-                                      const delta = props.payload.delta;
-                                      let suffix = '';
-                                      if (delta != null && delta > 0) suffix = ` (+${delta.toFixed(3)}s)`;
-                                      else if (delta != null && delta === 0) suffix = ' (PB)';
-                                      return [lbFormatTime(value) + suffix, label];
-                                    }}
-                                    labelFormatter={(label) => {
-                                      const item = entryChartData[label - 1];
-                                      return item ? `第 ${label} 次 · ${item.dateFull || item.date}` : `第 ${label} 次`;
-                                    }}
-                                  />
-                                  <Line type="monotone" dataKey="bestLap" stroke="#3fb950" strokeWidth={2} dot={{ r: 3 }} name="最佳圈速" />
-                                  <Line type="monotone" dataKey="lastLap" stroke="#58a6ff" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 4" name="末圈圈速" />
                                 </LineChart>
                               </ResponsiveContainer>
                             </div>
-                          </div>
-                        )}
-
-                        {/* 调校方案效果 */}
-                        {cachedTrend.tunesUsed && cachedTrend.tunesUsed.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>调校方案效果对比</div>
-                            <div style={{
-                              display: 'grid',
-                              gridTemplateColumns: '1fr 80px 80px',
-                              gap: 8,
-                              fontSize: 11,
-                              padding: '8px 0',
-                              borderBottom: '1px solid var(--border)',
-                              color: 'var(--text-secondary)',
-                            }}>
-                              <div>调校名称</div>
-                              <div style={{ textAlign: 'right' }}>使用次数</div>
-                              <div style={{ textAlign: 'right' }}>最佳圈速</div>
-                            </div>
-                            {cachedTrend.tunesUsed.map(t => (
-                              <div key={t.tuneId} style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 80px 80px',
-                                gap: 8,
-                                padding: '8px 0',
-                                fontSize: 11,
-                                borderBottom: '1px solid var(--border)',
-                                alignItems: 'center',
-                              }}>
-                                <div>{t.name}</div>
-                                <div style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{t.count}</div>
-                                <div style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>
-                                  {lbFormatTime(t.bestLap)}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* 跨页跳转：查看比赛记录 */}
-                        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                          <button
-                            onClick={() => {
-                              setMainTab('sessions');
-                              setTrackFilter(entry.trackName);
-                            }}
-                            style={{ ...btnSmallStyle, background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)', color: '#58a6ff' }}
-                          >
-                            查看该赛道比赛记录
-                          </button>
-                          <button
-                            onClick={() => onNavigate && onNavigate('tracks', { selectTrackId: entry.trackId })}
-                            style={{ ...btnSmallStyle, background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', color: '#3fb950' }}
-                          >
-                            查看赛道详情
-                          </button>
+                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
+                      {/* 底栏数据统计 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 6 }}>
+                        <span>出赛 {entry.sessionCount} 次</span>
+                        <span>总跑 {entry.totalLaps} 圈</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
       {/* 删除确认弹窗 */}
       {showDeleteConfirm && (
         <div style={{
