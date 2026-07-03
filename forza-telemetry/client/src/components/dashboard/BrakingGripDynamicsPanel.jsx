@@ -1,12 +1,12 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 
 // 刹车防抱死与牵引力控制判定阈值
 function getABSTCStatus(ratio) {
-  if (ratio < -0.3) return { type: 'abs', color: '#f85149', heavy: true };
-  if (ratio < -0.15) return { type: 'abs', color: '#d29922', heavy: false };
-  if (ratio > 0.3) return { type: 'tc', color: '#f85149', heavy: true };
-  if (ratio > 0.15) return { type: 'tc', color: '#d29922', heavy: false };
-  return { type: 'none', color: '#3fb950', heavy: false };
+  if (ratio < -0.3) return { type: 'abs', color: '#f85149', text: 'ABS 抱死' };
+  if (ratio < -0.15) return { type: 'abs', color: '#d29922', text: 'ABS 临界' };
+  if (ratio > 0.3) return { type: 'tc', color: '#f85149', text: 'TCS 打滑' };
+  if (ratio > 0.15) return { type: 'tc', color: '#d29922', text: 'TCS 滑移' };
+  return { type: 'none', color: '#3fb950', text: '正常' };
 }
 
 // 获取抓地力状态信息
@@ -19,9 +19,9 @@ function getGripInfo(slip) {
 
 // 避震行程颜色
 function getSuspColor(val) {
-  if (val > 0.85 || val < 0.15) return '#f85149'; // 避震触底或离地极限
-  if (val > 0.7 || val < 0.3) return '#d29922';  // 重心大幅转移
-  return '#3fb950';                              // 处于稳定运作范围
+  if (val > 0.85 || val < 0.15) return '#f85149'; // 避震底极限或离地
+  if (val > 0.7 || val < 0.3) return '#d29922';  // 重量大幅度转移
+  return '#3fb950';                              // 稳定范围
 }
 
 export function BrakingGripDynamicsPanel({ data }) {
@@ -30,21 +30,41 @@ export function BrakingGripDynamicsPanel({ data }) {
   const suspension = telemetryData.suspension || { frontLeft: 0.5, frontRight: 0.5, rearLeft: 0.5, rearRight: 0.5 };
   const tireSlipRatio = telemetryData.tireSlipRatio || { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
   const tireCombinedSlip = telemetryData.tireCombinedSlip || { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
+  const car = telemetryData.car || {};
 
-  // 记录最近的历史 G-Force 点用于画摩擦圆轨迹
-  const gHistoryRef = useRef([]);
-  const maxHistory = 25;
+  const latG = acceleration.x || 0; // 横向 G力 (左转为负，右转为正)
+  const lonG = acceleration.z || 0; // 纵向 G力 (刹车为正/减速，加速为负)
+
+  // 记录本场/当前运行中的最大峰值 G力
+  const [peakLat, setPeakLat] = useState(0);
+  const [peakLon, setPeakLon] = useState(0);
 
   useEffect(() => {
-    if (data) {
-      gHistoryRef.current.push({ x: acceleration.x, z: acceleration.z });
-      if (gHistoryRef.current.length > maxHistory) {
-        gHistoryRef.current.shift();
-      }
-    }
-  }, [acceleration.x, acceleration.z, data]);
+    const absLat = Math.abs(latG);
+    const absLon = Math.abs(lonG);
+    if (absLat > peakLat) setPeakLat(absLat);
+    if (absLon > peakLon) setPeakLon(absLon);
+  }, [latG, lonG]);
 
-  // 防抱死与防打滑状态灯
+  // 根据游戏里车辆的性能级别 (Class) 动态估计抓地力极限 G 值
+  // D级约 0.9G，S2/X级可达 2.2G+
+  const limitG = useMemo(() => {
+    const cls = car.class;
+    if (cls === 0) return 0.95; // D
+    if (cls === 1) return 1.15; // C
+    if (cls === 2) return 1.35; // B
+    if (cls === 3) return 1.55; // A
+    if (cls === 4) return 1.85; // S1
+    if (cls === 5) return 2.15; // S2
+    if (cls === 6) return 2.45; // X
+    return 1.60; // 默认中等跑车极限
+  }, [car.class]);
+
+  // 计算当前合力 G 值与极限利用率
+  const currentTotalG = Math.sqrt(latG * latG + lonG * lonG);
+  const utilizationPercent = Math.min((currentTotalG / limitG) * 100, 100);
+
+  // ABS & TCS 状态
   const wheelStatuses = useMemo(() => {
     return {
       FL: getABSTCStatus(tireSlipRatio.frontLeft || 0),
@@ -54,84 +74,73 @@ export function BrakingGripDynamicsPanel({ data }) {
     };
   }, [tireSlipRatio]);
 
-  const isABSActive = Object.values(wheelStatuses).some(s => s.type === 'abs');
-  const isTCSActive = Object.values(wheelStatuses).some(s => s.type === 'tc');
+  // 决定当前整体安全极限线颜色
+  let safetyColor = '#3fb950'; // 稳定 (绿色)
+  let safetyText = '稳定 (Stable)';
+  if (utilizationPercent > 95) {
+    safetyColor = '#f85149'; // 突破极限失控 (红色)
+    safetyText = '滑移失控 (Sliding)';
+  } else if (utilizationPercent > 75) {
+    safetyColor = '#d29922'; // 边缘游走最佳状态 (黄色)
+    safetyText = '极限游走 (Optimal)';
+  }
 
-  // 重力与G力物理映射
-  const maxG = 2.0; 
-  const size = 160;
-  const center = size / 2;
-  const radius = size / 2 - 20;
-
-  const latG = acceleration.x || 0;
-  const lonG = acceleration.z || 0; 
-
-  const clampG = (val) => Math.max(-maxG, Math.min(maxG, val));
-  const rawX = center + (clampG(latG) / maxG) * radius;
-  const rawY = center - (clampG(lonG) / maxG) * radius;
-
-  // 四轮车轴映射（已精简轮速及差速，只显示抓地力与避震行程）
+  // 轮载与状态信息
   const flInfo = { label: '前左 (FL)', slip: tireCombinedSlip.frontLeft || 0, ratio: tireSlipRatio.frontLeft || 0, susp: suspension.frontLeft || 0.5, status: wheelStatuses.FL };
   const frInfo = { label: '前右 (FR)', slip: tireCombinedSlip.frontRight || 0, ratio: tireSlipRatio.frontRight || 0, susp: suspension.frontRight || 0.5, status: wheelStatuses.FR };
   const rlInfo = { label: '后左 (RL)', slip: tireCombinedSlip.rearLeft || 0, ratio: tireSlipRatio.rearLeft || 0, susp: suspension.rearLeft || 0.5, status: wheelStatuses.RL };
   const rrInfo = { label: '后右 (RR)', slip: tireCombinedSlip.rearRight || 0, ratio: tireSlipRatio.rearRight || 0, susp: suspension.rearRight || 0.5, status: wheelStatuses.RR };
 
-  const renderWheelCard = (wheel) => {
+  const renderWheelRow = (wheel) => {
     const grip = getGripInfo(wheel.slip);
     const suspColor = getSuspColor(wheel.susp);
-    const isSlipping = wheel.status.type !== 'none';
+    const isAlert = wheel.status.type !== 'none';
 
     return (
-      <div style={{
-        background: isSlipping ? 'rgba(248, 81, 73, 0.06)' : 'linear-gradient(135deg, #161b22 0%, #0d1117 100%)',
-        border: `1px solid ${isSlipping ? wheel.status.color : 'rgba(48, 54, 61, 0.6)'}`,
-        borderRadius: 6,
-        padding: '6px 10px',
-        width: 170,
-        height: 80,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        boxSizing: 'border-box',
-        transition: 'all 0.1s ease',
-        boxShadow: wheel.status.heavy ? `0 0 8px ${wheel.status.color}` : 'none'
-      }}>
-        {/* 车轮标识与实时状态标签 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, fontWeight: 900, color: isSlipping ? wheel.status.color : '#c9d1d9', fontFamily: 'monospace' }}>
-            {wheel.label}
-          </span>
+      <tr key={wheel.label} style={{ borderBottom: '1px solid rgba(48,54,61,0.3)' }}>
+        {/* 车轮代号 */}
+        <td style={{ padding: '6px 8px', fontSize: 11, fontWeight: 900, color: isAlert ? wheel.status.color : '#c9d1d9', fontFamily: 'monospace' }}>
+          {wheel.label}
+        </td>
+        
+        {/* 滑移警报灯 */}
+        <td style={{ padding: '6px 8px' }}>
           <span style={{
-            fontSize: 8, color: '#fff', fontWeight: 800,
-            background: isSlipping ? wheel.status.color : 'rgba(255,255,255,0.06)',
-            padding: '1px 4px', borderRadius: 3
+            fontSize: 9,
+            fontWeight: 800,
+            padding: '1px 6px',
+            borderRadius: 3,
+            background: isAlert ? wheel.status.color : 'rgba(255,255,255,0.05)',
+            color: isAlert ? '#fff' : 'var(--text-muted)'
           }}>
-            {isSlipping ? (wheel.status.type === 'abs' ? 'ABS抱死' : 'TCS打滑') : `滑移:${wheel.ratio.toFixed(1)}`}
+            {isAlert ? wheel.status.text : '正常'}
           </span>
-        </div>
+        </td>
 
-        {/* 抓地力 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: '#8b949e' }}>
-            <span>抓地力</span>
-            <strong style={{ color: grip.color, fontFamily: 'monospace', fontSize: 9 }}>{grip.val.toFixed(0)}%</strong>
+        {/* 抓地力进度条 */}
+        <td style={{ padding: '6px 8px', width: '40%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, height: 6, background: '#21262d', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${grip.val}%`, height: '100%', background: grip.color, borderRadius: 3 }} />
+            </div>
+            <span style={{ fontSize: 10, fontFamily: 'monospace', width: 28, textAlign: 'right', fontWeight: 600, color: grip.color }}>
+              {grip.val.toFixed(0)}%
+            </span>
           </div>
-          <div style={{ height: 4, background: '#21262d', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${grip.val}%`, height: '100%', background: grip.color, borderRadius: 2 }} />
-          </div>
-        </div>
+        </td>
 
-        {/* 避震行程 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: '#8b949e' }}>
-            <span>避震压缩</span>
-            <strong style={{ color: suspColor, fontFamily: 'monospace', fontSize: 9 }}>{(wheel.susp * 100).toFixed(0)}%</strong>
+        {/* 避震器压缩率 */}
+        <td style={{ padding: '6px 8px', width: '30%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, height: 6, background: '#21262d', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${wheel.susp * 100}%`, height: '100%', background: suspColor, borderRadius: 3 }} />
+            </div>
+            <span style={{ fontSize: 10, fontFamily: 'monospace', width: 28, textAlign: 'right', fontWeight: 600, color: suspColor }}>
+              {(wheel.susp * 100).toFixed(0)}%
+            </span>
           </div>
-          <div style={{ height: 4, background: '#21262d', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${wheel.susp * 100}%`, height: '100%', background: suspColor, borderRadius: 2 }} />
-          </div>
-        </div>
-      </div>
+        </td>
+      </tr>
     );
   };
 
@@ -146,7 +155,7 @@ export function BrakingGripDynamicsPanel({ data }) {
       boxSizing: 'border-box',
       padding: '10px 14px'
     }}>
-      {/* 模块总标题 */}
+      {/* 楼层总标题 */}
       <div style={{
         fontSize: 10.5,
         fontWeight: 700,
@@ -157,198 +166,139 @@ export function BrakingGripDynamicsPanel({ data }) {
         borderBottom: '1px solid rgba(48, 54, 61, 0.3)',
         paddingBottom: 4
       }}>
-        底盘极限与重力监测
+        底盘极限与重力监测（全新数据放大版）
       </div>
 
       <div style={{
         flex: 1,
         display: 'flex',
         gap: 16,
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        alignItems: 'stretch',
         minHeight: 0
       }}>
-        {/* 左半区：重力感应仪与防抱死灯 */}
+        {/* ================= 左半区：重力数值放大显示（取代G力球） ================= */}
         <div style={{
-          flex: '0 0 190px',
+          flex: '0 0 45%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           borderRight: '1px solid rgba(48, 54, 61, 0.3)',
           paddingRight: 16,
-          height: '100%',
           boxSizing: 'border-box'
         }}>
-          {/* 重力与摩擦圆感应仪 */}
-          <div style={{ position: 'relative', width: size, height: size, marginBottom: 4 }}>
-            <svg width={size} height={size} style={{ background: '#0d1117', borderRadius: '50%', border: '1px solid #30363d' }}>
-              {/* 十字参考轴线 */}
-              <line x1={center} y1={18} x2={center} y2={size - 18} stroke="#21262d" strokeWidth="1" />
-              <line x1={18} y1={center} x2={size - 18} y2={center} stroke="#21262d" strokeWidth="1" />
-              {/* 1.0G / 2.0G 参考圆圈 */}
-              <circle cx={center} cy={center} r={radius * 0.5} fill="none" stroke="#21262d" strokeWidth="1" strokeDasharray="3,3" />
-              <circle cx={center} cy={center} r={radius} fill="none" stroke="#30363d" strokeWidth="1" />
-
-              {/* 四个方向的操作指示文字：解释向右转时重心向左偏移等逻辑 */}
-              <text x={center} y={12} fill="#8b949e" fontSize="7.5" fontWeight={600} textAnchor="middle">↑ 前倾 (重刹车)</text>
-              <text x={center} y={size - 4} fill="#8b949e" fontSize="7.5" fontWeight={600} textAnchor="middle">↓ 后仰 (大油门)</text>
-              <text x={4} y={center + 3} fill="#8b949e" fontSize="7.5" fontWeight={600} textAnchor="start">←左力(右转)</text>
-              <text x={size - 4} y={center + 3} fill="#8b949e" fontSize="7.5" fontWeight={600} textAnchor="end">(左转)右力→</text>
-
-              <text x={center + 4} y={center - radius * 0.5 + 3} fill="#484f58" fontSize="7.5" fontFamily="monospace">1.0G</text>
-              <text x={center + 4} y={center - radius + 8} fill="#484f58" fontSize="7.5" fontFamily="monospace">2.0G</text>
-
-              {/* 历史重力G力点迹 */}
-              {gHistoryRef.current.map((pt, i) => {
-                const px = center + (clampG(pt.x) / maxG) * radius;
-                const py = center - (clampG(pt.z) / maxG) * radius;
-                const opacity = (i + 1) / maxHistory * 0.3;
-                return (
-                  <circle key={i} cx={px} cy={py} r="2" fill="#58a6ff" opacity={opacity} />
-                );
-              })}
-
-              {/* 当前实时重力G力红球 */}
-              <circle cx={rawX} cy={rawY} r="5.5" fill="#f85149" style={{ transition: 'all 0.05s linear' }} />
-            </svg>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, fontSize: 9.5, fontFamily: 'monospace', color: '#c9d1d9', marginBottom: 6 }}>
-            <span>横向: <strong style={{ color: Math.abs(latG) > 1.2 ? '#f85149' : '#c9d1d9' }}>{latG.toFixed(2)}G</strong></span>
-            <span>纵向: <strong style={{ color: Math.abs(lonG) > 1.2 ? '#f85149' : '#c9d1d9' }}>{lonG.toFixed(2)}G</strong></span>
-          </div>
-
-          {/* 抱死/打滑 警报指示灯 */}
-          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-            <div style={{
-              flex: 1,
-              padding: '4px 0',
-              borderRadius: 3,
-              textAlign: 'center',
-              fontSize: 9,
-              fontWeight: 800,
-              background: isABSActive ? 'rgba(248, 81, 73, 0.2)' : '#161b22',
-              border: `1px solid ${isABSActive ? '#f85149' : '#30363d'}`,
-              color: isABSActive ? '#f85149' : '#484f58',
-              animation: isABSActive ? 'absFlash 0.3s infinite' : 'none'
-            }}>
-              ABS抱死
+          {/* G力数字看板区域 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* 横向G力 (过弯) */}
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(48,54,61,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>横向惯性 (过弯侧向力)</span>
+                <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>峰值: {peakLat.toFixed(2)} G</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: Math.abs(latG) > 1.2 ? '#f0883e' : '#fff' }}>
+                  {Math.abs(latG).toFixed(2)} <span style={{ fontSize: 12, fontWeight: 600, color: '#8b949e' }}>G</span>
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: latG < -0.1 ? '#58a6ff' : latG > 0.1 ? '#f85149' : 'var(--text-muted)'
+                }}>
+                  {latG < -0.1 ? '← 向右过弯 (左受力)' : latG > 0.1 ? '向左过弯 (右受力) →' : '直行'}
+                </span>
+              </div>
             </div>
-            <div style={{
-              flex: 1,
-              padding: '4px 0',
-              borderRadius: 3,
-              textAlign: 'center',
-              fontSize: 9,
-              fontWeight: 800,
-              background: isTCSActive ? 'rgba(240, 136, 62, 0.2)' : '#161b22',
-              border: `1px solid ${isTCSActive ? '#f0883e' : '#30363d'}`,
-              color: isTCSActive ? '#f0883e' : '#484f58',
-              animation: isTCSActive ? 'tcFlash 0.3s infinite' : 'none'
-            }}>
-              TCS打滑
+
+            {/* 纵向G力 (起步/刹车) */}
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(48,54,61,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>纵向惯性 (起步与制动)</span>
+                <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>峰值: {peakLon.toFixed(2)} G</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: Math.abs(lonG) > 1.2 ? '#f85149' : '#fff' }}>
+                  {Math.abs(lonG).toFixed(2)} <span style={{ fontSize: 12, fontWeight: 600, color: '#8b949e' }}>G</span>
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: lonG > 0.1 ? '#f85149' : lonG < -0.1 ? '#3fb950' : 'var(--text-muted)'
+                }}>
+                  {lonG > 0.1 ? '↑ 刹车制动 (前倾)' : lonG < -0.1 ? '↓ 全力加速 (后仰)' : '匀速'}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* 新增 G力球文字白话讲解说明 */}
-          <div style={{
-            marginTop: 8,
-            fontSize: 8,
-            color: '#8b949e',
-            lineHeight: 1.3,
-            background: 'rgba(0,0,0,0.2)',
-            padding: '4px 6px',
-            borderRadius: 4,
-            border: '1px dashed #30363d',
-            width: '100%',
-            textAlign: 'left',
-            boxSizing: 'border-box'
-          }}>
-            💡 <b>重心偏移说明</b>：
-            <br />红球位置代表当前车身重心的位移方向。前移表示重刹车负载压在前悬挂，左右位移代表过弯时的离心力偏移。红球越靠边缘，越考验抓地力极限。
+          {/* 安全极限指示器 (安全线) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 10 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>抓地力物理极限利用率</span>
+              <strong style={{ color: safetyColor, fontFamily: 'monospace' }}>
+                {utilizationPercent.toFixed(0)}%
+              </strong>
+            </div>
+            
+            {/* 进度条形式的安全线 */}
+            <div style={{ height: 8, background: '#21262d', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+              {/* 75% 警戒安全线刻度 */}
+              <div style={{
+                position: 'absolute',
+                left: '75%',
+                top: 0,
+                bottom: 0,
+                width: 1,
+                background: 'rgba(255,255,255,0.3)',
+                zIndex: 2
+              }} />
+              <div style={{
+                width: `${utilizationPercent}%`,
+                height: '100%',
+                background: safetyColor,
+                borderRadius: 4,
+                transition: 'width 0.05s linear'
+              }} />
+            </div>
+
+            {/* 白话文字提醒 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: 'var(--text-muted)', marginTop: 2 }}>
+              <span>安全临界 (75% 刻度线)</span>
+              <span style={{ color: safetyColor, fontWeight: 800, animation: utilizationPercent > 95 ? 'absFlash 0.3s infinite' : 'none' }}>
+                当前状态: {safetyText}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* 右半区：四轮底盘十字分布监控图 */}
+        {/* ================= 右半区：车轮状态表格监控（取代大卡片布局） ================= */}
         <div style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          height: '100%',
           justifyContent: 'center',
-          minWidth: 0
+          paddingLeft: 8,
+          boxSizing: 'border-box'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            height: '100%',
-            boxSizing: 'border-box',
-            position: 'relative'
-          }}>
-            {/* 左侧两轮 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
-              {renderWheelCard(flInfo)}
-              {renderWheelCard(rlInfo)}
-            </div>
-
-            {/* 中心抽象车辆骨架指示线 */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              width: 20,
-              position: 'relative',
-              opacity: 0.5
-            }}>
-              {/* 前轴线 */}
-              <div style={{
-                width: 20,
-                height: 2,
-                background: 'linear-gradient(to right, rgba(88,166,255,0.4), rgba(88,166,255,0.05), rgba(88,166,255,0.4))',
-                position: 'absolute',
-                top: '36px'
-              }} />
-              {/* 主传动轴线 */}
-              <div style={{
-                width: 2,
-                height: 100,
-                background: 'linear-gradient(to bottom, rgba(88,166,255,0.05) 0%, rgba(88,166,255,0.4) 50%, rgba(88,166,255,0.05) 100%)',
-                position: 'absolute',
-                top: '36px'
-              }} />
-              {/* 后轴线 */}
-              <div style={{
-                width: 20,
-                height: 2,
-                background: 'linear-gradient(to right, rgba(88,166,255,0.4), rgba(88,166,255,0.05), rgba(88,166,255,0.4))',
-                position: 'absolute',
-                bottom: '36px'
-              }} />
-            </div>
-
-            {/* 右侧两轮 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
-              {renderWheelCard(frInfo)}
-              {renderWheelCard(rrInfo)}
-            </div>
-          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', fontSize: 9.5, color: 'var(--text-secondary)' }}>
+                <th style={{ padding: '4px 8px', fontWeight: 600 }}>车轮</th>
+                <th style={{ padding: '4px 8px', fontWeight: 600 }}>状态</th>
+                <th style={{ padding: '4px 8px', fontWeight: 600 }}>当前抓地力</th>
+                <th style={{ padding: '4px 8px', fontWeight: 600 }}>避震器压缩</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[flInfo, frInfo, rlInfo, rrInfo].map(renderWheelRow)}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* 全局动画 */}
+      {/* 闪烁警报 */}
       <style>{`
         @keyframes absFlash {
-          0%, 100% { background: rgba(248, 81, 73, 0.2); }
-          50% { background: rgba(248, 81, 73, 0.4); }
-        }
-        @keyframes tcFlash {
-          0%, 100% { background: rgba(240, 136, 62, 0.2); }
-          50% { background: rgba(240, 136, 62, 0.4); }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
       `}</style>
     </div>
