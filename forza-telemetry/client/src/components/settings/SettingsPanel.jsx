@@ -24,11 +24,60 @@ export function SettingsPanel({ onClose }) {
     try { return localStorage.getItem('serverUrl') || ''; } catch (e) { return ''; }
   });
 
+  // AI 环境变量配置状态
+  const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('https://dashscope.aliyuncs.com/compatible-mode/v1');
+  const [model, setModel] = useState('qwen3.7-plus');
+  const [savingKey, setSavingKey] = useState(false);
+  const [loadingKey, setLoadingKey] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'ai') {
+      setLoadingKey(true);
+      fetch('/api/settings/dashscope-key')
+        .then(res => res.json())
+        .then(data => {
+          setApiKey(data.apiKey || '');
+          setBaseUrl(data.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+          setModel(data.model || 'qwen3.7-plus');
+        })
+        .catch(err => console.error('获取 API 配置失败:', err))
+        .finally(() => setLoadingKey(false));
+    }
+  }, [activeTab]);
+
+  const handleSaveAiConfig = async (e) => {
+    e.preventDefault();
+    if (!apiKey.trim()) {
+      alert('请输入 API Key');
+      return;
+    }
+    setSavingKey(true);
+    try {
+      const res = await fetch('/api/settings/dashscope-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() })
+      });
+      if (res.ok) {
+        alert('AI 密钥配置已成功保存！');
+      } else {
+        alert('配置保存失败');
+      }
+    } catch (err) {
+      console.error('[Settings] 保存配置失败:', err);
+      alert('请求失败，请稍后重试');
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
   const tabs = [
     { id: 'theme', label: '主题' },
     { id: 'preferences', label: '偏好' },
     { id: 'network', label: '网络' },
     { id: 'data', label: '数据' },
+    { id: 'ai', label: 'AI 配置' },
     { id: 'help', label: '指标说明' }
   ];
 
@@ -418,6 +467,104 @@ export function SettingsPanel({ onClose }) {
               </div>
 
             </div>
+          </div>
+        )}
+
+        {activeTab === 'ai' && (
+          <div>
+            <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
+              阿里云百炼平台 (DashScope) 大模型服务密钥与参数配置。在此配置后，AI 驾驶教练诊断将在本机会话中直接生效并存入本地 .env 环境变量。
+            </div>
+            {loadingKey ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--text-secondary)' }}>
+                正在加载现有 AI 配置...
+              </div>
+            ) : (
+              <form onSubmit={handleSaveAiConfig} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    百炼 API Key (sk-...)
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                    placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 4,
+                      color: 'var(--text-primary)',
+                      fontSize: 11
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    百炼兼容接口端点 (Base URL)
+                  </label>
+                  <input
+                    type="text"
+                    value={baseUrl}
+                    onChange={e => setBaseUrl(e.target.value)}
+                    placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 4,
+                      color: 'var(--text-primary)',
+                      fontSize: 11
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    默认评估模型
+                  </label>
+                  <select
+                    value={model}
+                    onChange={e => setModel(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 4,
+                      color: 'var(--text-primary)',
+                      fontSize: 11,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="qwen3.7-plus">qwen3.7-plus (最新智能体推理模型，推荐)</option>
+                    <option value="qwen-plus">qwen-plus (中端高性价比模型)</option>
+                    <option value="qwen-max">qwen-max (旗舰最高智能模型)</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingKey}
+                  style={{
+                    marginTop: 8,
+                    padding: '8px 16px',
+                    background: 'var(--accent)',
+                    border: 'none',
+                    borderRadius: 4,
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    opacity: savingKey ? 0.7 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {savingKey ? '正在保存...' : '保存 AI 配置'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 

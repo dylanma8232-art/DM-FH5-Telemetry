@@ -4122,6 +4122,15 @@ ${turnsSummary.map(t => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半�
   }
 });
 
+// 获取当前环境变量配置接口
+app.get('/api/settings/dashscope-key', (req, res) => {
+  res.json({
+    apiKey: process.env.DASHSCOPE_API_KEY || '',
+    baseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus'
+  });
+});
+
 // 可视化修改环境变量配置接口
 app.post('/api/settings/dashscope-key', express.json(), (req, res) => {
   try {
