@@ -16,6 +16,21 @@ const HTTP_PORT = 9188;
 const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
 const TRACK_DB_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data/tracks-database.json');
 
+// 本地 .env 文件加载器
+const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env');
+if (fs.existsSync(envPath)) {
+  const envLines = fs.readFileSync(envPath, 'utf8').split('\n');
+  envLines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      const idx = trimmed.indexOf('=');
+      const key = trimmed.substring(0, idx).trim();
+      const value = trimmed.substring(idx + 1).trim();
+      process.env[key] = value;
+    }
+  });
+}
+
 // 小米TTS配置
 const TTS_API_URL = 'https://token-plan-cn.xiaomimimo.com/v1';
 const TTS_API_KEY = 'tp-c6v5w7m0irz9541u80ycd6r6eb8pw6h3cst1hlzr7izf8soq';
@@ -3963,6 +3978,196 @@ app.get('/api/analysis/:sessionId/diagnosis', (req, res) => {
     res.json({ tuneId: session.tuneId, tuneName: tune?.name, diagnoses });
   } catch (e) {
     res.status(500).json({ error: 'Failed to generate tune diagnosis' });
+  }
+});
+
+// AI 驾驶教练缓存读取与状态检查接口
+app.get('/api/analysis/:sessionId/ai-coach', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sessionDir = path.join(DATA_DIR, 'sessions');
+    const reportPath = path.join(sessionDir, `${sessionId}_ai_coach.md`);
+
+    const keyConfigured = !!process.env.DASHSCOPE_API_KEY;
+
+    if (fs.existsSync(reportPath)) {
+      const report = fs.readFileSync(reportPath, 'utf8');
+      return res.json({ status: 'success', report, keyConfigured });
+    }
+
+    res.json({ status: 'empty', keyConfigured });
+  } catch (e) {
+    res.status(500).json({ error: '获取 AI 教练报告失败' });
+  }
+});
+
+// AI 驾驶教练诊断生成接口 (阿里云百炼平台)
+app.post('/api/analysis/:sessionId/ai-coach', express.json(), async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    const modelName = process.env.DASHSCOPE_MODEL || 'qwen3.7-plus';
+
+    if (!apiKey) {
+      return res.status(403).json({ error: 'api_key_missing' });
+    }
+
+    const session = loadSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const laps = session.laps || {};
+    const drivingScore = calculateDrivingScore(session);
+
+    // 提取弯道数据
+    const trackId = session.trackId;
+    let turnsSummary = [];
+    if (trackId && tracks[trackId]) {
+      const trackTurns = tracks[trackId].turns || [];
+      const rawData = session.data || [];
+      const bestLapNum = getBestLapNum(rawData);
+      const currentLapFrames = rawData.filter(d => (d.lapNumber || d.lapNum || 0) === bestLapNum);
+
+      turnsSummary = trackTurns.map((turn, tIdx) => {
+        const entryPt = findClosestPoint(turn.startX, turn.startZ, currentLapFrames);
+        const apexPt = findClosestPoint(turn.x, turn.z, currentLapFrames);
+        const exitPt = findClosestPoint(turn.endX, turn.endZ, currentLapFrames);
+
+        const entrySpeed = entryPt ? Math.round(entryPt.speedKmh || (entryPt.speed ? entryPt.speed * 3.6 : 0)) : 0;
+        const apexSpeed = apexPt ? Math.round(apexPt.speedKmh || (apexPt.speed ? apexPt.speed * 3.6 : 0)) : 0;
+        const exitSpeed = exitPt ? Math.round(exitPt.speedKmh || (exitPt.speed ? exitPt.speed * 3.6 : 0)) : 0;
+        const gear = apexPt ? (apexPt.gear || 0) : 0;
+
+        return {
+          name: `T${tIdx + 1}`,
+          type: turn.turnCategory || turn.type || '常规弯',
+          direction: turn.direction === 'left' ? '左' : '右',
+          radius: turn.radius ? Math.round(turn.radius) : '未知',
+          entrySpeed,
+          apexSpeed,
+          exitSpeed,
+          gear
+        };
+      });
+    }
+
+    const formattedBestLap = (() => {
+      const sec = laps.best || 0;
+      if (!sec) return '无记录';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.round((sec % 1) * 1000);
+      return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+    })();
+
+    // 格式化提示词
+    const promptContent = `
+赛道名称：${session.trackName || '未知赛道'}
+车辆名称：${session.vehicle?.name || '未知车辆'} (级别: ${session.vehicle?.cls || '未知'} ${session.vehicle?.pi || ''} PI)
+最佳圈速：${formattedBestLap}
+总出赛圈数：${laps.count || 0} 圈
+
+驾驶行为综合打分（满分 100 分，当前得分：${drivingScore.总分 || 0} 分，评价等级：${drivingScore.等级 || 'N/A'}）：
+- 圈速节奏分：${drivingScore.维度?.圈速?.分数 || 0} / 20
+- 刹车控制分：${drivingScore.维度?.刹车?.分数 || 0} / 20
+- 弯中油门分：${drivingScore.维度?.油门?.分数 || 0} / 20
+- 路线走线分：${drivingScore.维度?.走线?.分数 || 0} / 20
+- 圈速一致分：${drivingScore.维度?.一致性?.分数 || 0} / 20
+
+基础诊断建议：
+${drivingScore.建议 ? drivingScore.建议.map(s => `- ${s}`).join('\n') : '无'}
+
+弯道遥测细分数据（各弯角的入弯速度、弯心最低速、出弯速度及弯心档位）：
+${turnsSummary.map(t => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半径 ${t.radius}米): 入弯车速 ${t.entrySpeed}km/h, 弯心车速 ${t.apexSpeed}km/h, 出弯车速 ${t.exitSpeed}km/h, 弯中档位 ${t.gear}档`).join('\n')}
+
+请作为一名专业的模拟赛车教练，为我详细分析这场比赛的遥测表现，指出最需要优先改进的 2 个弯道和具体的驾驶操作短板，并给出一个明确的“下一步提升行动清单”。
+注意：请完全使用纯正、地道的中文赛车术语（例如用“尾迹制动”或“循迹刹车”，而非带有英文括号备注的形式；用“弯心”或“APEX点”）。不要在中文词汇后面使用括号做任何英文的备注或说明。
+`;
+
+    const apiResponse = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: 'system', content: '你是一位专业的模拟赛车驾驶教练。请根据车手的遥测数据，给出中肯、精确的驾驶建议，指出短板并给出行动清单。使用专业的赛车工程和驾驶术语（如：刹车尾迹/循迹制动，弯心/APEX点，重力加速度等）。不要在中文技术术语后面用括号附加英文备注。全部使用 Markdown 格式输出。' },
+          { role: 'user', content: promptContent }
+        ]
+      })
+    });
+
+    if (!apiResponse.ok) {
+      const errText = await apiResponse.text();
+      console.error('[AI Coach] 百炼接口返回错误:', errText);
+      return res.status(apiResponse.status).json({ error: '百炼接口请求失败' });
+    }
+
+    const result = await apiResponse.json();
+    const mdReport = result.choices?.[0]?.message?.content || '未生成有效建议报告。';
+
+    // 缓存报告至本地
+    const sessionDir = path.join(DATA_DIR, 'sessions');
+    const reportPath = path.join(sessionDir, `${sessionId}_ai_coach.md`);
+    fs.writeFileSync(reportPath, mdReport, 'utf8');
+
+    res.json({ status: 'success', report: mdReport });
+  } catch (e) {
+    console.error('[AI Coach] 生成失败:', e);
+    res.status(500).json({ error: 'AI 教练诊断生成失败' });
+  }
+});
+
+// 可视化修改环境变量配置接口
+app.post('/api/settings/dashscope-key', express.json(), (req, res) => {
+  try {
+    const { apiKey, baseUrl, model } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'API Key 不能为空' });
+    }
+
+    process.env.DASHSCOPE_API_KEY = apiKey;
+    if (baseUrl) process.env.DASHSCOPE_BASE_URL = baseUrl;
+    if (model) process.env.DASHSCOPE_MODEL = model;
+
+    const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env');
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+    }
+
+    // 写入或更新 API KEY
+    if (envContent.includes('DASHSCOPE_API_KEY=')) {
+      envContent = envContent.replace(/DASHSCOPE_API_KEY=.*/, `DASHSCOPE_API_KEY=${apiKey}`);
+    } else {
+      envContent += `\nDASHSCOPE_API_KEY=${apiKey}`;
+    }
+
+    // 写入或更新 BASE URL
+    const finalUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    if (envContent.includes('DASHSCOPE_BASE_URL=')) {
+      envContent = envContent.replace(/DASHSCOPE_BASE_URL=.*/, `DASHSCOPE_BASE_URL=${finalUrl}`);
+    } else {
+      envContent += `\nDASHSCOPE_BASE_URL=${finalUrl}`;
+    }
+
+    // 写入或更新 MODEL
+    const finalModel = model || 'qwen3.7-plus';
+    if (envContent.includes('DASHSCOPE_MODEL=')) {
+      envContent = envContent.replace(/DASHSCOPE_MODEL=.*/, `DASHSCOPE_MODEL=${finalModel}`);
+    } else {
+      envContent += `\nDASHSCOPE_MODEL=${finalModel}`;
+    }
+
+    fs.writeFileSync(envPath, envContent, 'utf8');
+    res.json({ status: 'ok' });
+  } catch (err) {
+    console.error('[Settings] 保存配置失败:', err);
+    res.status(500).json({ error: '保存配置文件失败' });
   }
 });
 

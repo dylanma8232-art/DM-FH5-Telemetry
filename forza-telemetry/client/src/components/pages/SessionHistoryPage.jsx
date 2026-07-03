@@ -4,6 +4,7 @@ import { LapComparison } from '../dashboard/LapComparison';
 import { ThrottleBrakeHeatmap } from '../dashboard/ThrottleBrakeHeatmap';
 import { ReplayPlayer } from '../dashboard/ReplayPlayer';
 import { SectorAnalysis } from '../dashboard/SectorAnalysis';
+import { AICoachPanel } from '../dashboard/AICoachPanel';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
@@ -1055,7 +1056,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
           <LoadingSpinner />
         ) : selectedSession && analysis ? (
           <div>
-            {/* Breadcrumb Navigation */}
+            {/* 面包屑导航 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
               <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setSelectedSession(null); setTrackFilter(''); }}>
                 赛道成就墙
@@ -1081,7 +1082,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 { id: 'shifts', label: '换挡扭矩 (路线图)' },
                 { id: 'pedals', label: '踏板动力学 (滑行区)' },
                 { id: 'overlay', label: '对标工作台 (多通道)' },
-                { id: 'replay', label: '影子车回放 (HUD)' }
+                { id: 'replay', label: '影子车回放 (HUD)' },
+                { id: 'aiCoach', label: 'AI 驾驶教练 (智能诊断)' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1596,9 +1598,13 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 请先从左侧选择一个比赛记录以查看回放
               </div>
             )}
+
+            {activeChart === 'aiCoach' && (
+              <AICoachPanel sessionId={selectedSession} />
+            )}
           </div>
         ) : trackFilter ? (
-          // State 2: 赛道成长轨迹看板
+          // 状态 2: 赛道成长轨迹看板
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* 导航面包屑 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1743,7 +1749,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             })()}
           </div>
         ) : (
-          // State 1: 我的赛道成就墙 (首屏)
+          // 状态 1: 我的赛道成就墙 (首屏)
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
