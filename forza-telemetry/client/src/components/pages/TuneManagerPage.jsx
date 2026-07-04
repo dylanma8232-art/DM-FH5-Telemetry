@@ -325,8 +325,61 @@ export function TuneManagerPage({ onNavigate }) {
       if (!res.ok) throw new Error('加载遥测数据失败')
       const telemetryData = await res.json()
 
+      // 适配层：将原始遥测包转换成诊断函数期望的简化物理单位格式
+      const adaptedTelemetry = (telemetryData || []).map(f => {
+        const formatTireTemp = (tempF) => (tempF === undefined || tempF === null) ? 0 : (tempF - 32) * 5 / 9;
+        
+        // 提取输入控制
+        let throttle = 0;
+        let brake = 0;
+        let steerAngle = 0;
+        if (f.controls) {
+          throttle = (f.controls.accel || 0) / 255;
+          brake = (f.controls.brake || 0) / 255;
+          steerAngle = ((f.controls.steer || 0) / 127) * 45;
+        } else {
+          throttle = (f.accel || 0) / 255;
+          brake = (f.brake || 0) / 255;
+          steerAngle = ((f.steer || 0) / 127) * 45;
+        }
+
+        return {
+          speed: f.speedKmh || 0,
+          throttle: Math.max(0, Math.min(1, throttle)),
+          brake: Math.max(0, Math.min(1, brake)),
+          steerAngle: steerAngle,
+          lateralG: f.acceleration?.x || 0,
+          longitudinalG: f.acceleration?.z || 0,
+          yawRate: f.angularVelocity?.y !== undefined ? f.angularVelocity.y * (180 / Math.PI) : 0, // rad/s -> deg/s
+          rollAngle: f.roll !== undefined ? f.roll * (180 / Math.PI) : 0, // rad -> deg
+          pitchAngle: f.pitch !== undefined ? f.pitch * (180 / Math.PI) : 0, // rad -> deg
+          suspension: f.suspension ? {
+            frontLeft: f.suspension.frontLeft,
+            frontRight: f.suspension.frontRight,
+            rearLeft: f.suspension.rearLeft,
+            rearRight: f.suspension.rearRight
+          } : {
+            frontLeft: f.suspFL !== undefined ? f.suspFL : 1.0,
+            frontRight: f.suspFR !== undefined ? f.suspFR : 1.0,
+            rearLeft: f.suspRL !== undefined ? f.suspRL : 1.0,
+            rearRight: f.suspRR !== undefined ? f.suspRR : 1.0
+          },
+          tireTemp: f.tireTemp ? {
+            frontLeft: formatTireTemp(f.tireTemp.frontLeft),
+            frontRight: formatTireTemp(f.tireTemp.frontRight),
+            rearLeft: formatTireTemp(f.tireTemp.rearLeft),
+            rearRight: formatTireTemp(f.tireTemp.rearRight)
+          } : {
+            frontLeft: formatTireTemp(f.tireTempFL),
+            frontRight: formatTireTemp(f.tireTempFR),
+            rearLeft: formatTireTemp(f.tireTempRL),
+            rearRight: formatTireTemp(f.tireTempRR)
+          }
+        };
+      });
+
       // 调用诊断函数（返回数组格式）
-      const rawResult = diagnoseFromTelemetry(telemetryData, formData)
+      const rawResult = diagnoseFromTelemetry(adaptedTelemetry, formData)
 
       // 转换为 UI 期望的 { summary, issues, suggestedChanges } 格式
       if (Array.isArray(rawResult)) {
@@ -2789,19 +2842,16 @@ export function TuneManagerPage({ onNavigate }) {
   )
 }
 
-function ParamItem({ label, value, unit = '', defaultValue }) {
+const ParamItem = React.memo(function ParamItem({ label, value, unit = '', defaultValue }) {
   const displayValue = value !== undefined && value !== null ? value : '-'
-  // Round 5: 计算与默认值的差异
   const diff = defaultValue !== undefined && value !== undefined && value !== null && value !== defaultValue ? value - defaultValue : null
   const diffStr = diff !== null
     ? (diff > 0 ? '+' : '') + (Number.isInteger(diff) ? diff : diff.toFixed(2))
     : null
-  // Round 5: 差异颜色逻辑
-  // 对于前束角（toe），越接近0越好；对于其他参数用中性色
   const diffColor = diff !== null
     ? (label.includes('束角') || label.includes('Toe')
-        ? (Math.abs(value) < Math.abs(defaultValue) ? '#3fb950' : '#f85149')  // 束角越小越好
-        : '#d29922')  // 其他参数用黄色表示变化
+        ? (Math.abs(value) < Math.abs(defaultValue) ? '#3fb950' : '#f85149')
+        : '#d29922')
     : 'inherit'
 
   return (
@@ -2831,9 +2881,9 @@ function ParamItem({ label, value, unit = '', defaultValue }) {
       </div>
     </div>
   )
-}
+});
 
-function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, defaultValue, highlighted = false, onResetDefault }) {
+const NumberInput = React.memo(function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, defaultValue, highlighted = false, onResetDefault }) {
   const handleChange = (e) => {
     if (locked) return
     const raw = e.target.value
@@ -2868,7 +2918,6 @@ function NumberInput({ label, value, onChange, min, max, step, unit = '', locked
         {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }}>🔒 需升级配件</span>}
         {highlighted && <span style={{ color: '#3fb950', marginLeft: 4, fontSize: 9, fontWeight: 600, animation: 'paramHighlight 0.5s ease-in-out 3' }}>NEW</span>}
       </label>
-      {/* Round 1: 推荐值提示 */}
       {defaultValue !== undefined && !locked && isOffDefault && (
         <div style={{
           fontSize: 8, color: '#d29922', marginTop: -2, marginBottom: 2,
@@ -2895,7 +2944,6 @@ function NumberInput({ label, value, onChange, min, max, step, unit = '', locked
           ...inputStyle,
           opacity: locked ? 0.4 : 1,
           cursor: locked ? 'not-allowed' : 'auto',
-          // Round 1: 高亮闪烁边框
           boxShadow: highlighted ? '0 0 8px rgba(63, 185, 80, 0.6)' : (isOffDefault ? 'inset 0 0 0 1px rgba(210, 153, 34, 0.3)' : 'none'),
           borderColor: highlighted ? '#3fb950' : (isOffDefault ? 'rgba(210, 153, 34, 0.5)' : 'var(--border)'),
           animation: highlighted ? 'paramHighlight 0.5s ease-in-out 3' : 'none'
@@ -2903,12 +2951,12 @@ function NumberInput({ label, value, onChange, min, max, step, unit = '', locked
       />
     </div>
   )
-}
+});
 
 // ============================================================
 // 配件选择器组件
 // ============================================================
-function PartSelector({ category, selected, onChange }) {
+const PartSelector = React.memo(function PartSelector({ category, selected, onChange }) {
   const [expanded, setExpanded] = useState(false)
 
   const isStock = category.tierSystem
@@ -3104,7 +3152,7 @@ function PartSelector({ category, selected, onChange }) {
       )}
     </div>
   )
-}
+});
 
 const btnPrimaryStyle = {
   padding: '8px 16px',

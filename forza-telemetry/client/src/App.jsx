@@ -148,15 +148,17 @@ export default function App() {
         flexDirection: 'column',
         overflow: activeTab === 'dashboard' ? 'hidden' : 'auto'
       }}>
-        <Suspense fallback={<PageLoader />}>
-          {activeTab === 'dashboard' && (
-            <DashboardPage data={data} socket={socket} connected={connected} packetCount={packetCount} />
-          )}
-          {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
-          {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}
-          {activeTab === 'vehicles' && <VehicleManagerPage onNavigate={navigateTo} socket={socket} />}
-          {activeTab === 'tunes' && <TuneManagerPage onNavigate={navigateTo} />}
-        </Suspense>
+        <ErrorBoundary key={activeTab} name={tabs.find(t => t.id === activeTab)?.label || activeTab}>
+          <Suspense fallback={<PageLoader />}>
+            {activeTab === 'dashboard' && (
+              <DashboardPage data={data} socket={socket} connected={connected} packetCount={packetCount} />
+            )}
+            {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
+            {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}
+            {activeTab === 'vehicles' && <VehicleManagerPage onNavigate={navigateTo} socket={socket} />}
+            {activeTab === 'tunes' && <TuneManagerPage onNavigate={navigateTo} />}
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       {showSettings && (

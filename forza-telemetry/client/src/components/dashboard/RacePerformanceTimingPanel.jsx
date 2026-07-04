@@ -92,6 +92,9 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
 
   const [lapHistory, setLapHistory] = useState([]);
 
+  // 根据当前位置与赛道分段对比
+  const sectorsList = trackData?.sectors || [];
+
   // 监听圈数变化，记录历史圈速
   useEffect(() => {
     if (lapNumber > prevLapRef.current && lastLap > 0) {
@@ -101,12 +104,12 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
         return newHistory.slice(-10); // 只保留最近10圈
       });
       dispatch({ type: 'RESET_LAP' });
+      // 【修复】新一圈开始时，重置各分段起点，初始化第 0 段起点时间
+      sectorStartTimesRef.current = new Array(sectorsList.length).fill(0);
+      sectorStartTimesRef.current[0] = currentRaceTime;
     }
     prevLapRef.current = lapNumber;
-  }, [lapNumber, lastLap]);
-
-  // 根据当前位置与赛道分段对比
-  const sectorsList = trackData?.sectors || [];
+  }, [lapNumber, lastLap, sectorsList.length, currentRaceTime]);
   const currentSectorTime = useMemo(() => {
     if (sectorsList.length === 0 || state.currentSector >= sectorsList.length) return 0;
     const startT = sectorStartTimesRef.current[state.currentSector] || 0;
@@ -119,13 +122,18 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
     if (sectorsList.length > 0) {
       dispatch({ type: 'SET_SECTORS', sectors: sectorsList });
       sectorStartTimesRef.current = new Array(sectorsList.length).fill(0);
-      sectorStartTimesRef.current[0] = currentRaceTime;
     }
-  }, [sectorsList, currentRaceTime]);
+  }, [sectorsList]);
 
   // 实时监测分段触发 (根据坐标距离)
   useEffect(() => {
     if (sectorsList.length === 0 || !position?.x) return;
+
+    // 动态初始化第 0 分段的起始时间
+    if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0) {
+      sectorStartTimesRef.current[0] = currentRaceTime;
+    }
+    
     const cur = { x: position.x, z: position.z };
     
     // 如果赛道分段已初始化，检查是否通过了分段线
@@ -168,6 +176,8 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
           if (weakIdx >= 0) {
             dispatch({ type: 'SET_WEAK_SECTOR', index: weakIdx });
           }
+          // 【修复】跑完最后一分段后，将索引设置为越界，避免在当前圈过线前被高频重复触发
+          dispatch({ type: 'SET_CURRENT_SECTOR', index: sectorsList.length });
         }
       }
     }

@@ -1,6 +1,6 @@
 import dgram from 'dgram';
 
-const PORT = 9996;
+const PORT = process.env.UDP_PORT ? parseInt(process.env.UDP_PORT, 10) : 9996;
 const HOST = '127.0.0.1';
 
 const client = dgram.createSocket('udp4');
@@ -151,8 +151,8 @@ function createTestPacket() {
   view.setInt8(offset, 10); offset += 1;    // steer
 
   // Driving line
-  view.setUint8(offset, 0); offset += 1;     // normalizedDrivingLine
-  view.setUint8(offset, 0); offset += 1;     // normalizedAIBrakeDifference
+  view.setInt8(offset, 0); offset += 1;     // normalizedDrivingLine
+  view.setInt8(offset, 0); offset += 1;     // normalizedAIBrakeDifference
 
   return buffer;
 }

@@ -45,37 +45,104 @@ export function LapComparison({ sessionId }) {
     const selectedLapData = selectedLaps.map(num => laps.find(l => l.lap === num)).filter(Boolean);
     if (selectedLapData.length < 2) return null;
 
-    const maxLen = Math.max(...selectedLapData.map(l => l.data.length));
-    const data = [];
     // 找最佳圈作为基准
     const refLap = selectedLapData.reduce((a, b) => a.duration < b.duration ? a : b);
 
-    for (let i = 0; i < maxLen; i++) {
-      const row = { index: i };
-      // 每圈数据
-      selectedLapData.forEach((l, idx) => {
-        const d = l.data[Math.min(i, l.data.length - 1)];
-        row['speed' + (idx + 1)] = d?.speedKmh || 0;
-        row['throttle' + (idx + 1)] = d?.controls?.accel || 0;
-        row['brake' + (idx + 1)] = d?.controls?.brake || 0;
-        row['rpm' + (idx + 1)] = d?.currentEngineRpm || 0;
-      });
-      // 累加时间差（vs 基准圈）
-      selectedLapData.forEach((l, idx) => {
-        if (l === refLap) {
-          row['cumDelta' + (idx + 1)] = 0;
+    // 预处理每一圈的行驶距离和时间，将其对齐到单圈起点的相对距离
+    const lapProcessedData = selectedLapData.map(lap => {
+      const dataPoints = lap.data;
+      if (dataPoints.length === 0) return { lap: lap.lap, points: [], maxDist: 0 };
+      
+      const startDist = dataPoints[0].distanceTraveled || 0;
+      const startTime = dataPoints[0].timestampMS || 0;
+      
+      const points = dataPoints.map(d => ({
+        dist: Math.max(0, (d.distanceTraveled || 0) - startDist),
+        elapsed: Math.max(0, ((d.timestampMS || 0) - startTime) / 1000), // 秒
+        speed: d.speedKmh || 0,
+        throttle: d.controls?.accel || 0,
+        brake: d.controls?.brake || 0,
+        rpm: d.currentEngineRpm || 0
+      }));
+      
+      // 确保单调递增，避免微小倒车/抖动导致的逆序
+      for (let i = 1; i < points.length; i++) {
+        if (points[i].dist < points[i - 1].dist) {
+          points[i].dist = points[i - 1].dist + 0.01;
+        }
+      }
+      
+      const maxDist = points.length > 0 ? points[points.length - 1].dist : 0;
+      return { lap: lap.lap, points, maxDist };
+    });
+
+    const refLapProcessed = lapProcessedData.find(l => l.lap === refLap.lap);
+    if (!refLapProcessed) return null;
+
+    // 基准插值参考轴：以 10 米为步长插值
+    const STEP = 10;
+    const maxReferenceDistance = refLapProcessed.maxDist;
+    const data = [];
+
+    // 二分线性插值辅助函数
+    const interpolate = (dist, points) => {
+      if (points.length === 0) return null;
+      if (dist <= points[0].dist) return { ...points[0] };
+      if (dist >= points[points.length - 1].dist) return { ...points[points.length - 1] };
+
+      let low = 0;
+      let high = points.length - 1;
+      let idx = 0;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        if (points[mid].dist <= dist) {
+          idx = mid;
+          low = mid + 1;
         } else {
-          // 累加差：当前圈当前位置时间 - 基准圈同位置时间
-          const refIdx = Math.min(i, refLap.data.length - 1);
-          const refD = refLap.data[refIdx];
-          const curD = l.data[Math.min(i, l.data.length - 1)];
-          if (refD && curD) {
-            const refElapsed = refD.timestampMS - refLap.startTime;
-            const curElapsed = curD.timestampMS - l.startTime;
-            row['cumDelta' + (idx + 1)] = (curElapsed - refElapsed) / 1000;
+          high = mid - 1;
+        }
+      }
+
+      const p1 = points[idx];
+      const p2 = points[idx + 1] || p1;
+      if (p2.dist === p1.dist) return { ...p1 };
+
+      const ratio = (dist - p1.dist) / (p2.dist - p1.dist);
+      return {
+        dist,
+        elapsed: p1.elapsed + ratio * (p2.elapsed - p1.elapsed),
+        speed: p1.speed + ratio * (p2.speed - p1.speed),
+        throttle: p1.throttle + ratio * (p2.throttle - p1.throttle),
+        brake: p1.brake + ratio * (p2.brake - p1.brake),
+        rpm: p1.rpm + ratio * (p2.rpm - p1.rpm)
+      };
+    };
+
+    for (let d = 0; d <= maxReferenceDistance; d += STEP) {
+      const row = { dist: d };
+      const refVal = interpolate(d, refLapProcessed.points);
+      
+      lapProcessedData.forEach((l, idx) => {
+        const val = interpolate(d, l.points);
+        if (val) {
+          row['speed' + (idx + 1)] = val.speed;
+          row['throttle' + (idx + 1)] = val.throttle;
+          row['brake' + (idx + 1)] = val.brake;
+          row['rpm' + (idx + 1)] = val.rpm;
+          
+          if (l.lap === refLap.lap) {
+            row['cumDelta' + (idx + 1)] = 0;
+          } else if (refVal) {
+            row['cumDelta' + (idx + 1)] = val.elapsed - refVal.elapsed;
           } else {
             row['cumDelta' + (idx + 1)] = 0;
           }
+        } else {
+          row['speed' + (idx + 1)] = 0;
+          row['throttle' + (idx + 1)] = 0;
+          row['brake' + (idx + 1)] = 0;
+          row['rpm' + (idx + 1)] = 0;
+          row['cumDelta' + (idx + 1)] = 0;
         }
       });
       data.push(row);
@@ -114,7 +181,7 @@ export function LapComparison({ sessionId }) {
         padding: 8,
         fontSize: 10
       }}>
-        <div style={{ marginBottom: 4 }}>数据点: {label}</div>
+        <div style={{ marginBottom: 4 }}>距离: {label} 米</div>
         {payload.map((p, i) => (
           <div key={i} style={{ color: p.color }}>
             {p.name}: {p.value?.toFixed(1)}
@@ -205,7 +272,7 @@ export function LapComparison({ sessionId }) {
             <ResponsiveContainer width="100%" height={100}>
               <LineChart data={compareLaps.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="index" tick={{ fontSize: 8 }} />
+                <XAxis dataKey="dist" tickFormatter={val => val + 'm'} tick={{ fontSize: 8 }} />
                 <YAxis tick={{ fontSize: 8 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1.5} />
@@ -225,7 +292,7 @@ export function LapComparison({ sessionId }) {
             <ResponsiveContainer width="100%" height={150}>
               <LineChart data={compareLaps.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="index" tick={{ fontSize: 8 }} />
+                <XAxis dataKey="dist" tickFormatter={val => val + 'm'} tick={{ fontSize: 8 }} />
                 <YAxis tick={{ fontSize: 8 }} />
                 <Tooltip content={<CustomTooltip />} />
                 {compareLaps.laps.map((l, i) => (
@@ -244,7 +311,7 @@ export function LapComparison({ sessionId }) {
             <ResponsiveContainer width="100%" height={100}>
               <LineChart data={compareLaps.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="index" tick={{ fontSize: 8 }} />
+                <XAxis dataKey="dist" tickFormatter={val => val + 'm'} tick={{ fontSize: 8 }} />
                 <YAxis tick={{ fontSize: 8 }} domain={[0, 255]} />
                 <Tooltip content={<CustomTooltip />} />
                 {compareLaps.laps.map((l, i) => (

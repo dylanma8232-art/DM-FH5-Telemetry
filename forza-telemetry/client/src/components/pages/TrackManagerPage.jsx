@@ -176,7 +176,8 @@ export function TrackManagerPage({ onNavigate }) {
   // Round 2: 导出PNG功能
   const exportTrackPNG = (id) => {
     const track = tracks[id];
-    if (!track || !track.points || track.points.length < 2) {
+    const points = track ? (track.points || track.centerline || (track.trajectories && track.trajectories[0])) : null;
+    if (!track || !points || points.length < 2) {
       toast('赛道数据不足，无法导出', 'error');
       return;
     }
@@ -386,14 +387,15 @@ export function TrackManagerPage({ onNavigate }) {
   }, []);
 
   const drawTrack = useCallback((ctx, canvas, track, transform) => {
-    if (!track || !track.points || track.points.length < 2) return;
+    const resolvedPoints = track ? (track.points || track.centerline || (track.trajectories && track.trajectories[0])) : null;
+    if (!track || !resolvedPoints || resolvedPoints.length < 2) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#0d1117';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    track.points.forEach(p => {
+    resolvedPoints.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.z < minZ) minZ = p.z;
@@ -419,7 +421,7 @@ export function TrackManagerPage({ onNavigate }) {
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.scale, transform.scale);
 
-    let points = track.points;
+    let points = resolvedPoints;
     if (points.length > 1000) {
       const step = Math.ceil(points.length / 500);
       const sampled = [points[0]];
@@ -557,7 +559,7 @@ export function TrackManagerPage({ onNavigate }) {
     }
 
     // 起点
-    const p0 = track.points[0];
+    const p0 = resolvedPoints[0];
     const sx0 = (p0.x - minX) * sc + ox;
     const sy0 = (p0.z - minZ) * sc + oz;
     ctx.fillStyle = '#fff';
@@ -576,7 +578,7 @@ export function TrackManagerPage({ onNavigate }) {
     ctx.fillText('S', sx0, sy0);
 
     // 终点
-    const pN = track.points[track.points.length - 1];
+    const pN = resolvedPoints[resolvedPoints.length - 1];
     const sxN = (pN.x - minX) * sc + ox;
     const syN = (pN.z - minZ) * sc + oz;
     ctx.fillStyle = '#f85149';
@@ -664,11 +666,20 @@ export function TrackManagerPage({ onNavigate }) {
   }, [transform, selectedTrack, tracks, drawCanvas]);
 
   useEffect(() => {
-    const handleResize = () => {
-      drawCanvas();
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          drawCanvas();
+        }
+      }
+    });
+
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, [drawCanvas]);
 
   const handleWheel = (e) => {
@@ -1319,7 +1330,7 @@ function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
           <div style={{ ...statCardStyle }}>
             <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>轨迹点</div>
             <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#58a6ff' }}>
-              {track.points ? track.points.length : 0}
+              {track.pointCount !== undefined ? track.pointCount : (track.points ? track.points.length : 0)}
             </div>
           </div>
         </div>
