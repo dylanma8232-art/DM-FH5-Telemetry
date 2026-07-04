@@ -6,12 +6,11 @@ export function formatTime(seconds) {
 }
 
 export function formatGear(gear) {
-  // 极限竞速地平线5协议：0为倒档(R)，1为空档(N)，2为1档...
+  // Forza Horizon 5 遥测协议中: 0为倒档(R)，11或255为空档(N)，1为1档，2为2档...
   if (gear === undefined || gear === null) return '-';
   if (gear === 0) return 'R';
-  if (gear === 1) return 'N';
-  if (gear === 11 || gear === 255 || gear < 0) return 'R';
-  return (gear - 1).toString();
+  if (gear === 11 || gear === 255) return 'N';
+  return gear.toString();
 }
 
 export function formatSpeed(speedMs) {

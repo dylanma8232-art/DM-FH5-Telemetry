@@ -25,9 +25,9 @@ export function BrakingGripDynamicsPanel({ data }) {
   const tireCombinedSlip = telemetryData.tireCombinedSlip || { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
   const car = telemetryData.car || {};
 
-  // 游戏的原始 UDP 已经以 G 为单位
-  const latG = (acceleration.x || 0); 
-  const lonG = (acceleration.z || 0); 
+  // 游戏的原始 UDP 输出以米/秒² (m/s²) 为单位，必须除以 9.80665 转换成 G 力
+  const latG = (acceleration.x || 0) / 9.80665; 
+  const lonG = (acceleration.z || 0) / 9.80665; 
 
   // 峰值记录
   const [peakLat, setPeakLat] = useState(0);
@@ -98,31 +98,29 @@ export function BrakingGripDynamicsPanel({ data }) {
       RR: { label: 'RR', grip: getGripInfo(tireCombinedSlip.rearRight || 0), status: wheelStatuses.RR },
     };
   }, [tireCombinedSlip, wheelStatuses]);
-
-  // 渲染简易轮胎单元
   const renderTireNode = (tire) => {
     const isSlipping = tire.status.type !== 'none' && tire.status.active;
     const color = isSlipping ? tire.status.color : tire.grip.color;
     return (
       <div style={{
-        width: 32,
-        height: 48,
-        borderRadius: 4,
-        border: `2px solid ${isSlipping ? '#fff' : 'rgba(48, 54, 61, 0.8)'}`,
-        background: isSlipping ? color : 'rgba(22, 27, 34, 0.9)',
+        width: 56,
+        height: 80,
+        borderRadius: 6,
+        border: `2px solid ${isSlipping ? '#fff' : 'rgba(48, 54, 61, 0.9)'}`,
+        background: isSlipping ? color : 'rgba(22, 27, 34, 0.95)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: isSlipping ? `0 0 10px ${color}` : 'none',
+        boxShadow: isSlipping ? `0 0 12px ${color}` : 'none',
         animation: isSlipping ? 'alarmBlink 0.15s infinite alternate' : 'none',
         transition: 'all 0.08s linear'
       }}>
-        <span style={{ fontSize: 9, fontWeight: 900, color: isSlipping ? '#fff' : '#c9d1d9', fontFamily: 'monospace' }}>
+        <span style={{ fontSize: 13, fontWeight: 900, color: isSlipping ? '#fff' : '#c9d1d9', fontFamily: 'monospace', letterSpacing: 0.5 }}>
           {tire.label}
         </span>
-        <span style={{ fontSize: 8, fontWeight: 700, color: isSlipping ? '#fff' : '#8b949e', marginTop: 2, fontFamily: 'monospace' }}>
-          {tire.grip.val.toFixed(0)}
+        <span style={{ fontSize: 12, fontWeight: 800, color: isSlipping ? '#fff' : '#8b949e', marginTop: 4, fontFamily: 'monospace' }}>
+          {tire.grip.val.toFixed(0)}%
         </span>
       </div>
     );
@@ -166,112 +164,23 @@ export function BrakingGripDynamicsPanel({ data }) {
         }} />
       )}
 
-      {/* ================= 第一层：超大“物理极限利用率”进度横条 (100% 宽度) ================= */}
-      <div style={{ width: '100%', marginBottom: 16, flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: 0.5 }}>
-              抓地力物理极限利用率
-            </span>
-            <span style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: safetyColor,
-              background: `${safetyColor}12`,
-              padding: '1px 6px',
-              borderRadius: 3,
-              border: `1px solid ${safetyColor}25`
-            }}>
-              {safetyText}
-            </span>
-          </div>
-          <div style={{ fontSize: 11, color: '#8b949e' }}>
-            估算上限: <strong style={{ color: '#fff', fontFamily: 'monospace' }}>{limitG.toFixed(2)} G</strong>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* 超大百分比数值 */}
-          <div style={{ fontSize: 44, fontWeight: 900, fontFamily: 'monospace', color: safetyColor, lineHeight: 1, minWidth: 100 }}>
-            {utilizationPercent.toFixed(0)}<span style={{ fontSize: 18, fontWeight: 700 }}>%</span>
-          </div>
-          
-          {/* 超粗且带有LED网格的进度条 */}
-          <div style={{
-            flex: 1,
-            height: 24,
-            background: '#161b22',
-            borderRadius: 4,
-            border: '1px solid #30363d',
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            gap: 2,
-            padding: 2,
-            boxSizing: 'border-box'
-          }}>
-            {/* 75% 黄金线刻度 */}
-            <div style={{
-              position: 'absolute',
-              left: '75%',
-              top: 0,
-              bottom: 0,
-              width: 2,
-              background: '#fff',
-              opacity: 0.4,
-              zIndex: 3
-            }} />
-            
-            {/* 20个LED格组成的进度指示器 */}
-            {Array.from({ length: 20 }).map((_, idx) => {
-              const valThreshold = (idx + 1) * 5; // 每个格子代表 5%
-              const isActive = utilizationPercent >= valThreshold;
-              
-              let ledBg = '#21262d';
-              if (isActive) {
-                if (valThreshold > 90) ledBg = '#f85149'; // 红色
-                else if (valThreshold > 70) ledBg = '#d29922'; // 黄色
-                else ledBg = '#3fb950'; // 绿色
-              }
-
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    flex: 1,
-                    height: '100%',
-                    background: ledBg,
-                    borderRadius: 1,
-                    transition: 'background 0.05s linear',
-                    opacity: isActive ? 1 : 0.2
-                  }}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ================= 第二层：三列布局 (横向G力 | 中控报警底盘 | 纵向G力) ================= */}
+      {/* ================= 第二层：三列自适应自融合排布 (横向G力 | 中控报警底盘 | 纵向G力) ================= */}
       <div style={{
         flex: 1,
         display: 'flex',
-        gap: 16,
+        gap: 20,
         alignItems: 'stretch',
         minHeight: 0
       }}>
         
-        {/* 1. 左侧：横向重力中心 (过弯) */}
+        {/* 1. 左侧：横向重力中心 (过弯) - 移除内框和背景，自适应 */}
         <div style={{
-          flex: '0 0 35%',
-          background: 'rgba(0,0,0,0.15)',
-          borderRadius: 6,
-          border: '1px solid rgba(48,54,61,0.2)',
-          padding: '10px 14px',
+          flex: '1 1 30%',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          padding: '4px'
         }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -287,10 +196,10 @@ export function BrakingGripDynamicsPanel({ data }) {
             <div style={{
               fontSize: 10.5,
               fontWeight: 800,
-              color: latG < -0.1 ? '#58a6ff' : latG > 0.1 ? '#f85149' : 'var(--text-muted)',
+              color: latG > 0.1 ? '#58a6ff' : latG < -0.1 ? '#f85149' : 'var(--text-muted)',
               marginTop: 4
             }}>
-              {latG < -0.1 ? '← 向右过弯 (载荷压在左侧)' : latG > 0.1 ? '向左过弯 (载荷压在右侧) →' : '直行'}
+              {latG > 0.1 ? '← 向右过弯 (左侧载荷)' : latG < -0.1 ? '向左过弯 (右侧载荷) →' : '直行'}
             </div>
           </div>
 
@@ -301,7 +210,7 @@ export function BrakingGripDynamicsPanel({ data }) {
               <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: 'rgba(255,255,255,0.3)', zIndex: 2 }} />
               
               {/* 动态天平滑条 */}
-              {latG < 0 ? (
+              {latG > 0 ? (
                 <div style={{
                   position: 'absolute',
                   right: '50%',
@@ -331,9 +240,9 @@ export function BrakingGripDynamicsPanel({ data }) {
           </div>
         </div>
 
-        {/* 2. 中间：巨型状态指示灯与底盘结合舱 */}
+        {/* 2. 中间：巨型状态指示灯与底盘结合舱 - 自适应布局 */}
         <div style={{
-          flex: '0 0 30%',
+          flex: '1 1 40%',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -379,69 +288,67 @@ export function BrakingGripDynamicsPanel({ data }) {
             </div>
           </div>
 
-          {/* 工字型极简物理车模（方程式底盘指示器） */}
+          {/* 工字型车模底盘指示器 (整体大幅度放大，去除内框) */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            height: '110px',
-            width: '100%'
+            height: '180px',
+            width: '100%',
+            marginTop: 8
           }}>
-            {/* 前轴 */}
-            <div style={{ display: 'flex', gap: 24, zIndex: 2 }}>
+            {/* 前轴 (轮胎左右 gap 放大) */}
+            <div style={{ display: 'flex', gap: 54, zIndex: 2 }}>
               {renderTireNode(tires.FL)}
               {renderTireNode(tires.FR)}
             </div>
 
-            {/* 纵向车轴骨架线 */}
+            {/* 纵向车轴骨架线 (拉长) */}
             <div style={{
               position: 'absolute',
               width: 4,
-              height: 70,
-              background: 'linear-gradient(to bottom, rgba(88,166,255,0.05) 0%, rgba(88,166,255,0.3) 50%, rgba(88,166,255,0.05) 100%)',
-              top: 20,
+              height: 120,
+              background: 'linear-gradient(to bottom, rgba(88,166,255,0.05) 0%, rgba(88,166,255,0.35) 50%, rgba(88,166,255,0.05) 100%)',
+              top: 30,
               zIndex: 1
             }} />
             
             {/* 横轴连接线 */}
             <div style={{
               position: 'absolute',
-              width: 50,
+              width: 90,
               height: 2,
               background: 'rgba(88,166,255,0.2)',
-              top: '40px',
+              top: '55px',
               zIndex: 1
             }} />
             <div style={{
               position: 'absolute',
-              width: 50,
+              width: 90,
               height: 2,
               background: 'rgba(88,166,255,0.2)',
-              bottom: '40px',
+              bottom: '55px',
               zIndex: 1
             }} />
 
             {/* 后轴 */}
-            <div style={{ display: 'flex', gap: 24, zIndex: 2, marginTop: 12 }}>
+            <div style={{ display: 'flex', gap: 54, zIndex: 2, marginTop: 20 }}>
               {renderTireNode(tires.RL)}
               {renderTireNode(tires.RR)}
             </div>
           </div>
         </div>
 
-        {/* 3. 右侧：纵向重力中心 (油刹) */}
+        {/* 3. 右侧：纵向重力中心 (油刹) - 移除外框 */}
         <div style={{
-          flex: '0 0 35%',
-          background: 'rgba(0,0,0,0.15)',
-          borderRadius: 6,
-          border: '1px solid rgba(48,54,61,0.2)',
-          padding: '10px 14px',
+          flex: '1 1 30%',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          padding: '4px'
         }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -498,9 +405,8 @@ export function BrakingGripDynamicsPanel({ data }) {
               <span>0.0G 中</span>
               <span>2.0G 加速</span>
             </div>
-          </div>
         </div>
-
+      </div>
       </div>
 
       {/* 警报与高对比度闪烁样式 */}

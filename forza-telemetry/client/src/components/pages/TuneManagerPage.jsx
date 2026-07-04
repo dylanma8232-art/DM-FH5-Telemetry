@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { EmptyState } from '../shared/EmptyState'
 import {
   PART_CATEGORIES,
@@ -901,7 +901,16 @@ export function TuneManagerPage({ onNavigate }) {
 
   // 根据当前配件计算调校参数约束
   const tuneConstraints = useMemo(() => {
-    const rawConstraints = getTuneConstraints(formData.parts);
+    let currentParts = formData.parts;
+    if (!currentParts || Object.keys(currentParts).length === 0) {
+      currentParts = {};
+      PART_CATEGORIES.forEach(cat => {
+        if (cat.tierSystem) currentParts[cat.id] = { tier: 'race' };
+        else currentParts[cat.id] = { optionId: 'stock' };
+      });
+    }
+
+    const rawConstraints = getTuneConstraints(currentParts);
 
     // getTuneConstraints 返回扁平 key（如 tire_pressure_front），
     // UI 使用嵌套路径（如 tires.frontPressure），这里做映射转换
@@ -931,14 +940,28 @@ export function TuneManagerPage({ onNavigate }) {
       'downforce_rear': 'aero.rearDownforce'
     };
 
+    const getLockedHint = (constraint) => {
+      if (!constraint.locked || !constraint.reqCategory) return '';
+      const cat = PART_CATEGORIES.find(c => c.id === constraint.reqCategory);
+      const tier = TIER_LABELS[constraint.reqTier];
+      if (cat && tier) {
+        return `需改装 ${tier.zh}${cat.label}解锁`;
+      }
+      return '需升级配件';
+    };
+
     const mapped = {};
     for (const [flatKey, constraint] of Object.entries(rawConstraints)) {
       const dotPath = PARAM_KEY_MAP[flatKey];
+      const enhancedConstraint = {
+        ...constraint,
+        lockedHint: getLockedHint(constraint)
+      };
       if (dotPath) {
-        mapped[dotPath] = constraint;
+        mapped[dotPath] = enhancedConstraint;
       } else {
         // 未知 key 保持原样
-        mapped[flatKey] = constraint;
+        mapped[flatKey] = enhancedConstraint;
       }
     }
     return mapped;
@@ -1127,6 +1150,7 @@ export function TuneManagerPage({ onNavigate }) {
       defaultValue: tuneDefaults[key],
       highlighted: highlightedParams.includes(key),
       onResetDefault: () => resetParamToDefault(category, field),
+      lockedHint: tuneConstraints[key]?.lockedHint || '',
       ...extra
     }
   }
@@ -2007,7 +2031,7 @@ export function TuneManagerPage({ onNavigate }) {
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
                   {PART_CATEGORIES.filter(c => {
                     const p = formData.parts[c.id]
-                    if (c.tierSystem) return p?.tier && p.tier !== PART_TIERS.STOCK
+                    if (c.tierSystem) return p?.tier && p.tier !== 'stock'
                     return p?.optionId && p.optionId !== 'stock'
                   }).length} 项改装
                 </span>
@@ -2882,7 +2906,7 @@ const ParamItem = React.memo(function ParamItem({ label, value, unit = '', defau
   )
 });
 
-const NumberInput = React.memo(function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, defaultValue, highlighted = false, onResetDefault }) {
+const NumberInput = React.memo(function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, lockedHint = '', defaultValue, highlighted = false, onResetDefault }) {
   const handleChange = (e) => {
     if (locked) return
     const raw = e.target.value
@@ -2914,7 +2938,7 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
     <div style={{ position: 'relative' }}>
       <label style={labelStyle}>
         {label} {unit && <span style={{ color: 'var(--text-muted)' }}>({unit})</span>}
-        {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }}>🔒 需升级配件</span>}
+        {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }} title={lockedHint}>🔒 {lockedHint || '需升级'}</span>}
         {highlighted && <span style={{ color: '#3fb950', marginLeft: 4, fontSize: 9, fontWeight: 600, animation: 'paramHighlight 0.5s ease-in-out 3' }}>NEW</span>}
       </label>
       {defaultValue !== undefined && !locked && isOffDefault && (

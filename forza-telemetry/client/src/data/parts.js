@@ -617,7 +617,14 @@ export function getTuneConstraints(parts) {
 
     if (currentTierIndex < minTierIndex) {
       // 未达到最低要求 → 锁定
-      constraints[paramId] = { locked: true, min: null, max: null, step: null };
+      constraints[paramId] = { 
+        locked: true, 
+        min: null, 
+        max: null, 
+        step: null, 
+        reqCategory: categoryId, 
+        reqTier: requirement.minTier 
+      };
     } else {
       // 已解锁 → 使用当前等级对应的范围
       const range = rangeMap[currentTier] || rangeMap[currentTierIndex >= 0 ? TIERS[currentTierIndex] : 'stock'];
@@ -631,7 +638,14 @@ export function getTuneConstraints(parts) {
           step: effectiveRange.step || null
         };
       } else {
-        constraints[paramId] = { locked: true, min: null, max: null, step: null };
+        constraints[paramId] = { 
+          locked: true, 
+          min: null, 
+          max: null, 
+          step: null, 
+          reqCategory: categoryId, 
+          reqTier: requirement.minTier 
+        };
       }
     }
   }
