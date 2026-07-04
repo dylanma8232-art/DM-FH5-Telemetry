@@ -2,11 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { EmptyState } from '../shared/EmptyState'
 import {
   PART_CATEGORIES,
-  PART_TIERS,
-  TIER_INFO,
+  TIER_LABELS,
   getDefaultParts,
-  getTuneParamConstraints,
-  getPartOptionDetail,
   getTuneConstraints,
   getTuneDefaults,
   autoUpgradeToPi,
@@ -904,7 +901,7 @@ export function TuneManagerPage({ onNavigate }) {
 
   // 根据当前配件计算调校参数约束
   const tuneConstraints = useMemo(() => {
-    const rawConstraints = getTuneParamConstraints(formData.parts);
+    const rawConstraints = getTuneConstraints(formData.parts);
 
     // getTuneConstraints 返回扁平 key（如 tire_pressure_front），
     // UI 使用嵌套路径（如 tires.frontPressure），这里做映射转换
@@ -1590,9 +1587,11 @@ export function TuneManagerPage({ onNavigate }) {
                         {PART_CATEGORIES.map(cat => {
                           const part = tune.parts[cat.id]
                           const isStock = cat.tierSystem
-                            ? (!part?.tier || part.tier === PART_TIERS.STOCK)
+                            ? (!part?.tier || part.tier === 'stock')
                             : (!part?.optionId || part.optionId === 'stock')
-                          const detail = getPartOptionDetail(cat.id, part)
+                          const partLabel = cat.tierSystem
+                            ? (part?.tier ? (TIER_LABELS[part.tier]?.zh || part.tier) : cat.label)
+                            : (cat.options?.find(o => o.id === part?.optionId)?.label || cat.label)
                           return (
                             <div key={cat.id} style={{
                               fontSize: 9,
@@ -1603,7 +1602,7 @@ export function TuneManagerPage({ onNavigate }) {
                             }}>
                               <span>{cat.icon}</span>
                               <span style={{ fontWeight: isStock ? 400 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {detail?.label || cat.label}
+                                {partLabel}
                               </span>
                             </div>
                           )
@@ -2960,13 +2959,12 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
   const [expanded, setExpanded] = useState(false)
 
   const isStock = category.tierSystem
-    ? (!selected?.tier || selected.tier === PART_TIERS.STOCK)
+    ? (!selected?.tier || selected.tier === 'stock')
     : (!selected?.optionId || selected.optionId === 'stock')
 
-  const selectedDetail = getPartOptionDetail(category.id, selected)
-  const selectedTierInfo = category.tierSystem && selected?.tier
-    ? TIER_INFO[selected.tier]
-    : null
+  const selectedTier = category.tierSystem && selected?.tier ? selected.tier : null
+  const selectedColor = selectedTier ? (TIER_LABELS[selectedTier]?.color || 'var(--accent)') : 'var(--accent)'
+  const selectedLabel = selectedTier ? (TIER_LABELS[selectedTier]?.zh || selectedTier) : ''
 
   const handleSelect = (tier, optionId) => {
     onChange(tier, optionId)
@@ -2976,7 +2974,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
     <div style={{
       background: isStock ? 'var(--bg-primary)' : 'var(--bg-tertiary)',
       borderRadius: 6,
-      border: `1px solid ${isStock ? 'var(--border)' : ((selectedTierInfo?.color || 'var(--accent)')) + '33'}`,
+      border: `1px solid ${isStock ? 'var(--border)' : (selectedColor + '33')}`,
       overflow: 'hidden'
     }}>
       {/* 头部 - 点击展开/收起 */}
@@ -3003,16 +3001,16 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
         }}>
           {category.label}
         </span>
-        {selectedTierInfo && (
+        {selectedTier && (
           <span style={{
             fontSize: 8,
             padding: '1px 5px',
             borderRadius: 3,
-            background: `${selectedTierInfo.color}22`,
-            color: selectedTierInfo.color,
+            background: `${selectedColor}22`,
+            color: selectedColor,
             fontWeight: 600
           }}>
-            {selectedTierInfo.label}
+            {selectedLabel}
           </span>
         )}
         <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>{expanded ? '▲' : '▼'}</span>
