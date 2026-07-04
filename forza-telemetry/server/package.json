@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "debug-udp": "node src/utils/listen-and-classify.js"
   },
   "dependencies": {
     "express": "^4.18.2",

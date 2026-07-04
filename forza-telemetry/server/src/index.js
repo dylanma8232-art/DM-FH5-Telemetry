@@ -110,6 +110,91 @@ function saveTracksDatabase(data) {
   }
 }
 
+function generateLowfiTelemetry(hifiData, hifiPositions) {
+  if (!hifiData || hifiData.length === 0) {
+    return { data: [], positions: hifiPositions || [] };
+  }
+
+  const lowfiData = [];
+  const keepIndices = new Set();
+  const len = hifiData.length;
+
+  // 1. 每隔 12 帧 (约 200ms) 取一帧作为基础骨架 (5Hz)
+  for (let i = 0; i < len; i += 12) {
+    keepIndices.add(i);
+  }
+  // 确保最后一帧被包含
+  keepIndices.add(len - 1);
+
+  // 2. 遍历并检测关键事件，并在事件帧前后各保留 10 帧 (高频切片)
+  let lastGear = hifiData[0]?.controls?.gear;
+  for (let i = 0; i < len; i++) {
+    const frame = hifiData[i];
+    if (!frame) continue;
+
+    let isEvent = false;
+
+    // A. 换挡检测
+    const currentGear = frame.controls?.gear;
+    if (currentGear !== undefined && currentGear !== lastGear) {
+      isEvent = true;
+      lastGear = currentGear;
+    }
+
+    // B. ABS / TCS 触发检测 (根据滑移率绝对值大于 0.15 判断)
+    const tireSlip = frame.tireSlipRatio || {};
+    if (
+      Math.abs(tireSlip.frontLeft || 0) > 0.15 ||
+      Math.abs(tireSlip.frontRight || 0) > 0.15 ||
+      Math.abs(tireSlip.rearLeft || 0) > 0.15 ||
+      Math.abs(tireSlip.rearRight || 0) > 0.15
+    ) {
+      isEvent = true;
+    }
+
+    // C. 刹车踩下检测 (控制量中 brake 从低变高或保持高负荷)
+    const brake = frame.controls?.brake || 0;
+    if (brake > 50) { // 刹车开度大于 50%
+      isEvent = true;
+    }
+
+    // D. 极限 G 力检测 (横向或纵向加速度绝对值大于 1.2G，即米每二次方秒 > 11.7)
+    const accel = frame.acceleration || {};
+    if (Math.abs(accel.x || 0) > 11.7 || Math.abs(accel.z || 0) > 11.7) {
+      isEvent = true;
+    }
+
+    if (isEvent) {
+      // 保留当前帧前后各 10 帧
+      const start = Math.max(0, i - 10);
+      const end = Math.min(len - 1, i + 10);
+      for (let j = start; j <= end; j++) {
+        keepIndices.add(j);
+      }
+    }
+  }
+
+  // 3. 根据索引提取并排序
+  const sortedIndices = Array.from(keepIndices).sort((a, b) => a - b);
+  for (const idx of sortedIndices) {
+    lowfiData.push(hifiData[idx]);
+  }
+
+  // 4. positions 降采样 (5Hz 已经非常丝滑)
+  const lowfiPositions = [];
+  if (hifiPositions && hifiPositions.length > 0) {
+    for (let i = 0; i < hifiPositions.length; i += 5) {
+      lowfiPositions.push(hifiPositions[i]);
+    }
+    // 确保包含最后一个点
+    if ((hifiPositions.length - 1) % 5 !== 0) {
+      lowfiPositions.push(hifiPositions[hifiPositions.length - 1]);
+    }
+  }
+
+  return { data: lowfiData, positions: lowfiPositions };
+}
+
 function saveSession(sessionId, sessionData) {
   const sessionsDir = path.join(DATA_DIR, 'sessions');
 
@@ -137,17 +222,33 @@ function saveSession(sessionId, sessionData) {
   });
 
   if (sessionData.data && sessionData.data.length > 0) {
-    const detailData = {
+    // 1. 写入高清完整的 Hifi 详情
+    const hifiData = {
       id: sessionData.id || sessionId,
       data: sessionData.data,
       positions: sessionData.positions || []
     };
-    const detailPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
-    writeBrotliAsync(detailPath, detailData).then(() => {
+    const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+    writeBrotliAsync(hifiPath, hifiData).catch(err => {
+      console.error(`[saveSession] 高清详情写入失败 ${hifiPath}:`, err.message);
+    });
+
+    // 2. 写入精简事件的 Lowfi 详情
+    const { data: lowfiData, positions: lowfiPositions } = generateLowfiTelemetry(sessionData.data, sessionData.positions);
+    const lowfiPayload = {
+      id: sessionData.id || sessionId,
+      data: lowfiData,
+      positions: lowfiPositions
+    };
+    const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
+    writeBrotliAsync(lowfiPath, lowfiPayload).then(() => {
+      // 兼容并清除旧格式的 gz/br 文件
+      const oldBrPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
       const oldGzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+      fs.promises.unlink(oldBrPath).catch(() => {});
       fs.promises.unlink(oldGzPath).catch(() => {});
     }).catch(err => {
-      console.error(`[saveSession] 详情写入失败 ${detailPath}:`, err.message);
+      console.error(`[saveSession] 低清骨架详情写入失败 ${lowfiPath}:`, err.message);
     });
   }
 
@@ -169,27 +270,33 @@ function loadSession(sessionId) {
       Object.defineProperty(summary, 'data', {
         get() {
           if (this._data) return this._data;
+          const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+          const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
           const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
           const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
           
-          if (fs.existsSync(brPath)) {
-            try {
-              const buffer = fs.readFileSync(brPath);
-              const decompressed = zlib.brotliDecompressSync(buffer);
-              const detail = JSON.parse(decompressed.toString('utf8'));
-              this._data = detail.data || [];
-            } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} Brotli 细节数据失败:`, e.message);
-              this._data = [];
-            }
+          let targetPath = null;
+          let isBrotli = true;
+
+          if (fs.existsSync(hifiPath)) {
+            targetPath = hifiPath;
+          } else if (fs.existsSync(lowfiPath)) {
+            targetPath = lowfiPath;
+          } else if (fs.existsSync(brPath)) {
+            targetPath = brPath;
           } else if (fs.existsSync(gzPath)) {
+            targetPath = gzPath;
+            isBrotli = false;
+          }
+
+          if (targetPath) {
             try {
-              const buffer = fs.readFileSync(gzPath);
-              const decompressed = zlib.gunzipSync(buffer);
+              const buffer = fs.readFileSync(targetPath);
+              const decompressed = isBrotli ? zlib.brotliDecompressSync(buffer) : zlib.gunzipSync(buffer);
               const detail = JSON.parse(decompressed.toString('utf8'));
               this._data = detail.data || [];
             } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} Gzip 细节数据失败:`, e.message);
+              console.error(`[loadSession] 解压 ${sessionId} 细节数据失败:`, e.message);
               this._data = [];
             }
           } else {
@@ -207,27 +314,33 @@ function loadSession(sessionId) {
       Object.defineProperty(summary, 'positions', {
         get() {
           if (this._positions) return this._positions;
+          const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+          const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
           const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
           const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
           
-          if (fs.existsSync(brPath)) {
-            try {
-              const buffer = fs.readFileSync(brPath);
-              const decompressed = zlib.brotliDecompressSync(buffer);
-              const detail = JSON.parse(decompressed.toString('utf8'));
-              this._positions = detail.positions || [];
-            } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} Brotli 轨迹位置失败:`, e.message);
-              this._positions = [];
-            }
+          let targetPath = null;
+          let isBrotli = true;
+
+          if (fs.existsSync(hifiPath)) {
+            targetPath = hifiPath;
+          } else if (fs.existsSync(lowfiPath)) {
+            targetPath = lowfiPath;
+          } else if (fs.existsSync(brPath)) {
+            targetPath = brPath;
           } else if (fs.existsSync(gzPath)) {
+            targetPath = gzPath;
+            isBrotli = false;
+          }
+
+          if (targetPath) {
             try {
-              const buffer = fs.readFileSync(gzPath);
-              const decompressed = zlib.gunzipSync(buffer);
+              const buffer = fs.readFileSync(targetPath);
+              const decompressed = isBrotli ? zlib.brotliDecompressSync(buffer) : zlib.gunzipSync(buffer);
               const detail = JSON.parse(decompressed.toString('utf8'));
               this._positions = detail.positions || [];
             } catch (e) {
-              console.error(`[loadSession] 解压 ${sessionId} Gzip 轨迹位置失败:`, e.message);
+              console.error(`[loadSession] 解压 ${sessionId} 轨迹位置数据失败:`, e.message);
               this._positions = [];
             }
           } else {
@@ -281,33 +394,27 @@ function autoCleanupSessionDetails(maxDetailsToKeep = 10) {
       const toCleanup = summaries.slice(maxDetailsToKeep);
       let cleanedCount = 0;
       for (const session of toCleanup) {
-        const brPath = path.join(sessionsDir, `${session.id}_detail.json.br`);
-        const gzPath = path.join(sessionsDir, `${session.id}_detail.json.gz`);
+        const hifiPath = path.join(sessionsDir, `${session.id}_detail_hifi.json.br`);
+        const oldBrPath = path.join(sessionsDir, `${session.id}_detail.json.br`);
+        const oldGzPath = path.join(sessionsDir, `${session.id}_detail.json.gz`);
         let deleted = false;
         
-        if (fs.existsSync(brPath)) {
-          try { fs.unlinkSync(brPath); deleted = true; } catch {}
+        if (fs.existsSync(hifiPath)) {
+          try { fs.unlinkSync(hifiPath); deleted = true; } catch {}
         }
-        if (fs.existsSync(gzPath)) {
-          try { fs.unlinkSync(gzPath); deleted = true; } catch {}
+        if (fs.existsSync(oldBrPath)) {
+          try { fs.unlinkSync(oldBrPath); deleted = true; } catch {}
+        }
+        if (fs.existsSync(oldGzPath)) {
+          try { fs.unlinkSync(oldGzPath); deleted = true; } catch {}
         }
         
         if (deleted) {
-          try {
-            cleanedCount++;
-            const summaryPath = path.join(sessionsDir, session.file);
-            const summaryData = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-            if (summaryData.hasDetail !== false) {
-              summaryData.hasDetail = false;
-              fs.writeFileSync(summaryPath, JSON.stringify(summaryData, null, 2), 'utf8');
-            }
-          } catch (err) {
-            console.error(`[Cleanup] 清理 ${session.id} 的细节数据失败:`, err.message);
-          }
+          cleanedCount++;
         }
       }
       if (cleanedCount > 0) {
-        console.log(`[Cleanup] 自动清理了 ${cleanedCount} 个老旧会话的细节数据，保留了成绩摘要。`);
+        console.log(`[Cleanup] 自动清理了 ${cleanedCount} 个老旧会话的高清遥测细节，保留了低清骨架与成绩摘要。`);
       }
     }
   } catch (err) {
@@ -2213,12 +2320,22 @@ app.delete('/api/sessions/:id', (req, res) => {
   try {
     const sessionsDir = DATA_DIR + '/sessions';
     const summaryPath = path.join(sessionsDir, `${req.params.id}_summary.json`);
+    const hifiPath = path.join(sessionsDir, `${req.params.id}_detail_hifi.json.br`);
+    const lowfiPath = path.join(sessionsDir, `${req.params.id}_detail_lowfi.json.br`);
     const brPath = path.join(sessionsDir, `${req.params.id}_detail.json.br`);
     const gzPath = path.join(sessionsDir, `${req.params.id}_detail.json.gz`);
     
     let deleted = false;
     if (fs.existsSync(summaryPath)) {
       fs.unlinkSync(summaryPath);
+      deleted = true;
+    }
+    if (fs.existsSync(hifiPath)) {
+      fs.unlinkSync(hifiPath);
+      deleted = true;
+    }
+    if (fs.existsSync(lowfiPath)) {
+      fs.unlinkSync(lowfiPath);
       deleted = true;
     }
     if (fs.existsSync(brPath)) {

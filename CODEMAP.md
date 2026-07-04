@@ -31,6 +31,7 @@
         - 📄 [LapComparison.jsx](file:///forza-telemetry/client/src/components/dashboard/LapComparison.jsx)   *(函数/组件: `LapComparison`)*
         - 📄 [PaceNoteExport.jsx](file:///forza-telemetry/client/src/components/dashboard/PaceNoteExport.jsx)   *(函数/组件: `PaceNoteExport`)*
         - 📄 [PaceNotesPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/PaceNotesPanel.jsx)   *(函数/组件: `PaceNotesPanel`, 默认导出: `PaceNotesPanel`)*
+        - 📄 [PartsConfigurator.jsx](file:///forza-telemetry/client/src/components/dashboard/PartsConfigurator.jsx)   *(函数/组件: `PartsConfigurator`)*
         - 📄 [RacePerformanceTimingPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/RacePerformanceTimingPanel.jsx)   *(函数/组件: `RacePerformanceTimingPanel`)*
         - 📄 [ReplayPlayer.jsx](file:///forza-telemetry/client/src/components/dashboard/ReplayPlayer.jsx)   *(函数/组件: `ReplayPlayer`)*
         - 📄 [SectorAnalysis.jsx](file:///forza-telemetry/client/src/components/dashboard/SectorAnalysis.jsx)   *(函数/组件: `SectorAnalysis`)*
@@ -104,6 +105,8 @@
     - 📄 [test-sender.js](file:///forza-telemetry/server/src/test-sender.js) 
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `recognizeTrack`, 函数/组件: `generateSectors`, 函数/组件: `validateTrackQuality`, 默认导出: `默认导出`)*
     - 📂 **utils/**
+      - 📄 [get-current-api.js](file:///forza-telemetry/server/src/utils/get-current-api.js) 
+      - 📄 [listen-and-classify.js](file:///forza-telemetry/server/src/utils/listen-and-classify.js) 
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
 
 ---

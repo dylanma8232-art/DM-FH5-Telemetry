@@ -1,538 +1,235 @@
 # Forza Horizon 5 UDP 遥测数据字段全量参考
 
-> **数据包大小:** 324-332 字节  
-> **字节序:** Little-Endian (小端)  
-> **接收端口:** UDP 9996  
-> **解析模块:** `server/src/telemetry-parser.js`
+> **数据包总大小:** 324 - 332 字节  
+> **字节序:** Little-Endian (小端字节序)  
+> **默认接收端口:** UDP 9996  
+> **解析参考模块:** `server/src/telemetry-parser.js`
 
 ---
 
-## 目录
+## 💡 开发避坑与核心说明 (Important Notes)
 
-1. [数据包结构概览](#数据包结构概览)
-2. [SLED 区域 (基础车辆动力学)](#sled-区域-基础车辆动力学)
-3. [Dash 扩展区域 (高级数据)](#dash-扩展区域-高级数据)
-4. [解析后输出结构](#解析后输出结构)
-5. [枚举值映射表](#枚举值映射表)
-6. [单位转换公式](#单位转换公式)
+在对接或修改 UDP 数据字典时，请务必注意以下几点：
 
----
-
-## 数据包结构概览
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  偏移 0-231    │  SLED 区域 (232 字节)                   │
-│                │  基础车辆动力学数据                       │
-├─────────────────────────────────────────────────────────┤
-│  偏移 232-243  │  FH6 间隙 (12 字节)                     │
-│                │  占位数据 (为 Forza Motorsport 预留)      │
-├─────────────────────────────────────────────────────────┤
-│  偏移 244-322  │  Dash 扩展区域 (79 字节)                 │
-│                │  需要包长度 >= 323 字节                   │
-│                │  位置/速度/圈速/操控输入等                 │
-└─────────────────────────────────────────────────────────┘
-```
+1. **FH6 Gap 12字节空隙 (最容易导致错位的问题)**  
+   Forza Horizon 5 的数据包在 SLED 区域（偏移 0-231）和 Dash 区域（偏移 244 往后）之间，塞入了 **12 字节的空数据占位区**（偏移量 232 到 243）。**解析时必须跳过这 12 字节**，否则后面的世界坐标、车速、马力、胎温、踏板输入等全部都会发生错位。
+2. **⚠️ 官方 UDP 广播不支持的“缺失字段”**  
+   虽然游戏内的 Telemetry HUD（十字键下）会显示以下数据，但**官方没有在外部 UDP 网络流中发送它们**。任何外部软件均无法直接拿到它们的实时变化：
+   * **实时轮胎压力 (Tire Pressure)**：例如 1.78 bar
+   * **轮胎磨损损耗 (Tire Damage/Wear)**：例如 0.0%
+   * **实时外倾角 (Real-time Camber Angle)**：例如 -1.54°
+   * *解决方案*：如果页面需要，可以使用车辆静态调校输入的值进行展示，或者在实时面板中隐藏。
+3. **四轮数组顺序**  
+   悬架、滑移、轮速、胎温等所有按四轮分组的字段，在字节流中存放顺序严格为：  
+   `前左 (FL) -> 前右 (FR) -> 后左 (RL) -> 后右 (RR)`。
+4. **悬架绝对行程 vs 偏距**  
+   游戏内 HUD 显示的 54cm 偏距为车辆调校最大静态值。而 UDP 发送的 `suspensionTravelMeters`（如 `0.006m`）是当前时刻悬挂受力产生的**实时压缩/拉伸位移**，两者物理意义不同。
 
 ---
 
-## SLED 区域 (基础车辆动力学)
+## 📂 1. SLED 数据区域 (偏移 0 - 231 字节，共 232 字节)
 
-### 比赛状态与时间
+### 比赛状态与时间 (Status & Time)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **0** | `isRaceOn` | `int32` (4B) | Boolean | 1=比赛/漫游中，0=菜单/暂停/等待 |
+| **4** | `timestampMS` | `uint32` (4B) | 毫秒 ms | 游戏系统毫秒时间戳 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 1 | `isRaceOn` | 0 | int32 | 4B | 比赛是否进行中 (1=比赛中, 0=菜单/暂停) |
-| 2 | `timestampMS` | 4 | uint32 | 4B | 游戏时间戳 (毫秒)，用于计算帧率和时间差 |
+### 引擎参数 (Engine)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **8** | `engineMaxRpm` | `float32` (4B) | RPM | 引擎最大转速极限 |
+| **12** | `engineIdleRpm` | `float32` (4B) | RPM | 引擎怠速转速 |
+| **16** | `currentEngineRpm` | `float32` (4B) | RPM | 实时引擎转速 |
 
-### 引擎参数
+### 动力学加速度 (G力)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **20** | `accelerationX` | `float32` (4B) | G | **横向G力** (左转为负，右转为正) |
+| **24** | `accelerationY` | `float32` (4B) | G | **垂直G力** (包含重力常数) |
+| **28** | `accelerationZ` | `float32` (4B) | G | **纵向G力** (刹车为负，加速为正) |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 3 | `engineMaxRpm` | 8 | float32 | 4B | 引擎最大转速 (RPM)，如 8000 |
-| 4 | `engineIdleRpm` | 12 | float32 | 4B | 引擎怠速转速 (RPM)，如 800 |
-| 5 | `currentEngineRpm` | 16 | float32 | 4B | 当前引擎转速 (RPM)，实时值 |
+### 速度矢量 (Velocity)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **32** | `velocityX` | `float32` (4B) | m/s | X 轴右向速度 |
+| **36** | `velocityY` | `float32` (4B) | m/s | Y 轴向上速度 |
+| **40** | `velocityZ` | `float32` (4B) | m/s | Z 轴前向速度 |
 
-### 加速度 (G力)
+### 角速度 (Angular Velocity)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **44** | `angularVelocityX` | `float32` (4B) | rad/s | 俯仰角速度 (Pitch rate) |
+| **48** | `angularVelocityY` | `float32` (4B) | rad/s | 偏航角速度 (Yaw rate) |
+| **52** | `angularVelocityZ` | `float32` (4B) | rad/s | 侧倾角速度 (Roll rate) |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 6 | `accelerationX` | 20 | float32 | 4B | X轴加速度 - **横向G力** (左右转弯) |
-| 7 | `accelerationY` | 24 | float32 | 4B | Y轴加速度 - **垂直G力** (含重力=1G) |
-| 8 | `accelerationZ` | 28 | float32 | 4B | Z轴加速度 - **纵向G力** (加速/制动) |
+### 车辆朝向姿态角 (Orientation)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **56** | `yaw` | `float32` (4B) | 弧度 rad | 偏航角 (车头水平指向) |
+| **60** | `pitch` | `float32` (4B) | 弧度 rad | 俯仰角 (车头抬起/低下) |
+| **64** | `roll` | `float32` (4B) | 弧度 rad | 侧倾角 (车身左右倾斜) |
 
-### 速度 (m/s)
+### 归一化悬挂行程 (Normalized Suspension Travel)
+> 0.0 代表最压缩（压到底），1.0 代表最伸展（悬空）
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **68** | `normalizedSuspensionTravelFrontLeft` | `float32` (4B) | 前左 (FL) 归一化行程 |
+| **72** | `normalizedSuspensionTravelFrontRight` | `float32` (4B) | 前右 (FR) 归一化行程 |
+| **76** | `normalizedSuspensionTravelRearLeft` | `float32` (4B) | 后左 (RL) 归一化行程 |
+| **80** | `normalizedSuspensionTravelRearRight` | `float32` (4B) | 后右 (RR) 归一化行程 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 9 | `velocityX` | 32 | float32 | 4B | X轴速度 - 横向速度 |
-| 10 | `velocityY` | 36 | float32 | 4B | Y轴速度 - 垂直速度 |
-| 11 | `velocityZ` | 40 | float32 | 4B | Z轴速度 - 纵向/前进速度 |
+### 轮胎纵向滑移率 (Tire Slip Ratio)
+> 0 = 无滑移，>0 = 驱动轮加速打滑，<0 = 刹车轮胎抱死
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **84** | `tireSlipRatioFrontLeft` | `float32` (4B) | 前左轮胎纵向滑移率 |
+| **88** | `tireSlipRatioFrontRight` | `float32` (4B) | 前右轮胎纵向滑移率 |
+| **92** | `tireSlipRatioRearLeft` | `float32` (4B) | 后左轮胎纵向滑移率 |
+| **96** | `tireSlipRatioRearRight` | `float32` (4B) | 后右轮胎纵向滑移率 |
 
-### 角速度 (rad/s)
+### 车轮旋转速度 (Wheel Rotation Speed)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **100** | `wheelRotationSpeedFrontLeft` | `float32` (4B) | rad/s | 前左轮速 |
+| **104** | `wheelRotationSpeedFrontRight` | `float32` (4B) | rad/s | 前右轮速 |
+| **108** | `wheelRotationSpeedRearLeft` | `float32` (4B) | rad/s | 后左轮速 |
+| **112** | `wheelRotationSpeedRearRight` | `float32` (4B) | rad/s | 后右轮速 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 12 | `angularVelocityX` | 44 | float32 | 4B | X轴角速度 - **俯仰** (车头抬/低) |
-| 13 | `angularVelocityY` | 48 | float32 | 4B | Y轴角速度 - **偏航** (左右转向) |
-| 14 | `angularVelocityZ` | 52 | float32 | 4B | Z轴角速度 - **侧倾** (车身左右倾) |
+### 压路肩指示 (On Rumble Strip)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **116** | `wheelOnRumbleStripFrontLeft` | `int32` (4B) | 前左车轮是否压上路肩 (1=是, 0=否) |
+| **120** | `wheelOnRumbleStripFrontRight` | `int32` (4B) | 前右车轮是否压上路肩 |
+| **124** | `wheelOnRumbleStripRearLeft` | `int32` (4B) | 后左车轮是否压上路肩 |
+| **128** | `wheelOnRumbleStripRearRight` | `int32` (4B) | 后右车轮是否压上路肩 |
 
-### 姿态角 (弧度)
+### 积水深度 (Puddle Depth)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **132** | `wheelInPuddleDepthFrontLeft` | `float32` (4B) | 前左车轮积水深度 (0=干燥, 1=深水) |
+| **136** | `wheelInPuddleDepthFrontRight` | `float32` (4B) | 前右车轮积水深度 |
+| **140** | `wheelInPuddleDepthRearLeft` | `float32` (4B) | 后左车轮积水深度 |
+| **144** | `wheelInPuddleDepthRearRight` | `float32` (4B) | 后右车轮积水深度 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 15 | `yaw` | 56 | float32 | 4B | 偏航角 - 车辆水平朝向 |
-| 16 | `pitch` | 60 | float32 | 4B | 俯仰角 - 车头抬起/低下 |
-| 17 | `roll` | 64 | float32 | 4B | 侧倾角 - 车身左右倾斜 |
+### 路面颠簸震动反馈 (Surface Rumble)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **148** | `surfaceRumbleFrontLeft` | `float32` (4B) | 前左路面震动强度 (越粗糙数值越大) |
+| **152** | `surfaceRumbleFrontRight` | `float32` (4B) | 前右路面震动强度 |
+| **156** | `surfaceRumbleRearLeft` | `float32` (4B) | 后左路面震动强度 |
+| **160** | `surfaceRumbleRearRight` | `float32` (4B) | 后右路面震动强度 |
 
-### 悬挂行程 (归一化 0-1)
+### 轮胎侧偏角 (Tire Slip Angle)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **164** | `tireSlipAngleFrontLeft` | `float32` (4B) | 前左侧向滑移角 |
+| **168** | `tireSlipAngleFrontRight` | `float32` (4B) | 前右侧向滑移角 |
+| **172** | `tireSlipAngleRearLeft` | `float32` (4B) | 后左侧向滑移角 |
+| **176** | `tireSlipAngleRearRight` | `float32` (4B) | 后右侧向滑移角 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 18 | `normalizedSuspensionTravelFrontLeft` | 68 | float32 | 4B | 前左 (0=压缩, 1=伸展) |
-| 19 | `normalizedSuspensionTravelFrontRight` | 72 | float32 | 4B | 前右 |
-| 20 | `normalizedSuspensionTravelRearLeft` | 76 | float32 | 4B | 后左 |
-| 21 | `normalizedSuspensionTravelRearRight` | 80 | float32 | 4B | 后右 |
+### 轮胎综合滑移值 (Tire Combined Slip / 摩擦力消耗比例)
+> 0.0 代表抓地力充沛，越接近或超过 1.0 反映抓地力越接近物理极限 (即打滑/消耗最大)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **180** | `tireCombinedSlipFrontLeft` | `float32` (4B) | 前左综合滑移值 |
+| **184** | `tireCombinedSlipFrontRight` | `float32` (4B) | 前右综合滑移值 |
+| **188** | `tireCombinedSlipRearLeft` | `float32` (4B) | 后左综合滑移值 |
+| **192** | `tireCombinedSlipRearRight` | `float32` (4B) | 后右综合滑移值 |
 
-### 轮胎纵向滑移率
+### 悬挂绝对物理位移行程 (Suspension Travel Meters)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **196** | `suspensionTravelMetersFrontLeft` | `float32` (4B) | 米 m | 前左悬挂实际压缩/拉伸行程 |
+| **200** | `suspensionTravelMetersFrontRight` | `float32` (4B) | 米 m | 前右悬挂实际压缩/拉伸行程 |
+| **204** | `suspensionTravelMetersRearLeft` | `float32` (4B) | 米 m | 后左悬挂实际压缩/拉伸行程 |
+| **208** | `suspensionTravelMetersRearRight` | `float32` (4B) | 米 m | 后右悬挂实际压缩/拉伸行程 |
 
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 22 | `tireSlipRatioFrontLeft` | 84 | float32 | 4B | 前左 (+加速打滑, -制动打滑) |
-| 23 | `tireSlipRatioFrontRight` | 88 | float32 | 4B | 前右 |
-| 24 | `tireSlipRatioRearLeft` | 92 | float32 | 4B | 后左 |
-| 25 | `tireSlipRatioRearRight` | 96 | float32 | 4B | 后右 |
-
-### 车轮转速 (rad/s)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 26 | `wheelRotationSpeedFrontLeft` | 100 | float32 | 4B | 前左轮速 |
-| 27 | `wheelRotationSpeedFrontRight` | 104 | float32 | 4B | 前右轮速 |
-| 28 | `wheelRotationSpeedRearLeft` | 108 | float32 | 4B | 后左轮速 |
-| 29 | `wheelRotationSpeedRearRight` | 112 | float32 | 4B | 后右轮速 |
-
-### 路肩检测 (Boolean)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 30 | `wheelOnRumbleStripFrontLeft` | 116 | int32 | 4B | 前左是否压路肩 (1=是) |
-| 31 | `wheelOnRumbleStripFrontRight` | 120 | int32 | 4B | 前右 |
-| 32 | `wheelOnRumbleStripRearLeft` | 124 | int32 | 4B | 后左 |
-| 33 | `wheelOnRumbleStripRearRight` | 128 | int32 | 4B | 后右 |
-
-### 水坑深度 (归一化)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 34 | `wheelInPuddleDepthFrontLeft` | 132 | float32 | 4B | 前左 (>0.5=湿滑) |
-| 35 | `wheelInPuddleDepthFrontRight` | 136 | float32 | 4B | 前右 |
-| 36 | `wheelInPuddleDepthRearLeft` | 140 | float32 | 4B | 后左 |
-| 37 | `wheelInPuddleDepthRearRight` | 144 | float32 | 4B | 后右 |
-
-### 路面震动强度
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 38 | `surfaceRumbleFrontLeft` | 148 | float32 | 4B | 前左路面粗糙度 |
-| 39 | `surfaceRumbleFrontRight` | 152 | float32 | 4B | 前右 |
-| 40 | `surfaceRumbleRearLeft` | 156 | float32 | 4B | 后左 |
-| 41 | `surfaceRumbleRearRight` | 160 | float32 | 4B | 后右 |
-
-### 轮胎侧偏角 (度)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 42 | `tireSlipAngleFrontLeft` | 164 | float32 | 4B | 前左侧向滑移角 |
-| 43 | `tireSlipAngleFrontRight` | 168 | float32 | 4B | 前右 |
-| 44 | `tireSlipAngleRearLeft` | 172 | float32 | 4B | 后左 |
-| 45 | `tireSlipAngleRearRight` | 176 | float32 | 4B | 后右 |
-
-### 轮胎综合打滑值
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 46 | `tireCombinedSlipFrontLeft` | 180 | float32 | 4B | 前左 (>0.8打滑, >1.2严重) |
-| 47 | `tireCombinedSlipFrontRight` | 184 | float32 | 4B | 前右 |
-| 48 | `tireCombinedSlipRearLeft` | 188 | float32 | 4B | 后左 |
-| 49 | `tireCombinedSlipRearRight` | 192 | float32 | 4B | 后右 |
-
-### 悬挂行程 (绝对值，米)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 50 | `suspensionTravelMetersFrontLeft` | 196 | float32 | 4B | 前左 (米) |
-| 51 | `suspensionTravelMetersFrontRight` | 200 | float32 | 4B | 前右 |
-| 52 | `suspensionTravelMetersRearLeft` | 204 | float32 | 4B | 后左 |
-| 53 | `suspensionTravelMetersRearRight` | 208 | float32 | 4B | 后右 |
-
-### 车辆信息
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 54 | `carOrdinal` | 212 | int32 | 4B | 车辆唯一ID |
-| 55 | `carClass` | 216 | int32 | 4B | 车辆等级 (见枚举表) |
-| 56 | `carPerformanceIndex` | 220 | int32 | 4B | 性能指数 PI (100-999) |
-| 57 | `drivetrainType` | 224 | int32 | 4B | 驱动类型 (见枚举表) |
-| 58 | `numCylinders` | 228 | int32 | 4B | 引擎气缸数 |
+### 车辆底层配置信息 (Car Config)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **212** | `carOrdinal` | `int32` (4B) | 车辆唯一数据库 ID |
+| **216** | `carClass` | `int32` (4B) | 车辆等级 (0=D, 1=C, 2=B, 3=A, 4=S1, 5=S2, 6=X) |
+| **220** | `carPerformanceIndex` | `int32` (4B) | 车辆性能PI值 (100 - 999) |
+| **224** | `drivetrainType` | `int32` (4B) | 驱动形式 (0=FWD, 1=RWD, 2=AWD) |
+| **228** | `numCylinders` | `int32` (4B) | 引擎气缸个数 |
 
 ---
 
-## Dash 扩展区域 (高级数据)
-
-> **注意:** 需要数据包长度 >= 323 字节才能解析此区域
-
-### 世界坐标位置
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 59 | `positionX` | 244 | float32 | 4B | 世界X坐标 (米)，横向位置 |
-| 60 | `positionY` | 248 | float32 | 4B | 世界Y坐标 (米)，高度位置 |
-| 61 | `positionZ` | 252 | float32 | 4B | 世界Z坐标 (米)，纵向位置 |
-
-### 速度与动力
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 62 | `speed` | 256 | float32 | 4B | 车速 (m/s)，×3.6=km/h |
-| 63 | `power` | 260 | float32 | 4B | 引擎功率 (瓦特)，÷745.7=HP |
-| 64 | `torque` | 264 | float32 | 4B | 引擎扭矩 (Nm) |
-
-### 轮胎温度 (华氏度)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 65 | `tireTempFrontLeft` | 268 | float32 | 4B | 前左轮胎温度 (°F) |
-| 66 | `tireTempFrontRight` | 272 | float32 | 4B | 前右 |
-| 67 | `tireTempRearLeft` | 276 | float32 | 4B | 后左 |
-| 68 | `tireTempRearRight` | 280 | float32 | 4B | 后右 |
-
-### 增压与燃油
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 69 | `boost` | 284 | float32 | 4B | 涡轮增压值 |
-| 70 | `fuel` | 288 | float32 | 4B | 燃油量 (0-1)，1=满 |
-
-### 行驶距离
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 71 | `distanceTraveled` | 292 | float32 | 4B | 行驶距离 (米) |
-
-### 圈速与比赛时间
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 72 | `bestLap` | 296 | float32 | 4B | 最快圈速 (秒) |
-| 73 | `lastLap` | 300 | float32 | 4B | 上一圈速 (秒) |
-| 74 | `currentLap` | 304 | float32 | 4B | 当前圈已用时间 (秒) |
-| 75 | `currentRaceTime` | 308 | float32 | 4B | 比赛总用时 (秒) |
-
-### 比赛信息
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 76 | `lapNumber` | 312 | uint16 | 2B | 当前圈数 |
-| 77 | `racePosition` | 314 | uint8 | 1B | 比赛排名 (1-24) |
-
-### 操控输入 (0-255)
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 78 | `accel` | 315 | uint8 | 1B | 油门踏板 (0=无, 255=全油门) |
-| 79 | `brake` | 316 | uint8 | 1B | 刹车踏板 (0=无, 255=全刹车) |
-| 80 | `clutch` | 317 | uint8 | 1B | 离合器 (0=接合, 255=踩下) |
-| 81 | `handBrake` | 318 | uint8 | 1B | 手刹 (0=松, 255=拉满) |
-| 82 | `gear` | 319 | uint8 | 1B | 档位 (0=R, 1=N, 2+=D1/D2...) |
-| 83 | `steer` | 320 | int8 | 1B | 转向 (-128左, +127右) |
-
-### 辅助信息
-
-| # | 字段名 | 偏移 | 类型 | 大小 | 说明 |
-|---|--------|------|------|------|------|
-| 84 | `normalizedDrivingLine` | 321 | int8 | 1B | 走线偏差 (归一化) |
-| 85 | `normalizedAIBrakeDifference` | 322 | int8 | 1B | AI刹车差异 (归一化) |
+## 🚧 2. 占位区域 (偏移 232 - 243 字节，共 12 字节)
+*   **FH6 Gap**: 地平线 5 遥测在此处有 12 字节的数据空隙，**读取高级数据前必须跳过这 12 个字节**。
 
 ---
 
-## 解析后输出结构
+## 📂 3. Dash 扩展高级数据区 (偏移 244 字节往后)
 
-```javascript
-{
-  // 比赛状态
-  isRaceOn: Boolean,
-  timestampMS: Number,
+### 世界位置坐标 (World Positions)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **244** | `positionX` | `float32` (4B) | 米 m | 三维世界坐标 X (东/西) |
+| **248** | `positionY` | `float32` (4B) | 米 m | 三维世界坐标 Y (海拔高度) |
+| **252** | `positionZ` | `float32` (4B) | 米 m | 三维世界坐标 Z (南/北) |
 
-  // 引擎
-  engineMaxRpm: Number,
-  engineIdleRpm: Number,
-  currentEngineRpm: Number,
+### 速度、功率与扭矩 (Engine Out)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **256** | `speed` | `float32` (4B) | 米/秒 m/s | 车身速度 (乘以 `3.6` 得到 km/h) |
+| **260** | `power` | `float32` (4B) | 瓦特 W | 实时功率 (除以 `745.7` 得到马力 HP) |
+| **264** | `torque` | `float32` (4B) | 牛米 Nm | 实时引擎输出扭矩 |
 
-  // 运动学 (分组对象)
-  acceleration: { x, y, z },      // G力
-  velocity: { x, y, z },          // m/s
-  angularVelocity: { x, y, z },   // rad/s
-  yaw: Number,                     // rad
-  pitch: Number,                   // rad
-  roll: Number,                    // rad
+### 轮胎温度 (Tire Temperature)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **268** | `tireTempFrontLeft` | `float32` (4B) | 华氏度 °F | 前左胎面实时温度 (转换为摄氏度: `(°F-32)*5/9`) |
+| **272** | `tireTempFrontRight` | `float32` (4B) | 华氏度 °F | 前右胎面实时温度 |
+| **276** | `tireTempRearLeft` | `float32` (4B) | 华氏度 °F | 后左胎面实时温度 |
+| **280** | `tireTempRearRight` | `float32` (4B) | 华氏度 °F | 后右胎面实时温度 |
 
-  // 悬挂
-  suspension: { frontLeft, frontRight, rearLeft, rearRight },           // 0-1
-  suspensionTravelMeters: { frontLeft, frontRight, rearLeft, rearRight }, // 米
+### 增压、燃油与距离 (Distance & Fuel)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **284** | `boost` | `float32` (4B) | Psi | 实时涡轮增压值 |
+| **288** | `fuel` | `float32` (4B) | % | 剩余油量比例 (0.0 - 1.0) |
+| **292** | `distanceTraveled` | `float32` (4B) | 米 m | 本局累计行驶距离 |
 
-  // 轮胎
-  tireSlipRatio: { frontLeft, frontRight, rearLeft, rearRight },     // 纵向滑移
-  tireSlipAngle: { frontLeft, frontRight, rearLeft, rearRight },     // 侧偏角
-  tireCombinedSlip: { frontLeft, frontRight, rearLeft, rearRight },  // 综合打滑
-  tireTemp: { frontLeft, frontRight, rearLeft, rearRight },          // °F
-  wheelRotationSpeed: { frontLeft, frontRight, rearLeft, rearRight }, // rad/s
+### 比赛与圈速计时 (Lap Timing)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 物理单位 | 说明 |
+|:---|:---|:---|:---|:---|
+| **296** | `bestLap` | `float32` (4B) | 秒 s | 本局最快圈速纪录 |
+| **300** | `lastLap` | `float32` (4B) | 秒 s | 上一圈完成时间 |
+| **304** | `currentLap` | `float32` (4B) | 秒 s | 当前圈当前计时 |
+| **308** | `currentRaceTime` | `float32` (4B) | 秒 s | 比赛累计总用时 |
+| **312** | `lapNumber` | `uint16` (2B) | - | 当前圈数 (0 为第1圈，1 为第2圈) |
+| **314** | `racePosition` | `uint8` (1B) | - | 比赛实时排名 (1-24) |
 
-  // 路面
-  onRumbleStrip: { frontLeft, frontRight, rearLeft, rearRight },     // Boolean
-  puddleDepth: { frontLeft, frontRight, rearLeft, rearRight },       // 0-1
-  surfaceRumble: { frontLeft, frontRight, rearLeft, rearRight },     // 震动强度
+### 驾驶员操作输入 (Driver Inputs)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 数值区间 | 说明 |
+|:---|:---|:---|:---|:---|
+| **315** | `accel` | `uint8` (1B) | 0 - 255 | 油门踏板踩下深度 (0=松开, 255=踩满) |
+| **316** | `brake` | `uint8` (1B) | 0 - 255 | 刹车踏板踩下深度 |
+| **317** | `clutch` | `uint8` (1B) | 0 - 255 | 离合器踏板踩下深度 (0=松开/接合, 255=踩下/断开) |
+| **318** | `handBrake` | `uint8` (1B) | 0 - 255 | 手刹拉起深度 (0=松开, 255=拉死) |
+| **319** | `gear` | `uint8` (1B) | 0 - 15 | 当前挡位 (0=R倒挡, 1=N空挡, 2=1挡...) |
+| **320** | `steer` | `int8` (1B) | -128 ~ 127 | 方向盘转向角度 (-128=极限左转, 0=回正, 127=极限右转) |
 
-  // 位置 (Dash扩展)
-  position: { x, y, z },          // 世界坐标 (米)
-
-  // 速度与动力 (Dash扩展)
-  speedMs: Number,                 // m/s
-  speedKmh: Number,                // km/h
-  speedMph: Number,                // mph
-  powerWatts: Number,              // 瓦特
-  powerHP: Number,                 // 马力
-  torque: Number,                  // Nm
-
-  // 增压与燃油 (Dash扩展)
-  boost: Number,
-  fuel: Number,                    // 0-1
-
-  // 行驶 (Dash扩展)
-  distanceTraveled: Number,        // 米
-
-  // 圈速 (Dash扩展)
-  bestLap: Number,                 // 秒
-  lastLap: Number,                 // 秒
-  currentLap: Number,              // 秒
-  currentRaceTime: Number,         // 秒
-
-  // 比赛信息 (Dash扩展)
-  lapNumber: Number,
-  racePosition: Number,            // 1-24
-
-  // 操控输入 (Dash扩展)
-  controls: {
-    accel: Number,                 // 0-255
-    brake: Number,                 // 0-255
-    clutch: Number,                // 0-255
-    handBrake: Number,             // 0-255
-    gear: Number,                  // 0=R, 1=N, 2+=D
-    steer: Number,                 // -128~+127
-  },
-
-  // 辅助 (Dash扩展)
-  drivingLine: Number,
-  aiBrakeDiff: Number,
-
-  // 车辆信息
-  car: {
-    ordinal: Number,               // 车辆ID
-    class: Number,                 // 0-6
-    performanceIndex: Number,      // PI
-    drivetrainType: Number,        // 0-2
-    numCylinders: Number,
-  },
-
-  // 元数据
-  _packetSize: Number,             // 原始包大小
-}
-```
+### 游戏辅助系统参数 (Game Assists)
+| 偏移 (Offset) | 字段名 (Field Name) | 数据类型 (Type) | 说明 |
+|:---|:---|:---|:---|
+| **321** | `normalizedDrivingLine` | `int8` (1B) | 最佳辅助路线偏离值 |
+| **322** | `normalizedAIBrakeDifference`| `int8` (1B) | AI 辅助制动介入指标差值 |
 
 ---
 
-## 枚举值映射表
+## 🛠️ 数据转换公式表
 
-### 车辆等级 (carClass)
+在获取到原始二进制字段后，若想转换为前端更容易阅读的形式，可以使用以下换算公式：
 
-| 值 | 等级 | 说明 |
-|----|------|------|
-| 0 | D | 入门级 |
-| 1 | C | 初级 |
-| 2 | B | 中级 |
-| 3 | A | 高级 |
-| 4 | S1 | 运动级 |
-| 5 | S2 | 超跑级 |
-| 6 | X | 极限级 |
-
-### 驱动类型 (drivetrainType)
-
-| 值 | 类型 | 英文 |
-|----|------|------|
-| 0 | 前驱 | FWD |
-| 1 | 后驱 | RWD |
-| 2 | 四驱 | AWD |
-
-### 档位 (gear)
-
-| 值 | 档位 |
-|----|------|
-| 0 | R (倒档) |
-| 1 | N (空档) |
-| 2 | D1 (1档) |
-| 3 | D2 (2档) |
-| ... | ... |
-
----
-
-## 单位转换公式
-
-| 原始值 | 转换目标 | 公式 |
-|--------|----------|------|
-| speed (m/s) | km/h | `× 3.6` |
-| speed (m/s) | mph | `× 2.23694` |
-| power (瓦特) | 马力 HP | `÷ 745.7` |
-| tireTemp (°F) | °C | `(°F - 32) × 5/9` |
-| 角度 (弧度) | 度 | `× 180 / π` |
-| accel/brake/clutch | 百分比 | `÷ 255 × 100%` |
-| steer | 百分比 | `÷ 127 × 100%` |
-
----
-
-## 数据应用场景
-
-| 数据类型 | 应用场景 |
-|----------|----------|
-| 位置坐标 (position) | 赛道轨迹记录、走线分析 |
-| G力 (acceleration) | 驾驶风格分析、过弯极限检测 |
-| 轮胎数据 (slip/temp) | 轮胎状态监控、打滑预警 |
-| 悬挂数据 | 调校验证、路面状态分析 |
-| 操控输入 | 输入分析、油门/刹车曲线 |
-| 圈速数据 | 比赛计时、成绩统计 |
-| 引擎数据 | 换挡提示、转速预警 |
-
----
-
-## 实际捕获数据示例
-
-> 以下数据来自真实游戏会话，捕获于 2026-06-28
-
-### 数据包信息
-- **来源**: 192.168.31.154:5200 (游戏设备)
-- **大小**: 324 字节
-- **格式**: SLED (232字节) + FH6间隙 (12字节) + Dash扩展 (80字节)
-
-### 实时数据快照
-
-```
-【比赛状态】
-isRaceOn: 1 (比赛中)
-timestampMS: 405055 ms
-
-【引擎】
-engineMaxRpm: 10000.00 RPM
-engineIdleRpm: 1037.11 RPM
-currentEngineRpm: 7230.67 RPM
-
-【加速度 (G力)】
-accelerationX: -4.7307 G (横向，左转弯)
-accelerationY: -0.8949 G (垂直)
-accelerationZ: 3.4515 G (纵向，加速中)
-
-【速度】
-velocityX: 0.3222 m/s
-velocityY: 0.0979 m/s
-velocityZ: 41.4029 m/s (前进速度)
-speed: 41.4043 m/s = 149.06 km/h
-
-【姿态】
-yaw: 0.5249 rad (30.07°)
-pitch: 0.0036 rad (0.21°)
-roll: -0.0041 rad (-0.23°)
-
-【悬挂 (归一化 0-1)】
-suspensionFL: 0.2208 (压缩状态)
-suspensionFR: 0.2721
-suspensionRL: 0.2691
-suspensionRR: 0.3102
-
-【轮胎滑移率】
-tireSlipRatioFL: 0.1446
-tireSlipRatioFR: 0.0832
-tireSlipRatioRL: 0.1709
-tireSlipRatioRR: 0.1143
-
-【轮胎侧偏角】
-tireSlipAngleFL: -0.1984°
-tireSlipAngleFR: -0.1835°
-tireSlipAngleRL: -0.1081°
-tireSlipAngleRR: -0.1027°
-
-【轮胎综合打滑】
-tireCombinedSlipFL: 0.2455
-tireCombinedSlipFR: 0.2015
-tireCombinedSlipRL: 0.2022
-tireCombinedSlipRR: 0.1537
-
-【轮胎温度】
-tireTempFL: 110.77°F (43.76°C)
-tireTempFR: 126.02°F (52.23°C)
-tireTempRL: 102.52°F (39.18°C)
-tireTempRR: 102.52°F (39.18°C)
-
-【车轮转速】
-wheelSpeedFL: 126.8499 rad/s
-wheelSpeedFR: 126.8040 rad/s
-wheelSpeedRL: 124.8868 rad/s
-wheelSpeedRR: 124.8050 rad/s
-
-【世界坐标位置】
-positionX: 1118.8076 m
-positionY: 131.4879 m (高度)
-positionZ: 540.0558 m
-
-【动力系统】
-power: 369756.03 W = 495.85 HP
-torque: 488.4263 Nm
-boost: 0.0000 (自然吸气)
-fuel: 1.0000 (满油)
-
-【比赛信息】
-bestLap: 0.0000 秒
-lastLap: 0.0000 秒
-currentLap: 32.1988 秒
-currentRaceTime: 36.9035 秒
-lapNumber: 0
-racePosition: 1 (第一名)
-distanceTraveled: 1662.3876 m
-
-【操控输入】
-accel: 255 (全油门)
-brake: 0 (无刹车)
-clutch: 0 (离合器接合)
-handBrake: 0 (手刹松开)
-gear: 4 (4档)
-steer: -28 (左转)
-drivingLine: 10
-aiBrakeDiff: 0
-
-【车辆信息】
-carOrdinal: 3546
-carClass: 3 (A级)
-carPerformanceIndex: 795
-drivetrainType: 2 (四驱AWD)
-numCylinders: 10 (V10)
-
-【路面状态】
-rumbleStrip: 全0 (未压路肩)
-puddleDepth: 全0 (干燥路面)
-surfaceRumble: 全0 (平滑路面)
-```
-
----
-
-**总计: 85 个原始二进制字段 (全部由游戏UDP协议定义)**
-
-> 文档生成时间: 2026-06-28  
-> 数据来源: `server/src/telemetry-parser.js` + 实时UDP捕获  
-> 捕获工具: `server/debug-udp-capture.cjs`
+| 原始属性 | 转换目标 | 换算公式 |
+| :--- | :--- | :--- |
+| `speed` (m/s) | **公里/小时 (km/h)** | `speed * 3.6` |
+| `speed` (m/s) | **英里/小时 (mph)** | `speed * 2.23694` |
+| `power` (W) | **马力 (HP)** | `power / 745.7` |
+| `tireTemp` (°F) | **摄氏度 (°C)** | `(tireTemp - 32) * 5 / 9` |
+| `yaw / pitch / roll` | **角度 (deg)** | `angle * 180 / Math.PI` |
+| `accel / brake / clutch` | **百分比 (%)** | `(value / 255) * 100` |
+| `steer` | **百分比 (%)** | `(value / 127) * 100` |

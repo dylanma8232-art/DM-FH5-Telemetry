@@ -500,7 +500,7 @@ DashboardPage → 各子组件渲染
 
 | 文件 | 行数(估) | 职责 |
 |------|----------|------|
-| `server/src/index.js` | ~3700 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
+| `server/src/index.js` | ~4800 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
 | `server/src/telemetry-parser.js` | ~350 | UDP二进制→JSON解析（SLED+Dash） |
 | `server/src/track-builder.js` | ~1610 | 赛道算法: 中心线/弯道/路书/识别/验证 |
 

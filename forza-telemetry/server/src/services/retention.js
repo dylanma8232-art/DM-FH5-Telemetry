@@ -18,8 +18,11 @@ export async function runSessionRetentionCleanup(sessionsDir) {
 
   try {
     const files = await fs.readdir(sessionsDir);
-    // 找出所有带有详情性质的高精物理文件
-    const detailFiles = files.filter(f => f.endsWith('_detail.json.br') || f.endsWith('_detail.json'));
+    // 找出所有带有详情性质的高精物理文件（仅限 hifi 文件和老的通用 detail 文件，排除 lowfi）
+    const detailFiles = files.filter(f => 
+      (f.endsWith('.br') || f.endsWith('.json')) && 
+      (f.includes('_detail_hifi') || (f.includes('_detail') && !f.includes('_detail_lowfi')))
+    );
 
     for (const file of detailFiles) {
       const filepath = path.join(sessionsDir, file);
