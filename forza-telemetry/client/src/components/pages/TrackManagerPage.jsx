@@ -133,6 +133,30 @@ export function TrackManagerPage({ onNavigate }) {
     }
   };
 
+  // 重建赛道中心线（修复历史数据中稀疏中心线/弯道数量偏少问题）
+  const rebuildTrack = async (id) => {
+    try {
+      toast('正在重建中心线，请稍候...', 'info');
+      const res = await fetch(`/api/tracks/${id}/rebuild`, { method: 'POST' });
+      if (res.ok) {
+        const result = await res.json();
+        const { before, after } = result;
+        // 刷新本地赛道数据
+        loadTracks();
+        if (selectedTrack === id) previewTrack(id);
+        toast(
+          `重建完成！中心线 ${before.centerlineLength} → ${after.centerlineLength} 点，弯道 ${before.turnCount} → ${after.turnCount} 个`,
+          'success'
+        );
+      } else {
+        const err = await res.json();
+        toast('重建失败：' + (err.error || '未知错误'), 'error');
+      }
+    } catch (e) {
+      toast('重建失败: ' + e.message, 'error');
+    }
+  };
+
   const mergeTracks = async () => {
     if (!mergeSource || !mergeTarget || mergeSource === mergeTarget) {
       toast('请选择不同的赛道进行合并', 'error');
@@ -442,91 +466,6 @@ export function TrackManagerPage({ onNavigate }) {
       points = sampled;
     }
 
-    // Round 5: 绘制弯道区域背景色（在主轨迹下方）
-    const turns = track.turns || [];
-    if (turns.length > 0 && track.centerline && track.centerline.length > 0) {
-      for (let ti = 0; ti < turns.length; ti++) {
-        const turn = turns[ti];
-        const startIdx = turn.startIdx != null ? turn.startIdx : (turn.index || 0);
-        const endIdx = turn.endIdx != null ? turn.endIdx : (turn.index || 0);
-        const cl = track.centerline;
-
-        if (startIdx < cl.length && endIdx < cl.length && startIdx !== endIdx) {
-          const severity = turn.severity || (turn.type === 'hairpin' ? 'critical' : turn.type === 'sharp' ? 'high' : turn.type === 'medium' ? 'medium' : 'info');
-          const colors = turnColorMap(severity, turn.type);
-
-          // 绘制弯道区间高亮
-          ctx.beginPath();
-          const pStart = toScreen(cl[startIdx]);
-          ctx.moveTo(pStart.sx, pStart.sy);
-          for (let ci = startIdx + 1; ci <= endIdx && ci < cl.length; ci++) {
-            const cp = toScreen(cl[ci]);
-            ctx.lineTo(cp.sx, cp.sy);
-          }
-          ctx.lineWidth = 8 / transform.scale;
-          ctx.strokeStyle = colors.bg;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.stroke();
-
-          // 绘制弯道区间边框
-          ctx.lineWidth = 3 / transform.scale;
-          ctx.strokeStyle = colors.stroke;
-          ctx.stroke();
-
-          // Round 5: 弯道编号标注 + 推荐速度
-          const apexIdx = turn.index != null ? turn.index : Math.floor((startIdx + endIdx) / 2);
-          if (apexIdx < cl.length) {
-            const apex = toScreen(cl[apexIdx]);
-            const speed = turn.recommendedSpeed || turn.speedHint || '';
-
-            // 背景圆圈
-            const r = 14 / transform.scale;
-            ctx.fillStyle = colors.stroke;
-            ctx.beginPath();
-            ctx.arc(apex.sx, apex.sy, r, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 弯道编号
-            ctx.fillStyle = '#fff';
-            ctx.font = `bold ${Math.round(10 / transform.scale)}px sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(ti + 1, apex.sx, apex.sy);
-
-            // 推荐速度标签
-            if (speed) {
-              const speedText = typeof speed === 'number' ? speed + 'km/h' : speed;
-              const labelY = apex.sy - r - 4 / transform.scale;
-              ctx.font = `${Math.round(9 / transform.scale)}px monospace`;
-              const textW = ctx.measureText(speedText).width;
-
-              ctx.fillStyle = 'rgba(13,17,23,0.85)';
-              const pad2 = 3 / transform.scale;
-              ctx.fillRect(apex.sx - textW / 2 - pad2, labelY - 6 / transform.scale, textW + pad2 * 2, 10 / transform.scale);
-              ctx.fillStyle = colors.stroke;
-              ctx.fillText(speedText, apex.sx, labelY);
-            }
-          }
-
-          // Round 5: 刹车点标记
-          if (turn.brakePointX != null && turn.brakePointZ != null) {
-            const bp = toScreen({ x: turn.brakePointX, z: turn.brakePointZ });
-            const bSize = 5 / transform.scale;
-            ctx.fillStyle = '#f85149';
-            // 绘制菱形刹车标记
-            ctx.beginPath();
-            ctx.moveTo(bp.sx, bp.sy - bSize);
-            ctx.lineTo(bp.sx + bSize, bp.sy);
-            ctx.lineTo(bp.sx, bp.sy + bSize);
-            ctx.lineTo(bp.sx - bSize, bp.sy);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-      }
-    }
-
     // 主轨迹线
     ctx.lineWidth = 2 / transform.scale;
     ctx.lineCap = 'round';
@@ -605,39 +544,6 @@ export function TrackManagerPage({ onNavigate }) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('F', sxN, syN);
-
-    // Round 5: 右上角图例
-    if (turns.length > 0) {
-      const legendX = canvas.width / transform.scale - 100 / transform.scale;
-      const legendY = 15 / transform.scale;
-      ctx.fillStyle = 'rgba(13,17,23,0.8)';
-      const legW = 90 / transform.scale;
-      const legH = (turns.length > 4 ? 5 : turns.length) * 14 / transform.scale + 10 / transform.scale;
-      ctx.fillRect(legendX, legendY, legW, legH);
-
-      const categories = [
-        { severity: 'critical', label: '发夹弯' },
-        { severity: 'high', label: '急弯' },
-        { severity: 'medium', label: '中速弯' },
-        { severity: 'low', label: '慢弯' },
-        { severity: 'info', label: '微弯' }
-      ];
-      const foundSeverities = new Set(turns.map(t => t.severity || 'info'));
-      let legIdx = 0;
-      for (const cat of categories) {
-        if (!foundSeverities.has(cat.severity)) continue;
-        const colors = turnColorMap(cat.severity, '');
-        const ly = legendY + 8 / transform.scale + legIdx * 14 / transform.scale;
-        ctx.fillStyle = colors.stroke;
-        ctx.fillRect(legendX + 5 / transform.scale, ly - 4 / transform.scale, 10 / transform.scale, 8 / transform.scale);
-        ctx.fillStyle = '#c9d1d9';
-        ctx.font = `${Math.round(9 / transform.scale)}px sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(cat.label, legendX + 18 / transform.scale, ly);
-        legIdx++;
-      }
-    }
 
     ctx.restore();
   }, [turnColorMap]);
@@ -884,6 +790,7 @@ export function TrackManagerPage({ onNavigate }) {
                             <button onClick={(e) => { e.stopPropagation(); setShowDetailModal(id); }} style={btnIconStyle} title="赛道详情">ℹ</button>
                             <button onClick={(e) => { e.stopPropagation(); setEditingTrack(id); setEditName(track.name || ''); }} style={btnIconStyle} title="重命名">✎</button>
                             <button onClick={(e) => { e.stopPropagation(); validateTrack(id); }} style={btnIconStyle} title="验证赛道数据质量">&#x2713;</button>
+                            <button onClick={(e) => { e.stopPropagation(); rebuildTrack(id); }} style={btnIconStyle} title="重建中心线（修复弯道信息稀少）">🔄</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(id); }} style={btnDangerIconStyle} title="删除">✕</button>
                           </>
                         )}
