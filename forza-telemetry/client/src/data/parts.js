@@ -457,58 +457,6 @@ const PART_PRIORITY = {
 
 export { TIERS, TIER_LABELS, PART_CATEGORIES, PI_TABLE, TUNE_REQUIREMENTS, TUNE_RANGES, PART_PRIORITY };
 
-// ============================================================
-// 向后兼容别名（旧代码中使用了这些名称）
-// ============================================================
-
-/**
- * @deprecated 使用 TIERS 替代
- * PART_TIERS 保持向后兼容: 与旧代码的 PART_TIERS.STOCK 等用法兼容
- */
-export const PART_TIERS = Object.fromEntries(
-  TIERS.map(t => [t.toUpperCase(), t])
-);
-Object.defineProperty(PART_TIERS, 'STOCK',    { value: 'stock',    enumerable: true });
-Object.defineProperty(PART_TIERS, 'STREET',   { value: 'street',   enumerable: true });
-Object.defineProperty(PART_TIERS, 'SPORT',    { value: 'sport',    enumerable: true });
-Object.defineProperty(PART_TIERS, 'RACE',     { value: 'race',     enumerable: true });
-Object.defineProperty(PART_TIERS, 'EXTREME',  { value: 'extreme',  enumerable: true });
-
-/**
- * @deprecated 使用 TIER_LABELS 替代
- */
-export const TIER_INFO = Object.fromEntries(
-  TIERS.map(t => [t, { id: t, ...TIER_LABELS[t] }])
-);
-
-/**
- * @deprecated 使用 getTuneConstraints 替代
- */
-export const getTuneParamConstraints = getTuneConstraints;
-
-/**
- * @deprecated 新模型中等级制配件不再有独立的 optionId
- * 此函数提供向后兼容，返回该等级的基本信息
- */
-export function getPartOptionDetail(categoryId, selected) {
-  if (!selected) return null;
-  const cat = PART_CATEGORIES.find(c => c.id === categoryId);
-  if (!cat) return null;
-
-  if (cat.tierSystem && selected.tier) {
-    // 新模型: 返回该等级的通用信息
-    return {
-      id: selected.optionId || selected.tier,
-      label: TIER_LABELS[selected.tier]?.zh || selected.tier,
-      labelEn: TIER_LABELS[selected.tier]?.en || selected.tier,
-      color: TIER_LABELS[selected.tier]?.color || '#8b949e',
-      tier: selected.tier
-    };
-  }
-
-  // 选项制配件
-  return cat.options?.find(o => o.id === selected.optionId) || null;
-}
 
 // ============================================================
 // 1. getDefaultParts() → 返回全Stock初始配件

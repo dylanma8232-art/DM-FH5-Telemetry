@@ -1,8 +1,13 @@
 # FH5 遥测系统 - CodeGraph 知识图谱
 
-> 本文件是项目的 AI Agent 知识图谱，提供完整的项目结构、模块关系和数据流信息。
+
+> [!IMPORTANT]
+> **AI 协作与索引维护指南**：
+> - 本项目使用 [CodeGraph](https://github.com/colbymchenry/codegraph) (v1.2.0+) 进行智能索引和知识图谱管理。
+> - 任何 AI Agent 在对项目新增、修改或删除文件后，必须运行 `npm run build:map` 重新构建并更新 [CODEMAP.md](file:///Users/dylan/Desktop/fh5/CODEMAP.md)，以保证知识图谱的精确度，帮助后续 Agent 快速掌握架构与看懂代码。
 
 ---
+
 
 ## 1. 项目概述
 
@@ -528,6 +533,9 @@ npm run client
 
 # 发送测试UDP数据
 npm run test
+
+# 更新代码图谱/知识图谱 (在代码文件发生变动后运行)
+npm run build:map
 ```
 
 ---
