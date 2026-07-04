@@ -302,27 +302,9 @@ function getDirectionArrow(direction) {
 
 // ==================== 路书条目子组件 ====================
 
-/** 弯道路书条目 */
+/** 弯道路书条目 - WRC简化版 */
 function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
   const dirArrow = getDirectionArrow(note.direction);
-  const speedDiff = currentSpeed
-    ? Math.round(currentSpeed - note.recommendedSpeed)
-    : 0;
-
-  // 超速判定
-  let speedStatus = 'ok';
-  if (note.recommendedSpeed > 0 && currentSpeed > 0) {
-    if (speedDiff > 30) speedStatus = 'danger';
-    else if (speedDiff > 15) speedStatus = 'warn';
-    else if (speedDiff < -20) speedStatus = 'slow';
-  }
-
-  const speedStatusColors = {
-    danger: '#f85149',
-    warn: '#d29922',
-    ok: '#3fb950',
-    slow: '#58a6ff',
-  };
 
   const bgStyle = isActive
     ? {
@@ -366,108 +348,19 @@ function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
         {note.turnIndex + 1}
       </span>
 
-      {/* 方向箭头 */}
+      {/* WRC编号（核心） */}
       <span
         style={{
           fontSize: 14,
           fontWeight: 900,
           color: isActive ? '#58a6ff' : note.direction === 'left' ? '#a371f7' : '#f0883e',
           lineHeight: 1,
-          minWidth: 14,
+          minWidth: 24,
           textAlign: 'center',
         }}
       >
-        {dirArrow}
+        {note.wrcLabel || dirArrow}
       </span>
-
-      {/* 弯道类型 */}
-      <span
-        style={{
-          color: isActive ? '#c9d1d9' : '#8b949e',
-          fontSize: 9,
-          fontWeight: 600,
-          minWidth: 24,
-        }}
-      >
-        {note.turnTypeLabel}
-      </span>
-
-      {/* 角度 */}
-      <span
-        style={{
-          color: '#8b949e',
-          fontSize: 9,
-          minWidth: 28,
-        }}
-      >
-        {note.angle}°
-      </span>
-
-      {/* 推荐速度 */}
-      {note.recommendedSpeed > 0 && (
-        <span
-          style={{
-            color:
-              isActive && currentSpeed > 0
-                ? speedStatusColors[speedStatus]
-                : '#3fb950',
-            fontWeight: 700,
-            fontSize: 10,
-            minWidth: 40,
-          }}
-        >
-          {Math.round(note.recommendedSpeed)}
-          <span style={{ fontSize: 8, opacity: 0.6 }}>km/h</span>
-        </span>
-      )}
-
-      {/* 推荐档位 */}
-      {note.recommendedGear !== null && (
-        <span
-          style={{
-            color: '#58a6ff',
-            fontWeight: 700,
-            fontSize: 10,
-            background: 'rgba(88,166,255,0.1)',
-            borderRadius: 2,
-            padding: '0 3px',
-            minWidth: 14,
-            textAlign: 'center',
-          }}
-        >
-          {note.recommendedGear}
-        </span>
-      )}
-
-      {/* 刹车距离 */}
-      {note.brakeDistance > 10 && (
-        <span
-          style={{
-            color: '#f85149',
-            fontSize: 8,
-            fontWeight: 600,
-            minWidth: 30,
-          }}
-        >
-          -{note.brakeDistance}m
-        </span>
-      )}
-
-      {/* 实时速度差 */}
-      {isActive && currentSpeed > 0 && note.recommendedSpeed > 0 && (
-        <span
-          style={{
-            color: speedStatusColors[speedStatus],
-            fontWeight: 700,
-            fontSize: 9,
-            minWidth: 30,
-            textAlign: 'right',
-          }}
-        >
-          {speedDiff > 0 ? '+' : ''}
-          {speedDiff}
-        </span>
-      )}
 
       {/* 当前激活指示器 */}
       {isActive && (
@@ -728,139 +621,41 @@ export function PaceNotesPanel({
         {displayNote ? (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: 8 }}>
             
-            {/* 上部主行：当前/即将发生的弯（WRC路书格式） */}
+            {/* 上部主行：WRC路书格式 - 只显示编号 */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
+                justifyContent: 'center',
               }}
             >
-              {/* 方向箭头 */}
-              <div
+              {/* WRC编号（核心） */}
+              <span
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  fontSize: 48,
+                  fontWeight: 900,
+                  fontFamily: 'monospace',
+                  color: displayNote.direction === 'left' ? '#a371f7' : '#f0883e',
+                  lineHeight: 1,
+                  textShadow: displayNote === activeNote ? '0 0 20px rgba(88,166,255,0.5)' : 'none',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 900,
-                    color: displayNote.direction === 'left' ? '#a371f7' : '#f0883e',
-                    lineHeight: 1,
-                    textShadow: displayNote === activeNote ? '0 0 12px rgba(88,166,255,0.5)' : 'none',
-                  }}
-                >
-                  {getDirectionArrow(displayNote.direction)}
-                </span>
-                <span style={{ fontSize: 9, color: '#8b949e', fontWeight: 600, marginTop: 2 }}>
-                  {displayNote.turnTypeLabel}
-                </span>
-              </div>
-
-              {/* 详情指标 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1, color: displayNote.direction === 'left' ? '#a371f7' : '#f0883e' }}>
-                    {displayNote.wrcLabel || displayNote.angle + '°'}
-                  </span>
-                  <span style={{ fontSize: 9, color: '#484f58' }}>
-                    弯 {displayNote.turnIndex + 1}
-                  </span>
-                </div>
-
-                {/* 速度和推荐档位 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {displayNote.recommendedSpeed > 0 && (
-                    <div
-                      style={{
-                        background: 'rgba(63,185,80,0.12)',
-                        borderRadius: 3,
-                        padding: '1px 5px',
-                        border: '1px solid rgba(63,185,80,0.3)',
-                      }}
-                    >
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#3fb950', fontFamily: 'monospace' }}>
-                        {Math.round(displayNote.recommendedSpeed)}
-                      </span>
-                      <span style={{ fontSize: 8, color: '#484f58', marginLeft: 2 }}>
-                        公里/小时
-                      </span>
-                    </div>
-                  )}
-                  {displayNote.recommendedGear !== null && (
-                    <div
-                      style={{
-                        background: 'rgba(88,166,255,0.12)',
-                        borderRadius: 3,
-                        padding: '1px 5px',
-                        border: '1px solid rgba(88,166,255,0.3)',
-                      }}
-                    >
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#58a6ff', fontFamily: 'monospace' }}>
-                        {displayNote.recommendedGear}
-                      </span>
-                      <span style={{ fontSize: 8, color: '#484f58', marginLeft: 2 }}>
-                        档
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 刹车距离 */}
-              {displayNote.brakeDistance > 10 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 8, color: '#f85149', fontWeight: 700 }}>刹车点</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: '#f85149', fontFamily: 'monospace', lineHeight: 1 }}>
-                    -{displayNote.brakeDistance}米
-                  </span>
-                </div>
-              )}
-
-              {/* 弯道强度条 */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: 7, color: '#484f58', letterSpacing: 1 }}>强度</span>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 3,
-                        height: 4 + i * 3,
-                        borderRadius: 1,
-                        background: i < displayNote.severity
-                          ? (displayNote.direction === 'left' ? '#a371f7' : '#f0883e')
-                          : 'rgba(255,255,255,0.08)',
-                        transition: 'background 0.2s',
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
+                {displayNote.wrcLabel || getDirectionArrow(displayNote.direction)}
+              </span>
             </div>
 
-            {/* 下部次行：如果有下一个弯道，进行预览展示 */}
+            {/* 下部次行：下一弯道预览 */}
             {hasBoth && (
               <div style={{
                 borderTop: '1px solid rgba(48, 54, 61, 0.4)',
                 paddingTop: 5,
-                fontSize: 9,
-                color: '#8b949e',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
+                fontSize: 12,
+                color: '#d29922',
+                textAlign: 'center',
+                fontWeight: 700,
               }}>
-                <span style={{ color: '#d29922', fontWeight: 700 }}>预告 ➡️</span>
-                <span>
-                  弯 {nextNote.turnIndex + 1}：
-                  <strong>{nextNote.direction === 'left' ? '左弯' : '右弯'} {nextNote.angle}°</strong>
-                  {nextNote.recommendedSpeed > 0 && ` / 推荐 ${Math.round(nextNote.recommendedSpeed)}公里/小时`}
-                  {nextNote.recommendedGear !== null && ` / ${nextNote.recommendedGear}档`}
-                </span>
+                下一个：{nextNote.wrcLabel || (nextNote.direction === 'left' ? '左' : '右')}
               </div>
             )}
           </div>

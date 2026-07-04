@@ -656,7 +656,7 @@ function processTelemetryPacket(telemetry, msgLength) {
   }
   
   if (packetCount % 100 === 1) {
-    console.log('[调试] isRaceOn=' + telemetry.isRaceOn + ' rpm=' + telemetry.currentEngineRpm?.toFixed(0) + ' pos=' + telemetry.racePosition + ' lap=' + telemetry.lapNumber + ' isManual=' + isManualRecording + ' trackMode=' + !!trackMode + ' pos=(' + telemetry.position?.x?.toFixed(0) + ',' + telemetry.position?.z?.toFixed(0) + ')');
+    console.log('[调试] isRaceOn=' + telemetry.isRaceOn + ' rpm=' + telemetry.currentEngineRpm?.toFixed(0) + ' pos=' + telemetry.racePosition + ' lap=' + telemetry.lapNumber + ' raceTime=' + telemetry.currentRaceTime?.toFixed(2) + ' speed=' + telemetry.speedKmh?.toFixed(0) + ' isManual=' + isManualRecording + ' trackMode=' + !!trackMode + ' pos=(' + telemetry.position?.x?.toFixed(0) + ',' + telemetry.position?.z?.toFixed(0) + ')');
     console.log('[车辆] ordinal=' + telemetry.car?.ordinal + ' class=' + telemetry.car?.class + ' PI=' + telemetry.car?.performanceIndex);
   }
   
@@ -783,12 +783,14 @@ function handleAutoRecord(telemetry) {
     }
   }
   
-  // 基础条件检查
-  const baseCondition = telemetry.isRaceOn && 
+  // 基础条件检查 - 简单且逻辑：
+  // 1. isRaceOn === true（UDP数据显示在比赛中）
+  // 2. racePosition > 0 或 lapNumber > 0（有排名或圈数数据）
+  const isActuallyRacing = telemetry.isRaceOn && 
     telemetry.currentEngineRpm > 0 &&
     (telemetry.racePosition > 0 || telemetry.lapNumber > 0);
   
-  if (!baseCondition) {
+  if (!isActuallyRacing) {
     speedSustainStart = null;
     
     if (autoRecordStartTimer) {
@@ -809,34 +811,33 @@ function handleAutoRecord(telemetry) {
   // 速度阈值检测
   if (speed < SPEED_THRESHOLD) {
     speedSustainStart = null;
-    return;
   }
   
   if (!speedSustainStart) {
     speedSustainStart = now;
   }
   
-  // 速度持续时间检查
-  if (now - speedSustainStart < SPEED_SUSTAIN_MS) {
-    return;
-  }
-  
-  // 位移距离检测和瞬移过滤
-  if (isPositionValid && lastValidPosition) {
-    const dx = position.x - lastValidPosition.x;
-    const dz = position.z - lastValidPosition.z;
-    const displacement = Math.sqrt(dx * dx + dz * dz);
-    
-    // 瞬移检测
-    if (displacement > MAX_TELEPORT_DIST) {
-      console.log('[自动录制] 检测到瞬移 (' + Math.round(displacement) + 'm)，跳过此帧');
-      return;
-    }
-  }
-  
-  // 更新位置
+  // 位移距离检测和瞬移过滤 - 必须在速度检查之前更新位置，否则 lastValidPosition 永远无法初始化
   if (isPositionValid) {
+    if (lastValidPosition) {
+      const dx = position.x - lastValidPosition.x;
+      const dz = position.z - lastValidPosition.z;
+      const displacement = Math.sqrt(dx * dx + dz * dz);
+      
+      // 瞬移检测
+      if (displacement > MAX_TELEPORT_DIST) {
+        console.log('[自动录制] 检测到瞬移 (' + Math.round(displacement) + 'm)，跳过此帧');
+        speedSustainStart = null;
+        return;
+      }
+    }
     lastValidPosition = { x: position.x, z: position.z };
+  }
+  
+  // 速度持续时间检查 - 如果比赛已经进行了30秒以上，跳过速度持续时间检查
+  const isRaceAlreadyInProgress = telemetry.currentRaceTime && telemetry.currentRaceTime > 30;
+  if (!isRaceAlreadyInProgress && now - speedSustainStart < SPEED_SUSTAIN_MS) {
+    return;
   }
   
   // 圈数变化检测（辅助验证）
@@ -845,8 +846,14 @@ function handleAutoRecord(telemetry) {
     lastLapNumber = telemetry.lapNumber;
   }
   
-  // 有效比赛判断
-  const isValidRace = true; // 通过了上面所有检查，确认是有效比赛
+  // 静态位置检测 - 连续位置不变说明可能不是真比赛
+  const isStaticPosition = staticPositionCount > MAX_STATIC_COUNT;
+  if (isStaticPosition && !isRaceAlreadyInProgress) {
+    console.log('[自动录制] 检测到静态位置 (' + staticPositionCount + '帧)，不是有效比赛');
+  }
+  
+  // 有效比赛判断 - 如果比赛已经进行了30秒以上，即使位置不变也认为是有效比赛
+  const isValidRace = !isStaticPosition || isRaceAlreadyInProgress;
   
   if (isValidRace) {
     if (autoRecordState === 'IDLE' && !autoRecordStartTimer) {
@@ -872,8 +879,8 @@ function handleAutoRecord(telemetry) {
       if (isPositionValid) {
         autoRacePositions.push(extractTrackPoint(telemetry));
         
-        // 赛道模式：检测弯道并进行语音播报
-        if (trackMode && tracks[trackMode.trackId]) {
+        // 赛道模式：检测弯道并进行语音播报（只在比赛中）
+        if (isActuallyRacing && trackMode && tracks[trackMode.trackId]) {
           const track = tracks[trackMode.trackId];
           if (track.turns && track.turns.length > 0) {
             checkAndAnnounceTurn(position, track.turns, track.points);
@@ -902,8 +909,8 @@ function handleAutoRecord(telemetry) {
       }
     }
     
-    // 手动录制时也触发播报
-    if (isManualRecording && trackMode && tracks[trackMode.trackId]) {
+    // 手动录制时也触发播报（只在比赛中）
+    if (isManualRecording && isActuallyRacing && trackMode && tracks[trackMode.trackId]) {
       const track = tracks[trackMode.trackId];
       if (track.turns && track.turns.length > 0 && isPositionValid) {
         if (packetCount % 100 === 1) {
@@ -1161,70 +1168,54 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
   let shouldAnnounce = false;
   let announcePhase = '';
   
-  // 三阶段播报（高速+急弯时启用）
-  if (EARLY_WARN_DIST > 0 && angle > 30 && nextTurnDist < EARLY_WARN_DIST && nextTurnDist >= PRE_WARN_DIST) {
-    if (lastAnnouncedTurnIndex !== nextTurnIndex || now - lastAnnounceTime > ANNOUNCE_COOLDOWN_MS * 2) {
-      announceText = '前方急弯，准备减速';
-      ttsText = '前方急弯，准备减速';
-      shouldAnnounce = true;
-      announcePhase = 'early';
+  // 检查下一弯道是否连续（距离小于150米视为连续）
+  let consecutiveTurn = null;
+  let consecutiveDist = Infinity;
+  for (let i = 0; i < turns.length; i++) {
+    if (i === nextTurnIndex) continue;
+    const turn = turns[i];
+    if (!turn.x || !turn.z) continue;
+    const dx = nextTurn.x - turn.x;
+    const dz = nextTurn.z - turn.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 150 && dist < consecutiveDist) {
+      consecutiveDist = dist;
+      consecutiveTurn = turn;
     }
   }
-  // 预提醒阶段
-  else if (nextTurnDist < PRE_WARN_DIST && nextTurnDist >= FINAL_WARN_DIST) {
+  
+  // WRC标准路书播报：连续弯道报"接"，不连续报距离
+  // 预提醒阶段（距离较远时）
+  if (nextTurnDist < PRE_WARN_DIST && nextTurnDist >= FINAL_WARN_DIST) {
     if (lastAnnouncedTurnIndex !== nextTurnIndex || now - lastAnnounceTime > ANNOUNCE_COOLDOWN_MS) {
       const distText = Math.round(nextTurnDist / 10) * 10;
-      announceText = direction + level + ' ' + distText;
-      ttsText = direction + level + '，' + distText + '米';
+      if (consecutiveTurn) {
+        const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
+        let nextLevel;
+        const nextAngle = consecutiveTurn.angle || 0;
+        if (nextAngle > 120) nextLevel = 1;
+        else if (nextAngle > 90) nextLevel = 2;
+        else if (nextAngle > 60) nextLevel = 3;
+        else if (nextAngle > 40) nextLevel = 4;
+        else if (nextAngle > 25) nextLevel = 5;
+        else nextLevel = 6;
+        announceText = direction + level + '接' + nextDir + nextLevel;
+        ttsText = direction + level + '接' + nextDir + nextLevel;
+      } else {
+        announceText = direction + level + ' ' + distText;
+        ttsText = direction + level + '，' + distText + '米';
+      }
       shouldAnnounce = true;
       announcePhase = 'pre';
     }
   }
-  // 最终提示阶段
+  // 最终提示阶段（距离近时）
   else if (nextTurnDist < FINAL_WARN_DIST && nextTurnDist >= 30) {
     if (lastAnnouncedTurnIndex !== nextTurnIndex) {
       announceText = direction + level;
       ttsText = direction + level;
       shouldAnnounce = true;
       announcePhase = 'final';
-    }
-  }
-  
-  // 检查是否有连续弯道
-  if (shouldAnnounce && announcePhase === 'pre') {
-    const nextTurns = [];
-    for (let i = 0; i < turns.length; i++) {
-      const turn = turns[i];
-      if (!turn.x || !turn.z) continue;
-      
-      const dx = position.x - turn.x;
-      const dz = position.z - turn.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      
-      if (dist > 5 && dist < 500) {
-        nextTurns.push({ turn, dist, index: i });
-      }
-    }
-    
-    nextTurns.sort((a, b) => a.dist - b.dist);
-    
-    if (nextTurns.length >= 2) {
-      const secondTurn = nextTurns[1];
-      const secondDir = secondTurn.turn.direction === 'left' ? '左' : '右';
-      const secondAngle = secondTurn.turn.angle || 0;
-      let secondLevel;
-      if (secondAngle > 120) secondLevel = 1;
-      else if (secondAngle > 90) secondLevel = 2;
-      else if (secondAngle > 60) secondLevel = 3;
-      else if (secondAngle > 40) secondLevel = 4;
-      else if (secondAngle > 25) secondLevel = 5;
-      else secondLevel = 6;
-      
-      if (secondTurn.dist < 300) {
-        const distText = Math.round(nextTurnDist / 10) * 10;
-        announceText = direction + level + ' ' + distText + '，然后' + secondDir + secondLevel;
-        ttsText = direction + level + '，' + distText + '米，然后' + secondDir + secondLevel;
-      }
     }
   }
   
@@ -1288,6 +1279,8 @@ function stopAutoRecording() {
   speedSustainStart = null;
   lastValidPosition = null;
   lastLapNumber = 0;
+  staticPositionCount = 0;
+  lastSignificantPosition = null;
 }
 
 async function saveAutoRecordedData(duration) {
@@ -1314,10 +1307,26 @@ async function saveAutoRecordedData(duration) {
     trackName = '赛道_' + dateStr + '_' + timeStr;
   }
   
-  const validLaps = autoRecordedData.filter(d => d.bestLap && d.bestLap > 0);
-  const bestLap = validLaps.length > 0 ? Math.min(...validLaps.map(d => d.bestLap)) : 0;
-  const lastLap = autoRecordedData.length > 0 ? autoRecordedData[autoRecordedData.length - 1].lastLap || 0 : 0;
-  const maxLap = autoRecordedData.length > 0 ? Math.max(...autoRecordedData.map(d => d.lapNumber || 0)) : 0;
+  const validBestLaps = autoRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
+  const validLastLaps = autoRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+  
+  let bestLap = validBestLaps.length > 0 ? Math.min(...validBestLaps.map(d => d.bestLap)) : 0;
+  let lastLap = validLastLaps.length > 0 ? Math.max(...validLastLaps.map(d => d.lastLap)) : 0;
+  let maxLap = autoRecordedData.length > 0 ? Math.max(...autoRecordedData.map(d => d.lapNumber || 0)) : 0;
+  
+  if (bestLap === 0 && autoRecordedData.length > 0) {
+    const raceTimeData = autoRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
+    if (raceTimeData.length > 0) {
+      bestLap = Math.min(...raceTimeData.map(d => d.currentRaceTime));
+    }
+  }
+  
+  if (lastLap === 0 && autoRecordedData.length > 0) {
+    const lastData = autoRecordedData[autoRecordedData.length - 1];
+    if (lastData.currentRaceTime !== undefined && lastData.currentRaceTime > 0) {
+      lastLap = lastData.currentRaceTime;
+    }
+  }
   
   const sessionData = {
     id: 'session_' + ts,
@@ -2265,10 +2274,26 @@ app.post('/api/record/save', express.json(), (req, res) => {
   const filename = 'session_' + ts + '.json';
   
   // 保存全量数据
-  const validLaps = manualRecordedData.filter(d => d.bestLap && d.bestLap > 0);
-  const bestLap = validLaps.length > 0 ? Math.min(...validLaps.map(d => d.bestLap)) : 0;
-  const lastLap = manualRecordedData.length > 0 ? manualRecordedData[manualRecordedData.length - 1].lastLap || 0 : 0;
-  const maxLap = manualRecordedData.length > 0 ? Math.max(...manualRecordedData.map(d => d.lapNumber || 0)) : 0;
+  const validBestLaps = manualRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
+  const validLastLaps = manualRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+  
+  let bestLap = validBestLaps.length > 0 ? Math.min(...validBestLaps.map(d => d.bestLap)) : 0;
+  let lastLap = validLastLaps.length > 0 ? Math.max(...validLastLaps.map(d => d.lastLap)) : 0;
+  let maxLap = manualRecordedData.length > 0 ? Math.max(...manualRecordedData.map(d => d.lapNumber || 0)) : 0;
+  
+  if (bestLap === 0 && manualRecordedData.length > 0) {
+    const raceTimeData = manualRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
+    if (raceTimeData.length > 0) {
+      bestLap = Math.min(...raceTimeData.map(d => d.currentRaceTime));
+    }
+  }
+  
+  if (lastLap === 0 && manualRecordedData.length > 0) {
+    const lastData = manualRecordedData[manualRecordedData.length - 1];
+    if (lastData.currentRaceTime !== undefined && lastData.currentRaceTime > 0) {
+      lastLap = lastData.currentRaceTime;
+    }
+  }
   
   const sessionData = {
     id: 'session_' + ts,
