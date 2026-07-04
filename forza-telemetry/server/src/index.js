@@ -7,7 +7,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { parseTelemetryPacket } from './telemetry-parser.js';
-import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, recognizeTrack, validateTrackQuality } from './track-builder.js';
+import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, recognizeTrack, validateTrackQuality, detectTurnsEnhanced, buildRouteBook } from './track-builder.js';
 import zlib from 'zlib';
 import { writeJsonAsync, writeBrotliAsync } from './storage/file-db.js';
 import { stateManager } from './services/state-manager.js';
@@ -1363,9 +1363,11 @@ async function saveAutoRecordedData(duration) {
     const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
     existingTrajectories.push(simplifiedNewTraj);
     
-    // 对所有历史轨迹也确保 RDP 简化并降采样
+    // 【Bug Fix】原代码先 downsampleTrajectory（步长10）再 simplifyRDP，
+    //           导致历史轨迹直道间距可达100m+，远超致密化能有效处理的范围。
+    //           修复：只保留 RDP 抽稀，放弃步长降采样，由 track-builder 的致密化处理密度问题。
     for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = simplifyRDP(downsampleTrajectory(existingTrajectories[i]), 0.25);
+      existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
     }
     
     const trimmed = trimTrajectories(existingTrajectories, 5);
@@ -1516,18 +1518,71 @@ app.get('/api/tracks', (req, res) => {
   res.json(enriched);
 });
 
+// 自动愈合老旧赛道的弯道和路书数据（如果弯道缺失，触发重算并存盘）
+function healTrackIfNeeded(trackDetail, id, detailPath) {
+  if (!trackDetail) return trackDetail;
+  
+  const hasNoTurns = !trackDetail.turns || trackDetail.turns.length === 0;
+  if (hasNoTurns && trackDetail.centerline && trackDetail.centerline.length > 0) {
+    console.log(`[自愈合] 发现赛道 ${id} 无弯道数据，正在触发实时重算...`);
+    try {
+      // 1. 重新计算弯道
+      const turns = detectTurnsEnhanced(trackDetail.centerline);
+      trackDetail.turns = turns;
+      
+      // 2. 重新计算 sectors
+      trackDetail.sectors = generateSectors(trackDetail.centerline, turns);
+      
+      // 3. 重新构建路书
+      const allPoints = [];
+      if (trackDetail.trajectories) {
+        trackDetail.trajectories.forEach(t => {
+          if (t.points) allPoints.push(...t.points);
+        });
+      }
+      trackDetail.routeBook = buildRouteBook(trackDetail.centerline, turns, allPoints.length > 0 ? allPoints : trackDetail.centerline);
+      
+      // 4. 重新生成 navigation 数据
+      trackDetail.navigation = generateNavigationData(trackDetail);
+      
+      // 5. 重新生成质量评估
+      trackDetail.quality = validateTrackQuality(trackDetail);
+      
+      // 保存更新到详情小包文件
+      if (detailPath && fs.existsSync(detailPath)) {
+        fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2), 'utf8');
+        console.log(`[自愈合] 成功更新并存盘赛道 ${id} 的弯道和路书数据！`);
+      }
+      
+      // 同步到内存及大索引中
+      if (tracks[id]) {
+        tracks[id].turns = turns;
+        tracks[id].sectors = trackDetail.sectors;
+        tracks[id].routeBook = trackDetail.routeBook;
+        tracks[id].quality = trackDetail.quality;
+        saveTracksDatabase();
+      }
+    } catch (err) {
+      console.error(`[自愈合] 修复赛道 ${id} 弯道失败:`, err.message);
+    }
+  }
+  return trackDetail;
+}
+
 // 获取赛道详情 - 从独立小分包文件读取几何坐标点
 app.get('/api/tracks/:id', (req, res) => {
   const id = req.params.id;
   const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
     if (fs.existsSync(detailPath)) {
-      const trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
+      let trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
+      trackDetail = healTrackIfNeeded(trackDetail, id, detailPath);
       res.json(trackDetail);
     } else {
       // 降级兼容：如果尚未分拆，直接从内存读取旧的大对象
-      const track = tracks[id];
+      let track = tracks[id];
       if (!track) return res.status(404).json({ error: 'Track not found' });
+      track = healTrackIfNeeded(track, id, null);
       res.json(track);
     }
   } catch (err) {
@@ -1543,8 +1598,12 @@ app.get('/api/tracks/:id/navigation', (req, res) => {
     let trackDetail = null;
     if (fs.existsSync(detailPath)) {
       trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
+      trackDetail = healTrackIfNeeded(trackDetail, id, detailPath);
     } else {
       trackDetail = tracks[id];
+      if (trackDetail) {
+        trackDetail = healTrackIfNeeded(trackDetail, id, null);
+      }
     }
     if (!trackDetail) {
       return res.status(404).json({ error: 'Track not found' });
@@ -1639,6 +1698,72 @@ app.get('/api/tracks/:id/validate', (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Failed to validate track' });
+  }
+});
+
+// 重建赛道中心线和弯道数据（修复历史数据中 DBSCAN 过滤导致的稀疏中心线）
+app.post('/api/tracks/:id/rebuild', (req, res) => {
+  const id = req.params.id;
+  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
+  try {
+    let trackDetail = null;
+    if (fs.existsSync(detailPath)) {
+      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
+    } else {
+      trackDetail = tracks[id] ? { ...tracks[id] } : null;
+    }
+    if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
+
+    // 获取可用的轨迹数据（优先使用 trajectories，降级到 points）
+    const availableTrajectories = (trackDetail.trajectories && trackDetail.trajectories.length > 0)
+      ? trackDetail.trajectories
+      : (trackDetail.points && trackDetail.points.length > 0 ? [trackDetail.points] : null);
+
+    if (!availableTrajectories) {
+      return res.status(400).json({ error: '无可用轨迹数据，无法重建' });
+    }
+
+    // 使用修复后的 buildTrackFromTrajectories（含致密化预处理）重建中心线
+    const trackData = buildTrackFromTrajectories(availableTrajectories);
+    if (!trackData) {
+      return res.status(400).json({ error: '轨迹数据不足，无法构建中心线' });
+    }
+
+    const oldTurnCount = (trackDetail.turns || []).length;
+    const oldCenterlineLen = (trackDetail.centerline || []).length;
+
+    trackDetail.centerline = trackData.centerline;
+    trackDetail.turns = trackData.turns;
+    trackDetail.length = trackData.length;
+    trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
+    trackDetail.navigation = generateNavigationData(trackData);
+    trackDetail.routeBook = trackData.routeBook;
+    trackDetail.quality = validateTrackQuality(trackDetail);
+    trackDetail.updatedAt = new Date().toISOString();
+
+    // 写回文件
+    if (fs.existsSync(detailPath)) {
+      fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2), 'utf8');
+    }
+
+    // 同步内存元数据
+    if (tracks[id]) {
+      tracks[id].length = trackDetail.length;
+      tracks[id].pointCount = trackDetail.centerline.length;
+      tracks[id].updatedAt = trackDetail.updatedAt;
+      saveTracksDatabase(tracks);
+    }
+
+    console.log(`[重建] 赛道 ${id} 重建完成：中心线 ${oldCenterlineLen} → ${trackData.centerline.length} 点，弯道 ${oldTurnCount} → ${trackData.turns.length} 个`);
+    res.json({
+      status: 'ok',
+      before: { centerlineLength: oldCenterlineLen, turnCount: oldTurnCount },
+      after: { centerlineLength: trackData.centerline.length, turnCount: trackData.turns.length, length: trackData.length },
+      quality: trackDetail.quality
+    });
+  } catch (err) {
+    console.error(`[重建] 赛道 ${id} 重建失败:`, err.message);
+    res.status(500).json({ error: '重建失败: ' + err.message });
   }
 });
 
@@ -2176,9 +2301,10 @@ app.post('/api/record/save', express.json(), (req, res) => {
     const existingTrajectories = track.trajectories || [];
     existingTrajectories.push(manualRacePositions);
     
-    // 降采样历史轨迹（保留最新一条不降采样，历史轨迹每10点取1）
+    // 【Bug Fix】移除历史轨迹步长10降采样，避免与 RDP 叠加造成间距过大（>100m）。
+    //           track-builder 中的 densifyTrajectory 会在建网格前统一处理密度问题。
     for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = downsampleTrajectory(existingTrajectories[i]);
+      existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
     }
     // 限制最多5条轨迹
     const trimmed = trimTrajectories(existingTrajectories, 5);
@@ -4822,6 +4948,46 @@ app.get('/', (req, res) => {
     
     // 4. 从轻量 tracks-metadata.json 加载赛道基础索引
     tracks = loadTracksDatabase();
+
+    // 4.5 批量自愈合：检查所有赛道详情文件，修复弯道缺失
+    const tracksDir = path.join(DATA_DIR, 'tracks');
+    if (fs.existsSync(tracksDir)) {
+      const trackFiles = fs.readdirSync(tracksDir).filter(f => f.endsWith('.json'));
+      let healedCount = 0;
+      for (const file of trackFiles) {
+        const filePath = path.join(tracksDir, file);
+        try {
+          const detail = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          const id = detail.id || file.replace('.json', '');
+          if ((!detail.turns || detail.turns.length === 0) && detail.centerline && detail.centerline.length > 20) {
+            console.log(`[启动自愈合] 修复赛道: ${detail.name || id}`);
+            const turns = detectTurnsEnhanced(detail.centerline);
+            detail.turns = turns;
+            detail.sectors = generateSectors(detail.centerline, turns);
+            const allPts = [];
+            if (detail.trajectories) detail.trajectories.forEach(t => { if (t.points) allPts.push(...t.points); });
+            detail.routeBook = buildRouteBook(detail.centerline, turns, allPts.length > 0 ? allPts : detail.centerline);
+            detail.navigation = generateNavigationData(detail);
+            detail.quality = validateTrackQuality(detail);
+            fs.writeFileSync(filePath, JSON.stringify(detail, null, 2), 'utf8');
+            // 同步元数据
+            if (tracks[id]) {
+              tracks[id].turns = turns;
+              tracks[id].sectors = detail.sectors;
+              tracks[id].routeBook = detail.routeBook;
+              tracks[id].quality = detail.quality;
+            }
+            healedCount++;
+          }
+        } catch (e) {
+          console.error(`[启动自愈合] 处理 ${file} 失败:`, e.message);
+        }
+      }
+      if (healedCount > 0) {
+        saveTracksDatabase(tracks);
+        console.log(`[启动自愈合] 共修复 ${healedCount} 条赛道弯道数据`);
+      }
+    }
 
     // 5. 绑定端口启动监听
     udpServer.bind(UDP_PORT);

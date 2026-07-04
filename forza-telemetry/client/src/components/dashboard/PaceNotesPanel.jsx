@@ -33,18 +33,26 @@ function recommendGearForSpeed(speedKmh) {
 const TURN_TYPE_LABELS = {
   hairpin: '发卡',
   sharp: '急弯',
-  medium: '中速',
+  medium: '中弯',
+  slow: '缓弯',
+  gentle: '微弯',
+  slight: '极微弯',
+  micro: '直道',
   sweeping: '高速',
   chicane: 'S弯',
 };
 
 /** 弯道类型严重度（越高越需要注意） */
 const TURN_SEVERITY = {
-  hairpin: 5,
-  sharp: 4,
-  medium: 3,
+  hairpin: 6,
+  sharp: 5,
+  medium: 4,
+  slow: 3,
+  gentle: 2,
+  slight: 1,
+  micro: 0,
   sweeping: 2,
-  chicane: 4,
+  chicane: 5,
 };
 
 /** 路面类型映射 */
@@ -65,13 +73,16 @@ function generatePaceNotes(trackData) {
 
   const { turns, sectors, centerline, navigation, points } = trackData;
 
-  // 1. 从弯道数据生成弯道路书
+  // 1. 从弯道数据生成弯道路书（WRC标准）
   if (turns && turns.length > 0) {
     turns.forEach((turn, idx) => {
       const recSpeed = turn.recommendedSpeed || 0;
       const recGear = recSpeed > 0 ? recommendGearForSpeed(recSpeed) : null;
       const severity = TURN_SEVERITY[turn.type] || 3;
       const dirLabel = turn.direction === 'left' ? '左' : '右';
+      
+      const wrcNumber = turn.wrcNumber || turn.severity || 0;
+      const wrcLabel = wrcNumber > 0 ? `${dirLabel}${wrcNumber}` : '';
 
       // 计算刹车点距离弯道的距离（利用 suggestedBrakePoint 和弯道 index）
       let brakeDistance = 0;
@@ -97,6 +108,8 @@ function generatePaceNotes(trackData) {
         z: turn.z,
         direction: turn.direction,
         dirLabel,
+        wrcNumber,
+        wrcLabel,
         angle: turn.angle,
         turnType: turn.type,
         turnTypeLabel: TURN_TYPE_LABELS[turn.type] || turn.type,
@@ -602,15 +615,17 @@ export function PaceNotesPanel({
     }
   }, [scrollToActive, activeTurnIdx]);
 
-  // 语音播报路书弯道 (优先级 2: 中等优先级)
+  // 语音播报路书弯道 (优先级 2: 中等优先级) - WRC标准格式
   useEffect(() => {
     if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx]) {
       const note = turnNotes[activeTurnIdx];
-      const dirText = note.direction === 'left' ? '左弯' : note.direction === 'right' ? '右弯' : '弯道';
+      const dirText = note.direction === 'left' ? '左' : note.direction === 'right' ? '右' : '';
+      const wrcNum = note.wrcNumber || note.severity || 0;
+      const wrcText = wrcNum > 0 ? `${dirText}${wrcNum}` : `${dirText}弯`;
       const gearText = note.recommendedGear ? `, 推荐${note.recommendedGear}档` : '';
       const distText = note.distanceToNext > 0 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
       
-      const speakText = `前有${dirText}${note.severity || ''}${gearText}${distText}`;
+      const speakText = `前有${wrcText}${gearText}${distText}`;
       import('../../utils/speechQueue').then(m => {
         m.speechManager.speak(speakText, 2);
       });
@@ -713,7 +728,7 @@ export function PaceNotesPanel({
         {displayNote ? (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: 8 }}>
             
-            {/* 上部主行：当前/即将发生的弯 */}
+            {/* 上部主行：当前/即将发生的弯（WRC路书格式） */}
             <div
               style={{
                 display: 'flex',
@@ -749,8 +764,8 @@ export function PaceNotesPanel({
               {/* 详情指标 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 1 }}>
-                    {displayNote.angle}°
+                  <span style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1, color: displayNote.direction === 'left' ? '#a371f7' : '#f0883e' }}>
+                    {displayNote.wrcLabel || displayNote.angle + '°'}
                   </span>
                   <span style={{ fontSize: 9, color: '#484f58' }}>
                     弯 {displayNote.turnIndex + 1}

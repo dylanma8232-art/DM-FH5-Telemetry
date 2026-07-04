@@ -6,6 +6,43 @@ const GRID_SIZE = 1; // 网格精度 1米
 const DBSCAN_EPS = 3;      // DBSCAN邻域半径（米）- 网格坐标下
 const DBSCAN_MIN_PTS = 2;  // DBSCAN最小邻居数
 const CENTERLINE_SAMPLE_DIST = 5; // 中心线均匀采样间距（米）
+const DENSIFY_MAX_SPACING = 2;    // 致密化最大间距（米），确保DBSCAN能找到邻居
+
+/**
+ * 轨迹点致密化：在间距过大的相邻点之间插值，确保最大间距 ≤ maxSpacing
+ * 解决 RDP 抽稀后直道段点间距过大（5~30m），导致 DBSCAN 邻居数不足而过滤的问题
+ * @param {Array} points - 轨迹点数组
+ * @param {number} maxSpacing - 允许的最大点间距（米），默认2m
+ * @returns {Array} 致密化后的轨迹点数组
+ */
+function densifyTrajectory(points, maxSpacing = DENSIFY_MAX_SPACING) {
+  if (!points || points.length < 2) return points;
+  const result = [];
+  for (let i = 0; i < points.length; i++) {
+    result.push(points[i]);
+    if (i < points.length - 1) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const dx = p1.x - p0.x;
+      const dz = p1.z - p0.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > maxSpacing) {
+        const steps = Math.ceil(dist / maxSpacing);
+        for (let s = 1; s < steps; s++) {
+          const t = s / steps;
+          // 线性插值，保留所有原始字段并覆盖坐标
+          result.push({
+            ...p0,
+            x: p0.x + dx * t,
+            y: (p0.y || 0) + ((p1.y || 0) - (p0.y || 0)) * t,
+            z: p0.z + dz * t,
+          });
+        }
+      }
+    }
+  }
+  return result;
+}
 
 /**
  * 将多次轨迹聚合为中心线
@@ -17,10 +54,14 @@ export function buildTrackFromTrajectories(trajectories) {
     return null;
   }
 
-  // 1. 合并所有轨迹点
+  // 1. 合并所有轨迹点（致密化预处理：确保相邻点间距 ≤ DENSIFY_MAX_SPACING）
+  // 【Bug Fix】RDP 抽稀后直道点间距可达 5~30m，远超 GRID_SIZE=1m 的邻域范围，
+  //           导致 DBSCAN 找不到邻居、过滤掉几乎所有直道点，最终中心线只剩急弯处的点。
+  //           通过致密化插值将间距压缩到 ≤2m，保证每个格子至少有邻居。
   const allPoints = [];
   trajectories.forEach((traj, trajIndex) => {
-    traj.forEach((p, pointIndex) => {
+    const denseTraj = densifyTrajectory(traj); // 致密化：插值补齐大间距段
+    denseTraj.forEach((p, pointIndex) => {
       if (p.x !== 0 || p.z !== 0) { // 过滤原点
         allPoints.push({
           x: p.x,
@@ -320,35 +361,82 @@ function resampleCenterline(centerline, targetSpacing) {
 }
 
 /**
- * 按最近邻顺序连接点
+ * 按路径顺序连接点 - 使用带方向约束的最近邻算法
+ * 改进：考虑前一个点的方向，优先选择沿当前路径方向的下一个点
+ * 避免在交叉路口或回旋路段产生错误连接
  */
 function orderPoints(points) {
   if (points.length < 2) return points;
 
-  const ordered = [points[0]];
-  const remaining = points.slice(1);
-  const used = new Set([0]);
+  const ordered = [];
+  const used = new Set();
 
-  while (remaining.length > 0) {
+  let startIdx = 0;
+  let minDist = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const d = points[i].x * points[i].x + points[i].z * points[i].z;
+    if (d < minDist) {
+      minDist = d;
+      startIdx = i;
+    }
+  }
+
+  ordered.push(points[startIdx]);
+  used.add(startIdx);
+
+  let prevDirection = null;
+
+  while (ordered.length < points.length) {
     const current = ordered[ordered.length - 1];
-    let nearestIdx = -1;
-    let nearestDist = Infinity;
+    let bestIdx = -1;
+    let bestScore = -Infinity;
 
-    for (let i = 0; i < remaining.length; i++) {
+    for (let i = 0; i < points.length; i++) {
       if (used.has(i)) continue;
-      const dx = remaining[i].x - current.x;
-      const dz = remaining[i].z - current.z;
-      const dist = dx*dx + dz*dz;
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestIdx = i;
+
+      const dx = points[i].x - current.x;
+      const dz = points[i].z - current.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < 0.1) continue;
+
+      let directionScore = 0;
+      if (prevDirection) {
+        const dot = dx * prevDirection.x + dz * prevDirection.z;
+        const len = Math.sqrt(dx * dx + dz * dz) * Math.sqrt(prevDirection.x * prevDirection.x + prevDirection.z * prevDirection.z);
+        if (len > 0.001) {
+          directionScore = dot / len;
+        }
+      }
+
+      const score = (prevDirection ? 0.4 : 0) * directionScore + (1 - Math.min(dist / 10, 1)) * 0.6;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
       }
     }
 
-    if (nearestIdx === -1) break;
-    ordered.push(remaining[nearestIdx]);
-    used.add(nearestIdx);
-    if (used.size >= points.length) break;
+    if (bestIdx === -1) {
+      for (let i = 0; i < points.length; i++) {
+        if (!used.has(i)) {
+          bestIdx = i;
+          break;
+        }
+      }
+      if (bestIdx === -1) break;
+    }
+
+    const nextPoint = points[bestIdx];
+    const dx = nextPoint.x - current.x;
+    const dz = nextPoint.z - current.z;
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len > 0.001) {
+      prevDirection = { x: dx / len, z: dz / len };
+    }
+
+    ordered.push(nextPoint);
+    used.add(bestIdx);
   }
 
   return ordered;
@@ -374,15 +462,22 @@ function calculateCurvatureRadius(p1, p2, p3) {
 }
 
 /**
- * Round 2: 根据角度获取弯道分类
- * 发夹弯(>120)/急弯(60-120)/中速弯(30-60)/慢弯(15-30)/直道微弯(<15)
+ * Round 2: 根据角度获取弯道分类（WRC标准路书系统）
+ * 左1/右1: ~10-20° 极缓弯
+ * 左2/右2: ~20-35° 缓弯
+ * 左3/右3: ~35-50° 中等弯
+ * 左4/右4: ~50-70° 急弯
+ * 左5/右5: ~70-90° 很急的弯
+ * 左6/右6: >90° 发夹弯
  */
 function getTurnCategory(angleDeg) {
-  if (angleDeg > 120) return { type: 'hairpin', label: '发夹弯', severity: 'critical' };
-  if (angleDeg > 60)  return { type: 'sharp', label: '急弯', severity: 'high' };
-  if (angleDeg > 30)  return { type: 'medium', label: '中速弯', severity: 'medium' };
-  if (angleDeg > 15)  return { type: 'slow', label: '慢弯', severity: 'low' };
-  return { type: 'gentle', label: '直道微弯', severity: 'info' };
+  if (angleDeg > 90)  return { type: 'hairpin', label: '6', severity: 'critical', wrcNumber: 6 };
+  if (angleDeg > 70)  return { type: 'sharp', label: '5', severity: 'high', wrcNumber: 5 };
+  if (angleDeg > 50)  return { type: 'medium', label: '4', severity: 'medium', wrcNumber: 4 };
+  if (angleDeg > 35)  return { type: 'slow', label: '3', severity: 'low', wrcNumber: 3 };
+  if (angleDeg > 20)  return { type: 'gentle', label: '2', severity: 'info', wrcNumber: 2 };
+  if (angleDeg > 10)  return { type: 'slight', label: '1', severity: 'info', wrcNumber: 1 };
+  return { type: 'micro', label: '', severity: 'info', wrcNumber: 0 };
 }
 
 /**
@@ -397,7 +492,7 @@ function calculateRecommendedSpeed(radius) {
 /**
  * Round 2: 增强版弯道检测 - 基于heading变化率 + 精确起止点 + 细分类
  */
-function detectTurnsEnhanced(centerline) {
+export function detectTurnsEnhanced(centerline) {
   const turns = [];
 
   // 第一步：计算所有 heading（方向角）
@@ -438,15 +533,14 @@ function detectTurnsEnhanced(centerline) {
 
   // 第四步：检测弯道区域（连续正/负 heading 变化超过阈值）
   // 标记每个点是否在弯道中
-  const TURN_THRESHOLD = 0.015; // 弧度/点 ≈ 0.86度/点，更敏感地捕捉弯道
+  const TURN_THRESHOLD = 0.03; // 弧度/点 ≈ 1.7度/点，提高阈值减少微弯误检
   const bendRegions = []; // { startIdx, endIdx, totalAngle, direction }
 
   let inBend = false;
   let bendStart = -1;
-  let bendTotalAngle = 0;
   let bendDirection = 0; // 正=右转，负=左转
 
-  const minPoints = 3; // 至少连续3个点才算弯道
+  const minPoints = 10; // 至少连续10个点才算弯道（约50米）
   const skipStart = 3; // 缩减起始过滤区 (15米)
   const skipEnd = 3;   // 缩减结束过滤区 (15米)
 
@@ -454,69 +548,103 @@ function detectTurnsEnhanced(centerline) {
     const rate = smoothedRates[i];
 
     if (!inBend) {
-      // 检查是否开始进入弯道
-      if (Math.abs(rate) > TURN_THRESHOLD) {
-        inBend = true;
-        bendStart = i;
-        bendTotalAngle = rate;
-        bendDirection = rate > 0 ? 1 : -1;
-      }
-    } else {
-      // 在弯道中
-      // 如果方向一致，继续累加
-      if ((bendDirection > 0 && rate > 0) || (bendDirection < 0 && rate < 0)) {
-        bendTotalAngle += rate;
-      } else if (Math.abs(rate) <= TURN_THRESHOLD * 0.5) {
-        // 方向变化低于阈值的50%，认为弯道可能结束
-        // 检查是否满足最小弯道条件
-        const bendAngleDeg = Math.abs(bendTotalAngle) * 180 / Math.PI;
-        const bendLength = i - bendStart;
-
-        if (bendAngleDeg > 10 && bendLength >= minPoints) {
-          bendRegions.push({
-            startIdx: bendStart,
-            endIdx: i,
-            totalAngle: bendAngleDeg,
-            direction: bendDirection > 0 ? 'right' : 'left'
-          });
+        // 检查是否开始进入弯道
+        if (Math.abs(rate) > TURN_THRESHOLD) {
+          inBend = true;
+          bendStart = i;
+          bendDirection = rate > 0 ? 1 : -1;
         }
-        // 重置
-        inBend = false;
-        bendTotalAngle = 0;
-        bendStart = -1;
       } else {
-        // 方向反转，可能是一个S弯
-        // 先保存当前弯道
-        const bendAngleDeg = Math.abs(bendTotalAngle) * 180 / Math.PI;
-        const bendLength = i - bendStart;
+        // 在弯道中
+        // 如果方向一致，继续
+        if ((bendDirection > 0 && rate > 0) || (bendDirection < 0 && rate < 0)) {
+          // 方向一致，继续
+        } else if (Math.abs(rate) <= TURN_THRESHOLD * 0.5) {
+          // 方向变化低于阈值的50%，认为弯道可能结束
+          // 检查是否满足最小弯道条件
+          const bendLength = i - bendStart;
 
-        if (bendAngleDeg > 10 && bendLength >= minPoints) {
-          bendRegions.push({
-            startIdx: bendStart,
-            endIdx: i,
-            totalAngle: bendAngleDeg,
-            direction: bendDirection > 0 ? 'right' : 'left'
-          });
+          if (bendLength >= minPoints) {
+            // 使用起点和终点的heading差值计算弯道角度
+            const startHeading = headings[bendStart];
+            const endHeading = headings[i];
+            let angleDiff = endHeading - startHeading;
+            if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            let bendAngleDeg = Math.abs(angleDiff) * 180 / Math.PI;
+            
+            // 角度约束：取最小角度（超过180度取补角），最大不超过180度
+            if (bendAngleDeg > 180) bendAngleDeg = 360 - bendAngleDeg;
+
+            if (bendAngleDeg > 25) {
+              bendRegions.push({
+                startIdx: bendStart,
+                endIdx: i,
+                totalAngle: bendAngleDeg,
+                direction: bendDirection > 0 ? 'right' : 'left'
+              });
+            }
+          }
+          // 重置
+          inBend = false;
+          bendStart = -1;
+        } else {
+          // 方向反转，可能是一个S弯
+          // 先保存当前弯道
+          const bendLength = i - bendStart;
+
+          if (bendLength >= minPoints) {
+            // 使用起点和终点的heading差值计算弯道角度
+            const startHeading = headings[bendStart];
+            const endHeading = headings[i];
+            let angleDiff = endHeading - startHeading;
+            if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            let bendAngleDeg = Math.abs(angleDiff) * 180 / Math.PI;
+            
+            // 角度约束：取最小角度（超过180度取补角），最大不超过180度
+            if (bendAngleDeg > 180) bendAngleDeg = 360 - bendAngleDeg;
+
+            if (bendAngleDeg > 25) {
+              bendRegions.push({
+                startIdx: bendStart,
+                endIdx: i,
+                totalAngle: bendAngleDeg,
+                direction: bendDirection > 0 ? 'right' : 'left'
+              });
+            }
+          }
+          // 开始新弯道
+          bendStart = i;
+          bendDirection = rate > 0 ? 1 : -1;
         }
-        // 开始新弯道
-        bendStart = i;
-        bendTotalAngle = rate;
-        bendDirection = rate > 0 ? 1 : -1;
       }
-    }
   }
 
   // 处理最后一个弯道区域
   if (inBend) {
-    const bendAngleDeg = Math.abs(bendTotalAngle) * 180 / Math.PI;
     const bendLength = centerline.length - skipEnd - bendStart;
-    if (bendAngleDeg > 10 && bendLength >= minPoints) {
-      bendRegions.push({
-        startIdx: bendStart,
-        endIdx: Math.min(centerline.length - skipEnd, centerline.length - 1),
-        totalAngle: bendAngleDeg,
-        direction: bendDirection > 0 ? 'right' : 'left'
-      });
+    if (bendLength >= minPoints) {
+      // 使用起点和终点的heading差值计算弯道角度
+      const startHeading = headings[bendStart];
+      const endIdx = Math.min(centerline.length - skipEnd, centerline.length - 1);
+      const endHeading = headings[endIdx];
+      let angleDiff = endHeading - startHeading;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      let bendAngleDeg = Math.abs(angleDiff) * 180 / Math.PI;
+      
+      // 角度约束：取最小角度（超过180度取补角），最大不超过180度
+      if (bendAngleDeg > 180) bendAngleDeg = 360 - bendAngleDeg;
+
+      if (bendAngleDeg > 25) {
+        bendRegions.push({
+          startIdx: bendStart,
+          endIdx: endIdx,
+          totalAngle: bendAngleDeg,
+          direction: bendDirection > 0 ? 'right' : 'left'
+        });
+      }
     }
   }
 
@@ -528,18 +656,34 @@ function detectTurnsEnhanced(centerline) {
       if (region.startIdx - last.endIdx < 5) {
         // 合并：如果是S弯（方向相反）
         if (last.direction !== region.direction) {
-          const bigger = last.totalAngle > region.totalAngle ? last : region;
+          const startHeading = headings[Math.min(last.startIdx, region.startIdx)];
+          const endHeading = headings[Math.max(last.endIdx, region.endIdx)];
+          let angleDiff = endHeading - startHeading;
+          if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+          if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+          let totalAngle = Math.abs(angleDiff) * 180 / Math.PI;
+          if (totalAngle > 180) totalAngle = 360 - totalAngle;
+          
           mergedBends[mergedBends.length - 1] = {
-            ...bigger,
             startIdx: Math.min(last.startIdx, region.startIdx),
             endIdx: Math.max(last.endIdx, region.endIdx),
+            totalAngle: totalAngle,
+            direction: last.direction,
             isChicane: true,
             chicaneDirections: [last.direction, region.direction]
           };
         } else {
-          // 同方向，简单合并
+          // 同方向，合并时重新计算角度（使用起点和终点heading差值）
+          const startHeading = headings[last.startIdx];
+          const endHeading = headings[region.endIdx];
+          let angleDiff = endHeading - startHeading;
+          if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+          if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+          let totalAngle = Math.abs(angleDiff) * 180 / Math.PI;
+          if (totalAngle > 180) totalAngle = 360 - totalAngle;
+          
           last.endIdx = region.endIdx;
-          last.totalAngle += region.totalAngle;
+          last.totalAngle = totalAngle;
         }
         continue;
       }
@@ -648,7 +792,7 @@ function detectTurnsEnhanced(centerline) {
  * 从遥测数据中提取每个弯道和直道的最优数据
  * Round 8: 支持多次数据累积优化（轨迹来源计数、稳定性速度、平均刹车点）
  */
-function buildRouteBook(centerline, turns, allPoints) {
+export function buildRouteBook(centerline, turns, allPoints) {
   if (!turns || turns.length === 0) return null;
 
   const routeBook = {
