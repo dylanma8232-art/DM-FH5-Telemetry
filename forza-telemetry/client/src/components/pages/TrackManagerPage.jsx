@@ -644,12 +644,29 @@ export function TrackManagerPage({ onNavigate }) {
     drawTrack(ctx, canvas, track, transform);
   }, [selectedTrack, tracks, transform, drawTrack]);
 
-  const previewTrack = (id) => {
+  const previewTrack = async (id) => {
     setSelectedTrack(id);
     setTransform({ x: 0, y: 0, scale: 1 });
 
-    const track = tracks[id];
+    let track = tracks[id];
     if (!track) return;
+
+    // 如果该赛道尚未拉取完整的几何点数据，进行一次异步加载，并混入本地 tracks 字典中
+    if (!track.points || track.points.length === 0) {
+      try {
+        const res = await fetch(`/api/tracks/${id}`);
+        const detailed = await res.json();
+        if (detailed && detailed.id === id) {
+          setTracks(prev => ({
+            ...prev,
+            [id]: { ...prev[id], ...detailed }
+          }));
+          track = { ...track, ...detailed };
+        }
+      } catch (err) {
+        console.error('Failed to load track detailed coordinates:', err);
+      }
+    }
 
     setTimeout(() => {
       const canvas = canvasRef.current;
@@ -1143,6 +1160,28 @@ export function TrackManagerPage({ onNavigate }) {
 // Round 3: 合并预览Canvas组件
 function MergePreviewCanvas({ trackA, trackB }) {
   const canvasRef = useRef(null);
+  const [dataA, setDataA] = useState(null);
+  const [dataB, setDataB] = useState(null);
+
+  useEffect(() => {
+    const loadDetail = async (track, setData) => {
+      if (!track) return;
+      if (track.points && track.points.length > 0) {
+        setData(track);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/tracks/${track.id}`);
+        const detailed = await res.json();
+        setData(detailed);
+      } catch (e) {
+        console.error('Failed to load merge track detail:', e);
+      }
+    };
+
+    loadDetail(trackA, setDataA);
+    loadDetail(trackB, setDataB);
+  }, [trackA, trackB]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1151,10 +1190,13 @@ function MergePreviewCanvas({ trackA, trackB }) {
     canvas.height = 240;
     const ctx = canvas.getContext('2d');
 
-    if (!trackA?.points || trackA.points.length < 2 || !trackB?.points || trackB.points.length < 2) return;
+    const pointsA = dataA ? (dataA.points || dataA.centerline || (dataA.trajectories && dataA.trajectories[0])) : null;
+    const pointsB = dataB ? (dataB.points || dataB.centerline || (dataB.trajectories && dataB.trajectories[0])) : null;
+
+    if (!pointsA || pointsA.length < 2 || !pointsB || pointsB.length < 2) return;
 
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    [...trackA.points, ...trackB.points].forEach(p => {
+    [...pointsA, ...pointsB].forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.z < minZ) minZ = p.z;
@@ -1176,18 +1218,18 @@ function MergePreviewCanvas({ trackA, trackB }) {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#58a6ff';
     ctx.beginPath();
-    ctx.moveTo((trackB.points[0].x - minX) * sc + ox, (trackB.points[0].z - minZ) * sc + oz);
-    for (let i = 1; i < trackB.points.length; i++) {
-      ctx.lineTo((trackB.points[i].x - minX) * sc + ox, (trackB.points[i].z - minZ) * sc + oz);
+    ctx.moveTo((pointsB[0].x - minX) * sc + ox, (pointsB[0].z - minZ) * sc + oz);
+    for (let i = 1; i < pointsB.length; i++) {
+      ctx.lineTo((pointsB[i].x - minX) * sc + ox, (pointsB[i].z - minZ) * sc + oz);
     }
     ctx.stroke();
 
     // 源赛道（红色）
     ctx.strokeStyle = '#f85149';
     ctx.beginPath();
-    ctx.moveTo((trackA.points[0].x - minX) * sc + ox, (trackA.points[0].z - minZ) * sc + oz);
-    for (let i = 1; i < trackA.points.length; i++) {
-      ctx.lineTo((trackA.points[i].x - minX) * sc + ox, (trackA.points[i].z - minZ) * sc + oz);
+    ctx.moveTo((pointsA[0].x - minX) * sc + ox, (pointsA[0].z - minZ) * sc + oz);
+    for (let i = 1; i < pointsA.length; i++) {
+      ctx.lineTo((pointsA[i].x - minX) * sc + ox, (pointsA[i].z - minZ) * sc + oz);
     }
     ctx.stroke();
 
@@ -1199,7 +1241,7 @@ function MergePreviewCanvas({ trackA, trackB }) {
     ctx.fillStyle = '#f85149';
     ctx.fillRect(10, 22, 12, 3);
     ctx.fillText('源（删除）', 26, 26);
-  }, [trackA, trackB]);
+  }, [dataA, dataB]);
 
   return (
     <div style={{ marginBottom: 12, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
@@ -1210,11 +1252,29 @@ function MergePreviewCanvas({ trackA, trackB }) {
 
 // Round 4: 赛道详情弹窗组件
 function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
-  const turns = track.turns || [];
-  const routeBook = track.routeBook || null;
+  const [detailedTrack, setDetailedTrack] = useState(track);
+  const turns = detailedTrack.turns || [];
+  const routeBook = detailedTrack.routeBook || null;
   // Round 7: 验证结果
   const [validation, setValidation] = useState(null);
   const [loadingValidation, setLoadingValidation] = useState(false);
+
+  useEffect(() => {
+    const loadDetail = async () => {
+      if (track.points && track.points.length > 0) {
+        setDetailedTrack(track);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/tracks/${trackId}`);
+        const detailed = await res.json();
+        setDetailedTrack(detailed);
+      } catch (e) {
+        console.error('Failed to load track detail:', e);
+      }
+    };
+    loadDetail();
+  }, [track, trackId]);
 
   useEffect(() => {
     // 弹窗打开时自动验证
