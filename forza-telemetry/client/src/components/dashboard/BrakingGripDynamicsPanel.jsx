@@ -25,19 +25,28 @@ export function BrakingGripDynamicsPanel({ data }) {
   const tireCombinedSlip = telemetryData.tireCombinedSlip || { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
   const car = telemetryData.car || {};
 
-  const latG = acceleration.x || 0; 
-  const lonG = acceleration.z || 0; 
+  // 游戏的原始 UDP 已经以 G 为单位
+  const latG = (acceleration.x || 0); 
+  const lonG = (acceleration.z || 0); 
 
   // 峰值记录
   const [peakLat, setPeakLat] = useState(0);
   const [peakLon, setPeakLon] = useState(0);
+
+  // 当车辆更换或比赛重置时，清空极值记录
+  const carOrdinal = car.ordinal;
+  const isRaceOn = telemetryData.isRaceOn;
+  useEffect(() => {
+    setPeakLat(0);
+    setPeakLon(0);
+  }, [carOrdinal, isRaceOn]);
 
   useEffect(() => {
     const absLat = Math.abs(latG);
     const absLon = Math.abs(lonG);
     if (absLat > peakLat) setPeakLat(absLat);
     if (absLon > peakLon) setPeakLon(absLon);
-  }, [latG, lonG]);
+  }, [latG, lonG, peakLat, peakLon]);
 
   // 根据车辆级别动态推算重力极限线
   const limitG = useMemo(() => {

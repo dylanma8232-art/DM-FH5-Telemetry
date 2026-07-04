@@ -620,10 +620,10 @@ export function diagnoseFromTelemetry(frames, currentTune = {}) {
     const totalSuspFrames = suspensionFrames.length
     const bottomOuts = suspensionFrames.filter(
       f =>
-        f.suspension.frontLeft > 0.9 ||
-        f.suspension.frontRight > 0.9 ||
-        f.suspension.rearLeft > 0.9 ||
-        f.suspension.rearRight > 0.9
+        f.suspension.frontLeft < 0.15 ||
+        f.suspension.frontRight < 0.15 ||
+        f.suspension.rearLeft < 0.15 ||
+        f.suspension.rearRight < 0.15
     ).length
 
     const bottomOutRatio = bottomOuts / totalSuspFrames
@@ -685,7 +685,7 @@ export function diagnoseFromTelemetry(frames, currentTune = {}) {
     for (const f of brakingFrames) {
       const frontAvg = (f.suspension.frontLeft + f.suspension.frontRight) / 2
       const rearAvg = (f.suspension.rearLeft + f.suspension.rearRight) / 2
-      totalPitch += frontAvg - rearAvg // 前压缩多后压缩少 = 点头
+      totalPitch += rearAvg - frontAvg // 后伸展前压缩 = 点头 (1.0 - 0.0)
     }
     const avgPitch = totalPitch / brakingFrames.length
 
@@ -804,11 +804,11 @@ export function diagnoseFromTelemetry(frames, currentTune = {}) {
         severity: slipRatio > 0.25 ? 'high' : 'medium',
         details: `加速时打滑帧占比 ${(slipRatio * 100).toFixed(1)}%，${slipRatio > 0.25 ? '出弯控制困难' : '出弯时偶发打滑'}`,
         fix: {
-          diffAccel: { delta: slipRatio > 0.25 ? 15 : 10, reason: `加速打滑率${(slipRatio * 100).toFixed(1)}%，提高加速差速锁分配扭矩` },
-          rearARB: { delta: 3, reason: '增加后防倾杆抑制出弯时车尾侧摆' },
-          rearSpring: { delta: 2, reason: '增加后弹簧硬度减少出弯下蹲引起的载荷变化' },
-          rearDamping: { delta: 1, reason: '增加后阻尼快速稳定出弯姿态' },
-          rearTirePressure: { delta: -2, reason: '降低后胎压增加出弯抓地力' }
+          diffAccel: { delta: slipRatio > 0.25 ? -15 : -10, reason: `加速打滑率${(slipRatio * 100).toFixed(1)}%，降低加速差速锁分配扭矩以允许更多差速，防止双轮打滑` },
+          rearARB: { delta: -3, reason: '减小后防倾杆硬度增加车尾出弯机械抓地力' },
+          rearSpring: { delta: -2, reason: '减小后弹簧硬度增加车尾重心转移后的轮胎抓地面积' },
+          rearDamping: { delta: -1, reason: '减小后阻尼快速平顺出弯重心姿态' },
+          rearTirePressure: { delta: -2, reason: '降低后胎压增加出弯接地面积与抓地力' }
         }
       })
     }

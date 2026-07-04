@@ -65,7 +65,6 @@ export function SpeedGauge({ speed = 0, maxSpeed = 350 }) {
         strokeWidth="8" 
         fill="none" 
         strokeLinecap="round"
-        style={{ transition: 'all 0.1s linear' }}
       />
       
       {ticks.map((tick, i) => (
@@ -98,7 +97,6 @@ export function SpeedGauge({ speed = 0, maxSpeed = 350 }) {
         stroke={color}
         strokeWidth="3" 
         strokeLinecap="round"
-        style={{ transition: 'all 0.1s linear' }}
       />
       
       <circle cx={cx} cy={cy} r="5" fill={color} />
@@ -157,7 +155,6 @@ export function RPMGauge({ rpm = 0, maxRpm = 8000 }) {
         strokeWidth="6" 
         fill="none" 
         strokeLinecap="round"
-        style={{ transition: 'all 0.1s linear' }}
       />
       
       <path 
@@ -177,7 +174,6 @@ export function RPMGauge({ rpm = 0, maxRpm = 8000 }) {
         stroke={color}
         strokeWidth="2" 
         strokeLinecap="round"
-        style={{ transition: 'all 0.1s linear' }}
       />
       
       <circle cx={cx} cy={cy} r="4" fill={color} />

@@ -667,40 +667,69 @@ function buildRouteBook(centerline, turns, allPoints) {
   }
 
   // Round 8: 按弯道索引分组统计多条轨迹的速度数据
-  const turnSpeedStats = {}; // turnIndex -> { entrySpeeds: [], apexSpeeds: [], exitSpeeds: [], brakeIndices: [] }
+  const turnSpeedStats = {}; // turnIndex -> { entrySpeeds: [], apexSpeeds: [], exitSpeeds: [], brakeIndices: [], gearDrops: [] }
+  
+  // 空间距离计算与最接近中线点查找的辅助函数
+  const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
+  const findNearestCenterlineIndex = (p, cl) => {
+    let minD = Infinity;
+    let nearestIdx = -1;
+    for (let i = 0; i < cl.length; i++) {
+      const dx = p.x - cl[i].x;
+      const dz = p.z - cl[i].z;
+      const d = dx * dx + dz * dz;
+      if (d < minD) {
+        minD = d;
+        nearestIdx = i;
+      }
+    }
+    return nearestIdx;
+  };
+
   for (let ti = 0; ti < turns.length; ti++) {
     const turn = turns[ti];
     const stats = { entrySpeeds: [], apexSpeeds: [], exitSpeeds: [], brakeIndices: [], gearDrops: [] };
 
-    // 收集所有轨迹中对应弯道位置的速度数据
+    // 获取该弯道在中心线上的物理坐标
+    const entryPoint = centerline[turn.startIdx];
+    const apexIdx = turn.index != null ? turn.index : Math.floor((turn.startIdx + turn.endIdx) / 2);
+    const apexPoint = centerline[apexIdx];
+    const exitPoint = centerline[turn.endIdx];
+    const brakePoint = turn.brakePointIdx != null && centerline[turn.brakePointIdx] ? centerline[turn.brakePointIdx] : null;
+
+    // 收集所有轨迹中对应弯道位置的数据
     for (const p of allPoints) {
-      const pIdx = p.pointIndex;
-      // 入弯区域
-      if (Math.abs(pIdx - turn.startIdx) <= 3 && p.speed > 0) {
+      if (!p || p.speed <= 0) continue;
+
+      // 1. 入弯区域速度收集 (距离 entryPoint <= 10 米)
+      if (entryPoint && getDist2D(p, entryPoint) <= 10) {
         stats.entrySpeeds.push(p.speed);
       }
-      // 弯中区域
-      const apexIdx = turn.index != null ? turn.index : Math.floor((turn.startIdx + turn.endIdx) / 2);
-      if (Math.abs(pIdx - apexIdx) <= 3 && p.speed > 0) {
+
+      // 2. 弯中区域速度收集 (距离 apexPoint <= 10 米)
+      if (apexPoint && getDist2D(p, apexPoint) <= 10) {
         stats.apexSpeeds.push(p.speed);
       }
-      // 出弯区域
-      if (Math.abs(pIdx - turn.endIdx) <= 3 && p.speed > 0) {
+
+      // 3. 出弯区域速度收集 (距离 exitPoint <= 10 米)
+      if (exitPoint && getDist2D(p, exitPoint) <= 10) {
         stats.exitSpeeds.push(p.speed);
       }
-    }
 
-    // Round 8: 刹车点索引收集（从原始轨迹数据中）
-    for (const p of allPoints) {
-      if (Math.abs(p.pointIndex - turn.brakePointIdx) <= 2 && p.brake > 50) {
-        stats.brakeIndices.push(p.pointIndex);
+      // 4. 刹车点收集 (若在此处刹车, 且位置靠近刹车点物理位置 <= 15 米)
+      if (p.brake > 50) {
+        const targetBrakePoint = brakePoint || entryPoint; // 如果没有计算出刹车点, 以入弯点作为参考
+        if (targetBrakePoint && getDist2D(p, targetBrakePoint) <= 15) {
+          const clIdx = findNearestCenterlineIndex(p, centerline);
+          if (clIdx !== -1) {
+            stats.brakeIndices.push(clIdx);
+          }
+        }
       }
-    }
 
-    // Round 8: 降档收集
-    for (const p of allPoints) {
-      if (Math.abs(p.pointIndex - turn.startIdx) <= 5) {
-        const apexGear = centerline[apexIdx] ? centerline[apexIdx].gear : 0;
+      // 5. 降档收集 (在弯道入口附近 L <= 15 米)
+      if (entryPoint && getDist2D(p, entryPoint) <= 15) {
+        const apexGear = apexPoint ? apexPoint.gear : 0;
         if (p.gear > 0 && apexGear > 0 && p.gear > apexGear) {
           stats.gearDrops.push(p.gear - apexGear);
         }

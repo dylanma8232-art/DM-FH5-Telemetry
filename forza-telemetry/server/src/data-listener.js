@@ -1,6 +1,7 @@
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-const SERVER_URL = 'http://localhost:9188';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:9188';
 let checkCount = 0;
 let lastPacketCount = 0;
 
@@ -78,7 +79,7 @@ function analyzeData(data, count) {
   console.log();
   
   // 保存数据
-  const dataDir = new URL('../../data/current_data.json', import.meta.url).pathname;
+  const dataDir = fileURLToPath(new URL('../../data/current_data.json', import.meta.url));
   fs.writeFileSync(dataDir, JSON.stringify(data, null, 2));
   console.log('当前数据已保存到 data/current_data.json');
   

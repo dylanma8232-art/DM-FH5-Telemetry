@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { speechManager } from '../../utils/speechQueue';
 
 /**
  * 统一警报与驾驶建议面板
@@ -45,9 +46,17 @@ export function AlertAdvicePanel({ data }) {
     };
 
     const steerAbs = Math.abs(controls.steer || 0); // 0 到 127/255 表示转向
-    const yawChange = Math.abs(yaw - prevYawRef.current) % Math.PI;
+    
+    // 解决朝向角从 -PI 到 PI 的边界越界突变 Bug
+    let yawDiff = yaw - prevYawRef.current;
+    if (prevYawRef.current === undefined) yawDiff = 0;
+    while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+    while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
     prevYawRef.current = yaw;
-    const smoothYaw = smooth(yawHistoryRef, yawChange);
+
+    // 转换为度/秒 (deg/s)，基于地平线5约60Hz遥测发包速率
+    const yawRateDeg = Math.abs(yawDiff) * (180 / Math.PI) * 60;
+    const smoothYawRate = smooth(yawHistoryRef, yawRateDeg);
     const smoothSpeed = smooth(speedHistoryRef, speedKmh);
 
     const gear = controls.gear || 0;
@@ -88,8 +97,8 @@ export function AlertAdvicePanel({ data }) {
     }
 
     // ── 2. 转向过度（甩尾失控，车速>25且前进档时判定）─────────────────────────────
-    if (smoothYaw > 0.048 && steerAbs < 25 && smoothSpeed > 25 && gear > 0) {
-      items.push({ priority: 2, type: 'danger', icon: '↺', text: '转向过度 甩尾！', detail: `偏航变化: ${smoothYaw.toFixed(3)}` });
+    if (smoothYawRate > 15 && steerAbs < 25 && smoothSpeed > 25 && gear > 0) {
+      items.push({ priority: 2, type: 'danger', icon: '↺', text: '转向过度 甩尾！', detail: `偏航率: ${smoothYawRate.toFixed(1)} °/s` });
     }
 
     // ── 3. 严重打滑（采用动态速度滑动阈值）──────────────────────────────
@@ -116,8 +125,8 @@ export function AlertAdvicePanel({ data }) {
     }
 
     // ── 5. 转向不足（采用动态转向角阈值）────────────────────────────────
-    if (steerAbs > dynamicSteerUndersteer && smoothYaw < 0.012 && smoothSpeed > 35 && gear > 0) {
-      items.push({ priority: 6, type: 'warning', icon: '→', text: '转向不足 推头', detail: `车速: ${smoothSpeed.toFixed(0)} 公里/小时` });
+    if (steerAbs > dynamicSteerUndersteer && smoothYawRate < 6 && smoothSpeed > 35 && gear > 0) {
+      items.push({ priority: 6, type: 'warning', icon: '→', text: '转向不足 推头', detail: `车速: ${smoothSpeed.toFixed(0)} km/h — 偏航率低: ${smoothYawRate.toFixed(1)} °/s` });
     }
 
     // ── 6. 高 G 力（重心转移过大，忽略起步撞击，速度>20判定）─────────────────────
@@ -169,8 +178,9 @@ export function AlertAdvicePanel({ data }) {
     if (isRaceOn && fuel > 0 && fuel < 0.2) {
       items.push({ priority: 11, type: 'info', icon: '⛽', text: '燃油量低', detail: `剩余 ${(fuel * 100).toFixed(0)}%` });
     }
-    if (boost > 2.0 && smoothSpeed > 10) {
-      items.push({ priority: 12, type: 'warning', icon: '💨', text: '涡轮增压过高', detail: `${boost.toFixed(2)} bar` });
+    const boostBar = boost * 0.0689476;
+    if (boostBar > 2.4 && smoothSpeed > 10) {
+      items.push({ priority: 12, type: 'warning', icon: '💨', text: '涡轮增压过高', detail: `${boostBar.toFixed(2)} bar` });
     }
 
     // ── 排序：priority 越小越靠前 ─────────────────────────────────────────
@@ -180,22 +190,23 @@ export function AlertAdvicePanel({ data }) {
   }, [data]);
 
   // ── TTS 播报（优先级高的情况才播） ───────────────────────────────────────
+  const topAlertText = alerts[0]?.text;
+  const topAlertDetail = alerts[0]?.detail;
+  const topAlertType = alerts[0]?.type;
+
   useEffect(() => {
-    if (alerts.length === 0) return;
-    const top = alerts[0];
-    if (top.type === 'success' || top.type === 'info') return;
+    if (!topAlertText) return;
+    if (topAlertType === 'success' || topAlertType === 'info') return;
 
     // 比赛中降到1档的语音需要提示
-    const isFirstGearWarning = top.text === '当前已是1档';
+    const isFirstGearWarning = topAlertText === '当前已是1档';
     
     // 如果是1档警告，用更温和或者警示性的播报
-    const ttsPriority = top.type === 'danger' ? 3 : 2; 
-    const speakText = isFirstGearWarning ? '当前已是一档，不要降档了' : `${top.text}。${top.detail}`;
+    const ttsPriority = topAlertType === 'danger' ? 3 : 2; 
+    const speakText = isFirstGearWarning ? '当前已是一档，不要降档了' : `${topAlertText}。${topAlertDetail}`;
 
-    import('../../utils/speechQueue').then(m => {
-      m.speechManager.speak(speakText, ttsPriority);
-    });
-  }, [alerts]);
+    speechManager.speak(speakText, ttsPriority);
+  }, [topAlertText, topAlertDetail, topAlertType]);
 
   // ── 样式映射 ──────────────────────────────────────────────────────────
   const typeStyle = (type) => {

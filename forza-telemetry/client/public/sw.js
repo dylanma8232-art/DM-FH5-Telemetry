@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fh5-telemetry-v1';
+const CACHE_NAME = 'fh5-telemetry-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -25,17 +25,25 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/') || e.request.url.includes('/socket.io/')) return;
+  
+  // 对 API、Socket 及高频请求直接放行，不走缓存
+  if (e.request.url.includes('/api/') || e.request.url.includes('/socket.io/')) {
+    return;
+  }
+
+  // 核心优化：采用 Network First 策略，保障更新即时生效
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetchPromise = fetch(e.request).then(networkRes => {
+    fetch(e.request)
+      .then((networkRes) => {
         if (networkRes.ok) {
           const clone = networkRes.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         }
         return networkRes;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+      })
+      .catch(() => {
+        // 网络失败时退回缓存
+        return caches.match(e.request);
+      })
   );
 });

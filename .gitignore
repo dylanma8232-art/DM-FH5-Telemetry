@@ -44,3 +44,6 @@ forza-telemetry/server/data/tracks-database.json
 **/codegraph.db
 **/codegraph.db-shm
 **/codegraph.db-wal
+
+# Local Telemetry Data Folder
+forza-telemetry/data/

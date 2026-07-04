@@ -6,11 +6,12 @@ export function formatTime(seconds) {
 }
 
 export function formatGear(gear) {
-  // 极限竞速地平线5协议：0为空档(N)，11或255或小于0为倒车档(R)
+  // 极限竞速地平线5协议：0为倒档(R)，1为空档(N)，2为1档...
   if (gear === undefined || gear === null) return '-';
-  if (gear === 0) return 'N';
+  if (gear === 0) return 'R';
+  if (gear === 1) return 'N';
   if (gear === 11 || gear === 255 || gear < 0) return 'R';
-  return gear.toString();
+  return (gear - 1).toString();
 }
 
 export function formatSpeed(speedMs) {

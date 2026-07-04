@@ -48,6 +48,7 @@
         - 📄 [Card.jsx](file:///forza-telemetry/client/src/components/shared/Card.jsx)   *(函数/组件: `Card`)*
         - 📄 [EmptyState.jsx](file:///forza-telemetry/client/src/components/shared/EmptyState.jsx)   *(函数/组件: `EmptyState`)*
         - 📄 [ErrorBoundary.jsx](file:///forza-telemetry/client/src/components/shared/ErrorBoundary.jsx) 
+        - 📄 [InteractiveTrackMap.jsx](file:///forza-telemetry/client/src/components/shared/InteractiveTrackMap.jsx)   *(函数/组件: `InteractiveTrackMap`)*
         - 📄 [LoadingSpinner.jsx](file:///forza-telemetry/client/src/components/shared/LoadingSpinner.jsx)   *(函数/组件: `LoadingSpinner`)*
         - 📄 [Toast.jsx](file:///forza-telemetry/client/src/components/shared/Toast.jsx)   *(函数/组件: `toast`, 函数/组件: `ToastContainer`)*
     - 📂 **contexts/**
@@ -57,6 +58,7 @@
       - 📄 [useAudioFeedback.js](file:///forza-telemetry/client/src/hooks/useAudioFeedback.js)   *(函数/组件: `useAudioFeedback`)*
       - 📄 [useKeyboard.js](file:///forza-telemetry/client/src/hooks/useKeyboard.js)   *(函数/组件: `useKeyboard`)*
       - 📄 [useSocket.js](file:///forza-telemetry/client/src/hooks/useSocket.js)   *(函数/组件: `useSocket`)*
+      - 📄 [useThrottledRender.js](file:///forza-telemetry/client/src/hooks/useThrottledRender.js)   *(函数/组件: `useThrottledRender`)*
     - 📄 [main.jsx](file:///forza-telemetry/client/src/main.jsx) 
     - 📄 [themes.js](file:///forza-telemetry/client/src/themes.js)   *(函数/组件: `getThemeCSSVariables`, 常量/方法: `themes`, 常量/方法: `defaultSettings`)*
     - 📂 **utils/**
@@ -94,11 +96,32 @@
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
   - 📂 **src/**
+    - 📂 **config/**
+      - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `PORT`, 常量/方法: `UDP_PORT`, 常量/方法: `DATA_DIR`, 常量/方法: `TRACK_DB_PATH`, 常量/方法: `EMIT_INTERVAL_MS`, 常量/方法: `CLEANUP_MAX_SESSIONS`, 常量/方法: `DOWNSAMPLE_RATIO`)*
     - 📄 [data-listener.js](file:///forza-telemetry/server/src/data-listener.js) 
     - 📄 [index.js](file:///forza-telemetry/server/src/index.js) 
+    - 📂 **routes/**
+      - 📄 [index.js](file:///forza-telemetry/server/src/routes/index.js)   *(默认导出: `router`)*
+      - 📄 [sessions.js](file:///forza-telemetry/server/src/routes/sessions.js)   *(默认导出: `router`)*
+      - 📄 [tracks.js](file:///forza-telemetry/server/src/routes/tracks.js)   *(默认导出: `router`)*
+      - 📄 [tunes.js](file:///forza-telemetry/server/src/routes/tunes.js)   *(默认导出: `router`)*
+      - 📄 [vehicles.js](file:///forza-telemetry/server/src/routes/vehicles.js)   *(默认导出: `router`)*
+    - 📂 **services/**
+      - 📄 [recognition-service.js](file:///forza-telemetry/server/src/services/recognition-service.js)   *(常量/方法: `recognitionService`)*
+      - 📄 [retention.js](file:///forza-telemetry/server/src/services/retention.js)   *(函数/组件: `runSessionRetentionCleanup`)*
+      - 📄 [socket-service.js](file:///forza-telemetry/server/src/services/socket-service.js)   *(常量/方法: `socketService`)*
+      - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)   *(常量/方法: `stateManager`)*
+      - 📄 [tts-service.js](file:///forza-telemetry/server/src/services/tts-service.js)   *(常量/方法: `ttsService`)*
+      - 📄 [udp-service.js](file:///forza-telemetry/server/src/services/udp-service.js)   *(常量/方法: `udpService`)*
+    - 📂 **storage/**
+      - 📄 [atomic-writer.js](file:///forza-telemetry/server/src/storage/atomic-writer.js)   *(常量/方法: `atomicWriter`)*
+      - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`, 函数/组件: `readBrotliAsync`)*
+      - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
     - 📄 [test-sender.js](file:///forza-telemetry/server/src/test-sender.js) 
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `recognizeTrack`, 函数/组件: `generateSectors`, 函数/组件: `validateTrackQuality`, 默认导出: `默认导出`)*
+    - 📂 **utils/**
+      - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
 
 ---
 

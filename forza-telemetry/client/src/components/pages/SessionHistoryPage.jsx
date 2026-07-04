@@ -619,16 +619,16 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
         p.suspFR != null ? p.suspFR.toFixed(3) : '',
         p.suspRL != null ? p.suspRL.toFixed(3) : '',
         p.suspRR != null ? p.suspRR.toFixed(3) : '',
-        p.lateralG != null ? p.lateralG.toFixed(3) : '',
-        p.longitudinalG != null ? p.longitudinalG.toFixed(3) : '',
-        p.verticalG != null ? p.verticalG.toFixed(3) : '',
+        p.gLat != null ? p.gLat.toFixed(3) : '',
+        p.gLong != null ? p.gLong.toFixed(3) : '',
+        p.gVert != null ? p.gVert.toFixed(3) : '',
         p.lapNumber || p.lap || 0,
         p.isDrifting ? 1 : 0,
         p.isAbsActive ? 1 : 0,
         p.isTcActive ? 1 : 0,
-        p.accelX != null ? p.accelX.toFixed(3) : '',
-        p.accelY != null ? p.accelY.toFixed(3) : '',
-        p.accelZ != null ? p.accelZ.toFixed(3) : ''
+        p.gLat != null ? p.gLat.toFixed(3) : '',
+        p.gVert != null ? p.gVert.toFixed(3) : '',
+        p.gLong != null ? p.gLong.toFixed(3) : ''
       ]);
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const bom = '\uFEFF';
@@ -2293,10 +2293,11 @@ function TiresChassisPanel({ channels }) {
   const getAverage = (arr) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
   const getAverageAbs = (arr) => arr.length === 0 ? 0 : (arr.reduce((a, b) => a + Math.abs(b), 0) / arr.length).toFixed(3);
   
-  const tempFL = getAverage(channels.map(c => c.tempFL));
-  const tempFR = getAverage(channels.map(c => c.tempFR));
-  const tempRL = getAverage(channels.map(c => c.tempRL));
-  const tempRR = getAverage(channels.map(c => c.tempRR));
+  const formatTemp = (f) => f === 0 ? 0 : Math.round((f - 32) * 5 / 9);
+  const tempFL = formatTemp(getAverage(channels.map(c => c.tempFL)));
+  const tempFR = formatTemp(getAverage(channels.map(c => c.tempFR)));
+  const tempRL = formatTemp(getAverage(channels.map(c => c.tempRL)));
+  const tempRR = formatTemp(getAverage(channels.map(c => c.tempRR)));
   
   const slipFL = getAverageAbs(channels.map(c => c.slipFL));
   const slipFR = getAverageAbs(channels.map(c => c.slipFR));
