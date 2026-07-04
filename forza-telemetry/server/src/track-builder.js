@@ -424,7 +424,7 @@ function detectTurnsEnhanced(centerline) {
   }
 
   // 第三步：使用滑动窗口平滑 heading 变化率
-  const windowSize = 5;
+  const windowSize = 2;
   const smoothedRates = [];
   for (let i = 0; i < headingChangeRates.length; i++) {
     let sum = 0;
@@ -438,7 +438,7 @@ function detectTurnsEnhanced(centerline) {
 
   // 第四步：检测弯道区域（连续正/负 heading 变化超过阈值）
   // 标记每个点是否在弯道中
-  const TURN_THRESHOLD = 0.05; // 弧度/点 ≈ 2.86度/点
+  const TURN_THRESHOLD = 0.015; // 弧度/点 ≈ 0.86度/点，更敏感地捕捉弯道
   const bendRegions = []; // { startIdx, endIdx, totalAngle, direction }
 
   let inBend = false;
@@ -447,8 +447,8 @@ function detectTurnsEnhanced(centerline) {
   let bendDirection = 0; // 正=右转，负=左转
 
   const minPoints = 3; // 至少连续3个点才算弯道
-  const skipStart = 10; // 跳过起始区域
-  const skipEnd = 10;   // 跳过结束区域
+  const skipStart = 3; // 缩减起始过滤区 (15米)
+  const skipEnd = 3;   // 缩减结束过滤区 (15米)
 
   for (let i = skipStart; i < centerline.length - skipEnd; i++) {
     const rate = smoothedRates[i];
