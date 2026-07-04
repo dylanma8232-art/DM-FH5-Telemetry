@@ -176,7 +176,12 @@ export function TrackManagerPage({ onNavigate }) {
   // Round 2: 导出PNG功能
   const exportTrackPNG = (id) => {
     const track = tracks[id];
-    const points = track ? (track.points || track.centerline || (track.trajectories && track.trajectories[0])) : null;
+    const points = track ? (
+      (track.points && track.points.length > 0) ? track.points :
+      (track.centerline && track.centerline.length > 0) ? track.centerline :
+      (track.trajectories && track.trajectories[0] && track.trajectories[0].length > 0) ? track.trajectories[0] :
+      null
+    ) : null;
     if (!track || !points || points.length < 2) {
       toast('赛道数据不足，无法导出', 'error');
       return;
@@ -387,7 +392,12 @@ export function TrackManagerPage({ onNavigate }) {
   }, []);
 
   const drawTrack = useCallback((ctx, canvas, track, transform) => {
-    const resolvedPoints = track ? (track.points || track.centerline || (track.trajectories && track.trajectories[0])) : null;
+    const resolvedPoints = track ? (
+      (track.points && track.points.length > 0) ? track.points :
+      (track.centerline && track.centerline.length > 0) ? track.centerline :
+      (track.trajectories && track.trajectories[0] && track.trajectories[0].length > 0) ? track.trajectories[0] :
+      null
+    ) : null;
     if (!track || !resolvedPoints || resolvedPoints.length < 2) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
