@@ -433,14 +433,28 @@ export function PaceNotesPanel({
   trackData,
   position,
   currentSpeed = 0,
+  isRaceOn = 0,
   compact = false,
 }) {
   const [activeTurnIdx, setActiveTurnIdx] = useState(-1);
   const [nextTurnIdx, setNextTurnIdx] = useState(-1);
   const [showExport, setShowExport] = useState(false);
   const [scrollToActive, setScrollToActive] = useState(false);
+  const [hasRaceStarted, setHasRaceStarted] = useState(false);
   const listRef = useRef(null);
   const activeItemRef = useRef(null);
+
+  // 赛道切换时重置状态
+  useEffect(() => {
+    setHasRaceStarted(false);
+  }, [trackData?.id]);
+
+  // 侦测比赛开始
+  useEffect(() => {
+    if (!hasRaceStarted && (isRaceOn === 1 || currentSpeed > 10)) {
+      setHasRaceStarted(true);
+    }
+  }, [isRaceOn, currentSpeed, hasRaceStarted]);
 
   // 生成路书数据
   const paceNotes = useMemo(() => generatePaceNotes(trackData), [trackData]);
@@ -510,7 +524,7 @@ export function PaceNotesPanel({
 
   // 语音播报路书弯道 (优先级 2: 中等优先级) - WRC标准格式
   useEffect(() => {
-    if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx]) {
+    if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx] && hasRaceStarted) {
       const note = turnNotes[activeTurnIdx];
       const dirText = note.direction === 'left' ? '左' : note.direction === 'right' ? '右' : '';
       const wrcNum = note.wrcNumber || note.severity || 0;
@@ -523,7 +537,7 @@ export function PaceNotesPanel({
         m.speechManager.speak(speakText, 2);
       });
     }
-  }, [activeTurnIdx, turnNotes]);
+  }, [activeTurnIdx, turnNotes, hasRaceStarted]);
 
   // ==================== 无数据状态 ====================
   if (!trackData || paceNotes.length === 0) {
@@ -829,7 +843,7 @@ export function PaceNotesPanel({
       </div>
 
       {/* 底部：当前状态摘要 */}
-      {(activeTurnIdx >= 0 || nextTurnIdx >= 0) && (
+      {(activeTurnIdx >= 0 || nextTurnIdx >= 0 || !hasRaceStarted) && (
         <div
           style={{
             marginTop: 4,
@@ -843,18 +857,24 @@ export function PaceNotesPanel({
             flexShrink: 0,
           }}
         >
-          <span>
-            {activeTurnIdx >= 0
-              ? `当前: T${activeTurnIdx + 1} ${turnNotes[activeTurnIdx]?.turnTypeLabel}`
-              : '直道行驶'}
-          </span>
-          {nextTurnIdx >= 0 && (
-            <span>
-              下一: T{nextTurnIdx + 1}{' '}
-              {turnNotes[nextTurnIdx]?.dirLabel}转{' '}
-              {turnNotes[nextTurnIdx]?.turnTypeLabel}{' '}
-              {turnNotes[nextTurnIdx]?.angle}°
-            </span>
+          {!hasRaceStarted ? (
+            <span style={{ color: '#58a6ff' }}>路书已加载，等待比赛开始...</span>
+          ) : (
+            <>
+              <span>
+                {activeTurnIdx >= 0
+                  ? `当前: T${activeTurnIdx + 1} ${turnNotes[activeTurnIdx]?.turnTypeLabel}`
+                  : '直道行驶'}
+              </span>
+              {nextTurnIdx >= 0 && (
+                <span>
+                  下一: T{nextTurnIdx + 1}{' '}
+                  {turnNotes[nextTurnIdx]?.dirLabel}转{' '}
+                  {turnNotes[nextTurnIdx]?.turnTypeLabel}{' '}
+                  {turnNotes[nextTurnIdx]?.angle}°
+                </span>
+              )}
+            </>
           )}
         </div>
       )}

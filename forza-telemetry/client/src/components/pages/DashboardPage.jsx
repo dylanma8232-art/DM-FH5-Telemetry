@@ -172,6 +172,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
               trackData={trackData}
               position={telemetryData.position}
               currentSpeed={telemetryData.speedKmh}
+              isRaceOn={telemetryData.isRaceOn}
               compact={true}
             />
           </div>
