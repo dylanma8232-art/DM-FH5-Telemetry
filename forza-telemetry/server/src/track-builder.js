@@ -365,12 +365,22 @@ export function detectTurnsEnhanced(centerline) {
           let angleDiff = Math.abs(yawEnd - yawStart) * 180 / Math.PI;
           if (angleDiff > 180) angleDiff = 360 - angleDiff;
           
+          let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
+          
           turns.push({
             id: 'T' + turnCount,
             name: note,
+            index: midIdx,
             x: pt.x,
             y: pt.y,
             z: pt.z,
+            startX: centerline[turnStartIdx].x,
+            startZ: centerline[turnStartIdx].z,
+            endX: centerline[i].x,
+            endZ: centerline[i].z,
+            suggestedBrakePoint: brakePointIdx,
+            brakePointX: centerline[brakePointIdx].x,
+            brakePointZ: centerline[brakePointIdx].z,
             startIdx: turnStartIdx,
             endIdx: i,
             apexRadius: Math.round(minRadius),
