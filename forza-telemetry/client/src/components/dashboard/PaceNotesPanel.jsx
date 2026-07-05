@@ -714,6 +714,33 @@ export function PaceNotesPanel({
           <span style={{ fontSize: 9, color: '#484f58' }}>
             {trackData?.name || '赛道'} | {turnNotes.length}弯 | {(trackData?.length / 1000).toFixed(1)}km
           </span>
+          {/* 退出按钮 */}
+          <button
+            onClick={async () => {
+              if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
+                try {
+                  await fetch('/api/trackMode/stop', { method: 'POST' });
+                  // 强制页面刷新或者依赖 DashboardPage 的 polling
+                  window.location.reload();
+                } catch (e) {
+                  console.error(e);
+                }
+              }
+            }}
+            style={{
+              background: 'rgba(248,81,73,0.1)',
+              border: '1px solid rgba(248,81,73,0.3)',
+              borderRadius: 3,
+              padding: '2px 6px',
+              color: '#f85149',
+              fontSize: 9,
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            退出
+          </button>
+
           {/* 导出按钮 */}
           <button
             onClick={() => setShowExport(!showExport)}
