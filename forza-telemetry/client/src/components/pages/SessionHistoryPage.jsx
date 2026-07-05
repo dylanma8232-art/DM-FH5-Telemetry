@@ -1230,9 +1230,17 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* 左栏：Canvas 痛点赛道图 */}
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                      红色虚线标出本场比赛时间流失最严重的 3 个弯道
-                    </div>
+                    
+                    {(!turnsData?.turns || turnsData.turns.length === 0) ? (
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, fontStyle: 'italic' }}>
+                        当前赛道无预设弯道数据，暂不支持弯角诊断热力分析。
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                        红色虚线标出本场比赛时间流失最严重的 3 个弯道
+                      </div>
+                    )}
+                    
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
                       width={380}
