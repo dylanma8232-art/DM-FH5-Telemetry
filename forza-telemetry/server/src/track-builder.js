@@ -350,15 +350,15 @@ export function detectTurnsEnhanced(centerline) {
           
           // Rally Pace Note Classification
           let severity = "";
-          if (minRadius <= 25) severity = "Hairpin";
+          if (minRadius <= 25) severity = "发卡弯";
           else if (minRadius <= 45) severity = "2";
           else if (minRadius <= 75) severity = "3";
           else if (minRadius <= 110) severity = "4";
           else if (minRadius <= 150) severity = "5";
           else severity = "6";
           
-          let dirStr = turnDirection > 0 ? "Right" : "Left";
-          let note = `${dirStr} ${severity}`;
+          let dirStr = turnDirection > 0 ? "右" : "左";
+          let note = `${dirStr}${severity}`;
           
           let yawStart = centerline[turnStartIdx].yaw || 0;
           let yawEnd = centerline[i].yaw || 0;
@@ -379,7 +379,7 @@ export function detectTurnsEnhanced(centerline) {
             severity: severity,
             type: severity,
             turnCategory: note,
-            direction: dirStr.toLowerCase()
+            direction: turnDirection > 0 ? "right" : "left"
           });
           turnCount++;
         }

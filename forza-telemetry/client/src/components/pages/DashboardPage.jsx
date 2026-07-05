@@ -148,22 +148,23 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
     <Suspense fallback={<div style={{ padding: 20, textAlign: 'center', color: '#8b949e' }}>加载中...</div>}>
       <div style={{
         display: 'flex',
+        flexWrap: 'wrap',
         gap: '8px',
         padding: '8px',
         background: 'var(--bg-primary, #0d1117)',
         height: '100%',
-        overflow: 'hidden',
+        overflowY: 'auto',
         boxSizing: 'border-box'
       }}>
 
         {/* ========== COLUMN 1 (左侧): 路书 / 车辆信息 / 驾驶HUD ========== */}
         <div style={{
-          flex: '0 0 25%',
+          flex: '1 1 300px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
           height: '100%',
-          minWidth: 240
+          minHeight: 600
         }}>
           {/* Row 1: 路书 */}
           <div style={{ ...cardBaseStyle, flex: '0 0 160px', padding: '10px 12px' }}>
@@ -276,12 +277,12 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
 
         {/* ========== COLUMN 2 (中间): 统一预警建议 + 底盘动态 ========== */}
         <div style={{
-          flex: 1,
+          flex: '1 1 400px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
           height: '100%',
-          minWidth: 400
+          minHeight: 600
         }}>
           {/* Row 1: 统一预警 & 驾驶建议 */}
           <div style={{ flex: '0 0 160px', minHeight: 0 }}>
@@ -296,12 +297,12 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
 
         {/* ========== COLUMN 3 (右侧): 圈速 & 计时 ========== */}
         <div style={{
-          flex: '0 0 30%',
+          flex: '1 1 320px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
           height: '100%',
-          minWidth: 280
+          minHeight: 600
         }}>
           <div style={{ flex: 1, minHeight: 0 }}>
             <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} />

@@ -83,6 +83,9 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
     position = {}
   } = telemetryData;
 
+  const currentRaceTimeMs = telemetryData.timestampMS ? telemetryData.timestampMS / 1000 : 0;
+  const currentRaceTimeFallback = currentRaceTime > 0 ? currentRaceTime : currentRaceTimeMs;
+
   const [state, dispatch] = useReducer(sectorReducer, initialSectorState);
 
   const prevPosRef = useRef(null);
@@ -106,16 +109,16 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
       dispatch({ type: 'RESET_LAP' });
       // 【修复】新一圈开始时，重置各分段起点，初始化第 0 段起点时间
       sectorStartTimesRef.current = new Array(sectorsList.length).fill(0);
-      sectorStartTimesRef.current[0] = currentRaceTime;
+      sectorStartTimesRef.current[0] = currentRaceTimeFallback;
     }
     prevLapRef.current = lapNumber;
-  }, [lapNumber, lastLap, sectorsList.length, currentRaceTime]);
+  }, [lapNumber, lastLap, sectorsList.length, currentRaceTimeFallback]);
   const currentSectorTime = useMemo(() => {
     if (sectorsList.length === 0 || state.currentSector >= sectorsList.length) return 0;
     const startT = sectorStartTimesRef.current[state.currentSector] || 0;
     if (startT === 0) return 0;
-    return Math.max(0, currentRaceTime - startT);
-  }, [currentRaceTime, sectorsList.length, state.currentSector]);
+    return Math.max(0, currentRaceTimeFallback - startT);
+  }, [currentRaceTimeFallback, sectorsList.length, state.currentSector]);
 
   // 载入赛道分段
   useEffect(() => {
@@ -131,7 +134,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
 
     // 动态初始化第 0 分段的起始时间
     if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0) {
-      sectorStartTimesRef.current[0] = currentRaceTime;
+      sectorStartTimesRef.current[0] = currentRaceTimeFallback;
     }
     
     const cur = { x: position.x, z: position.z };
@@ -147,7 +150,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
       // 通过分段触发线（25米判断半径）
       if (dist < 25) {
         const sectorIndex = state.currentSector;
-        const timeSpent = currentRaceTime - (sectorStartTimesRef.current[sectorIndex] || currentRaceTime);
+        const timeSpent = currentRaceTimeFallback - (sectorStartTimesRef.current[sectorIndex] || currentRaceTimeFallback);
         
         dispatch({ type: 'UPDATE_SECTOR_TIME', index: sectorIndex, time: timeSpent });
         lapSectorBufferRef.current[sectorIndex] = timeSpent;
@@ -156,7 +159,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
         const nextSec = sectorIndex + 1;
         if (nextSec < sectorsList.length) {
           dispatch({ type: 'SET_CURRENT_SECTOR', index: nextSec });
-          sectorStartTimesRef.current[nextSec] = currentRaceTime;
+          sectorStartTimesRef.current[nextSec] = currentRaceTimeFallback;
         } else {
           // 本圈全部分段跑完，触发最弱分段判定
           dispatch({ type: 'SET_LAP_SECTOR_TIMES', times: [...lapSectorBufferRef.current] });
@@ -182,7 +185,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
       }
     }
     prevPosRef.current = cur;
-  }, [position, state, currentRaceTime, sectorsList]);
+  }, [position, state, currentRaceTimeFallback, sectorsList]);
 
   // 估算实时圈速差距
   const getDeltaDisplay = () => {
@@ -241,15 +244,15 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
           {racePosition > 0 && <span style={{ fontSize: 12, color: '#8b949e' }}>/ 12</span>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>{racePosition > 0 ? '比赛时间' : '状态'}</span>
+          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>{racePosition > 0 ? '比赛时间' : '计时'}</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 1 }}>
-            {racePosition > 0 ? formatTime(currentRaceTime, 2) : '--:--.--'}
+            {formatTime(currentRaceTimeFallback, 2)}
           </span>
         </div>
       </div>
 
       {/* 中部区：圈速对比与实时 Delta */}
-      {racePosition > 0 && (
+      {true && (
         <div style={{
           display: 'flex',
           gap: 12,
@@ -304,7 +307,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
       )}
 
       {/* 下部区：分段计时 - 样式增大 */}
-      {racePosition > 0 && (
+      {true && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6, flexShrink: 0 }}>
             分段计时
@@ -401,7 +404,7 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
       )}
 
       {/* 底部区：最近圈速记录 */}
-      {racePosition > 0 && (
+      {true && (
         <div style={{
           marginTop: 10,
           borderTop: '1px solid rgba(48, 54, 61, 0.4)',
