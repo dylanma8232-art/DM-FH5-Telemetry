@@ -3652,7 +3652,7 @@ app.get('/api/analysis/:sessionId/shifts', (req, res) => {
 
 // 获取最佳圈号辅助函数
 function getBestLapNum(data) {
-  if (!data || data.length === 0) return 1;
+  if (!data || data.length === 0) return 0;
   let minBestLap = Infinity;
   let bestLapNum = 0;
   for (const d of data) {
@@ -3670,7 +3670,7 @@ function getBestLapNum(data) {
       laps.forEach(l => counts[l] = (counts[l] || 0) + 1);
       bestLapNum = parseInt(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
     } else {
-      bestLapNum = 1;
+      bestLapNum = 0;
     }
   }
   return bestLapNum;
@@ -3706,7 +3706,7 @@ app.get('/api/analysis/:sessionId/telemetry-channels', (req, res) => {
     }
     
     let targetLapNum = parseInt(req.query.lapNum);
-    if (isNaN(targetLapNum) || targetLapNum <= 0) {
+    if (isNaN(targetLapNum) || targetLapNum < 0) {
       targetLapNum = getBestLapNum(rawData);
     }
     
