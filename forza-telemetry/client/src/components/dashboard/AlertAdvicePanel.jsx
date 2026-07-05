@@ -45,142 +45,56 @@ export function AlertAdvicePanel({ data }) {
       return bufRef.current.reduce((a, b) => a + b, 0) / bufRef.current.length;
     };
 
-    const steerAbs = Math.abs(controls.steer || 0); // 0 到 127/255 表示转向
-    
-    // 解决朝向角从 -PI 到 PI 的边界越界突变 Bug
-    let yawDiff = yaw - prevYawRef.current;
-    if (prevYawRef.current === undefined) yawDiff = 0;
-    while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
-    while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
-    prevYawRef.current = yaw;
-
-    // 转换为度/秒 (deg/s)，基于地平线5约60Hz遥测发包速率
-    const yawRateDeg = Math.abs(yawDiff) * (180 / Math.PI) * 60;
-    const smoothYawRate = smooth(yawHistoryRef, yawRateDeg);
     const smoothSpeed = smooth(speedHistoryRef, speedKmh);
-
     const gear = controls.gear || 0;
     const prevGear = prevGearRef.current;
     prevGearRef.current = gear;
 
-    const gX = Math.abs(acceleration.x || 0);
-    const gZ = Math.abs(acceleration.z || 0);
+    // 转换为 G 力 (原单位为 m/s²)
+    const gX = Math.abs(acceleration.x || 0) / 9.80665;
+    const gZ = Math.abs(acceleration.z || 0) / 9.80665;
     const gMag = Math.sqrt(gX * gX + gZ * gZ);
 
-    // ⚡⚡⚡ 动态物理阈值核心算法 ⚡⚡⚡
-    // 1. 随着速度升高，轮胎能容忍的打滑区间急剧缩小，实现“低速放宽防烧胎误报，高速收紧防失控”
-    const dynamicSlipWarning = Math.max(0.35, 0.95 - smoothSpeed * 0.0035);
-    const dynamicSlipDanger = Math.max(0.65, 1.45 - smoothSpeed * 0.005);
-
-    // 2. 随着速度升高，制动锁死抱死率（负滑移）的容忍极限收紧
-    const dynamicLockWarning = Math.min(-0.15, -0.32 + smoothSpeed * 0.0008);
-    const dynamicLockDanger = Math.min(-0.3, -0.58 + smoothSpeed * 0.0012);
-
-    // 3. 转向不足（推头）阈值随速度升高急剧减小（高速时只需打一点方向就会产生推头）
-    // controls.steer 范围通常是 -127 到 +127，取绝对值 steerAbs 为 0~127
-    const dynamicSteerUndersteer = Math.max(15, 85 - smoothSpeed * 0.35);
-
-    // ── 0.5. 比赛中降至 1 档提示 (高优先级插播) ────────────────────────────────
-    if (isRaceOn && gear === 1 && prevGear > 1) {
+    // ── 0.5. 比赛中高速降至 1 档提示 (高优先级插播) ────────────────────────────────
+    if (isRaceOn && gear === 1 && prevGear > 2 && smoothSpeed > 50) {
       items.push({ 
         priority: 0.5, 
-        type: 'warning', 
+        type: 'danger', 
         icon: '⚙', 
-        text: '当前已是1档', 
-        detail: '请勿继续降档！' 
+        text: '警告：已切至1档', 
+        detail: '注意防范误切倒车档！' 
       });
     }
 
-    // ── 1. 最高优先级：双踏板（起步控制除外，速度>10时判定）─────────────────
-    if (smoothSpeed > 10 && (controls.brake || 0) > 200 && (controls.accel || 0) > 100) {
-      items.push({ priority: 1, type: 'danger', icon: '🚫', text: '同时踩油门刹车', detail: '立即松开其中一项' });
-    }
-
-    // ── 2. 转向过度（甩尾失控，车速>25且前进档时判定）─────────────────────────────
-    if (smoothYawRate > 15 && steerAbs < 25 && smoothSpeed > 25 && gear > 0) {
-      items.push({ priority: 2, type: 'danger', icon: '↺', text: '转向过度 甩尾！', detail: `偏航率: ${smoothYawRate.toFixed(1)} °/s` });
-    }
-
-    // ── 3. 严重打滑（采用动态速度滑动阈值）──────────────────────────────
-    const avgSlip = ((tireCombinedSlip.frontLeft || 0) + (tireCombinedSlip.frontRight || 0) +
-                     (tireCombinedSlip.rearLeft  || 0) + (tireCombinedSlip.rearRight  || 0)) / 4;
-    
-    if (avgSlip > dynamicSlipDanger) {
-      items.push({ priority: 3, type: 'danger', icon: '🔥', text: '严重打滑', detail: '立即松油，车辆失控风险' });
-    } else if (avgSlip > dynamicSlipWarning && smoothSpeed > 10) {
-      items.push({ priority: 4, type: 'warning', icon: '💨', text: '轮胎打滑', detail: `打滑率 ${avgSlip.toFixed(2)}，降低油门` });
-    }
-
-    // ── 4. 制动锁死（采用动态负滑移阈值，有刹车动作时检测）──────────────────
-    if ((controls.brake || 0) > 40) {
-      const minSlipRatio = Math.min(
-        tireSlipRatio.frontLeft ?? 0, tireSlipRatio.frontRight ?? 0,
-        tireSlipRatio.rearLeft  ?? 0, tireSlipRatio.rearRight  ?? 0
+    // ── 1. 制动锁死 (ABS 抱死) ──────────────────
+    if ((controls.brake || 0) > 0 && smoothSpeed > 20) {
+      const wheelRotationSpeed = data.wheelRotationSpeed || {};
+      const minWheelSpeed = Math.min(
+        wheelRotationSpeed.frontLeft ?? 100, wheelRotationSpeed.frontRight ?? 100,
+        wheelRotationSpeed.rearLeft  ?? 100, wheelRotationSpeed.rearRight  ?? 100
       );
-      if (minSlipRatio < dynamicLockDanger) {
-        items.push({ priority: 3.1, type: 'danger', icon: '🔒', text: '制动锁死！', detail: '请松开刹车以恢复抓地力' });
-      } else if (minSlipRatio < dynamicLockWarning && smoothSpeed > 15) {
-        items.push({ priority: 5, type: 'warning', icon: '⚠', text: '制动锁死风险', detail: '轻微抱死，注意控制力度' });
+      if (minWheelSpeed < 5) {
+        items.push({ priority: 1, type: 'danger', icon: '🔒', text: '刹车抱死！', detail: '车轮已完全锁死，松开刹车恢复转向！' });
       }
     }
 
-    // ── 5. 转向不足（采用动态转向角阈值）────────────────────────────────
-    if (steerAbs > dynamicSteerUndersteer && smoothYawRate < 6 && smoothSpeed > 35 && gear > 0) {
-      items.push({ priority: 6, type: 'warning', icon: '→', text: '转向不足 推头', detail: `车速: ${smoothSpeed.toFixed(0)} km/h — 偏航率低: ${smoothYawRate.toFixed(1)} °/s` });
+    // ── 2. 轮胎完全失去抓地力 (TCS 打滑) ──────────────────────────────
+    // 只要有任何一个轮胎的物理摩擦力（综合滑移）大于 1.2，即代表该轮胎失去摩擦力开始空转/打滑
+    const maxSlip = Math.max(
+      tireCombinedSlip.frontLeft || 0,
+      tireCombinedSlip.frontRight || 0,
+      tireCombinedSlip.rearLeft || 0,
+      tireCombinedSlip.rearRight || 0
+    );
+    
+    if (maxSlip > 1.2 && (controls.accel || 0) > 0) {
+      items.push({ priority: 2, type: 'danger', icon: '🔥', text: '失去摩擦力！', detail: '轮胎打滑严重，请收油！' });
     }
 
-    // ── 6. 高 G 力（重心转移过大，忽略起步撞击，速度>20判定）─────────────────────
+    // ── 3. 高 G 力过载 (重心转移过大) ─────────────────────
     if (gMag > 1.85 && smoothSpeed > 20) {
       const dir = gX > gZ ? '横向' : '纵向';
-      items.push({ priority: 7, type: 'warning', icon: '📊', text: `重力载荷过载: ${gMag.toFixed(2)}G`, detail: `${dir}载荷转移过大` });
-    }
-
-    // ── 7. 避震极限压缩/拉伸（速度>25时检测，忽略原地载入与颠簸起伏）─────────────────
-    if (smoothSpeed > 25) {
-      const suspVals = [suspension.frontLeft, suspension.frontRight, suspension.rearLeft, suspension.rearRight]
-        .filter(v => v !== undefined);
-      if (suspVals.length > 0) {
-        const minS = Math.min(...suspVals);
-        const maxS = Math.max(...suspVals);
-        if (minS < 0.15) {
-          items.push({ priority: 8, type: 'warning', icon: '⬇', text: '悬挂过度压缩', detail: `避震压实 (${(minS * 100).toFixed(0)}%)，底盘易拖底` });
-        }
-        if (maxS > 0.85) {
-          items.push({ priority: 8.1, type: 'warning', icon: '⬆', text: '车轮即将悬空', detail: `避震拉满 (${(maxS * 100).toFixed(0)}%)，失去抓地力` });
-        }
-      }
-    }
-
-    // ── 8. 引擎红区（起步与空档除外，车速>10判定）────────────────────────────────
-    if (smoothSpeed > 10 && gear > 0) {
-      const rpmPct = engineMaxRpm > 0 ? currentEngineRpm / engineMaxRpm : 0;
-      if (rpmPct > 0.96) {
-        items.push({ priority: 9, type: 'warning', icon: '🔴', text: '引擎红区', detail: `${(rpmPct * 100).toFixed(0)}% — 建议升档` });
-      }
-    }
-
-    // ── 9. 出界 / 湿滑（有速度时才提示）─────────────────────────────────────────
-    const onRumble = onRumbleStrip.frontLeft || onRumbleStrip.frontRight ||
-                     onRumbleStrip.rearLeft  || onRumbleStrip.rearRight;
-    if (onRumble && smoothSpeed > 10) {
-      items.push({ priority: 10, type: 'info', icon: '■', text: '出界 路肩', detail: '已压上路肩/减速带' });
-    }
-
-    const maxPuddle = Math.max(
-      puddleDepth.frontLeft || 0, puddleDepth.frontRight || 0,
-      puddleDepth.rearLeft  || 0, puddleDepth.rearRight  || 0
-    );
-    if (maxPuddle > 0.5 && smoothSpeed > 10) {
-      items.push({ priority: 10.1, type: 'warning', icon: '☔', text: '湿滑路面', detail: `积水深度: ${maxPuddle.toFixed(2)}` });
-    }
-
-    // ── 10. 燃油量低（限比赛中提醒）─────────────────────────────────────────────
-    if (isRaceOn && fuel > 0 && fuel < 0.2) {
-      items.push({ priority: 11, type: 'info', icon: '⛽', text: '燃油量低', detail: `剩余 ${(fuel * 100).toFixed(0)}%` });
-    }
-    const boostBar = boost * 0.0689476;
-    if (boostBar > 2.4 && smoothSpeed > 10) {
-      items.push({ priority: 12, type: 'warning', icon: '💨', text: '涡轮增压过高', detail: `${boostBar.toFixed(2)} bar` });
+      items.push({ priority: 3, type: 'warning', icon: '📊', text: `重力载荷过载: ${gMag.toFixed(2)}G`, detail: `${dir}载荷转移过大` });
     }
 
     // ── 排序：priority 越小越靠前 ─────────────────────────────────────────

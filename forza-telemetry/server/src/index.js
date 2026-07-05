@@ -3358,9 +3358,15 @@ function analyzeSectors(positions, numSectors = 3, bestLapHint = 0) {
     const slice = pos.slice(startIdx, endIdx + 1);
     if (slice.length === 0) continue;
 
-    const startTime = slice[0].lapTime || 0;
-    const endTime = slice[slice.length - 1].lapTime || 0;
-    const sectorTime = endTime - startTime;
+    let startTime = slice[0].lapTime || 0;
+    let endTime = slice[slice.length - 1].lapTime || 0;
+    let sectorTime = endTime - startTime;
+
+    if (sectorTime <= 0 && slice[0].timestampMS && slice[slice.length - 1].timestampMS) {
+      startTime = slice[0].timestampMS / 1000;
+      endTime = slice[slice.length - 1].timestampMS / 1000;
+      sectorTime = endTime - startTime;
+    }
 
     let maxSpeed = 0, sumSpeed = 0, sumAccel = 0, sumBrake = 0;
     slice.forEach(p => {
