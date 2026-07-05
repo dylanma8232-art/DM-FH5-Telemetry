@@ -226,31 +226,6 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
         圈速与分段计时
       </div>
 
-      {/* 顶部行：名次与总计时 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: 8,
-        borderBottom: '1px solid rgba(48, 54, 61, 0.4)',
-        marginBottom: 8,
-        flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#8b949e', fontWeight: 700 }}>{racePosition > 0 ? '名次' : '状态'}</span>
-          <span style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', lineHeight: 1, color: racePosition > 0 ? '#ffb454' : '#58a6ff' }}>
-            {racePosition > 0 ? racePosition : '漫游'}
-          </span>
-          {racePosition > 0 && <span style={{ fontSize: 12, color: '#8b949e' }}>/ 12</span>}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600 }}>{racePosition > 0 ? '比赛时间' : '计时'}</span>
-          <span style={{ fontSize: 16, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 1 }}>
-            {formatTime(currentRaceTimeFallback, 2)}
-          </span>
-        </div>
-      </div>
-
       {/* 中部区：圈速对比与实时 Delta */}
       {true && (
         <div style={{
@@ -398,46 +373,6 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
                   </div>
                 );
               })
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 底部区：最近圈速记录 */}
-      {true && (
-        <div style={{
-          marginTop: 10,
-          borderTop: '1px solid rgba(48, 54, 61, 0.4)',
-          paddingTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 0,
-          flexShrink: 0
-        }}>
-          <div style={{ fontSize: 11, color: '#8b949e', fontWeight: 700, marginBottom: 6 }}>
-            最近圈速记录
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 85 }}>
-            {lapHistory.length === 0 ? (
-              <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 4 }}>
-                暂无历史圈速记录
-              </div>
-            ) : (
-              [...lapHistory].reverse().map((record) => (
-                <div key={record.lap} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '4px 8px',
-                  background: '#0d1117',
-                  border: '1px solid rgba(48,54,61,0.2)',
-                  borderRadius: 4,
-                  fontSize: 10.5,
-                  fontFamily: 'monospace'
-                }}>
-                  <span style={{ color: '#8b949e' }}>第 {record.lap} 圈</span>
-                  <span style={{ color: '#c9d1d9', fontWeight: 700 }}>{formatTime(record.time)}</span>
-                </div>
-              ))
             )}
           </div>
         </div>
