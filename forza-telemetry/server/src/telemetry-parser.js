@@ -274,8 +274,11 @@ export function parseTelemetryPacket(buffer) {
   };
 
   // Parse Dash extension (if available)
-  // FH5格式：有12字节FH6间隙，Dash从244开始，需要至少323字节
-  if (buffer.length >= 323) {
+  // FH5格式：有12字节FH6间隙，Dash从244开始
+  // 根据缓冲区实际长度逐步解析字段，确保圈时间数据在可用时能被解析
+  
+  // 基础位置和速度数据 (需要 >= 256 字节)
+  if (buffer.length >= 256) {
     data.position = {
       x: readFloat(DASH_OFFSETS.positionX),
       y: readFloat(DASH_OFFSETS.positionY),
@@ -285,7 +288,10 @@ export function parseTelemetryPacket(buffer) {
     data.speedMs = readFloat(DASH_OFFSETS.speed);
     data.speedKmh = data.speedMs * 3.6;
     data.speedMph = data.speedMs * 2.23694;
+  }
 
+  // 功率和轮胎温度数据 (需要 >= 284 字节)
+  if (buffer.length >= 284) {
     data.powerWatts = readFloat(DASH_OFFSETS.power);
     data.powerHP = data.powerWatts / 745.7;
     data.torque = readFloat(DASH_OFFSETS.torque);
@@ -296,22 +302,32 @@ export function parseTelemetryPacket(buffer) {
       rearLeft: readFloat(DASH_OFFSETS.tireTempRearLeft),
       rearRight: readFloat(DASH_OFFSETS.tireTempRearRight),
     };
+  }
 
+  // boost、fuel和距离数据 (需要 >= 292 字节)
+  if (buffer.length >= 292) {
     data.boost = readFloat(DASH_OFFSETS.boost);
     data.fuel = readFloat(DASH_OFFSETS.fuel);
     data.distanceTraveled = readFloat(DASH_OFFSETS.distanceTraveled);
+  }
 
-    // Lap times (seconds)
+  // 圈时间数据 (需要 >= 308 字节)
+  // 这是修复比赛记录没有圈时间的关键：确保圈时间数据在缓冲区足够时能被解析
+  if (buffer.length >= 308) {
     data.bestLap = readFloat(DASH_OFFSETS.bestLap);
     data.lastLap = readFloat(DASH_OFFSETS.lastLap);
     data.currentLap = readFloat(DASH_OFFSETS.currentLap);
     data.currentRaceTime = readFloat(DASH_OFFSETS.currentRaceTime);
+  }
 
-    // Race info
+  // 圈数和比赛位置 (需要 >= 314 字节)
+  if (buffer.length >= 314) {
     data.lapNumber = readUint16(DASH_OFFSETS.lapNumber);
     data.racePosition = readUint8(DASH_OFFSETS.racePosition);
+  }
 
-    // Controls
+  // 控制输入数据 (需要 >= 320 字节)
+  if (buffer.length >= 320) {
     data.controls = {
       accel: readUint8(DASH_OFFSETS.accel),
       brake: readUint8(DASH_OFFSETS.brake),
@@ -320,8 +336,10 @@ export function parseTelemetryPacket(buffer) {
       gear: readUint8(DASH_OFFSETS.gear),
       steer: readInt8(DASH_OFFSETS.steer),
     };
+  }
 
-    // Driving line
+  // 驾驶线数据 (需要 >= 323 字节)
+  if (buffer.length >= 323) {
     data.drivingLine = readInt8(DASH_OFFSETS.normalizedDrivingLine);
     data.aiBrakeDiff = readInt8(DASH_OFFSETS.normalizedAIBrakeDifference);
   }

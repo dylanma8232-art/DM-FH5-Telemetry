@@ -1299,7 +1299,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 弯道进化分析 */}
                 {turnsData && (
                   <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>弯道车速进化分析 (Cornering Evolution)</h3>
+                    <h3 style={sectionTitleStyle}>弯道车速进化分析</h3>
                     <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
                       点击下方弯道可查看该弯道历史前 5 次最快圈的速度演进趋势
                     </div>
@@ -1312,7 +1312,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'dynamics' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆 (Traction Circle)</h3>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
                     散点反映横向G力与纵向G力的物理结合。散点分布越宽阔、越饱满，代表轮胎物理抓地极限压榨得越充分。
                   </div>
@@ -1368,7 +1368,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'tires' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮荷载荷与温度底盘 (Tires & Chassis)</h3>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮荷载荷与温度底盘</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
                     车轮 2x2 底盘布局。轮胎温区包含内/中/外 (IMO) 细节（调校必备）；轴荷反映过弯侧滑角与驱动轮打滑率。
                   </div>
@@ -1381,7 +1381,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'shifts' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡点赛道空间分布 (Shifts & Power Band)</h3>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡点赛道空间分布</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
                     在 2D 赛道轨迹上用红点（降档）和绿点（升档）标出您的实际换挡物理位置，避免空洞的纯时间表格。
                   </div>
@@ -2068,10 +2068,10 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     const fetchPositions = async () => {
       if (!trackId) return;
       try {
-        const res = await fetch(`/api/tracks/${trackId}/thumbnail`);
+        const res = await fetch(`/api/tracks/${trackId}`);
         if (!res.ok) return;
         const data = await res.json();
-        setPositions(data.positions || []);
+        setPositions(data.points || data.positions || []);
       } catch (e) {
         console.error('Failed to load track map coordinates', e);
       }
@@ -2107,18 +2107,43 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     
     ctx.clearRect(0, 0, w, h);
     
-    // 1. 绘制灰色底线轨迹
-    ctx.strokeStyle = '#30363d';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    positions.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(toX(p.x), toY(p.z));
-      else ctx.lineTo(toX(p.x), toY(p.z));
-    });
-    ctx.closePath();
-    ctx.stroke();
+    // 1. 绘制真实赛道边界与底线 (如果存在 width 数据)
+    if (positions[0] && positions[0].widthLeft !== undefined) {
+      ctx.fillStyle = '#30363d'; // 柏油路面深色
+      ctx.beginPath();
+      for (let i = 0; i < positions.length; i++) {
+        const pt = positions[i];
+        const yaw = pt.yaw || 0;
+        const wl = pt.widthLeft || 2;
+        const nx = -Math.cos(yaw);
+        const nz = Math.sin(yaw);
+        if (i === 0) ctx.moveTo(toX(pt.x + nx * wl), toY(pt.z + nz * wl));
+        else ctx.lineTo(toX(pt.x + nx * wl), toY(pt.z + nz * wl));
+      }
+      for (let i = positions.length - 1; i >= 0; i--) {
+        const pt = positions[i];
+        const yaw = pt.yaw || 0;
+        const wr = pt.widthRight || 2;
+        const nx = Math.cos(yaw);
+        const nz = -Math.sin(yaw);
+        ctx.lineTo(toX(pt.x + nx * wr), toY(pt.z + nz * wr));
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // 回退逻辑：仅画粗线
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      positions.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(toX(p.x), toY(p.z));
+        else ctx.lineTo(toX(p.x), toY(p.z));
+      });
+      ctx.closePath();
+      ctx.stroke();
+    }
     
     // 2. 绘制高亮蓝色走线
     ctx.strokeStyle = '#58a6ff';
