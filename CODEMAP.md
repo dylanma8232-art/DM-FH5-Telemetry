@@ -86,9 +86,12 @@
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
+  - 📄 [test_merge.js](file:///forza-telemetry/scripts/test_merge.js) 
 - 📂 **server/**
+  - 📄 [clean-points.js](file:///forza-telemetry/server/clean-points.js) 
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
+  - 📄 [refresh-all.js](file:///forza-telemetry/server/refresh-all.js) 
   - 📂 **src/**
     - 📂 **config/**
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `PORT`, 常量/方法: `UDP_PORT`, 常量/方法: `DATA_DIR`, 常量/方法: `TRACK_DB_PATH`, 常量/方法: `EMIT_INTERVAL_MS`, 常量/方法: `CLEANUP_MAX_SESSIONS`, 常量/方法: `DOWNSAMPLE_RATIO`)*
@@ -103,7 +106,7 @@
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
     - 📄 [test-sender.js](file:///forza-telemetry/server/src/test-sender.js) 
-    - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `recognizeTrack`, 函数/组件: `generateSectors`, 函数/组件: `validateTrackQuality`, 默认导出: `默认导出`)*
+    - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`)*
     - 📂 **utils/**
       - 📄 [get-current-api.js](file:///forza-telemetry/server/src/utils/get-current-api.js) 
       - 📄 [listen-and-classify.js](file:///forza-telemetry/server/src/utils/listen-and-classify.js) 

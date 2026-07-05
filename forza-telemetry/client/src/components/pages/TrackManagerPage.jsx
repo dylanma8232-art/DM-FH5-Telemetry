@@ -417,8 +417,8 @@ export function TrackManagerPage({ onNavigate }) {
 
   const drawTrack = useCallback((ctx, canvas, track, transform) => {
     const resolvedPoints = track ? (
-      (track.points && track.points.length > 0) ? track.points :
       (track.centerline && track.centerline.length > 0) ? track.centerline :
+      (track.points && track.points.length > 0) ? track.points :
       (track.trajectories && track.trajectories[0] && track.trajectories[0].length > 0) ? track.trajectories[0] :
       null
     ) : null;
@@ -466,7 +466,41 @@ export function TrackManagerPage({ onNavigate }) {
       points = sampled;
     }
 
-    // 主轨迹线
+    // 绘制真实赛道边界多边形 (如果存在 width 数据)
+    if (points[0].widthLeft !== undefined) {
+      ctx.fillStyle = 'rgba(136, 148, 160, 0.4)'; // 柏油路面灰色
+      ctx.beginPath();
+      // Draw left boundary
+      for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+        const yaw = pt.yaw || 0;
+        const wl = pt.widthLeft || 2;
+        // Normal vector to the left is (-cos(yaw), -sin(yaw)) assuming Z is up. Wait, Forza X=East, Z=North. 
+        // We already projected it in the backend. The offset in world coords:
+        const nx = -Math.cos(yaw);
+        const nz = Math.sin(yaw); // Z might be inverted on screen? In Forza Z is North, X is East.
+        // Screen coords:
+        const sx = (pt.x + nx * wl - minX) * sc + ox;
+        const sz = (pt.z + nz * wl - minZ) * sc + oz;
+        if (i === 0) ctx.moveTo(sx, sz);
+        else ctx.lineTo(sx, sz);
+      }
+      // Draw right boundary (reverse order)
+      for (let i = points.length - 1; i >= 0; i--) {
+        const pt = points[i];
+        const yaw = pt.yaw || 0;
+        const wr = pt.widthRight || 2;
+        const nx = Math.cos(yaw);
+        const nz = -Math.sin(yaw);
+        const sx = (pt.x + nx * wr - minX) * sc + ox;
+        const sz = (pt.z + nz * wr - minZ) * sc + oz;
+        ctx.lineTo(sx, sz);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 主轨迹线 (中心线)
     ctx.lineWidth = 2 / transform.scale;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -1107,8 +1141,8 @@ function MergePreviewCanvas({ trackA, trackB }) {
     canvas.height = 240;
     const ctx = canvas.getContext('2d');
 
-    const pointsA = dataA ? (dataA.points || dataA.centerline || (dataA.trajectories && dataA.trajectories[0])) : null;
-    const pointsB = dataB ? (dataB.points || dataB.centerline || (dataB.trajectories && dataB.trajectories[0])) : null;
+    const pointsA = dataA ? (dataA.centerline || dataA.points || (dataA.trajectories && dataA.trajectories[0])) : null;
+    const pointsB = dataB ? (dataB.centerline || dataB.points || (dataB.trajectories && dataB.trajectories[0])) : null;
 
     if (!pointsA || pointsA.length < 2 || !pointsB || pointsB.length < 2) return;
 
