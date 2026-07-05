@@ -614,10 +614,35 @@ export function PaceNotesPanel({
             路书
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {/* 退出按钮 */}
+            <button
+              onClick={async () => {
+                if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
+                  try {
+                    await fetch('/api/trackMode/stop', { method: 'POST' });
+                    window.location.reload();
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+              }}
+              style={{
+                background: 'rgba(248,81,73,0.1)',
+                border: '1px solid rgba(248,81,73,0.3)',
+                borderRadius: 3,
+                padding: '2px 6px',
+                color: '#f85149',
+                fontSize: 9,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              退出
+            </button>
             <span style={{ fontSize: 9, color: '#484f58' }}>
               弯道数: {turnNotes.length}
             </span>
-            {displayNote && (
+            {hasRaceStarted && displayNote && (
               <span
                 style={{
                   fontSize: 9,
@@ -632,7 +657,21 @@ export function PaceNotesPanel({
         </div>
 
         {/* 弯道内容区 */}
-        {displayNote ? (
+        {!hasRaceStarted ? (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#58a6ff',
+              fontSize: 10,
+              fontWeight: 600,
+            }}
+          >
+            路书已加载，等待比赛开始...
+          </div>
+        ) : displayNote ? (
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: 8 }}>
             
             {/* 上部主行：WRC路书格式 - 只显示编号 */}
