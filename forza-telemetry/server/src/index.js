@@ -4111,7 +4111,7 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
     for (const f of files) {
       try {
         const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
-        if (data.trackId === trackId && data.vehicle === session.vehicle) {
+        if (data.trackId === trackId && data.vehicle?.ordinal === session.vehicle?.ordinal) {
           historySummaries.push(data);
         }
       } catch (e) {}
