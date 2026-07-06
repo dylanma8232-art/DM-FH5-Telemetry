@@ -74,27 +74,8 @@ export function AlertAdvicePanel({ data }) {
         wheelRotationSpeed.rearLeft  ?? 100, wheelRotationSpeed.rearRight  ?? 100
       );
       if (minWheelSpeed < 5) {
-        items.push({ priority: 1, type: 'danger', icon: '🔒', text: '刹车抱死！', detail: '车轮已完全锁死，松开刹车恢复转向！' });
+        items.push({ priority: 1, type: 'danger', icon: '🔒', text: 'ABS锁死！', detail: '' });
       }
-    }
-
-    // ── 2. 轮胎完全失去抓地力 (TCS 打滑) ──────────────────────────────
-    // 只要有任何一个轮胎的物理摩擦力（综合滑移）大于 1.2，即代表该轮胎失去摩擦力开始空转/打滑
-    const maxSlip = Math.max(
-      tireCombinedSlip.frontLeft || 0,
-      tireCombinedSlip.frontRight || 0,
-      tireCombinedSlip.rearLeft || 0,
-      tireCombinedSlip.rearRight || 0
-    );
-    
-    if (maxSlip > 1.2 && (controls.accel || 0) > 0) {
-      items.push({ priority: 2, type: 'danger', icon: '🔥', text: '失去摩擦力！', detail: '轮胎打滑严重，请收油！' });
-    }
-
-    // ── 3. 高 G 力过载 (重心转移过大) ─────────────────────
-    if (gMag > 1.85 && smoothSpeed > 20) {
-      const dir = gX > gZ ? '横向' : '纵向';
-      items.push({ priority: 3, type: 'warning', icon: '📊', text: `重力载荷过载: ${gMag.toFixed(2)}G`, detail: `${dir}载荷转移过大` });
     }
 
     // ── 排序：priority 越小越靠前 ─────────────────────────────────────────
@@ -113,11 +94,11 @@ export function AlertAdvicePanel({ data }) {
     if (topAlertType === 'success' || topAlertType === 'info') return;
 
     // 比赛中降到1档的语音需要提示
-    const isFirstGearWarning = topAlertText === '当前已是1档';
+    const isFirstGearWarning = topAlertText === '警告：已切至1档' || topAlertText === '当前已是1档';
     
     // 如果是1档警告，用更温和或者警示性的播报
     const ttsPriority = topAlertType === 'danger' ? 3 : 2; 
-    const speakText = isFirstGearWarning ? '当前已是一档，不要降档了' : `${topAlertText}。${topAlertDetail}`;
+    const speakText = isFirstGearWarning ? '1档！' : (topAlertDetail ? `${topAlertText}。${topAlertDetail}` : topAlertText);
 
     speechManager.speak(speakText, ttsPriority);
   }, [topAlertText, topAlertDetail, topAlertType]);
