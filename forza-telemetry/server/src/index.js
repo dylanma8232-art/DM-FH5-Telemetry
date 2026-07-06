@@ -1574,10 +1574,8 @@ async function saveAutoRecordedData(duration) {
     updatedAt: new Date().toISOString()
   };
   
-  // 1. 写入详细几何分包
-  const detailPath = path.join(DATA_DIR, 'tracks', `${newTrackId}.json`);
-  fs.mkdirSync(path.dirname(detailPath), { recursive: true });
-  fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2));
+  // 1. 写入详细几何分包并自动进行 Brotli 压缩瘦身
+  writeTrackDetail(newTrackId, trackDetail);
 
   // 2. 写入轻量元数据索引
   tracks[newTrackId] = {
@@ -3285,16 +3283,17 @@ function calculateShiftAnalysis(data) {
   
   const shifts = [];
   let prevGear = 0;
+  const isForward = (g) => g >= 1 && g <= 10;
   
   data.forEach((d, i) => {
-    const gear = d.controls?.gear || 0;
-    const rpm = d.currentEngineRpm || 0;
+    const gear = d.controls?.gear ?? d.gear ?? 0;
+    const rpm = d.currentEngineRpm || d.rpm || 0;
     const maxRpm = d.engineMaxRpm || 8000;
     
-    if (gear !== prevGear && prevGear > 1 && gear > 1) {
+    if (gear !== prevGear && isForward(prevGear) && isForward(gear)) {
       shifts.push({
-        从档位: prevGear - 1,
-        到档位: gear - 1,
+        从档位: prevGear,
+        到档位: gear,
         换挡转速: Math.round(rpm),
         转速百分比: Math.round((rpm / maxRpm) * 100),
         速度: Math.round(d.speedKmh || 0)
@@ -3305,9 +3304,9 @@ function calculateShiftAnalysis(data) {
   
   const gearUsage = {};
   data.forEach(d => {
-    const gear = d.controls?.gear || 0;
-    if (gear > 1) {
-      const gearName = (gear - 1) + '档';
+    const gear = d.controls?.gear ?? d.gear ?? 0;
+    if (isForward(gear)) {
+      const gearName = gear + '档';
       gearUsage[gearName] = (gearUsage[gearName] || 0) + 1;
     }
   });
@@ -3843,8 +3842,8 @@ app.get('/api/analysis/:sessionId/telemetry-channels', (req, res) => {
           throttle: Math.round((d.controls?.accel || d.accel || 0) / 2.55),
           brake: Math.round((d.controls?.brake || d.brake || 0) / 2.55),
           steer: d.controls?.steer || d.steer || 0,
-          gLong: (d.acceleration?.z || d.accelerationZ || d.gForce?.long || 0) / 9.81,
-          gLat: (d.acceleration?.x || d.accelerationX || d.gForce?.lat || 0) / 9.81,
+          gLong: (d.acceleration?.z || d.accelerationZ || d.gForce?.long || 0) / 9.80665,
+          gLat: (d.acceleration?.x || d.accelerationX || d.gForce?.lat || 0) / 9.80665,
           x: px,
           y: py,
           z: pz,
@@ -5081,13 +5080,14 @@ app.get('/', (req, res) => {
     // 4.5 批量自愈合：检查所有赛道详情文件，修复弯道缺失
     const tracksDir = path.join(DATA_DIR, 'tracks');
     if (fs.existsSync(tracksDir)) {
-      const trackFiles = fs.readdirSync(tracksDir).filter(f => f.endsWith('.json'));
+      const trackFiles = fs.readdirSync(tracksDir).filter(f => f.endsWith('.json') || f.endsWith('.json.br'));
       let healedCount = 0;
       for (const file of trackFiles) {
-        const filePath = path.join(tracksDir, file);
+        const id = file.replace('.json.br', '').replace('.json', '');
         try {
-          const detail = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-          const id = detail.id || file.replace('.json', '');
+          const detail = readTrackDetail(id);
+          if (!detail) continue;
+          
           if ((!detail.turns || detail.turns.length === 0) && detail.centerline && detail.centerline.length > 20) {
             console.log(`[启动自愈合] 修复赛道: ${detail.name || id}`);
             const turns = detectTurnsEnhanced(detail.centerline);
@@ -5098,7 +5098,10 @@ app.get('/', (req, res) => {
             detail.routeBook = buildRouteBook(detail.centerline, turns, allPts.length > 0 ? allPts : detail.centerline);
             detail.navigation = generateNavigationData(detail);
             detail.quality = validateTrackQuality(detail);
-            fs.writeFileSync(filePath, JSON.stringify(detail, null, 2), 'utf8');
+            
+            // 写入自愈合后的 Brotli 格式并清空旧文件
+            writeTrackDetail(id, detail);
+            
             // 同步元数据
             if (tracks[id]) {
               tracks[id].turns = turns;

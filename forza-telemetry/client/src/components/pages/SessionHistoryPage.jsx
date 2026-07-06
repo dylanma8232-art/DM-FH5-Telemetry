@@ -27,6 +27,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [turnsData, setTurnsData] = useState(null);
   const [turnsLoading, setTurnsLoading] = useState(false);
+  const [activeTurnIdx, setActiveTurnIdx] = useState(0);
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
   const [trackFilter, setTrackFilter] = useState('');
   const [tunes, setTunes] = useState({});
@@ -1225,9 +1226,9 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   </div>
                 )}
 
-                {/* 赛道地图与车辆调校诊断（双栏布局） */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                  {/* 左栏：Canvas 痛点赛道图 */}
+                {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
+                <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, marginBottom: 16 }}>
+                  {/* 左栏：Canvas 痛点与联动赛道图 */}
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
                     
@@ -1237,7 +1238,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       </div>
                     ) : (
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                        红色虚线标出本场比赛时间流失最严重的 3 个弯道
+                        红色虚线标出时间流失最严重的 3 个弯道，黄色为当前选择弯道。
                       </div>
                     )}
                     
@@ -1247,72 +1248,104 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       height={320}
                       highlightedPoints={
                         turnsData?.turns
-                          ? turnsData.turns
-                              .slice(0, 3)
-                              .map(t => ({ x: t.current?.x || t.x || 0, z: t.current?.z || t.z || 0, label: t.name }))
+                          ? turnsData.turns.map((t, idx) => ({
+                              x: t.current?.x || t.x || 0,
+                              z: t.current?.z || t.z || 0,
+                              label: t.name,
+                              color: activeTurnIdx === idx ? '#d29922' : (turnsData.turns.slice(0, 3).some(t3 => t3.index === t.index) ? '#f85149' : '#8b949e'),
+                              isActive: activeTurnIdx === idx,
+                              isTopLoss: turnsData.turns.slice(0, 3).some(t3 => t3.index === t.index)
+                            }))
                           : []
+                      }
+                      cursorPoint={
+                        turnsData?.turns?.[activeTurnIdx]
+                          ? {
+                              x: turnsData.turns[activeTurnIdx].current?.x || turnsData.turns[activeTurnIdx].x || 0,
+                              z: turnsData.turns[activeTurnIdx].current?.z || turnsData.turns[activeTurnIdx].z || 0
+                            }
+                          : null
                       }
                     />
                   </div>
 
-                  {/* 右栏：车辆调校与诊断 */}
-                  <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>车辆调校与车况诊断</h3>
-                    {diagnosis ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 11 }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>马力/扭矩：</span>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{analysis.详细统计?.最高功率 || 0} HP / {analysis.详细统计?.最大扭矩 || 0} N·m</span>
-                          </div>
-                          <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: 11 }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>最高车速：</span>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{analysis.详细统计?.最高速度 || 0} km/h</span>
-                          </div>
-                        </div>
-
-                        {diagnosis.diagnoses && diagnosis.diagnoses.length > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {diagnosis.diagnoses.map((diag, idx) => (
-                              <div key={idx} style={{
-                                padding: 8,
-                                background: diag.严重程度 === 'high' ? 'rgba(240,80,80,0.08)' : 'rgba(240,180,80,0.08)',
-                                borderLeft: diag.严重程度 === 'high' ? '4px solid var(--danger)' : '4px solid var(--warning)',
-                                borderRadius: '0 6px 6px 0',
-                                fontSize: 11
-                              }}>
-                                <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-                                  <span>🔧 {diag.系统 || diag.类别 || '系统'}</span>
-                                  <span style={{ color: diag.严重程度 === 'high' ? 'var(--danger)' : 'var(--warning)', fontSize: 9 }}>
-                                    {diag.严重程度 === 'high' ? '严重问题' : '一般问题'}
-                                  </span>
-                                </div>
-                                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{diag.诊断描述 || diag.问题 || '车辆故障'}</div>
-                                <div style={{ color: 'var(--accent)', marginTop: 4, fontSize: 10 }}>建议：{diag.调整建议 || diag.建议 || '检查调校'}</div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ textAlign: 'center', padding: 20, color: 'var(--success)', fontSize: 11 }}>
-                            ✔ 车辆调校正常，未检测到悬挂或制动过热问题。
-                          </div>
-                        )}
+                  {/* 右栏：赛道所有弯道性能看板 */}
+                  <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={sectionTitleStyle}>赛道所有弯道性能看板</h3>
+                    {(!turnsData?.turns || turnsData.turns.length === 0) ? (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
+                        暂无弯道分析数据
                       </div>
                     ) : (
-                      <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>加载调校诊断中...</div>
+                      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 330 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', position: 'sticky', top: 0, background: '#161b22', zIndex: 1 }}>
+                              <th style={{ padding: '8px 6px' }}>弯道</th>
+                              <th style={{ padding: '8px 6px' }}>方向/类型</th>
+                              <th style={{ padding: '8px 6px' }}>推荐速度</th>
+                              <th style={{ padding: '8px 6px' }}>入弯速度</th>
+                              <th style={{ padding: '8px 6px' }}>弯心(APEX)</th>
+                              <th style={{ padding: '8px 6px' }}>出弯速度</th>
+                              <th style={{ padding: '8px 6px' }}>弯心档位</th>
+                              <th style={{ padding: '8px 6px' }}>车速偏差</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {turnsData.turns.map((t, idx) => {
+                              const apexSpeed = t.current?.apexSpeed ?? 0;
+                              const recSpeed = t.recommendedSpeed ?? 0;
+                              const delta = recSpeed > 0 ? apexSpeed - recSpeed : 0;
+                              const deltaColor = delta >= 0 ? '#3fb950' : (delta >= -10 ? '#d29922' : '#f85149');
+                              const isSelected = activeTurnIdx === idx;
+                              
+                              return (
+                                <tr
+                                  key={t.index}
+                                  onClick={() => setActiveTurnIdx(idx)}
+                                  style={{
+                                    borderBottom: '1px solid rgba(48, 54, 61, 0.3)',
+                                    background: isSelected ? 'rgba(88,166,255,0.08)' : 'transparent',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s'
+                                  }}
+                                >
+                                  <td style={{ padding: '8px 6px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'inherit' }}>
+                                    {t.name} {isSelected && '🎯'}
+                                  </td>
+                                  <td style={{ padding: '8px 6px', color: 'var(--text-secondary)' }}>
+                                    {t.direction === 'left' ? '左转' : '右转'} ({t.turnCategory || t.type})
+                                  </td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{recSpeed} km/h</td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{t.current?.entrySpeed || 0} km/h</td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)' }}>
+                                    {apexSpeed} km/h
+                                  </td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{t.current?.exitSpeed || 0} km/h</td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>
+                                    {(() => {
+                                      const g = t.current?.gear;
+                                      if (g === 0) return 'N';
+                                      if (g === 11 || g === 255) return 'R';
+                                      return g !== undefined ? `${g}档` : '-';
+                                    })()}
+                                  </td>
+                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 700, color: deltaColor }}>
+                                    {delta >= 0 ? `+${delta.toFixed(0)}` : delta.toFixed(0)} km/h
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* 弯道进化分析 */}
-                {turnsData && (
-                  <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>弯道车速进化分析</h3>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                      点击下方弯道可查看该弯道历史前 5 次最快圈的速度演进趋势
-                    </div>
-                    <CornerEvolutionPanel turns={turnsData.turns || []} />
-                  </div>
+                {/* 弯道车速进化分析 (与看板表格及地图联动) */}
+                {turnsData && turnsData.turns && turnsData.turns.length > 0 && (
+                  <CornerEvolutionPanel turns={turnsData.turns} activeTurnIdx={activeTurnIdx} />
                 )}
               </>
             )}
@@ -1322,7 +1355,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    散点反映横向G力与纵向G力的物理结合。散点分布越宽阔、越饱满，代表轮胎物理抓地极限压榨得越充分。
+                    散点反映横向G力与纵向G力的物理结合。散点越往外扩散，说明过载极限压榨越充分。重合点越深说明该状态维持的频率越高（热力图效果）。
                   </div>
                 </div>
                 
@@ -1331,14 +1364,14 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis type="number" dataKey="gLat" name="横向G值" domain={[-1.5, 1.5]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
-                        <YAxis type="number" dataKey="gLong" name="纵向G值" domain={[-1.5, 1.5]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
+                        <XAxis type="number" dataKey="gLat" name="横向G值" domain={[-1.8, 1.8]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
+                        <YAxis type="number" dataKey="gLong" name="纵向G值" domain={[-1.8, 1.8]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
                         <Tooltip 
                           cursor={{ strokeDasharray: '3 3' }}
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
                           itemStyle={{ fontSize: 10 }}
                         />
-                        <Scatter name="遥测G值" data={channelsData.channels || []} fill="#58a6ff" shape="circle" />
+                        <Scatter name="遥测G值" data={channelsData.channels || []} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
                         <ReferenceLine x={0} stroke="#484f58" />
                         <ReferenceLine y={0} stroke="#484f58" />
                       </ScatterChart>
@@ -1349,15 +1382,21 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>极限诊断分析</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11 }}>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最高横向力 (G-Lat)：</div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大横向过弯力：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
                           {Math.max(...(channelsData.channels || []).map(c => Math.abs(c.gLat || 0))).toFixed(2)} G
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大制动减速 (G-Long)：</div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向加速力：</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#58a6ff', fontFamily: 'monospace' }}>
+                          {Math.max(...(channelsData.channels || []).map(c => c.gLong > 0 ? c.gLong : 0)).toFixed(2)} G
+                        </div>
+                      </div>
+                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向制动力：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#f85149', fontFamily: 'monospace' }}>
-                          {Math.min(...(channelsData.channels || []).map(c => c.gLong || 0)).toFixed(2)} G
+                          {Math.max(...(channelsData.channels || []).map(c => c.gLong < 0 ? Math.abs(c.gLong) : 0)).toFixed(2)} G
                         </div>
                       </div>
                       <div style={{ background: 'rgba(88,166,255,0.05)', border: '1px solid rgba(88,166,255,0.2)', padding: 10, borderRadius: 6, lineHeight: 1.5 }}>
@@ -1389,18 +1428,20 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'shifts' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡点赛道空间分布</h3>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡与引擎动力诊断</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    在 2D 赛道轨迹上用红点（降档）和绿点（升档）标出您的实际换挡物理位置，避免空洞的纯时间表格。
+                    分析升降档物理空间分布与单圈引擎转速、扭矩释放曲线，识别拖档或弯中剧烈变速的失衡风险。
                   </div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, marginBottom: 16 }}>
+                  {/* 左栏：2D 轨道换挡分布 */}
                   <div style={sectionStyle}>
+                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>换挡点空间分布</h4>
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
-                      width={440}
-                      height={320}
+                      width={380}
+                      height={280}
                       highlightedPoints={
                         (() => {
                           const pts = [];
@@ -1417,29 +1458,48 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                               });
                             }
                           }
-                          return pts.slice(0, 30);
+                          return pts;
                         })()
                       }
                     />
                   </div>
 
+                  {/* 右栏：单圈转速与扭矩变化通道图 */}
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>换挡诊断说明</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11, lineHeight: 1.5 }}>
-                      <div style={{ background: 'rgba(63,185,80,0.05)', border: '1px solid rgba(63,185,80,0.2)', padding: 10, borderRadius: 6 }}>
-                        <span style={{ color: '#3fb950', fontWeight: 700 }}>● 绿色标识：升档点</span>
-                        <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)' }}>
-                          升档应当发生在引擎功率红线爆发点附近。若升档点在赛道直道过早出现（拖档），会导致转速低于最佳马力区间。
-                        </p>
-                      </div>
-                      
-                      <div style={{ background: 'rgba(248,81,73,0.05)', border: '1px solid rgba(248,81,73,0.2)', padding: 10, borderRadius: 6 }}>
-                        <span style={{ color: '#f85149', fontWeight: 700 }}>● 红色标识：降档点</span>
-                        <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)' }}>
-                          降档应当在制动区平滑完成。**切忌在横向弯心 G 力达到最高时剧烈降档**，因为瞬间的引擎刹车突变会打破车辆后轴抓地平衡，导致甩尾失控。
-                        </p>
-                      </div>
+                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>引擎转速 (RPM) 与输出扭矩 (Torque) 曲线</h4>
+                    <div style={{ height: 280 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={channelsData.channels || []} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis dataKey="distance" name="距离" unit="m" stroke="#8b949e" style={{ fontSize: 8 }} />
+                          <YAxis yAxisId="left" orientation="left" name="转速" domain={['auto', 'auto']} stroke="#58a6ff" unit="rpm" style={{ fontSize: 8 }} />
+                          <YAxis yAxisId="right" orientation="right" name="扭矩" domain={['auto', 'auto']} stroke="#ff7b72" unit="N·m" style={{ fontSize: 8 }} />
+                          <Tooltip
+                            contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
+                            itemStyle={{ fontSize: 10 }}
+                          />
+                          <Line yAxisId="left" type="monotone" dataKey="rpm" stroke="#58a6ff" strokeWidth={1.5} dot={false} isAnimationActive={false} name="转速" />
+                          <Line yAxisId="right" type="monotone" dataKey="torque" stroke="#ff7b72" strokeWidth={1.5} dot={false} isAnimationActive={false} name="扭矩" />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
+                  </div>
+                </div>
+
+                {/* 下方：换挡诊断说明 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div style={{ ...sectionStyle, background: 'rgba(63,185,80,0.03)', border: '1px solid rgba(63,185,80,0.15)', padding: 12, borderRadius: 6 }}>
+                    <span style={{ color: '#3fb950', fontWeight: 700, fontSize: 11 }}>● 绿色标识：升档点 (Upshift)</span>
+                    <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      升档应当发生在转速接近红线、马力爆发即将衰退的时刻。若右侧曲线中 RPM 过早跌落，说明升档太早（拖档），车辆无法发挥最大输出功率。
+                    </p>
+                  </div>
+                  
+                  <div style={{ ...sectionStyle, background: 'rgba(248,81,73,0.03)', border: '1px solid rgba(248,81,73,0.15)', padding: 12, borderRadius: 6 }}>
+                    <span style={{ color: '#f85149', fontWeight: 700, fontSize: 11 }}>● 红色标识：降档点 (Downshift)</span>
+                    <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      降档应随制动同步、顺滑地进行。**切忌在横向过弯 G 力达到极限（弯心 APEX）时剧烈降档**，因为引擎制动力突变容易使后轴失控打滑。
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2179,23 +2239,28 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
       if (!pt.x || !pt.z) return;
       const tx = toX(pt.x);
       const ty = toY(pt.z);
+      const color = pt.color || '#f85149';
+      const isActive = pt.isActive;
+      const isTopLoss = pt.isTopLoss;
       
-      ctx.strokeStyle = '#f85149';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.arc(tx, ty, 20, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isActive ? 3 : 1.5;
+      if (isActive || isTopLoss) {
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(tx, ty, isActive ? 24 : 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       
-      ctx.fillStyle = '#f85149';
+      ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+      ctx.arc(tx, ty, isActive ? 6 : 4, 0, Math.PI * 2);
       ctx.fill();
       
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(pt.label || '', tx + 8, ty - 8);
+      ctx.font = isActive ? 'bold 11px monospace' : '9px monospace';
+      ctx.fillText(pt.label || '', tx + (isActive ? 10 : 8), ty - (isActive ? 10 : 8));
     });
     
     // 5. 绘制当前联动游标点
@@ -2224,9 +2289,8 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
 }
 
 // 弯道历史速度演进面板组件
-function CornerEvolutionPanel({ turns }) {
-  const [selectedTurnIdx, setSelectedTurnIdx] = useState(0);
-  const turn = turns[selectedTurnIdx];
+function CornerEvolutionPanel({ turns, activeTurnIdx }) {
+  const turn = turns[activeTurnIdx];
   
   const chartData = useMemo(() => {
     if (!turn || !turn.history) return [];
@@ -2243,82 +2307,43 @@ function CornerEvolutionPanel({ turns }) {
   if (!turn) return null;
   
   return (
-    <div style={{ display: 'flex', gap: 16 }}>
-      {/* 左侧：弯道列表 */}
-      <div style={{ width: 280, maxHeight: 300, overflowY: 'auto', borderRight: '1px solid var(--border)', paddingRight: 12 }}>
-        {turns.map((t, idx) => (
-          <div
-            key={t.index}
-            onClick={() => setSelectedTurnIdx(idx)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              background: selectedTurnIdx === idx ? 'rgba(88,166,255,0.1)' : 'transparent',
-              border: selectedTurnIdx === idx ? '1px solid #58a6ff' : '1px solid transparent',
-              cursor: 'pointer',
-              marginBottom: 4,
-              transition: 'all 0.2s'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontWeight: 700, fontSize: 12 }}>{t.name} ({t.direction === 'left' ? '左转' : '右转'})</span>
-              <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 10, background: '#21262d', color: 'var(--text-secondary)' }}>
-                {t.turnCategory}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)' }}>
-              <span>弯心: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>{t.current?.apexSpeed || t.apexSpeed} km/h</span></span>
-              <span>档位: <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#58a6ff' }}>
-                {(() => {
-                  const g = t.current?.gear !== undefined ? t.current.gear : t.gear;
-                  if (g === 0) return '空档';
-                  if (g === 11 || g === 255 || g < 0) return '倒车档';
-                  return `${g} 档`;
-                })()}
-              </span></span>
-            </div>
-          </div>
-        ))}
+    <div style={{ padding: 12, background: 'rgba(22, 27, 34, 0.4)', borderRadius: 8, border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h4 style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>
+          {turn.name} 弯道历史速度变化趋势 (弯道类型: {turn.turnCategory || turn.type} | 推荐速度: {turn.recommendedSpeed} km/h)
+        </h4>
+        <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
+          <span style={{ color: '#58a6ff' }}>● 入弯速度</span>
+          <span style={{ color: '#3fb950' }}>● 弯心速度</span>
+          <span style={{ color: '#d29922' }}>● 出弯速度</span>
+          <span style={{ color: '#8b949e' }}>-- 推荐速度</span>
+        </div>
       </div>
 
-      {/* 右侧：趋势分析折线图 */}
-      <div style={{ flex: 1, height: 300 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h4 style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>
-            {turn.name} 弯道历史速度变化 (推荐速度: {turn.recommendedSpeed} km/h)
-          </h4>
-          <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
-            <span style={{ color: '#58a6ff' }}>● 入弯速度</span>
-            <span style={{ color: '#3fb950' }}>● 弯心速度</span>
-            <span style={{ color: '#d29922' }}>● 出弯速度</span>
-          </div>
-        </div>
-
-        {chartData.length >= 2 ? (
-          <ResponsiveContainer width="100%" height="90%">
+      {chartData.length >= 2 ? (
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
               <XAxis dataKey="date" stroke="#8b949e" style={{ fontSize: 9 }} />
               <YAxis stroke="#8b949e" unit="km/h" style={{ fontSize: 9 }} />
               <Tooltip
                 contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                labelStyle={{ fontSize: 10, color: '#8b949e' }}
                 itemStyle={{ fontSize: 10 }}
               />
-              <Line type="monotone" dataKey="入弯速度" stroke="#58a6ff" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="弯心速度" stroke="#3fb950" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="出弯速度" stroke="#d29922" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              <ReferenceLine y={turn.recommendedSpeed} stroke="#f85149" strokeDasharray="3 3" label={{ value: '推荐速度', fill: '#f85149', fontSize: 8, position: 'insideTopLeft' }} />
+              <Line type="monotone" dataKey="入弯速度" stroke="#58a6ff" strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="弯心速度" stroke="#3fb950" strokeWidth={2.5} dot={{ r: 5 }} />
+              <Line type="monotone" dataKey="出弯速度" stroke="#d29922" strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="推荐速度" stroke="#8b949e" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
-        ) : (
-          <div style={{ height: '90%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)', fontSize: 11, background: '#0d1117', borderRadius: 8, border: '1px solid #21262d' }}>
-            需要至少 2 个历史 Session 以展示进化曲线趋势 (当前: {chartData.length} 个)
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 11, background: '#0d1117', border: '1px solid #21262d', borderRadius: 6 }}>
+          暂无足够历史对标场次数据（需要在同赛道有至少 2 次同款车记录）以绘制演进趋势。
+        </div>
+      )}
     </div>
-  );
 }
 
 // 轮胎底盘载荷面板组件 (2x2 布局与侧偏/滑移分析)
