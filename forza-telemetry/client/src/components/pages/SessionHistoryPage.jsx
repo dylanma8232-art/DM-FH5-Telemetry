@@ -1488,6 +1488,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
                         <YAxis stroke="#8b949e" domain={[0, 100]} style={{ fontSize: 9 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value, name) => [value.toFixed(1) + '%', name === 'throttle' ? '油门' : '刹车']}
+                          labelFormatter={(label) => '距离: ' + label + 'm'}
+                        />
                         <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={2} dot={false} />
                       </LineChart>
@@ -1547,7 +1552,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
                         <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={['auto', 'auto']} unit="km/h" />
-                        <Tooltip contentStyle={{ display: 'none' }} />
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value) => [value.toFixed(1) + ' km/h', '车速']}
+                          labelFormatter={(label) => '距离: ' + label + 'm'}
+                        />
                         <Line type="monotone" dataKey="speed" stroke="#58a6ff" strokeWidth={1.5} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -1562,7 +1571,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
                         <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[0, 100]} unit="%" />
-                        <Tooltip contentStyle={{ display: 'none' }} />
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value, name) => [value.toFixed(1) + '%', name === 'throttle' ? '油门' : '刹车']}
+                          labelFormatter={(label) => '距离: ' + label + 'm'}
+                        />
                         <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={1.5} dot={false} />
                         <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={1.5} dot={false} />
                       </LineChart>
@@ -1578,7 +1591,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
                         <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[-127, 127]} />
-                        <Tooltip contentStyle={{ display: 'none' }} />
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value) => [value, '方向盘转角']}
+                          labelFormatter={(label) => '距离: ' + label + 'm'}
+                        />
                         <Line type="monotone" dataKey="steer" stroke="#d29922" strokeWidth={1.5} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -1593,9 +1610,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 8 }} unit="m" />
                         <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[0, 8]} tickCount={9} />
-                        <Tooltip 
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                          itemStyle={{ fontSize: 10 }}
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value) => [value + ' 档', '档位']}
+                          labelFormatter={(label) => '距离: ' + label + 'm'}
                         />
                         <Line type="step" dataKey="gear" stroke="#bc8cff" strokeWidth={1.5} dot={false} />
                       </LineChart>
