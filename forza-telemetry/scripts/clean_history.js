@@ -7,7 +7,7 @@ const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
 const VEHICLES_FILE = path.join(DATA_DIR, 'vehicles.json');
 
 function cleanHistory() {
-  console.log('Cleaning historical session data...');
+  console.log('Cleaning historical session data with currentRaceTime fallback...');
   const files = fs.readdirSync(SESSIONS_DIR);
   const summaryFiles = files.filter(f => f.endsWith('_summary.json'));
 
@@ -42,17 +42,29 @@ function cleanHistory() {
 
       const validBestLaps = autoRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
       const validLastLaps = autoRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+      const validRaceTimes = autoRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
       
-      const bestLap = validBestLaps.length > 0 ? validBestLaps[validBestLaps.length - 1].bestLap : 0;
-      const lastLap = validLastLaps.length > 0 ? validLastLaps[validLastLaps.length - 1].lastLap : 0;
+      let bestLap = 0;
+      if (validBestLaps.length > 0) {
+        bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
+      } else if (validRaceTimes.length > 0) {
+        bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+      }
+
+      let lastLap = 0;
+      if (validLastLaps.length > 0) {
+        lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
+      } else if (validRaceTimes.length > 0) {
+        lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+      }
 
       if (summary.laps) {
         summary.laps.best = bestLap;
         summary.laps.last = lastLap;
         fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2), 'utf8');
-        console.log(`Updated ${sessionId}: bestLap=${bestLap}, lastLap=${lastLap}`);
+        console.log(`Updated ${sessionId}: bestLap=${bestLap.toFixed(3)}, lastLap=${lastLap.toFixed(3)}`);
 
-        const carId = summary.carId;
+        const carId = summary.carId || (summary.vehicle ? summary.vehicle.ordinal : null);
         if (carId && bestLap > 0) {
           if (!carBestLaps[carId] || bestLap < carBestLaps[carId]) {
             carBestLaps[carId] = bestLap;
