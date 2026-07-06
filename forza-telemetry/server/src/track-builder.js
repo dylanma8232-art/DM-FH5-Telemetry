@@ -1,4 +1,216 @@
 /**
+ * 方案F：检测轨迹的闭合点（环道首尾相接的位置）
+ * 通过位置接近 + 方向一致双重验证
+ * @param {Array} positions - 轨迹点数组
+ * @param {number} posThreshold - 位置阈值（米），默认30m
+ * @param {number} yawThreshold - 方向阈值（弧度），默认45度
+ * @returns {number} 闭合点索引，如果没有找到返回 -1
+ */
+function findClosurePoint(positions, posThreshold = 30, yawThreshold = Math.PI / 4) {
+  if (!positions || positions.length < 100) return -1;
+  
+  const origin = positions[0];
+  const originYaw = origin.yaw || 0;
+  
+  // 从第100个点或10%位置开始找（跳过起点附近的噪声）
+  const minIndex = Math.max(100, Math.floor(positions.length * 0.1));
+  
+  // 计算轨迹总长度，用于验证闭合点合理性
+  let totalDist = 0;
+  for (let i = 1; i < positions.length; i++) {
+    const dx = positions[i].x - positions[i-1].x;
+    const dz = positions[i].z - positions[i-1].z;
+    totalDist += Math.sqrt(dx * dx + dz * dz);
+  }
+  const avgSegmentLength = totalDist / positions.length;
+  // 闭合点至少要在轨迹50%之后（确保跑了足够距离）
+  const minClosureIndex = Math.floor(positions.length * 0.3);
+  
+  for (let i = minIndex; i < positions.length; i++) {
+    const pos = positions[i];
+    const posDist = Math.sqrt(
+      (pos.x - origin.x) ** 2 + (pos.z - origin.z) ** 2
+    );
+    
+    // 位置接近起点
+    if (posDist < posThreshold) {
+      // 检查方向一致性
+      let yawDiff = Math.abs((pos.yaw || 0) - originYaw);
+      if (yawDiff > Math.PI) yawDiff = 2 * Math.PI - yawDiff;
+      
+      // 方向差 < 阈值，且已经跑了足够距离
+      if (yawDiff < yawThreshold && i >= minClosureIndex) {
+        return i;
+      }
+    }
+  }
+  
+  return -1;
+}
+
+/**
+ * 方案D：曲率序列周期性检测
+ * 通过自相关分析找到一圈的长度
+ * @param {Array} positions - 轨迹点数组
+ * @returns {number} 一圈的点数，如果检测失败返回 -1
+ */
+function detectCurvaturePeriodicity(positions) {
+  if (!positions || positions.length < 200) return -1;
+  
+  // 1. 计算逐点曲率
+  const curvatures = [];
+  for (let i = 0; i < positions.length; i++) {
+    if (i === 0 || i === positions.length - 1) {
+      curvatures.push(0);
+      continue;
+    }
+    
+    const pPrev = positions[i - 1];
+    const pCurr = positions[i];
+    const pNext = positions[i + 1];
+    
+    const dx1 = pCurr.x - pPrev.x;
+    const dz1 = pCurr.z - pPrev.z;
+    const dx2 = pNext.x - pCurr.x;
+    const dz2 = pNext.z - pCurr.z;
+    
+    // 一阶导数（中心差分）
+    const dx = (dx1 + dx2) / 2;
+    const dz = (dz1 + dz2) / 2;
+    
+    // 二阶导数
+    const ddx = dx2 - dx1;
+    const ddz = dz2 - dz1;
+    
+    // 曲率公式: kappa = (x'*z'' - z'*x'') / (x'^2 + z'^2)^(3/2)
+    const denominator = Math.pow(dx * dx + dz * dz, 1.5);
+    const cross = dx * ddz - dz * ddx;
+    
+    curvatures.push(denominator > 1e-6 ? cross / denominator : 0);
+  }
+  
+  // 2. 高斯平滑曲率序列（去除噪声）
+  const smoothed = [];
+  for (let i = 0; i < curvatures.length; i++) {
+    let sum = 0, weight = 0;
+    for (let j = Math.max(0, i - 3); j <= Math.min(curvatures.length - 1, i + 3); j++) {
+      const w = Math.exp(-0.5 * ((j - i) / 1.5) ** 2);
+      sum += curvatures[j] * w;
+      weight += w;
+    }
+    smoothed.push(sum / weight);
+  }
+  
+  // 3. 计算自相关函数 R(τ)
+  // R(τ) = Σ (κ[i] - μ) * (κ[i+τ] - μ) / Σ (κ[i] - μ)^2
+  const N = smoothed.length;
+  const mean = smoothed.reduce((a, b) => a + b, 0) / N;
+  const variance = smoothed.reduce((sum, k) => sum + (k - mean) ** 2, 0);
+  
+  if (variance < 1e-10) return -1; // 曲率几乎为零，可能是直线
+  
+  const minLag = 100; // 最小延迟（避免自相关噪声）
+  const maxLag = Math.floor(N * 0.6); // 最大延迟（一圈不可能超过总长60%）
+  
+  let bestLag = -1;
+  let bestCorrelation = 0;
+  
+  for (let lag = minLag; lag < maxLag; lag++) {
+    let correlation = 0;
+    for (let i = 0; i < N - lag; i++) {
+      correlation += (smoothed[i] - mean) * (smoothed[i + lag] - mean);
+    }
+    correlation /= variance;
+    
+    // 寻找峰值（排除 τ=0 的平凡峰值）
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestLag = lag;
+    }
+  }
+  
+  // 4. 验证峰值显著性
+  // 自相关系数 > 0.6 表示有明显周期性
+  if (bestCorrelation > 0.6 && bestLag > 0) {
+    return bestLap;
+  }
+  
+  return -1;
+}
+
+/**
+ * 组合方案F+D：检测环道并提取单圈
+ * 先用方案F快速找闭合点，再用方案D验证
+ * @param {Array} positions - 轨迹点数组
+ * @returns {Object} { isLoop: boolean, singleLap: Array, method: string }
+ */
+function detectLoopAndExtractSingleLap(positions) {
+  if (!positions || positions.length < 100) {
+    return { isLoop: false, singleLap: positions, method: 'none' };
+  }
+  
+  // 方案F：闭合点检测
+  const closureIdx = findClosurePoint(positions);
+  
+  // 方案D：曲率周期性检测
+  const periodicLapLength = detectCurvaturePeriodicity(positions);
+  
+  // 组合判断
+  if (closureIdx > 0 && periodicLapLength > 0) {
+    // 两个方案都有结果，交叉验证
+    const closureRatio = closureIdx / positions.length;
+    const periodicRatio = periodicLapLength / positions.length;
+    
+    // 如果两个方案的结果相近（差异<30%），高置信度
+    if (Math.abs(closureRatio - periodicRatio) < 0.3) {
+      // 取两者的平均值作为最终一圈长度
+      const avgLapLength = Math.round((closureIdx + periodicLapLength) / 2);
+      return {
+        isLoop: true,
+        singleLap: positions.slice(0, avgLapLength + 1),
+        method: 'combined'
+      };
+    }
+    
+    // 结果差异大，优先信任方案D（更精确）
+    if (periodicRatio > 0.2 && periodicRatio < 0.8) {
+      return {
+        isLoop: true,
+        singleLap: positions.slice(0, periodicLapLength + 1),
+        method: 'curvature'
+      };
+    }
+  }
+  
+  // 只有方案F有结果
+  if (closureIdx > 0) {
+    const closureRatio = closureIdx / positions.length;
+    if (closureRatio > 0.2 && closureRatio < 0.9) {
+      return {
+        isLoop: true,
+        singleLap: positions.slice(0, closureIdx + 1),
+        method: 'closure'
+      };
+    }
+  }
+  
+  // 只有方案D有结果
+  if (periodicLapLength > 0) {
+    const periodicRatio = periodicLapLength / positions.length;
+    if (periodicRatio > 0.2 && periodicRatio < 0.8) {
+      return {
+        isLoop: true,
+        singleLap: positions.slice(0, periodicLapLength + 1),
+        method: 'curvature'
+      };
+    }
+  }
+  
+  // 都没有检测到环道特征
+  return { isLoop: false, singleLap: positions, method: 'none' };
+}
+
+/**
  * 物理纠偏：利用 normalizedDrivingLine 将偏离的轨迹点拉回中心
  */
 function densifyTrajectory(traj, maxDist = 2.0) {
@@ -122,8 +334,25 @@ function computeDTWPath(ref, target, windowSize = 200) {
 export function buildTrackFromTrajectories(trajectories) {
   if (!trajectories || trajectories.length === 0) return null;
 
-  const cleanTrajectories = [];
+  // ★ 环道检测：对每条轨迹检测是否为环道，如果是则只取单圈
+  const processedTrajectories = [];
   for (const traj of trajectories) {
+    if (!traj || traj.length < 100) {
+      processedTrajectories.push(traj);
+      continue;
+    }
+    
+    const result = detectLoopAndExtractSingleLap(traj);
+    if (result.isLoop) {
+      console.log(`[环道检测] 检测到环道，方法: ${result.method}，原始点数: ${traj.length} -> 单圈点数: ${result.singleLap.length}`);
+      processedTrajectories.push(result.singleLap);
+    } else {
+      processedTrajectories.push(traj);
+    }
+  }
+
+  const cleanTrajectories = [];
+  for (const traj of processedTrajectories) {
     if (!traj || traj.length < 2) continue;
     let current = [traj[0]];
     for (let i = 1; i < traj.length; i++) {
