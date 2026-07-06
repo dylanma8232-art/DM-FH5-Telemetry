@@ -1230,7 +1230,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 )}
 
                 {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
-                <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                   {/* 左栏：Canvas 痛点与联动赛道图 */}
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
@@ -1246,8 +1246,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
-                      width={320}
-                      height={280}
+                      width={480}
+                      height={320}
                       highlightedPoints={
                         turnsData?.turns
                           ? turnsData.turns.map((t, idx) => ({
