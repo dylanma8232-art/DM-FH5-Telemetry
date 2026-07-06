@@ -1384,8 +1384,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <ResponsiveContainer width="100%" height={100}>
                           <LineChart data={sessionLearningData.data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 8, fill: '#8b949e' }} />
-                            <YAxis domain={['auto', 'auto']} tickFormatter={v => formatTime(v)} tick={{ fontSize: 8, fill: '#8b949e' }} width={55} reversed />
+                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 10, fill: '#8b949e' }} />
+                            <YAxis domain={['auto', 'auto']} tickFormatter={v => formatTime(v)} tick={{ fontSize: 10, fill: '#8b949e' }} width={55} reversed />
                             <Line
                               type="monotone" dataKey="bestLap"
                               stroke="#58a6ff" strokeWidth={1.5}
@@ -1546,8 +1546,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
-                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
                           <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']} />
                           <Scatter name="遥测G值" data={ggData.sampled} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
                           <ReferenceLine x={0} stroke="#484f58" />
@@ -1576,8 +1576,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" tickFormatter={(v) => v.toFixed(1)} tickCount={7} label={{ value: '横向G', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
-                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" tickFormatter={(v) => v.toFixed(1)} tickCount={7} label={{ value: '纵向G', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} label={{ value: '横向G', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} label={{ value: '纵向G', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
                           <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name) => [value.toFixed(2) + ' G', name]} />
                           <Scatter name="低速" data={ggData.sampled.filter(d => (d.speed||0) < 100)} fill="#58a6ff" r={3} />
                           <Scatter name="中速" data={ggData.sampled.filter(d => (d.speed||0) >= 100 && (d.speed||0) < 200)} fill="#3fb950" r={3} />
@@ -1593,16 +1593,13 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 面板2: US/OS 指数曲线 */}
                 <div style={{ ...sectionStyle, marginBottom: 16 }}>
                   <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转向不足/过度分析</h4>
-                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>正值=车头向外推（转向不足），负值=车尾向外甩（转向过度）。数值越大说明问题越严重，用于调校悬挂和差速器。</div>
-                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
-                    正值=转向不足（推头），负值=转向过度（甩尾）。绝对值越大偏离中性越远。
-                  </div>
+                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>正值=车头向外推（转向不足），负值=车尾向外甩（转向过度）。绝对值越大偏离中性越远，用于调校悬挂和差速器。</div>
                   <div style={{ height: 200 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={advancedData?.usOsIndex || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
-                        <YAxis stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
                         <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
                         <ReferenceLine y={0} stroke="#484f58" />
                         <Line dataKey="value" stroke="#58a6ff" dot={false} />
@@ -1615,27 +1612,20 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                   <div style={sectionStyle}>
                     <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>轮胎滑移效率图</h4>
-                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>纵向滑移=驱动/制动打滑，侧偏角=横向滑移。颜色越深说明轮胎越接近极限，集中在一个区域说明工作状态稳定。</div>
                     <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
-                      X=纵向滑移率（加速/制动），Y=侧偏角（转弯）。颜色=综合滑移量，越亮滑移越大。
+                      X=四轮平均纵向滑移率，Y=四轮平均侧偏角。集中在一个区域说明轮胎工作状态稳定，分散说明不稳定。
                     </div>
                     <div style={{ height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis type="number" dataKey="tireSlipRatio" name="纵向滑移率" stroke="#8b949e" style={{ fontSize: 9 }} />
-                          <YAxis type="number" dataKey="tireSlipAngle" name="侧偏角" stroke="#8b949e" style={{ fontSize: 9 }} />
-                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
-                          <Scatter name="滑移" data={(channelsData.channels || []).filter((_, i) => i % 4 === 0).map(c => ({ tireSlipRatio: c.tireSlipRatio || 0, tireSlipAngle: c.tireSlipAngle || 0, tireCombinedSlip: c.tireCombinedSlip || 0 })).filter(d => Math.abs(d.tireSlipRatio) > 0.01 || Math.abs(d.tireSlipAngle) > 0.5)} shape="circle">
-                            {(channelsData.channels || []).filter((_, i) => i % 4 === 0).map((c, idx) => {
-                              const slip = c.tireCombinedSlip || 0;
-                              const ratio = Math.min(slip / 5, 1);
-                              const r = Math.round(88 + ratio * (255 - 88));
-                              const g = Math.round(166 - ratio * 120);
-                              const b = Math.round(255 - ratio * 200);
-                              return <circle key={idx} cx={0} cy={0} r={3} fill={`rgba(${r},${g},${b},0.5)`} />;
-                            })}
-                          </Scatter>
+                          <XAxis type="number" dataKey="slipAvg" domain={['auto', 'auto']} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '纵向滑移率', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <YAxis type="number" dataKey="angleAvg" domain={['auto', 'auto']} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '侧偏角(rad)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(3), n === 'slipAvg' ? '滑移率' : '侧偏角']} />
+                          <Scatter name="滑移" data={(channelsData.channels || []).filter((_, i) => i % 4 === 0).map(c => ({
+                            slipAvg: (Math.abs(c.slipFL||0) + Math.abs(c.slipFR||0) + Math.abs(c.slipRL||0) + Math.abs(c.slipRR||0)) / 4,
+                            angleAvg: (Math.abs(c.angleFL||0) + Math.abs(c.angleFR||0) + Math.abs(c.angleRL||0) + Math.abs(c.angleRR||0)) / 4
+                          })).filter(d => d.slipAvg > 0.005 || d.angleAvg > 0.01)} fill="#3fb950" r={3} />
                           <ReferenceLine x={0} stroke="#484f58" />
                           <ReferenceLine y={0} stroke="#484f58" />
                         </ScatterChart>
@@ -1654,8 +1644,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={channelsData.channels || []}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
-                          <YAxis stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '距离(m)', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => (v * 57.3).toFixed(0)} label={{ value: '角度(度)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
                           <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
                           <Line dataKey="pitch" stroke="#58a6ff" dot={false} name="Pitch" />
                           <Line dataKey="roll" stroke="#3fb950" dot={false} name="Roll" />
@@ -1681,8 +1671,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="85%">
                       <LineChart data={channelsData.channels || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
-                        <YAxis stroke="#8b949e" domain={[0, 100]} />
+                        <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                        <YAxis stroke="#8b949e" domain={[0, 100]} tick={{ fontSize: 10, fill: '#8b949e' }} />
                         <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(1)+'%', n==='throttle'?'油门':'刹车']} />
                         <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={2} dot={false} />
@@ -1718,8 +1708,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="85%">
                       <LineChart data={channelsData.channels || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
-                        <YAxis stroke="#8b949e" domain={[-127, 127]} />
+                        <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                        <YAxis stroke="#8b949e" domain={[-127, 127]} tick={{ fontSize: 10, fill: '#8b949e' }} />
                         <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
                         <ReferenceLine y={0} stroke="#484f58" />
                         <Line type="monotone" dataKey="steer" stroke="#d29922" strokeWidth={1.5} dot={false} />
@@ -1739,8 +1729,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           rearDiff: Math.abs((c.wheelSpeedRL||0) - (c.wheelSpeedRR||0))
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
-                          <YAxis stroke="#8b949e" />
+                          <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                          <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
                           <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(2), n==='frontDiff'?'前轴差':'后轴差']} />
                           <Line type="monotone" dataKey="frontDiff" stroke="#58a6ff" strokeWidth={1.5} dot={false} name="前轴" />
                           <Line type="monotone" dataKey="rearDiff" stroke="#f85149" strokeWidth={1.5} dot={false} name="后轴" />
@@ -1759,9 +1749,9 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={advancedData.powerCurve}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis dataKey="rpm" stroke="#8b949e" style={{ fontSize: 9 }} label={{ value: 'RPM', position: 'insideBottomRight', style: { fontSize: 9, fill: '#8b949e' } }} />
-                          <YAxis yAxisId="left" stroke="#58a6ff" label={{ value: '功率', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: '#58a6ff' } }} />
-                          <YAxis yAxisId="right" orientation="right" stroke="#ff7b72" label={{ value: '扭矩', angle: 90, position: 'insideRight', style: { fontSize: 9, fill: '#ff7b72' } }} />
+                          <XAxis dataKey="rpm" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: 'RPM', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
+                          <YAxis yAxisId="left" stroke="#58a6ff" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '功率', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#58a6ff' } }} />
+                          <YAxis yAxisId="right" orientation="right" stroke="#ff7b72" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '扭矩', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#ff7b72' } }} />
                           <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
                           <Line yAxisId="left" type="monotone" dataKey="avgPower" stroke="#58a6ff" strokeWidth={2} dot={false} name="功率" />
                           <Line yAxisId="right" type="monotone" dataKey="avgTorque" stroke="#ff7b72" strokeWidth={2} dot={false} name="扭矩" />
@@ -1792,7 +1782,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <LineChart data={channelsData.channels} syncId="overlaySync">
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
-                        <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={['auto', 'auto']} unit="km/h" />
+                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={['auto', 'auto']} unit="km/h" />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
                           formatter={(value) => [value.toFixed(1) + ' km/h', '车速']}
@@ -1811,7 +1801,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <LineChart data={channelsData.channels} syncId="overlaySync">
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
-                        <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[0, 100]} unit="%" />
+                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[0, 100]} unit="%" />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
                           formatter={(value, name) => [value.toFixed(1) + '%', name === 'throttle' ? '油门' : '刹车']}
@@ -1831,7 +1821,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <LineChart data={channelsData.channels} syncId="overlaySync">
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                         <XAxis dataKey="distance" hide={true} />
-                        <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[-127, 127]} />
+                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[-127, 127]} />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
                           formatter={(value) => [value, '方向盘转角']}
@@ -1849,8 +1839,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="80%">
                       <LineChart data={channelsData.channels} syncId="overlaySync">
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 8 }} unit="m" />
-                        <YAxis stroke="#8b949e" style={{ fontSize: 8 }} domain={[0, 8]} tickCount={9} />
+                        <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} unit="m" />
+                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[0, 8]} tickCount={9} />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
                           formatter={(value) => [value + ' 档', '档位']}
@@ -1874,8 +1864,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             fill: s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'
                           }))}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                            <XAxis dataKey="sector" stroke="#8b949e" style={{ fontSize: 10 }} />
-                            <YAxis stroke="#8b949e" unit="ms" style={{ fontSize: 9 }} />
+                            <XAxis dataKey="sector" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                            <YAxis stroke="#8b949e" unit="ms" tick={{ fontSize: 10, fill: '#8b949e' }} />
                             <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v) => [v + ' ms', '损失时间']} />
                             <Bar dataKey="lossTime" radius={[4,4,0,0]}>
                               {advancedData.lossTime.map((s, idx) => (
@@ -1892,7 +1882,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {advancedData?.consistency && (
                     <div style={{ ...sectionStyle, marginTop: 12 }}>
                       <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>一致性分析</h4>
-                      <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>圈速和分段的标准差，数值越小越稳定。圈速标准差<0.5秒为优秀，<1秒为良好。</div>
+                      <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>圈速和分段的标准差，数值越小越稳定。圈速标准差0.5秒以内为优秀，1秒以内为良好。</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                         <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6, textAlign: 'center' }}>
                           <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 4 }}>圈速标准差</div>
@@ -2038,8 +2028,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <ResponsiveContainer width="100%" height={200}>
                           <LineChart data={learningData} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 9, fill: '#8b949e' }} />
-                            <YAxis domain={yDomain} tickFormatter={v => lbFormatTime(v)} tick={{ fontSize: 9, fill: '#8b949e' }} width={55} reversed />
+                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 10, fill: '#8b949e' }} />
+                            <YAxis domain={yDomain} tickFormatter={v => lbFormatTime(v)} tick={{ fontSize: 10, fill: '#8b949e' }} width={55} reversed />
                             <Tooltip
                               formatter={(v, name, props) => [
                                 `${lbFormatTime(v)} (${props.payload.car})`,
@@ -2614,8 +2604,7 @@ function CornerEvolutionPanel({ turns, activeTurnIdx }) {
       date: new Date(h.savedAt).toLocaleDateString('zh-CN'),
       '入弯速度': h.entrySpeed,
       '弯心速度': h.apexSpeed,
-      '出弯速度': h.exitSpeed,
-      '推荐速度': turn.recommendedSpeed
+      '出弯速度': h.exitSpeed
     }));
   }, [turn]);
   
@@ -2625,23 +2614,22 @@ function CornerEvolutionPanel({ turns, activeTurnIdx }) {
     <div style={{ padding: 12, background: 'rgba(22, 27, 34, 0.4)', borderRadius: 8, border: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h4 style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>
-          {turn.name} 弯道历史速度变化趋势 (弯道类型: {turn.turnCategory || turn.type} | 推荐速度: {turn.recommendedSpeed} km/h)
+          {turn.name} 弯道历史速度变化趋势 {turn.turnCategory ? `(${turn.turnCategory})` : ''}
         </h4>
         <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
           <span style={{ color: '#58a6ff' }}>● 入弯速度</span>
           <span style={{ color: '#3fb950' }}>● 弯心速度</span>
           <span style={{ color: '#d29922' }}>● 出弯速度</span>
-          <span style={{ color: '#8b949e' }}>-- 推荐速度</span>
         </div>
       </div>
 
-      {chartData.length >= 2 ? (
+      {chartData.length >= 1 ? (
         <div style={{ height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-              <XAxis dataKey="date" stroke="#8b949e" style={{ fontSize: 9 }} />
-              <YAxis stroke="#8b949e" unit="km/h" style={{ fontSize: 9 }} />
+              <XAxis dataKey="date" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+              <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: 'km/h', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
               <Tooltip
                 contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
                 itemStyle={{ fontSize: 10 }}
@@ -2649,13 +2637,12 @@ function CornerEvolutionPanel({ turns, activeTurnIdx }) {
               <Line type="monotone" dataKey="入弯速度" stroke="#58a6ff" strokeWidth={2} dot={{ r: 4 }} />
               <Line type="monotone" dataKey="弯心速度" stroke="#3fb950" strokeWidth={2.5} dot={{ r: 5 }} />
               <Line type="monotone" dataKey="出弯速度" stroke="#d29922" strokeWidth={2} dot={{ r: 4 }} />
-              <Line type="monotone" dataKey="推荐速度" stroke="#8b949e" strokeDasharray="5 5" strokeWidth={1.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       ) : (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 11, background: '#0d1117', border: '1px solid #21262d', borderRadius: 6 }}>
-          暂无足够历史对标场次数据（需要在同赛道有至少 2 次同款车记录）以绘制演进趋势。
+          暂无历史对标场次数据（需要在同赛道有同款车记录）以绘制演进趋势。
         </div>
       )}
     </div>
