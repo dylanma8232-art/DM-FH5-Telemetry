@@ -3886,10 +3886,12 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
       return res.json({ turns: [] });
     }
     
-    const track = tracks[trackId];
-    const trackTurns = track.turns || [];
+    // 从赛道详情文件读取完整弯道数组
+    // 注意：内存索引 tracks[trackId] 只存了 turnCount（数字），完整弯道几何在压缩的详情文件里
+    const trackDetail = readTrackDetail(trackId);
+    const trackTurns = (trackDetail && Array.isArray(trackDetail.turns)) ? trackDetail.turns : [];
     if (trackTurns.length === 0) {
-      return res.json({ turns: [] });
+      return res.json({ turns: [], noTrackCorners: true, sessionId: req.params.sessionId });
     }
     
     const rawData = session.data || [];
@@ -3935,11 +3937,16 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
       const exitPt = findClosestPoint(turn.endX, turn.endZ, currentLapFrames);
       const brakePt = findClosestPoint(turn.brakePointX || turn.startX, turn.brakePointZ || turn.startZ, currentLapFrames);
       
-      const entrySpeed = entryPt ? Math.round(entryPt.speedKmh || (entryPt.speed ? entryPt.speed * 3.6 : 0)) : 0;
-      const apexSpeed = apexPt ? Math.round(apexPt.speedKmh || (apexPt.speed ? apexPt.speed * 3.6 : 0)) : 0;
-      const exitSpeed = exitPt ? Math.round(exitPt.speedKmh || (exitPt.speed ? exitPt.speed * 3.6 : 0)) : 0;
-      const brakeSpeed = brakePt ? Math.round(brakePt.speedKmh || (brakePt.speed ? brakePt.speed * 3.6 : 0)) : 0;
-      const gear = apexPt ? (apexPt.gear || 0) : 0;
+      const G = 9.81; // FH5 UDP acceleration is in m/s², divide by 9.81 to get G
+      const getSpd = pt => pt ? Math.round(pt.speedKmh || (pt.speedMs ?? pt.speed ?? 0) * 3.6) : 0;
+      const entrySpeed = getSpd(entryPt);
+      const apexSpeed  = getSpd(apexPt);
+      const exitSpeed  = getSpd(exitPt);
+      const brakeSpeed = getSpd(brakePt);
+      const gear       = apexPt?.controls?.gear || apexPt?.gear || 0;
+      // 横向/纵向 G 力（m/s² → G）
+      const peakLatG   = apexPt ? Math.round(Math.abs((apexPt.acceleration?.x ?? 0) / G) * 100) / 100 : 0;
+      const longBrakeG = entryPt ? Math.round(Math.abs(Math.min(0, (entryPt.acceleration?.z ?? 0)) / G) * 100) / 100 : 0;
       
       // 提取历史进化曲线
       const historySeries = historyLapsData.map(h => {
@@ -3971,7 +3978,11 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
           apexSpeed,
           exitSpeed,
           brakeSpeed,
-          gear
+          gear,
+          peakLatG,
+          longBrakeG,
+          x: apexPt?.position?.x ?? turn.x ?? 0,
+          z: apexPt?.position?.z ?? turn.z ?? 0
         },
         history: historySeries
       };
