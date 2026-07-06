@@ -2235,11 +2235,11 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
         const res = await fetch(`/api/tracks/${trackId}`);
         if (!res.ok) return;
         const data = await res.json();
-        // 与赛道管理保持一致：优先 points → centerline → trajectories[0] → positions
-        const resolved = (data.points && data.points.length > 2) ? data.points
-          : (data.centerline && data.centerline.length > 2) ? data.centerline
+        // 与赛道管理完全一致：centerline → points → trajectories[0]
+        const resolved = (data.centerline && data.centerline.length > 2) ? data.centerline
+          : (data.points && data.points.length > 2) ? data.points
           : (data.trajectories && data.trajectories.length > 0 && data.trajectories[0].length > 2) ? data.trajectories[0]
-          : (data.positions || []);
+          : [];
         setPositions(resolved);
       } catch (e) {
         console.error('Failed to load track map coordinates', e);
@@ -2263,64 +2263,85 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
       if (p.z > maxZ) maxZ = p.z;
     });
     
-    const pad = 20;
-    const rX = Math.max(1, maxX - minX);
-    const rZ = Math.max(1, maxZ - minZ);
-    
-    const scale = Math.min((w - pad * 2) / rX, (h - pad * 2) / rZ);
-    const offsetX = (w - rX * scale) / 2;
-    const offsetY = (h - rZ * scale) / 2;
-    
-    const toX = x => offsetX + (x - minX) * scale;
-    const toY = z => h - offsetY - (z - minZ) * scale;
+    if (maxX - minX < 0.01 && maxZ - minZ < 0.01) return;
+
+    // 与赛道管理一致：pad=40
+    const pad = 40;
+    const sx = (w - pad * 2) / (maxX - minX || 1);
+    const sz = (h - pad * 2) / (maxZ - minZ || 1);
+    const sc = Math.min(sx, sz);
+    const ox = (w - (maxX - minX) * sc) / 2;
+    const oz = (h - (maxZ - minZ) * sc) / 2;
     
     ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, w, h);
+
+    // 降采样（与赛道管理一致：>1000点时降采样到500）
+    let pts = positions;
+    if (pts.length > 1000) {
+      const step = Math.ceil(pts.length / 500);
+      const sampled = [pts[0]];
+      for (let i = step; i < pts.length - 1; i += step) sampled.push(pts[i]);
+      sampled.push(pts[pts.length - 1]);
+      pts = sampled;
+    }
     
-    // 1. 绘制真实赛道边界与底线 (如果存在 width 数据)
-    if (positions[0] && positions[0].widthLeft !== undefined) {
-      ctx.fillStyle = '#30363d'; // 柏油路面深色
+    // 1. 绘制真实赛道边界多边形 (如果存在 width 数据) — 与赛道管理一致
+    if (pts[0].widthLeft !== undefined) {
+      ctx.fillStyle = 'rgba(136, 148, 160, 0.4)'; // 与赛道管理一致的柏油路面灰色
       ctx.beginPath();
-      for (let i = 0; i < positions.length; i++) {
-        const pt = positions[i];
+      for (let i = 0; i < pts.length; i++) {
+        const pt = pts[i];
         const yaw = pt.yaw || 0;
         const wl = pt.widthLeft || 2;
         const nx = -Math.cos(yaw);
         const nz = Math.sin(yaw);
-        if (i === 0) ctx.moveTo(toX(pt.x + nx * wl), toY(pt.z + nz * wl));
-        else ctx.lineTo(toX(pt.x + nx * wl), toY(pt.z + nz * wl));
+        const px = (pt.x + nx * wl - minX) * sc + ox;
+        const pz = h - oz - (pt.z + nz * wl - minZ) * sc;
+        if (i === 0) ctx.moveTo(px, pz);
+        else ctx.lineTo(px, pz);
       }
-      for (let i = positions.length - 1; i >= 0; i--) {
-        const pt = positions[i];
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const pt = pts[i];
         const yaw = pt.yaw || 0;
         const wr = pt.widthRight || 2;
         const nx = Math.cos(yaw);
         const nz = -Math.sin(yaw);
-        ctx.lineTo(toX(pt.x + nx * wr), toY(pt.z + nz * wr));
+        const px = (pt.x + nx * wr - minX) * sc + ox;
+        const pz = h - oz - (pt.z + nz * wr - minZ) * sc;
+        ctx.lineTo(px, pz);
       }
       ctx.closePath();
       ctx.fill();
     } else {
-      // 回退逻辑：仅画粗线
+      // 回退：画粗线底色
       ctx.strokeStyle = '#30363d';
       ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
-      positions.forEach((p, i) => {
-        if (i === 0) ctx.moveTo(toX(p.x), toY(p.z));
-        else ctx.lineTo(toX(p.x), toY(p.z));
+      pts.forEach((p, i) => {
+        const px = (p.x - minX) * sc + ox;
+        const pz = h - oz - (p.z - minZ) * sc;
+        if (i === 0) ctx.moveTo(px, pz);
+        else ctx.lineTo(px, pz);
       });
       ctx.closePath();
       ctx.stroke();
     }
     
-    // 2. 绘制高亮蓝色走线
+    // 2. 绘制高亮蓝色走线 — 与赛道管理一致
     ctx.strokeStyle = '#58a6ff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    positions.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(toX(p.x), toY(p.z));
-      else ctx.lineTo(toX(p.x), toY(p.z));
+    pts.forEach((p, i) => {
+      const px = (p.x - minX) * sc + ox;
+      const pz = h - oz - (p.z - minZ) * sc;
+      if (i === 0) ctx.moveTo(px, pz);
+      else ctx.lineTo(px, pz);
     });
     ctx.closePath();
     ctx.stroke();
@@ -2329,8 +2350,10 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     if (showCoasting && coastingPoints && coastingPoints.length > 0) {
       ctx.fillStyle = 'rgba(188, 140, 255, 0.4)';
       coastingPoints.forEach(p => {
+        const px = (p.x - minX) * sc + ox;
+        const pz = h - oz - (p.z - minZ) * sc;
         ctx.beginPath();
-        ctx.arc(toX(p.x), toY(p.z), 4, 0, Math.PI * 2);
+        ctx.arc(px, pz, 4, 0, Math.PI * 2);
         ctx.fill();
       });
     }
@@ -2338,8 +2361,8 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     // 4. 绘制弯道高亮与标签
     highlightedPoints.forEach((pt) => {
       if (!pt.x || !pt.z) return;
-      const tx = toX(pt.x);
-      const ty = toY(pt.z);
+      const tx = (pt.x - minX) * sc + ox;
+      const ty = h - oz - (pt.z - minZ) * sc;
       const color = pt.color || '#f85149';
       const isActive = pt.isActive;
       const isTopLoss = pt.isTopLoss;
@@ -2366,8 +2389,8 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     
     // 5. 绘制当前联动游标点
     if (cursorPoint && cursorPoint.x && cursorPoint.z) {
-      const cx = toX(cursorPoint.x);
-      const cy = toY(cursorPoint.z);
+      const cx = (cursorPoint.x - minX) * sc + ox;
+      const cy = h - oz - (cursorPoint.z - minZ) * sc;
       
       ctx.strokeStyle = 'rgba(210, 153, 34, 0.6)';
       ctx.lineWidth = 3;
