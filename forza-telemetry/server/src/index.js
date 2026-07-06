@@ -163,10 +163,10 @@ function writeTrackDetail(trackId, trackDetail) {
     const jsonStr = JSON.stringify(trackDetail);
     const buffer = Buffer.from(jsonStr, 'utf8');
     
-    // Brotli 压缩 (Quality Level = 5 是计算速度与压缩体积的最佳平衡点)
+    // Brotli 压缩 (Quality Level = 9 提供更好的压缩比，压缩时间可接受)
     const compressed = zlib.brotliCompressSync(buffer, {
       params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: 5
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 9
       }
     });
     
@@ -567,7 +567,7 @@ function migrateOldSessions() {
             const detailPath = path.join(sessionsDir, `${id}_detail.json.br`);
             const compressed = zlib.brotliCompressSync(Buffer.from(JSON.stringify(detailData)), {
               params: {
-                [zlib.constants.BROTLI_PARAM_QUALITY]: 5
+                [zlib.constants.BROTLI_PARAM_QUALITY]: 9
               }
             });
             fs.writeFileSync(detailPath, compressed);

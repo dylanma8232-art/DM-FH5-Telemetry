@@ -5,10 +5,12 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "debug-udp": "node src/utils/listen-and-classify.js"
+    "debug-udp": "node src/utils/listen-and-classify.js",
+    "recompress": "node recompress-background.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "zstd-wasm": "^0.0.9"
   }
 }
