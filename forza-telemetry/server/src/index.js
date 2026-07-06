@@ -36,13 +36,6 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-// 小米TTS配置
-const TTS_API_URL = 'https://token-plan-cn.xiaomimimo.com/v1';
-const TTS_API_KEY = 'tp-c6v5w7m0irz9541u80ycd6r6eb8pw6h3cst1hlzr7izf8soq';
-const TTS_MODEL = 'mimo-v2.5-tts';
-
-// TTS缓存
-const ttsCache = new Map();
 
 // 调用本地 SpeechSynthesis 播报，不进行外网 API 联网合成
 async function generateTTS(text) {
@@ -590,16 +583,6 @@ function migrateOldSessions() {
 }
 
 
-// 历史轨迹降采样：每隔10个点取1个
-function downsampleTrajectory(positions, step = 10) {
-  if (!positions || positions.length <= step * 2) return positions;
-  const sampled = [positions[0]];
-  for (let i = step; i < positions.length - 1; i += step) {
-    sampled.push(positions[i]);
-  }
-  sampled.push(positions[positions.length - 1]);
-  return sampled;
-}
 
 // 轨迹数限制：最多保留5条历史轨迹
 function trimTrajectories(trajectories, maxCount = 5) {
@@ -703,7 +686,7 @@ const START_DEBOUNCE_MS = 500;
 const STOP_DEBOUNCE_MS = 5000;
 const MIN_RACE_DURATION_MS = 30000; // 30秒，过滤掉传送/误触发
 let lastPacketSize = 0;
-let hasDashExtension = false;
+
 let lastSignificantPosition = null;
 let staticPositionCount = 0;
 const MAX_STATIC_COUNT = 100; // 连续100个包位置不变则认为不是真比赛

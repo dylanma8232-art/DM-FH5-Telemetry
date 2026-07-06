@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, ScatterChart, Scatter, Cell } from 'recharts';
-import { LapComparison } from '../dashboard/LapComparison';
-import { ThrottleBrakeHeatmap } from '../dashboard/ThrottleBrakeHeatmap';
 import { ReplayPlayer } from '../dashboard/ReplayPlayer';
-import { SectorAnalysis } from '../dashboard/SectorAnalysis';
 import { AICoachPanel } from '../dashboard/AICoachPanel';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { EmptyState } from '../shared/EmptyState';
@@ -41,13 +38,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [lbExpandedKeys, setLbExpandedKeys] = useState(new Set());
   const [lbTrendData, setLbTrendData] = useState(null);
   const [lbTrendLoading, setLbTrendLoading] = useState(false);
-  const [lbSearchQuery, setLbSearchQuery] = useState('');
-  const [lbTrackFilter, setLbTrackFilter] = useState('');
   const [lbLoaded, setLbLoaded] = useState(false);
-  // Round 8: 时间范围筛选
-  const [lbTimeRange, setLbTimeRange] = useState('all'); // '7d' | '30d' | 'all'
-  // Round 3: 车辆筛选
-  const [lbVehicleFilter, setLbVehicleFilter] = useState('');
   // Round 6: 排行榜趋势缓存 - 使用Map缓存已加载的趋势数据
   const lbTrendCacheRef = useRef(new Map());
   const lbTrendLoadingSetRef = useRef(new Set());
@@ -581,45 +572,6 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
   };
 
-  const lbAllTracks = useMemo(() => {
-    const map = new Map();
-    lbEntries.forEach(e => map.set(e.trackId, e.trackName));
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], 'zh-CN'));
-  }, [lbEntries]);
-
-  // Round 3: 所有唯一车辆
-  const lbAllVehicles = useMemo(() => {
-    const map = new Map();
-    lbEntries.forEach(e => {
-      const key = e.vehicleOrdinal + '_' + e.vehicleName;
-      if (!map.has(key)) {
-        map.set(key, { ordinal: e.vehicleOrdinal, name: e.vehicleName || `Car #${e.vehicleOrdinal}`, pi: e.vehiclePI, cls: e.vehicleClass });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.ordinal - b.ordinal);
-  }, [lbEntries]);
-
-  const lbFiltered = useMemo(() => {
-    // Round 8: 计算时间范围截止日期
-    const now = Date.now();
-    let cutoffMs = 0;
-    if (lbTimeRange === '7d') cutoffMs = 7 * 24 * 60 * 60 * 1000;
-    else if (lbTimeRange === '30d') cutoffMs = 30 * 24 * 60 * 60 * 1000;
-
-    return lbEntries.filter(e => {
-      const matchSearch = !lbSearchQuery.trim() ||
-        (e.trackName || '').toLowerCase().includes(lbSearchQuery.trim().toLowerCase()) ||
-        String(e.vehicleOrdinal).includes(lbSearchQuery.trim());
-      const matchTrack = !lbTrackFilter || e.trackId === lbTrackFilter;
-      // Round 3: 车辆筛选
-      const matchVehicle = !lbVehicleFilter || e.vehicleOrdinal === lbVehicleFilter;
-      // Round 8: 时间范围过滤 - 使用lastSessionAt字段
-      const matchTime = lbTimeRange === 'all' || !e.lastSessionAt ||
-        (now - new Date(e.lastSessionAt).getTime()) <= cutoffMs;
-      return matchSearch && matchTrack && matchVehicle && matchTime;
-    });
-  }, [lbEntries, lbSearchQuery, lbTrackFilter, lbTimeRange, lbVehicleFilter]);
-
   const getVehicleClass = (cls) => {
     const classes = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
     return classes[cls] || '?';
@@ -877,29 +829,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
   const { tireData, styleData, sectorData } = generateChartData();
 
-  // 圈速趋势数据 - Round 2: 从analysis中提取也支持
-  const lapTrendData = useMemo(() => {
-    if (!sessionDetail?.data) return null
-    const lapMap = {}
-    sessionDetail.data.forEach(d => {
-      const lap = d.lapNumber || 0
-      if (!lapMap[lap]) {
-        lapMap[lap] = { start: d.timestampMS, end: d.timestampMS }
-      }
-      lapMap[lap].end = d.timestampMS
-    })
-    const data = Object.entries(lapMap)
-      .filter(([, v]) => v.end - v.start > 10000)
-      .sort((a, b) => Number(a[0]) - Number(b[0]))
-      .map(([num, v]) => ({
-        lap: '第' + num + '圈',
-        time: (v.end - v.start) / 1000
-      }))
-    if (data.length < 2) return null
-    const bestTime = Math.min(...data.map(d => d.time))
-    return { data, bestTime }
-  }, [sessionDetail?.data])
-
   // Round 9: 分页后的session列表
   const paginatedSessions = useMemo(() => {
     const start = (sessionPage - 1) * SESSION_PAGE_SIZE;
@@ -933,8 +862,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
       .sort((a, b) => a.ratio - b.ratio);
     return sorted.slice(0, 3);
   }, [analysis?.驾驶评分?.维度]);
-
-  const worst2 = useMemo(() => worst3.slice(0, 2), [worst3]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
@@ -2309,61 +2236,6 @@ const sectionTitleStyle = {
   paddingBottom: 8
 };
 
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-  gap: 8
-};
-
-const statItemStyle = {
-  background: 'var(--bg-primary)',
-  padding: 10,
-  borderRadius: 6,
-  textAlign: 'center'
-};
-
-const statLabelStyle = {
-  fontSize: 9,
-  color: 'var(--text-secondary)',
-  marginBottom: 4
-};
-
-const statValueStyle = {
-  fontSize: 16,
-  fontWeight: 700,
-  color: 'var(--text-primary)',
-  fontFamily: 'monospace'
-};
-
-const thStyle = {
-  padding: '8px',
-  textAlign: 'left',
-  fontSize: 10,
-  color: 'var(--text-secondary)'
-};
-
-const tdStyle = {
-  padding: '8px',
-  fontSize: 11
-};
-
-// 圈速排行榜辅助组件和样式
-// Round 3: 增强辅助组件 - 支持highlight高亮
-function LbStatCard({ label, value, color, highlight }) {
-  return (
-    <div style={{
-      background: highlight ? 'rgba(210, 153, 34, 0.12)' : 'var(--bg-secondary)',
-      border: highlight ? '1px solid rgba(210, 153, 34, 0.4)' : '1px solid var(--border)',
-      borderRadius: 6,
-      padding: '10px 12px',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 9, color: highlight ? '#d29922' : 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color, fontFamily: 'monospace' }}>{value}</div>
-    </div>
-  );
-}
-
 // Round 5: 赛道轨迹缩略图
 function TrackThumbnail({ trackId }) {
   const canvasRef = useRef(null);
@@ -2418,25 +2290,6 @@ function TrackThumbnail({ trackId }) {
   );
 }
 
-const lbBtnPrimaryStyle = {
-  padding: '6px 14px',
-  background: 'var(--accent)',
-  border: 'none',
-  borderRadius: 4,
-  color: '#fff',
-  cursor: 'pointer',
-  fontSize: 11,
-};
-
-const lbInputStyle = {
-  padding: '6px 10px',
-  background: 'var(--bg-primary)',
-  border: '1px solid var(--border)',
-  borderRadius: 4,
-  color: 'var(--text-primary)',
-  fontSize: 11,
-  marginBottom: 8,
-};
 // 交互式 Canvas 赛道图组件
 function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [] }) {
   const canvasRef = useRef(null);
