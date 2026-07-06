@@ -2,8 +2,8 @@ import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
-// 保留 30 天的高精度轨迹详情，超期文件只保留元数据概要以便在历史记录及排行榜中正常查看
-const RETENTION_PERIOD_MS = 30 * 24 * 60 * 60 * 1000; 
+// 保留 100 年的高精度轨迹详情（基本等同于永不清理）
+const RETENTION_PERIOD_MS = 100 * 365.25 * 24 * 60 * 60 * 1000; 
 
 /**
  * 扫描会话目录并自动清理超过 30 天的 _detail.json.br 高清遥测物理包
