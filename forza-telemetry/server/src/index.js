@@ -3858,7 +3858,19 @@ app.get('/api/analysis/:sessionId/telemetry-channels', (req, res) => {
           angleFL: d.tireSlipAngle?.frontLeft || d.tireSlipAngleFrontLeft || 0,
           angleFR: d.tireSlipAngle?.frontRight || d.tireSlipAngleFrontRight || 0,
           angleRL: d.tireSlipAngle?.rearLeft || d.tireSlipAngleRearLeft || 0,
-          angleRR: d.tireSlipAngle?.rearRight || d.tireSlipAngleRearRight || 0
+          angleRR: d.tireSlipAngle?.rearRight || d.tireSlipAngleRearRight || 0,
+          wheelSpeedFL: d.wheelRotationSpeed?.frontLeft || d.wheelRotationSpeedFrontLeft || 0,
+          wheelSpeedFR: d.wheelRotationSpeed?.frontRight || d.wheelRotationSpeedFrontRight || 0,
+          wheelSpeedRL: d.wheelRotationSpeed?.rearLeft || d.wheelRotationSpeedRearLeft || 0,
+          wheelSpeedRR: d.wheelRotationSpeed?.rearRight || d.wheelRotationSpeedRearRight || 0,
+          angularVelY: d.angularVelocity?.y || d.angularVelocityY || 0,
+          roll: d.roll || 0,
+          pitch: d.pitch || 0,
+          yaw: d.yaw || 0,
+          power: d.power || 0,
+          boost: d.boost || 0,
+          fuel: d.fuel || 0,
+          onRumble: d.onRumbleStrip?.frontLeft || false
         });
       }
     }
@@ -3870,6 +3882,199 @@ app.get('/api/analysis/:sessionId/telemetry-channels', (req, res) => {
   } catch (e) {
     console.error('[channels API] error:', e.message);
     res.status(500).json({ error: 'Failed to generate channels' });
+  }
+});
+
+app.get('/api/analysis/:sessionId/advanced', (req, res) => {
+  try {
+    const session = loadSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const rawData = session.data || [];
+    if (rawData.length === 0) {
+      return res.json({
+        usOsIndex: [],
+        differential: [],
+        trailBraking: { ratio: 0, count: 0, total: 0 },
+        theoreticalBest: { time: 0, sectors: [] },
+        consistency: { lapTimeStd: 0, sectorStd: [] },
+        lossTime: [],
+        powerCurve: []
+      });
+    }
+
+    const numSectors = parseInt(req.query.sectors) || 3;
+
+    let cumulativeDistance = 0;
+    const usOsIndex = [];
+    const differential = [];
+    let trailBrakingCount = 0;
+    let totalFrames = 0;
+
+    for (let i = 0; i < rawData.length; i++) {
+      const d = rawData[i];
+      const px = d.position?.x || d.positionX || 0;
+      const pz = d.position?.z || d.positionZ || 0;
+
+      if (i > 0) {
+        const prev = rawData[i - 1];
+        const pprevX = prev.position?.x || prev.positionX || 0;
+        const pprevZ = prev.position?.z || prev.positionZ || 0;
+        const dist = Math.sqrt((px - pprevX) ** 2 + (pz - pprevZ) ** 2);
+        if (dist < 100) {
+          cumulativeDistance += dist;
+        }
+      }
+
+      const speedMs = (d.speedKmh || (d.speed ? d.speed * 3.6 : 0)) / 3.6;
+      const lateralG = (d.acceleration?.x || d.accelerationX || d.gForce?.lat || 0) / 9.80665;
+      const actualYawRate = d.angularVelocity?.y || d.angularVelocityY || 0;
+      const expectedYawRate = speedMs > 0.5 ? lateralG / speedMs : 0;
+      const denom = Math.max(Math.abs(expectedYawRate), 0.01);
+      const usOsValue = (actualYawRate - expectedYawRate) / denom;
+
+      if (i % 4 === 0 || i === rawData.length - 1) {
+        usOsIndex.push({
+          distance: Math.round(cumulativeDistance * 10) / 10,
+          value: Math.round(usOsValue * 1000) / 1000
+        });
+      }
+
+      const wFL = d.wheelRotationSpeed?.frontLeft || d.wheelRotationSpeedFrontLeft || 0;
+      const wFR = d.wheelRotationSpeed?.frontRight || d.wheelRotationSpeedFrontRight || 0;
+      const wRL = d.wheelRotationSpeed?.rearLeft || d.wheelRotationSpeedRearLeft || 0;
+      const wRR = d.wheelRotationSpeed?.rearRight || d.wheelRotationSpeedRearRight || 0;
+
+      if (i % 4 === 0 || i === rawData.length - 1) {
+        differential.push({
+          distance: Math.round(cumulativeDistance * 10) / 10,
+          frontDiff: Math.round(Math.abs(wFL - wFR) * 100) / 100,
+          rearDiff: Math.round(Math.abs(wRL - wRR) * 100) / 100
+        });
+      }
+
+      const brake = d.controls?.brake || d.brake || 0;
+      const steer = d.controls?.steer || d.steer || 0;
+      if (brake > 10 && steer !== 0) {
+        trailBrakingCount++;
+      }
+      totalFrames++;
+    }
+
+    const lapsMap = new Map();
+    for (const d of rawData) {
+      const ln = d.lapNumber || d.lapNum || 0;
+      if (!lapsMap.has(ln)) lapsMap.set(ln, []);
+      lapsMap.get(ln).push(d);
+    }
+
+    const lapInfos = [];
+    for (const [ln, frames] of lapsMap) {
+      if (ln === 0 || frames.length < 100) continue;
+      const times = frames.map(f => f.currentLap || 0).filter(t => t > 0);
+      if (times.length < 2) continue;
+      const duration = Math.max(...times) - Math.min(...times);
+      if (duration < 10) continue;
+      lapInfos.push({ ln, frames, duration, totalTime: Math.max(...times) });
+    }
+
+    const allSectorTimes = [];
+    for (const lap of lapInfos) {
+      const frames = lap.frames;
+      const sectorLen = Math.floor(frames.length / numSectors);
+      const sectorTimes = [];
+      for (let s = 0; s < numSectors; s++) {
+        const startIdx = s * sectorLen;
+        const endIdx = s === numSectors - 1 ? frames.length - 1 : (s + 1) * sectorLen;
+        const startTime = frames[startIdx]?.currentLap || 0;
+        const endTime = frames[endIdx]?.currentLap || 0;
+        sectorTimes.push(Math.max(0, endTime - startTime));
+      }
+      allSectorTimes.push({ ln: lap.ln, totalTime: lap.totalTime, sectorTimes });
+    }
+
+    const bestSectors = [];
+    for (let s = 0; s < numSectors; s++) {
+      let best = Infinity;
+      for (const lap of allSectorTimes) {
+        if (lap.sectorTimes[s] > 0 && lap.sectorTimes[s] < best) {
+          best = lap.sectorTimes[s];
+        }
+      }
+      bestSectors.push(best === Infinity ? 0 : best);
+    }
+    const theoreticalBestTime = bestSectors.reduce((sum, t) => sum + t, 0);
+
+    let lapTimeStd = 0;
+    if (allSectorTimes.length >= 2) {
+      const lapTimesArr = allSectorTimes.map(l => l.totalTime);
+      const mean = lapTimesArr.reduce((s, t) => s + t, 0) / lapTimesArr.length;
+      lapTimeStd = Math.round(Math.sqrt(lapTimesArr.reduce((s, t) => s + (t - mean) ** 2, 0) / lapTimesArr.length) * 1000) / 1000;
+    }
+
+    const sectorStd = [];
+    for (let s = 0; s < numSectors; s++) {
+      const vals = allSectorTimes.map(l => l.sectorTimes[s]).filter(t => t > 0);
+      if (vals.length >= 2) {
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+        sectorStd.push(Math.round(Math.sqrt(vals.reduce((sum, t) => sum + (t - mean) ** 2, 0) / vals.length) * 1000) / 1000);
+      } else {
+        sectorStd.push(0);
+      }
+    }
+
+    let lossTime = [];
+    if (allSectorTimes.length > 0) {
+      const bestLap = allSectorTimes.reduce((min, l) => l.totalTime < min.totalTime ? l : min);
+      lossTime = bestSectors.map((best, s) => ({
+        sector: s + 1,
+        lossTime: Math.round((bestLap.sectorTimes[s] - best) * 1000) / 1000
+      }));
+    }
+
+    const rpmBuckets = new Map();
+    for (const d of rawData) {
+      const rpm = Math.round(d.currentEngineRpm || d.rpm || 0);
+      const power = d.powerWatts || d.powerHP ? d.powerHP * 745.7 : d.power || 0;
+      const torque = d.torque || 0;
+      if (rpm <= 0) continue;
+      const bucket = Math.round(rpm / 500) * 500;
+      if (!rpmBuckets.has(bucket)) rpmBuckets.set(bucket, { powerSum: 0, torqueSum: 0, count: 0 });
+      const entry = rpmBuckets.get(bucket);
+      entry.powerSum += power;
+      entry.torqueSum += torque;
+      entry.count++;
+    }
+
+    const powerCurve = Array.from(rpmBuckets.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([rpm, data]) => ({
+        rpm,
+        avgPower: Math.round(data.powerSum / data.count),
+        avgTorque: Math.round(data.torqueSum / data.count * 10) / 10
+      }));
+
+    res.json({
+      usOsIndex,
+      differential,
+      trailBraking: {
+        ratio: totalFrames > 0 ? Math.round(trailBrakingCount / totalFrames * 10000) / 10000 : 0,
+        count: trailBrakingCount,
+        total: totalFrames
+      },
+      theoreticalBest: {
+        time: Math.round(theoreticalBestTime * 1000) / 1000,
+        sectors: bestSectors.map((t, i) => ({ sector: i + 1, bestTime: Math.round(t * 1000) / 1000 }))
+      },
+      consistency: { lapTimeStd, sectorStd },
+      lossTime,
+      powerCurve
+    });
+  } catch (e) {
+    console.error('[advanced analysis API] error:', e.message);
+    res.status(500).json({ error: 'Failed to generate advanced analysis' });
   }
 });
 

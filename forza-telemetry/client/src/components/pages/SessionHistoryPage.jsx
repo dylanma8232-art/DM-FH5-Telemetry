@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, ScatterChart, Scatter } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, ScatterChart, Scatter, Cell } from 'recharts';
 import { LapComparison } from '../dashboard/LapComparison';
 import { ThrottleBrakeHeatmap } from '../dashboard/ThrottleBrakeHeatmap';
 import { ReplayPlayer } from '../dashboard/ReplayPlayer';
@@ -25,6 +25,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [diagnosis, setDiagnosis] = useState(null);
   const [channelsData, setChannelsData] = useState(null);
   const [channelsLoading, setChannelsLoading] = useState(false);
+  const [advancedData, setAdvancedData] = useState(null);
+  const [advancedLoading, setAdvancedLoading] = useState(false);
   const [turnsData, setTurnsData] = useState(null);
   const [turnsLoading, setTurnsLoading] = useState(false);
   const [activeTurnIdx, setActiveTurnIdx] = useState(0);
@@ -376,6 +378,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       setBrakeAnalysis(null);
       setAccelAnalysis(null);
       setChannelsData(null);
+      setAdvancedData(null);
       setTurnsData(null);
     } catch (e) {
       toast('加载分析失败', 'error');
@@ -411,6 +414,23 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       toast('加载遥测数据失败', 'error');
     } finally {
       setChannelsLoading(false);
+    }
+  };
+
+  const loadAdvancedAnalysis = async () => {
+    if (!selectedSession) return;
+    if (advancedData && advancedData.sessionId === selectedSession) return;
+    setAdvancedLoading(true);
+    try {
+      const res = await fetch(`/api/analysis/${selectedSession}/advanced?sectors=10`);
+      if (!res.ok) throw new Error('Failed to fetch advanced');
+      const data = await res.json();
+      data.sessionId = selectedSession;
+      setAdvancedData(data);
+    } catch (e) {
+      console.error('加载高级分析失败', e);
+    } finally {
+      setAdvancedLoading(false);
     }
   };
 
@@ -1198,19 +1218,23 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
               {[
-                { id: 'overview', label: '总览 (诊断与弯角)' },
-                { id: 'dynamics', label: '驾驶动力学 (摩擦圆)' },
-                { id: 'tires', label: '轮荷载荷 (底盘)' },
-                { id: 'shifts', label: '换挡扭矩 (路线图)' },
-                { id: 'pedals', label: '踏板动力学 (滑行区)' },
-                { id: 'overlay', label: '对标工作台 (多通道)' },
-                { id: 'replay', label: '影子车回放 (HUD)' },
-                { id: 'aiCoach', label: 'AI 驾驶教练 (智能诊断)' }
+                { id: 'overview', label: '总览' },
+                { id: 'dynamics', label: '动力学' },
+                { id: 'inputs', label: '驾驶输入' },
+                { id: 'workbench', label: '对标工作台' },
+                { id: 'replay', label: '回放 & 教练' }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => {
                     setActiveChart(tab.id);
+                    if ((tab.id === 'dynamics' || tab.id === 'inputs' || tab.id === 'workbench') && selectedSession) {
+                      loadTelemetryChannels();
+                      loadAdvancedAnalysis();
+                    }
+                    if ((tab.id === 'replay') && selectedSession && !detailLoaded) {
+                      loadSessionDetail(selectedSession);
+                    }
                   }}
                   style={{
                     padding: '4px 12px',
@@ -1258,9 +1282,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         </div>
                       </div>
                     </div>
-                    
-                    {/* 子指标评分 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
                       {Object.entries(analysis.驾驶评分.维度 || {}).map(([name, dim]) => {
                         const ratio = dim.分数 / dim.满分;
                         const color = ratio >= 0.8 ? 'var(--success)' : ratio >= 0.6 ? 'var(--warning)' : 'var(--danger)';
@@ -1271,9 +1293,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           }}>
                             <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 4 }}>{name}</div>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                              <span style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'monospace' }}>
-                                {dim.分数}
-                              </span>
+                              <span style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'monospace' }}>{dim.分数}</span>
                               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ {dim.满分}</span>
                             </div>
                             <div style={{ height: 3, background: '#21262d', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
@@ -1283,29 +1303,77 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         );
                       })}
                     </div>
+                  </div>
+                )}
 
-                    {/* 智能教练建议 */}
-                    {analysis.建议 && analysis.建议.length > 0 && (
-                      <div style={{ background: 'rgba(218,54,51,0.05)', border: '1px solid rgba(248,81,73,0.2)', borderRadius: 6, padding: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#f85149', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>💡</span> 教练驾驶诊断建议
+                {/* 关键指标卡片行 */}
+                {(() => {
+                  const adv = advancedData;
+                  const hasAdv = adv && adv.sessionId === selectedSession;
+                  const ch = channelsData;
+                  const hasCh = ch && ch.channels && ch.channels.length > 0;
+
+                  const maxLatG = hasCh ? Math.max(...ch.channels.map(c => Math.abs(c.gLat || 0))).toFixed(2) : '--';
+                  const maxBrakeG = hasCh ? Math.max(...ch.channels.map(c => Math.abs(Math.min(0, c.gLong || 0)))).toFixed(2) : '--';
+                  const coastPct = hasCh ? (() => {
+                    const frames = ch.channels.filter(c => (c.throttle || 0) < 5 && (c.brake || 0) < 5);
+                    return (frames.length / ch.channels.length * 100).toFixed(1);
+                  })() : '--';
+                  const gearShifts = hasCh ? (() => {
+                    let count = 0;
+                    for (let i = 1; i < ch.channels.length; i++) {
+                      if (ch.channels[i].gear !== ch.channels[i - 1].gear && ch.channels[i].gear > 0) count++;
+                    }
+                    return count;
+                  })() : '--';
+
+                  const metrics = [
+                    { label: '最快圈速', value: analysis.bestLap ? formatTime(analysis.bestLap.time) : '--', color: '#3fb950' },
+                    { label: '理论最快圈', value: hasAdv && adv.theoreticalBest?.time ? formatTime(adv.theoreticalBest.time) : '--', color: '#58a6ff' },
+                    { label: '一致性(σ)', value: hasAdv && adv.consistency?.lapTimeStd != null ? adv.consistency.lapTimeStd.toFixed(3) + 's' : '--', color: '#d29922' },
+                    { label: 'Trail Braking', value: hasAdv && adv.trailBraking?.ratio != null ? (adv.trailBraking.ratio * 100).toFixed(1) + '%' : '--', color: '#a371f7' },
+                    { label: '最大横向G', value: maxLatG !== '--' ? maxLatG + 'g' : '--', color: '#f0883e' },
+                    { label: '最大制动G', value: maxBrakeG !== '--' ? maxBrakeG + 'g' : '--', color: '#f85149' },
+                    { label: '滑行占比', value: coastPct !== '--' ? coastPct + '%' : '--', color: '#8b949e' },
+                    { label: '换挡次数', value: gearShifts, color: '#79c0ff' },
+                  ];
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+                      {metrics.map(m => (
+                        <div key={m.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                          <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>{m.label}</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'monospace' }}>{m.value}</div>
                         </div>
-                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                          {analysis.建议.map((adv, idx) => (
-                            <li key={idx} style={{ marginBottom: 4 }}>{adv}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* 损失时间条形图 */}
+                {advancedData && advancedData.sessionId === selectedSession && advancedData.lossTime && advancedData.lossTime.length > 0 && (
+                  <div style={sectionStyle}>
+                    <h3 style={sectionTitleStyle}>分段损失时间</h3>
+                    <div style={{ height: 160 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={advancedData.lossTime.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.lossTime * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
+                          <Tooltip
+                            contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
+                            formatter={(v) => [v + ' ms', '损失时间']}
+                          />
+                          <Bar dataKey="loss" fill="#f85149" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 )}
 
                 {/* 赛道学习曲线位置 */}
                 {sessionLearningData && sessionLearningData.data.length > 1 && (
-                  <div style={{
-                    ...sectionStyle,
-                    marginBottom: 16
-                  }}>
+                  <div style={{ ...sectionStyle, marginBottom: 16 }}>
                     <h3 style={sectionTitleStyle}>本场在赛道成长轨迹中的位置</h3>
                     <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
                       曲线向下代表圈速提升（越快越好）。橙色圆点=本场成绩。曲线持续下降说明你在进步；若出现平台期则可能遇到驾驶瓶颈，建议对比前后场的弯道数据找原因。
@@ -1352,7 +1420,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                 {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                  {/* 左栏：Canvas 痛点与联动赛道图 */}
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
@@ -1364,7 +1431,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         红色虚线=失分最多的3个弯道，黄色=当前选中弯道。点击右侧表格行可联动高亮。优先处理红色弯道。
                       </div>
                     )}
-                    
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
                       width={480}
@@ -1392,7 +1458,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     />
                   </div>
 
-                  {/* 右栏：赛道所有弯道性能看板 */}
                   <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column' }}>
                     <h3 style={sectionTitleStyle}>弯道性能参数表</h3>
                     <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
@@ -1453,7 +1518,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   </div>
                 </div>
 
-                {/* 弯道车速进化分析 (与看板表格及地图联动) */}
+                {/* 弯道车速进化分析 */}
                 {turnsData && turnsData.turns && turnsData.turns.length > 0 && (
                   <CornerEvolutionPanel turns={turnsData.turns} activeTurnIdx={activeTurnIdx} />
                 )}
@@ -1463,49 +1528,143 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'dynamics' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆</h3>
-                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4 }}>
-                    注：重合点越密集说明该极限状态保持越久；呈十字形分布通常意味着欠缺循迹刹车。
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>动力学分析</h3>
+                </div>
+
+                {/* 面板1: G-G 摩擦圆 + Gx-Gy 散点图 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div style={sectionStyle}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>G-G 摩擦力圆</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
+                      密集区=极限状态保持久；十字形分布=欠缺循迹刹车
+                    </div>
+                    <div style={{ height: 340 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']} />
+                          <Scatter name="遥测G值" data={ggData.sampled} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
+                          <ReferenceLine x={0} stroke="#484f58" />
+                          <ReferenceLine y={0} stroke="#484f58" />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11 }}>
+                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 6, flex: 1 }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>最大横向力</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>{ggData.maxLat.toFixed(2)} G</div>
+                      </div>
+                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 6, flex: 1 }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: 10 }}>最大纵向制动</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#f85149', fontFamily: 'monospace' }}>{ggData.maxBrake.toFixed(2)} G</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={sectionStyle}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>Gx vs Gy 散点图（速度着色）</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
+                      颜色越亮=速度越高，观察高速区与低速区的G力分布差异
+                    </div>
+                    <div style={{ height: 340 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name, props) => {
+                            if (name === '横向G' || name === '纵向G') return [value.toFixed(2) + ' G', name];
+                            return [value, name];
+                          }} />
+                          <Scatter name="速度" data={ggData.sampled} shape="circle">
+                            {ggData.sampled.map((entry, idx) => {
+                              const speed = entry.speed || 0;
+                              const ratio = Math.min(speed / 300, 1);
+                              const r = Math.round(88 + ratio * (255 - 88));
+                              const g = Math.round(166 - ratio * 80);
+                              const b = Math.round(255 - ratio * 200);
+                              return <circle key={idx} cx={0} cy={0} r={3} fill={`rgba(${r},${g},${b},0.6)`} />;
+                            })}
+                          </Scatter>
+                          <ReferenceLine x={0} stroke="#484f58" />
+                          <ReferenceLine y={0} stroke="#484f58" />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
-                  <div style={{ ...sectionStyle, height: 400 }}>
+
+                {/* 面板2: US/OS 指数曲线 */}
+                <div style={{ ...sectionStyle, marginBottom: 16 }}>
+                  <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转向不足/过度分析</h4>
+                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
+                    正值=转向不足（推头），负值=转向过度（甩尾）。绝对值越大偏离中性越远。
+                  </div>
+                  <div style={{ height: 200 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <LineChart data={advancedData?.usOsIndex || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(2)} tickCount={7} />
-                        <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(2)} tickCount={7} />
-                        <Tooltip 
-                          cursor={{ strokeDasharray: '3 3' }}
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                          formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']}
-                        />
-                        <Scatter name="遥测G值" data={ggData.sampled} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
-                        <ReferenceLine x={0} stroke="#484f58" />
+                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
                         <ReferenceLine y={0} stroke="#484f58" />
-                      </ScatterChart>
+                        <Line dataKey="value" stroke="#58a6ff" dot={false} />
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  
+                </div>
+
+                {/* 面板3: 轮胎滑移效率图 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>极限诊断分析</h4>
-                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 10, lineHeight: 1.5 }}>
-                      这些是本圈内的峰值G力。横向G反映过弯极限压榨程度，制动G反映刹车力度。数值越高说明你在更充分地使用轮胎抓地力极限。
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>轮胎滑移效率图</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
+                      X=纵向滑移率（加速/制动），Y=侧偏角（转弯）。颜色=综合滑移量，越亮滑移越大。
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11 }}>
-                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大横向力：</div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
-                          {ggData.maxLat.toFixed(2)} G
-                        </div>
-                      </div>
-                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向制动：</div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: '#f85149', fontFamily: 'monospace' }}>
-                          {ggData.maxBrake.toFixed(2)} G
-                        </div>
-                      </div>
+                    <div style={{ height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis type="number" dataKey="tireSlipRatio" name="纵向滑移率" stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <YAxis type="number" dataKey="tireSlipAngle" name="侧偏角" stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
+                          <Scatter name="滑移" data={(channelsData.channels || []).filter((_, i) => i % 4 === 0).map(c => ({ tireSlipRatio: c.tireSlipRatio || 0, tireSlipAngle: c.tireSlipAngle || 0, tireCombinedSlip: c.tireCombinedSlip || 0 })).filter(d => Math.abs(d.tireSlipRatio) > 0.01 || Math.abs(d.tireSlipAngle) > 0.5)} shape="circle">
+                            {(channelsData.channels || []).filter((_, i) => i % 4 === 0).map((c, idx) => {
+                              const slip = c.tireCombinedSlip || 0;
+                              const ratio = Math.min(slip / 5, 1);
+                              const r = Math.round(88 + ratio * (255 - 88));
+                              const g = Math.round(166 - ratio * 120);
+                              const b = Math.round(255 - ratio * 200);
+                              return <circle key={idx} cx={0} cy={0} r={3} fill={`rgba(${r},${g},${b},0.5)`} />;
+                            })}
+                          </Scatter>
+                          <ReferenceLine x={0} stroke="#484f58" />
+                          <ReferenceLine y={0} stroke="#484f58" />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* 面板4: 车身姿态响应 */}
+                  <div style={sectionStyle}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>车身姿态响应</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>
+                      俯仰(Pitch)、侧倾(Roll)、横摆(Yaw)随距离变化
+                    </div>
+                    <div style={{ height: 300 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={channelsData.channels || []}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <YAxis stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
+                          <Line dataKey="pitch" stroke="#58a6ff" dot={false} name="Pitch" />
+                          <Line dataKey="roll" stroke="#3fb950" dot={false} name="Roll" />
+                          <Line dataKey="yaw" stroke="#d29922" dot={false} name="Yaw" />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
@@ -1590,6 +1749,108 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     </ResponsiveContainer>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeChart === 'inputs' && channelsData && (
+              <div>
+                <div style={{ marginBottom: 12 }}>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>驾驶输入分析</h3>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  {/* 踏板曲线 */}
+                  <div style={{ ...sectionStyle, height: 300 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>油门 & 刹车</h4>
+                    <ResponsiveContainer width="100%" height="85%">
+                      <LineChart data={channelsData.channels || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis stroke="#8b949e" domain={[0, 100]} />
+                        <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(1)+'%', n==='throttle'?'油门':'刹车']} />
+                        <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Trail Braking 检测 */}
+                  <div style={sectionStyle}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>Trail Braking 分析</h4>
+                    {advancedData?.trailBraking ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 12, borderRadius: 6, textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 4 }}>Trail Braking 占比</div>
+                          <div style={{ fontSize: 28, fontWeight: 700, color: advancedData.trailBraking.ratio > 0.3 ? '#3fb950' : '#d29922', fontFamily: 'monospace' }}>
+                            {(advancedData.trailBraking.ratio * 100).toFixed(1)}%
+                          </div>
+                          <div style={{ fontSize: 9, color: '#484f58', marginTop: 4 }}>{advancedData.trailBraking.count}/{advancedData.trailBraking.total} 帧</div>
+                        </div>
+                        <div style={{ fontSize: 10, color: '#8b949e', lineHeight: 1.5 }}>
+                          Trail Braking = 刹车同时转向。占比越高说明入弯技巧越好。目标：30%以上。
+                        </div>
+                      </div>
+                    ) : <div style={{ color: '#484f58', fontSize: 10 }}>加载中...</div>}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {/* 转向输入 */}
+                  <div style={{ ...sectionStyle, height: 250 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>方向盘转角</h4>
+                    <ResponsiveContainer width="100%" height="85%">
+                      <LineChart data={channelsData.channels || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis stroke="#8b949e" domain={[-127, 127]} />
+                        <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
+                        <ReferenceLine y={0} stroke="#484f58" />
+                        <Line type="monotone" dataKey="steer" stroke="#d29922" strokeWidth={1.5} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* 差速器行为 */}
+                  <div style={{ ...sectionStyle, height: 250 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>差速器行为（同轴轮速差）</h4>
+                    {channelsData?.channels ? (
+                      <ResponsiveContainer width="100%" height="85%">
+                        <LineChart data={channelsData.channels.map(c => ({
+                          distance: c.distance,
+                          frontDiff: Math.abs((c.wheelSpeedFL||0) - (c.wheelSpeedFR||0)),
+                          rearDiff: Math.abs((c.wheelSpeedRL||0) - (c.wheelSpeedRR||0))
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                          <YAxis stroke="#8b949e" />
+                          <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(2), n==='frontDiff'?'前轴差':'后轴差']} />
+                          <Line type="monotone" dataKey="frontDiff" stroke="#58a6ff" strokeWidth={1.5} dot={false} name="前轴" />
+                          <Line type="monotone" dataKey="rearDiff" stroke="#f85149" strokeWidth={1.5} dot={false} name="后轴" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : <div style={{ color: '#484f58', fontSize: 10 }}>加载中...</div>}
+                  </div>
+                </div>
+
+                {/* 功率扭矩曲线 */}
+                {advancedData?.powerCurve && advancedData.powerCurve.length > 0 && (
+                  <div style={{ ...sectionStyle, marginTop: 16 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>功率 & 扭矩 - 转速曲线</h4>
+                    <div style={{ height: 250 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={advancedData.powerCurve}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                          <XAxis dataKey="rpm" stroke="#8b949e" style={{ fontSize: 9 }} label={{ value: 'RPM', position: 'insideBottomRight', style: { fontSize: 9, fill: '#8b949e' } }} />
+                          <YAxis yAxisId="left" stroke="#58a6ff" label={{ value: '功率(W)', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: '#58a6ff' } }} />
+                          <YAxis yAxisId="right" orientation="right" stroke="#ff7b72" label={{ value: '扭矩(Nm)', angle: 90, position: 'insideRight', style: { fontSize: 9, fill: '#ff7b72' } }} />
+                          <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} />
+                          <Line yAxisId="left" type="monotone" dataKey="avgPower" stroke="#58a6ff" strokeWidth={2} dot={false} name="功率" />
+                          <Line yAxisId="right" type="monotone" dataKey="avgTorque" stroke="#ff7b72" strokeWidth={2} dot={false} name="扭矩" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1740,30 +2001,98 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+
+                  {/* 分段耗时对比 */}
+                  {advancedData?.lossTime && advancedData.lossTime.length > 0 && (
+                    <div style={{ ...sectionStyle, marginTop: 12 }}>
+                      <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>分段耗时对比</h4>
+                      <div style={{ height: 200 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={advancedData.lossTime.map(s => ({
+                            sector: 'S' + (s.sector + 1),
+                            lossTime: Math.round(s.lossTime * 1000),
+                            fill: s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'
+                          }))}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                            <XAxis dataKey="sector" stroke="#8b949e" style={{ fontSize: 10 }} />
+                            <YAxis stroke="#8b949e" unit="ms" style={{ fontSize: 9 }} />
+                            <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v) => [v + ' ms', '损失时间']} />
+                            <Bar dataKey="lossTime" radius={[4,4,0,0]}>
+                              {advancedData.lossTime.map((s, idx) => (
+                                <Cell key={idx} fill={s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 一致性指标 */}
+                  {advancedData?.consistency && (
+                    <div style={{ ...sectionStyle, marginTop: 12 }}>
+                      <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>一致性分析</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                        <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6, textAlign: 'center' }}>
+                          <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 4 }}>圈速标准差</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: advancedData.consistency.lapTimeStd < 0.5 ? '#3fb950' : advancedData.consistency.lapTimeStd < 1 ? '#d29922' : '#f85149', fontFamily: 'monospace' }}>
+                            {advancedData.consistency.lapTimeStd?.toFixed(2) || '--'}s
+                          </div>
+                        </div>
+                        {(advancedData.consistency.sectorStd || []).map((std, idx) => (
+                          <div key={idx} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6, textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 4 }}>S{idx+1} 标准差</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: std < 0.2 ? '#3fb950' : std < 0.5 ? '#d29922' : '#f85149', fontFamily: 'monospace' }}>
+                              {std?.toFixed(2) || '--'}s
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 理论最快圈 */}
+                  {advancedData?.theoreticalBest && (
+                    <div style={{ ...sectionStyle, marginTop: 12 }}>
+                      <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>理论最快圈</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
+                          {formatTime(advancedData.theoreticalBest.time)}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#8b949e' }}>
+                          由最佳分段拼接而成，实际最快圈：{formatTime(analysis?.成绩?.最快圈速)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {activeChart === 'replay' && sessionDetail && (
+            {activeChart === 'replay' && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>单圈回放</h3>
-                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4 }}>
-                    回放本次session的驾驶轨迹与遥测数据
-                  </div>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>回放 & AI教练</h3>
                 </div>
-                <ReplayPlayer positions={sessionDetail.positions || []} data={sessionDetail.data || []} />
+                
+                {/* 影子车回放 */}
+                <div style={sectionStyle}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>影子车回放</h4>
+                  {sessionDetail ? (
+                    <ReplayPlayer positions={sessionDetail.positions || []} data={sessionDetail.data || []} />
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 30, color: '#8b949e', fontSize: 11 }}>
+                      {detailLoaded ? '无回放数据' : '加载中...'}
+                    </div>
+                  )}
+                </div>
+                
+                {/* AI驾驶教练 */}
+                <div style={{ ...sectionStyle, marginTop: 16 }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>AI 驾驶教练</h4>
+                  <AICoachPanel sessionId={selectedSession} />
+                </div>
               </div>
-            )}
-
-            {activeChart === 'replay' && !sessionDetail && (
-              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
-                请先从左侧选择一个比赛记录以查看回放
-              </div>
-            )}
-
-            {activeChart === 'aiCoach' && (
-              <AICoachPanel sessionId={selectedSession} />
             )}
           </div>
         ) : trackFilter ? (
