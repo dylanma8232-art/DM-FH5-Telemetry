@@ -206,6 +206,17 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
   // Round 7: 选择对比session
   const selectCompareSession = async (sessionId) => {
+    // 点击已选中的按钮 → 取消选择
+    if (compareSessionA === sessionId) {
+      clearCompare();
+      return;
+    }
+    if (compareSessionB === sessionId) {
+      setCompareSessionB(null);
+      setCompareAnalysisB(null);
+      return;
+    }
+
     if (compareSessionA === null) {
       setCompareSessionA(sessionId);
       toast('已选择第一个Session，请再选择一个', 'info');
@@ -1506,7 +1517,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮胎载荷与温度</h3>
                   <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6, lineHeight: 1.5 }}>
-                    四轮温度分布：内/中/外三区温度应接近均匀。外侧偏高说明走线过激或外倾角不足；内侧偏高说明内倾角过多。悬挂行程反映过弯侧倾强度，前轴压缩=入弯前移，后轴可用于识别甩尾风险。
+                    四轮温度分布：温度应接近均匀，温差过大说明轮胎负载不均。打滑率反映驱动轮空转程度（数值越高抓地力损失越大）。悬挂行程反映过弯侧倾强度，前轴压缩=入弯前移，后轴可用于识别甩尾风险。
                   </div>
                 </div>
                 <TiresChassisPanel channels={channelsData.channels || []} />
