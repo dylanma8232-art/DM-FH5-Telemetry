@@ -2095,7 +2095,12 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
         const res = await fetch(`/api/tracks/${trackId}`);
         if (!res.ok) return;
         const data = await res.json();
-        setPositions(data.points || data.positions || []);
+        // 与赛道管理保持一致：优先 points → centerline → trajectories[0] → positions
+        const resolved = (data.points && data.points.length > 2) ? data.points
+          : (data.centerline && data.centerline.length > 2) ? data.centerline
+          : (data.trajectories && data.trajectories.length > 0 && data.trajectories[0].length > 2) ? data.trajectories[0]
+          : (data.positions || []);
+        setPositions(resolved);
       } catch (e) {
         console.error('Failed to load track map coordinates', e);
       }
