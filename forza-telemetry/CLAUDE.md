@@ -4,7 +4,7 @@
 > [!IMPORTANT]
 > **AI 协作与索引维护指南**：
 > - 本项目使用 [CodeGraph](https://github.com/colbymchenry/codegraph) (v1.2.0+) 进行智能索引和知识图谱管理。
-> - 任何 AI Agent 在对项目新增、修改或删除文件后，必须运行 `npm run build:map` 重新构建并更新 [CODEMAP.md](file:///Users/dylan/Desktop/fh5/CODEMAP.md)，以保证知识图谱的精确度，帮助后续 Agent 快速掌握架构与看懂代码。
+> - 任何 AI Agent 在对项目新增、修改或删除文件后，必须运行 `npm run build:map` 重新构建并更新 [CODEMAP.md](file:///Users/wenchen.ma/Desktop/fh5/CODEMAP.md)，以保证知识图谱的精确度，帮助后续 Agent 快速掌握架构与看懂代码。
 
 ---
 
@@ -17,10 +17,12 @@
 - 实时接收 FH5 游戏遥测 UDP 数据（324字节/包，约 30fps）
 - 仪表盘实时显示速度、转速、轮胎温度、悬挂、G力、油门刹车等
 - 赛道自动识别、中心线提取、弯道检测、路书生成
+- **环道检测**：自动检测环形赛道并提取单圈数据（方案F闭合点检测 + 方案D曲率周期性检测）
 - 比赛记录与回放、分段计时、圈速对比
 - 车辆自动检测与管理
 - 调校（Tune）管理与对比
 - 驾驶建议与语音播报（小米 TTS）
+- AI 教练分析（DashScope API）
 
 ---
 
@@ -34,8 +36,9 @@
 | 后端框架 | Node.js (ES Modules) + Express 4.x |
 | 实时通信 | Socket.IO Server 4.x |
 | 数据接收 | Node.js dgram (UDP) |
-| 数据存储 | JSON 文件（文件系统） |
+| 数据存储 | JSON 文件 + Brotli 压缩（文件系统） |
 | 语音合成 | 小米 TTS API (mimo-v2.5-tts) |
+| AI 教练 | DashScope API |
 | PWA | Service Worker + manifest.json |
 
 ---
@@ -50,14 +53,30 @@ forza-telemetry/
 ├── package.json                 # 根 monorepo 脚本
 ├── monitor.sh                   # 服务器监控脚本
 │
+├── scripts/                     # 构建脚本
+│   └── generate_codemap.py      # CODEMAP 生成脚本
+│
 ├── server/                      # 后端服务
 │   ├── package.json             # 依赖: express, socket.io
 │   ├── src/
-│   │   ├── index.js             # 主入口: Express + Socket.IO + UDP + 所有API
-│   │   ├── telemetry-parser.js # UDP 二进制数据解析器 (SLED 232B + Dash 79B)
-│   │   ├── track-builder.js    # 赛道构建: 中心线提取/弯道检测/路书生成
-│   │   ├── data-listener.js    # 独立数据监听工具（轮询API检查数据）
-│   │   └── test-sender.js      # 测试UDP数据发送器
+│   │   ├── index.js             # 主入口: Express + Socket.IO + UDP + 所有API (~5356行)
+│   │   ├── telemetry-parser.js  # UDP 二进制数据解析器 (SLED 232B + Dash 79B, ~368行)
+│   │   ├── track-builder.js     # 赛道构建: 中心线提取/弯道检测/路书生成/环道检测 (~1074行)
+│   │   ├── rebuild-tracks.js    # 数据清洗脚本: 重建赛道/清洗vehicles (~279行)
+│   │   ├── data-listener.js     # 独立数据监听工具（轮询API检查数据）
+│   │   ├── config/
+│   │   │   └── constants.js     # 配置常量
+│   │   ├── services/
+│   │   │   ├── retention.js     # 会话自动清理服务
+│   │   │   └── state-manager.js # 全局状态管理器
+│   │   ├── storage/
+│   │   │   ├── atomic-writer.js # 原子写入工具
+│   │   │   ├── file-db.js       # Brotli 压缩读写封装
+│   │   │   └── migration.js     # 数据库迁移工具
+│   │   └── utils/
+│   │       ├── get-current-api.js    # API 调试工具
+│   │       ├── listen-and-classify.js # 数据监听分类工具
+│   │       └── rdp.js                # RDP 轨迹简化算法
 │   └── data/
 │       └── tracks-database.json # 内置赛道数据库
 │
@@ -66,6 +85,7 @@ forza-telemetry/
 │   ├── vite.config.js           # Vite 构建配置
 │   ├── index.html               # 入口 HTML
 │   ├── public/                  # PWA 静态资源 (icons, manifest, sw.js)
+│   │   └── generate-icons.cjs   # 图标生成脚本
 │   ├── dist/                    # 构建输出（服务器直接托管此目录）
 │   └── src/
 │       ├── main.jsx             # React 入口
@@ -80,12 +100,21 @@ forza-telemetry/
 │       │   │   ├── SessionHistoryPage.jsx
 │       │   │   ├── VehicleManagerPage.jsx
 │       │   │   └── TuneManagerPage.jsx
-│       │   ├── dashboard/       # 仪表盘子组件 (~45个)
+│       │   ├── dashboard/       # 仪表盘子组件
+│       │   │   ├── AICoachPanel.jsx          # AI教练面板
+│       │   │   ├── AlertAdvicePanel.jsx      # 警报与驾驶反馈中心
+│       │   │   ├── BrakingGripDynamicsPanel.jsx # 底盘监测面板
+│       │   │   ├── LapComparison.jsx         # 圈速对比
+│       │   │   ├── PaceNoteExport.jsx        # 路书导出
+│       │   │   ├── PaceNotesPanel.jsx        # 路书面板
+│       │   │   ├── PartsConfigurator.jsx     # 部件配置器
+│       │   │   ├── RacePerformanceTimingPanel.jsx # 比赛计时面板
+│       │   │   ├── ReplayPlayer.jsx          # 回放播放器
+│       │   │   ├── SectorAnalysis.jsx        # 分段分析
+│       │   │   └── ThrottleBrakeHeatmap.jsx  # 油门刹车热力图
 │       │   ├── settings/
 │       │   │   └── SettingsPanel.jsx
 │       │   └── shared/          # 通用UI组件
-│       │       ├── Bar.jsx
-│       │       ├── Button.jsx
 │       │       ├── Card.jsx
 │       │       ├── EmptyState.jsx
 │       │       ├── ErrorBoundary.jsx
@@ -98,31 +127,28 @@ forza-telemetry/
 │       │
 │       ├── hooks/               # 自定义 Hooks
 │       │   ├── useSocket.js     # Socket.IO 连接管理
-│       │   ├── useApi.js        # HTTP 请求封装
-│       │   ├── useKeyboard.js   # 键盘快捷键
-│       │   ├── useDebounce.js   # 防抖
-│       │   ├── useGForceHistory.js   # G力历史
-│       │   ├── useHistoryBuffer.js   # 数据历史缓冲
-│       │   ├── useAudioFeedback.js  # 音频反馈
-│       │   └── usePaceNoteVoice.js   # 路书语音播报
+│       │   └── useKeyboard.js   # 键盘快捷键
 │       │
 │       ├── utils/               # 工具函数
-│       │   ├── formatters.js   # 数据格式化
-│       │   ├── validators.js   # 数据验证
-│       │   ├── warnings.js     # 警告规则引擎
-│       │   ├── warningConfig.js # 警告配置
-│       │   └── warningHistory.js # 警告历史
+│       │   ├── formatters.js    # 数据格式化
+│       │   └── speechQueue.js   # 语音队列管理
 │       │
 │       └── data/                # 静态数据
 │           ├── parts.js         # 车辆部件列表
 │           └── tunePresets.js   # 调校预设
 │
 ├── data/                        # 运行时数据存储
-│   ├── tracks.json              # 赛道数据库（用户录制）
+│   ├── tracks-metadata.json     # 赛道元数据索引（轻量）
+│   ├── tracks/                  # 赛道详情（Brotli 压缩）
+│   │   └── track_*.json.br
+│   ├── track_records/           # 赛道记录
 │   ├── vehicles.json            # 车辆数据库（自动检测）
 │   ├── tunes.json               # 调校数据库
 │   └── sessions/                # 比赛记录
-│       └── session_*.json       # 单次比赛数据
+│       ├── session_*_summary.json          # 摘要文件
+│       ├── session_*_detail_hifi.json.br   # 高精度详情（Brotli压缩）
+│       ├── session_*_detail_lowfi.json.br  # 低精度详情（Brotli压缩）
+│       └── session_*_ai_coach.md           # AI教练报告
 │
 └── docs/                        # 开发文档（迭代记录）
     └── *.md                     # 各模块开发迭代记录
@@ -140,50 +166,17 @@ forza-telemetry/
 
 | 功能组 | 组件 | 说明 |
 |--------|------|------|
-| 速度/动力 | `SpeedGauge.jsx` | 速度表盘 |
-| | `SpeedGearPanel.jsx` | 速度+档位 |
-| | `VehiclePanel.jsx` | 车辆基本信息 |
-| | `VehicleAnalysisPanel.jsx` | 车辆性能分析 |
-| 轮胎/悬挂 | `TirePanel.jsx` | 轮胎温度/磨损 |
-| | `TireThermalAnalysis.jsx` | 轮胎热力学分析 |
-| | `WheelCompositePanel.jsx` | 四轮综合数据 |
-| | `SuspensionChart.jsx` | 悬挂行程图表 |
-| | `SuspensionIndicator.jsx` | 悬挂状态指示 |
-| 刹车/牵引 | `ThrottleBrakeChart.jsx` | 油门刹车输入 |
-| | `ThrottleBrakeHeatmap.jsx` | 热力图 |
-| | `ABSTCIndicator.jsx` | ABS/TC状态 |
-| | `TractionIndicator.jsx` | 牵引力指示 |
-| | `BrakeAnalysis.jsx` | 刹车分析 |
-| 路面/操控 | `SurfaceIndicator.jsx` | 路面类型 |
-| | `RoadSurfaceAnalysis.jsx` | 路面综合分析 |
-| | `ControlsPanel.jsx` | 方向盘/踏板输入 |
-| 圈速/计时 | `LapPanel.jsx` | 圈速面板 |
-| | `LapPrediction.jsx` | 圈速预测 |
-| | `LapComparison.jsx` | 圈速对比 |
-| | `LapHistoryChart.jsx` | 圈速历史 |
-| | `LapDelta.jsx` | Delta时间差 |
-| | `LapTrendChart.jsx` | 趋势图 |
-| | `SectorTimer.jsx` | 分段计时 |
-| | `SectorAnalysis.jsx` | 分段分析 |
-| 赛道/导航 | `TrackOverlay.jsx` | 赛道俯视叠加 |
-| | `TrackProgressPanel.jsx` | 赛道进度 |
-| | `TrackRecognition.jsx` | 赛道识别UI |
-| | `PaceNotesPanel.jsx` | 路书面板 |
-| | `PaceNoteExport.jsx` | 路书导出 |
-| 数据/分析 | `DataTrendPanel.jsx` | 数据趋势 |
-| | `DataExportPanel.jsx` | 数据导出 |
-| | `FullDataPanel.jsx` | 完整数据面板 |
-| | `DrivingScore.jsx` | 驾驶评分 |
-| | `DrivingAdvice.jsx` | 驾驶建议 |
-| | `RealTimeAdvicePanel.jsx` | 实时建议 |
-| | `GhostComparison.jsx` | 幽灵对比 |
-| 警告/录制 | `WarningPanel.jsx` | 警告面板 |
-| | `TurnWarningHUD.jsx` | 弯道HUD警告 |
-| | `RecordingStatusPanel.jsx` | 录制状态 |
-| | `ReplayPlayer.jsx` | 回放播放器 |
-| 其他 | `PersonalBest.jsx` | 个人最佳 |
-| | `DriverDisplays.jsx` | 驾驶员显示 |
-| | `MobileDashboard.jsx` | 移动端适配 |
+| AI教练 | `AICoachPanel.jsx` | AI驾驶教练建议 |
+| 警报/建议 | `AlertAdvicePanel.jsx` | 警报与驾驶反馈中心，基于物理参数动态计算阈值 |
+| 底盘/轮胎 | `BrakingGripDynamicsPanel.jsx` | 底盘监测：四轮滑移、胎温、行程、差速、G力 |
+| 圈速对比 | `LapComparison.jsx` | 多圈速度/油门/刹车曲线对比 |
+| 路书 | `PaceNotesPanel.jsx` | 拉力赛路书渲染器，支持语音播报 |
+| 路书导出 | `PaceNoteExport.jsx` | 路书导出功能 |
+| 部件配置 | `PartsConfigurator.jsx` | 车辆部件配置 |
+| 比赛计时 | `RacePerformanceTimingPanel.jsx` | 比赛时间与分段计时器，支持Delta和历史圈 |
+| 回放 | `ReplayPlayer.jsx` | 比赛回放播放器 |
+| 分段分析 | `SectorAnalysis.jsx` | 分段耗时与一致性分析 |
+| 热力图 | `ThrottleBrakeHeatmap.jsx` | 油门刹车输入热力图 |
 
 ### 4.2 赛道管理 (Track Manager)
 
@@ -198,14 +191,22 @@ forza-telemetry/
 - 从比赛记录导入赛道
 - 弯道速度提示编辑
 - 赛道导出
+- **赛道重建**（应用环道检测重新生成）
 
 后端核心：`server/src/track-builder.js`
-- `buildTrackFromTrajectories()` - 多轨迹聚合为中心线
+- `buildTrackFromTrajectories()` - 多轨迹聚合为中心线（含环道检测）
+- `findClosurePoint()` - **环道检测**：闭合点检测（位置+方向双重验证）
+- `detectCurvaturePeriodicity()` - **环道检测**：曲率序列周期性检测
+- `detectLoopAndExtractSingleLap()` - **环道检测主函数**：组合方案F+D
 - `detectTurnsEnhanced()` - 弯道检测（发夹弯/急弯/中速弯/慢弯/直道微弯）
 - `buildRouteBook()` - 路书生成（入弯/弯中/出弯速度、刹车点、降档建议）
-- `generateSectors()` - 分段计时生成
-- `recognizeTrack()` - 赛道自动识别（多维度特征匹配）
 - `validateTrackQuality()` - 赛道数据质量评分
+- `resampleCenterline()` - 中心线重采样
+- `smoothCenterline()` - 中心线平滑（Catmull-Rom + 高斯滤波）
+- `computeDTWPath()` - DTW 动态时间规整（含 Yaw 惩罚，解决交叉环道）
+
+数据清洗工具：`server/src/rebuild-tracks.js`
+- `npm run rebuild:tracks` - 重建所有赛道数据，清洗 vehicles.json 孤儿引用
 
 ### 4.3 比赛中心 (Session History)
 
@@ -222,6 +223,10 @@ forza-telemetry/
   - 分段分析 (`/api/analysis/:id/sectors`)
   - 驾驶建议 (`/api/analysis/:id/advice`)
   - 诊断报告 (`/api/analysis/:id/diagnosis`)
+  - 遥测通道 (`/api/analysis/:id/telemetry-channels`)
+  - 高级分析 (`/api/analysis/:id/advanced`)
+  - 弯道分析 (`/api/analysis/:id/turns`)
+  - AI教练 (`/api/analysis/:id/ai-coach`)
 - 数据导出（CSV/JSON）
 - 比赛报告生成
 - 关联赛道和车辆
@@ -247,7 +252,7 @@ forza-telemetry/
   "drivetrain": "AWD", // FWD/RWD/AWD
   "firstSeen": "ISO时间",
   "raceCount": 1,
-  "tracks": ["赛道ID"],
+  "tracks": ["trackId"],  // 注意：现在存储 trackId 而非 trackName
   "bestLap": 0,
   "lastUsed": "ISO时间",
   "autoDetected": true
@@ -357,6 +362,28 @@ DashboardPage → 各子组件渲染
   POST /api/trackRecognition/select   → 选择其他赛道
 ```
 
+### 5.5 环道检测流
+
+```
+赛道构建时（buildTrackFromTrajectories 入口）:
+  输入轨迹 → detectLoopAndExtractSingleLap(轨迹)
+    │
+    ├─ 方案F: findClosurePoint()
+    │   └─ 检测轨迹回到起点附近（<30m）且方向一致（<45°）
+    │
+    ├─ 方案D: detectCurvaturePeriodicity()
+    │   └─ 曲率序列自相关分析，检测周期性（阈值>0.6）
+    │
+    └─ 组合判断:
+        ├─ 两者一致 → 高置信度切出单圈
+        ├─ 只有F → 使用F结果
+        ├─ 只有D → 使用D结果
+        └─ 都没有 → 返回全部（非环道）
+    │
+    ▼
+  单圈轨迹 → 正常融合流程
+```
+
 ---
 
 ## 6. API 端点清单
@@ -390,6 +417,7 @@ DashboardPage → 各子组件渲染
 | PUT | `/api/tracks/:id/turns/:index/speedHint` | 编辑弯道速度提示 |
 | POST | `/api/tracks/merge` | 合并多条轨迹 |
 | POST | `/api/tracks/import-sessions` | 从比赛记录导入赛道 |
+| POST | `/api/tracks/:id/rebuild` | 重建赛道数据（应用环道检测） |
 
 ### 6.4 调校管理
 
@@ -436,6 +464,11 @@ DashboardPage → 各子组件渲染
 | GET | `/api/analysis/:sessionId/sectors` | 分段分析 |
 | GET | `/api/analysis/:sessionId/advice` | 驾驶建议 |
 | GET | `/api/analysis/:sessionId/diagnosis` | 诊断报告 |
+| GET | `/api/analysis/:sessionId/telemetry-channels` | 遥测通道分析 |
+| GET | `/api/analysis/:sessionId/advanced` | 高级分析 |
+| GET | `/api/analysis/:sessionId/turns` | 弯道分析 |
+| GET | `/api/analysis/:sessionId/ai-coach` | AI教练建议 |
+| POST | `/api/analysis/:sessionId/ai-coach` | 生成AI教练报告 |
 
 ### 6.8 导出与报告
 
@@ -444,7 +477,6 @@ DashboardPage → 各子组件渲染
 | GET | `/api/export/csv/:sessionId` | 导出CSV |
 | GET | `/api/export/json/:sessionId` | 导出JSON |
 | GET | `/api/export/report/:sessionId` | 导出比赛报告 |
-| GET | `/api/test/report/:sessionId` | 测试报告 |
 
 ### 6.9 赛道模式与识别
 
@@ -473,6 +505,13 @@ DashboardPage → 各子组件渲染
 | GET | `/api/backup/export` | 导出全部数据 |
 | POST | `/api/backup/restore` | 恢复数据 |
 
+### 6.12 设置
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/settings/dashscope-key` | 获取 DashScope API Key |
+| POST | `/api/settings/dashscope-key` | 设置 DashScope API Key |
+
 ---
 
 ## 7. Socket.IO 事件
@@ -498,11 +537,20 @@ DashboardPage → 各子组件渲染
 
 ### 后端核心
 
-| 文件 | 行数(估) | 职责 |
-|------|----------|------|
-| `server/src/index.js` | ~4800 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
-| `server/src/telemetry-parser.js` | ~350 | UDP二进制→JSON解析（SLED+Dash） |
-| `server/src/track-builder.js` | ~1610 | 赛道算法: 中心线/弯道/路书/识别/验证 |
+| 文件 | 行数 | 职责 |
+|------|------|------|
+| `server/src/index.js` | ~5356 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
+| `server/src/telemetry-parser.js` | ~368 | UDP二进制→JSON解析（SLED+Dash） |
+| `server/src/track-builder.js` | ~1074 | 赛道算法: 中心线/弯道/路书/环道检测 |
+| `server/src/rebuild-tracks.js` | ~279 | 数据清洗: 重建赛道/清洗vehicles |
+| `server/src/data-listener.js` | - | 独立数据监听工具 |
+| `server/src/config/constants.js` | - | 配置常量 |
+| `server/src/services/retention.js` | - | 会话自动清理 |
+| `server/src/services/state-manager.js` | - | 全局状态管理 |
+| `server/src/storage/atomic-writer.js` | - | 原子写入 |
+| `server/src/storage/file-db.js` | - | Brotli 压缩读写 |
+| `server/src/storage/migration.js` | - | 数据迁移 |
+| `server/src/utils/rdp.js` | - | RDP 轨迹简化算法 |
 
 ### 前端核心
 
@@ -510,7 +558,6 @@ DashboardPage → 各子组件渲染
 |------|------|
 | `client/src/App.jsx` | 根组件: 5标签页路由、Socket连接管理 |
 | `client/src/hooks/useSocket.js` | Socket.IO连接 + rAF优化渲染 |
-| `client/src/hooks/useApi.js` | HTTP请求封装(GET/POST/PUT/DELETE) |
 | `client/src/components/pages/DashboardPage.jsx` | 仪表盘主页面 |
 | `client/src/components/pages/TrackManagerPage.jsx` | 赛道管理 |
 | `client/src/components/pages/SessionHistoryPage.jsx` | 比赛中心+排行榜 |
@@ -531,21 +578,23 @@ npm run server
 # 启动前端 (Vite dev server)
 npm run client
 
-# 发送测试UDP数据
-npm run test
-
 # 更新代码图谱/知识图谱 (在代码文件发生变动后运行)
 npm run build:map
+
+# 重建所有赛道数据（应用环道检测，清洗vehicles.json）
+npm run rebuild:tracks
 ```
 
 ---
 
 ## 10. 架构关键点
 
-1. **单服务器架构**: 所有后端逻辑集中在一个 `index.js` 文件中，约3700行，包含所有API、Socket.IO事件、UDP处理、TTS、录制逻辑。
-2. **数据存储**: 使用 JSON 文件存储，无数据库。数据量小、读写不频繁，适合当前规模。
-3. **前端 SPA**: React 单页应用，通过标签页切换5个主要视图，支持 PWA 离线访问。
+1. **主要逻辑集中**: 核心后端逻辑在 `index.js`（~5356行），已部分模块化（config/services/storage/utils 目录）。
+2. **数据存储**: 使用 JSON 文件 + Brotli 压缩存储，无数据库。赛道详情以 `.json.br` 格式存储，Session 分为摘要（JSON）和详情（Brotli压缩）。
+3. **前端 SPA**: React 单页应用，通过标签页切换5个主要视图，支持 PWA 离线访问。仪表盘组件已大幅精简（从~43个减至11个）。
 4. **实时通信**: Socket.IO 双向通信，遥测数据以约30fps广播，节流间隔33ms。
 5. **赛道识别**: 使用多维度相似度算法（Hausdorff + Fréchet + 曲率 + 方向 + 边界 + 长度），支持顺时针/逆时针双向匹配。
-6. **TTS 语音播报**: 集成小米 TTS API，播报弯道导航信息（刹车/入弯/弯心/出弯），带缓存机制。
-7. **自动录制**: 状态机驱动（IDLE → RECORDING → POST_RACE → IDLE），自动检测比赛开始/结束，识别赛道并生成数据。
+6. **环道检测**: 在赛道构建入口自动检测环形赛道（闭合点检测 + 曲率周期性检测），提取单圈数据避免弯道重复记录。
+7. **TTS 语音播报**: 集成小米 TTS API，播报弯道导航信息（刹车/入弯/弯心/出弯），带缓存机制。
+8. **自动录制**: 状态机驱动（IDLE → RECORDING → POST_RACE → IDLE），自动检测比赛开始/结束，识别赛道并生成数据。
+9. **AI 教练**: 集成 DashScope API，基于比赛数据生成驾驶分析报告。
