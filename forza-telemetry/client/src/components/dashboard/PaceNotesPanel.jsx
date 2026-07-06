@@ -583,7 +583,7 @@ export function PaceNotesPanel({
       if (note.camber === 'off-camber') geoText += '，防滑，外倾弯';
       else if (note.camber === 'banking') geoText += '，带斜坡';
       
-      const gearText = note.recommendedGear ? `, 推荐${note.recommendedGear}档` : '';
+      const gearText = note.recommendedGear ? `, ${note.recommendedGear}档` : '';
       const distText = note.distanceToNext > 0 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
       
       const speakText = `前有${wrcText}${geoText}${gearText}${distText}`;
