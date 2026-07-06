@@ -2649,8 +2649,7 @@ app.get('/api/autoRecord/status', (req, res) => {
     isRecording: autoRecordState === 'RECORDING',
     packetCount: autoRecordedData.length,
     positionCount: autoRacePositions.length,
-    lastPacketSize: lastPacketSize,
-    hasDashExtension: hasDashExtension
+    lastPacketSize: lastPacketSize
   });
 });
 
