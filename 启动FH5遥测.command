@@ -144,7 +144,7 @@ open "http://127.0.0.1:9189"
 echo ""
 echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
 echo -e "${BOLD}║   ${GREEN}✔  遥测仪表盘已就绪！${NC}${BOLD}             ║${NC}"
-echo -e "╚══════════════════════════════════════╝${NC}"
+echo -e "${BOLD}╚══════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  ${BOLD}电脑访问${NC}  ${CYAN}http://127.0.0.1:9189${NC}"
 echo -e "  ${BOLD}手机访问${NC}  ${CYAN}http://${IP}:9189${NC}"
@@ -163,3 +163,4 @@ while kill -0 "$SERVER_PID" 2>/dev/null && kill -0 "$CLIENT_PID" 2>/dev/null; do
 done
 
 warn "某个服务进程已退出，脚本结束"
+
