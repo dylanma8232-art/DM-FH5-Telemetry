@@ -1449,24 +1449,24 @@ const btnDangerSmallStyle = {
 };
 
 const btnIconStyle = {
-  padding: '2px 5px',
+  padding: '4px 8px',
   background: '#0d1117',
   color: '#8b949e',
   border: '1px solid #21262d',
-  borderRadius: 3,
+  borderRadius: 4,
   cursor: 'pointer',
-  fontSize: 9,
+  fontSize: 14,
   lineHeight: 1
 };
 
 const btnDangerIconStyle = {
-  padding: '2px 5px',
+  padding: '4px 8px',
   background: 'rgba(218,54,51,0.1)',
   color: '#f85149',
   border: '1px solid rgba(248,81,73,0.3)',
-  borderRadius: 3,
+  borderRadius: 4,
   cursor: 'pointer',
-  fontSize: 9,
+  fontSize: 14,
   lineHeight: 1
 };
 
