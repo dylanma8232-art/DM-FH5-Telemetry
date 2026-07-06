@@ -454,6 +454,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     if (!selectedSession) return;
     if (activeChart === 'overview') {
       loadTurnsData();
+      loadTelemetryChannels();
+      loadAdvancedAnalysis();
     } else if (['dynamics', 'inputs', 'workbench'].includes(activeChart)) {
       loadTelemetryChannels();
       loadAdvancedAnalysis();
@@ -1871,7 +1873,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             }))}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                               <XAxis dataKey="sector" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '赛段', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
-                              <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '损失时间(ms)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' }} />
+                              <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '损失时间(ms)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
                               <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v) => [v + ' ms', '损失时间']} />
                               <Bar dataKey="lossTime" radius={[4,4,0,0]}>
                                 {advancedData.lossTime.map((s, idx) => (
