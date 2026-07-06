@@ -88,10 +88,12 @@
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
   - 📄 [test_merge.js](file:///forza-telemetry/scripts/test_merge.js) 
 - 📂 **server/**
+  - 📄 [analyze-compression.js](file:///forza-telemetry/server/analyze-compression.js) 
   - 📄 [clean-metadata.js](file:///forza-telemetry/server/clean-metadata.js) 
   - 📄 [clean-points.js](file:///forza-telemetry/server/clean-points.js) 
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
+  - 📄 [recompress-background.js](file:///forza-telemetry/server/recompress-background.js) 
   - 📄 [refresh-all.js](file:///forza-telemetry/server/refresh-all.js) 
   - 📂 **src/**
     - 📂 **config/**
@@ -112,6 +114,8 @@
       - 📄 [get-current-api.js](file:///forza-telemetry/server/src/utils/get-current-api.js) 
       - 📄 [listen-and-classify.js](file:///forza-telemetry/server/src/utils/listen-and-classify.js) 
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
+  - 📄 [test-brotli-levels.js](file:///forza-telemetry/server/test-brotli-levels.js) 
+  - 📄 [test-zstd.js](file:///forza-telemetry/server/test-zstd.js) 
 
 ---
 
