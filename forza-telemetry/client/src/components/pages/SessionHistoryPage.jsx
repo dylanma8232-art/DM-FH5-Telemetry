@@ -79,6 +79,39 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     return [...new Set(sessions.map(s => s.trackName || '未知赛道'))].filter(Boolean)
   }, [sessions])
 
+  // G-G 摩擦力圆：降采样 + 缓存峰值
+  const ggData = useMemo(() => {
+    const channels = channelsData?.channels || [];
+    if (channels.length === 0) return { sampled: [], maxLat: 0, maxBrake: 0 };
+
+    // 降采样：基础每4帧取1帧，额外保留高G值点
+    const threshold = 0.8;
+    const sampled = [];
+    for (let i = 0; i < channels.length; i += 4) {
+      const c = channels[i];
+      const lat = Math.abs(c.gLat || 0);
+      const lng = Math.abs(c.gLong || 0);
+      sampled.push(c);
+      // 如果接近极限，前后各补2帧保留细节
+      if (lat > threshold || lng > threshold) {
+        for (let j = Math.max(0, i - 2); j < Math.min(channels.length, i + 3); j++) {
+          if (j !== i) sampled.push(channels[j]);
+        }
+      }
+    }
+
+    // 计算峰值
+    let maxLat = 0, maxBrake = 0;
+    for (const c of channels) {
+      const lat = Math.abs(c.gLat || 0);
+      const brake = c.gLong < 0 ? Math.abs(c.gLong) : 0;
+      if (lat > maxLat) maxLat = lat;
+      if (brake > maxBrake) maxBrake = brake;
+    }
+
+    return { sampled, maxLat, maxBrake };
+  }, [channelsData])
+
   const myFilteredSessions = sessions.filter(s => {
     const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
     const matchTrack = !trackFilter || (s.trackName || '未知赛道') === trackFilter
@@ -1360,7 +1393,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
                           formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']}
                         />
-                        <Scatter name="遥测G值" data={channelsData.channels || []} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
+                        <Scatter name="遥测G值" data={ggData.sampled} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
                         <ReferenceLine x={0} stroke="#484f58" />
                         <ReferenceLine y={0} stroke="#484f58" />
                       </ScatterChart>
@@ -1376,13 +1409,13 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
                         <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大横向力：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
-                          {Math.max(...(channelsData.channels || []).map(c => Math.abs(c.gLat || 0))).toFixed(2)} G
+                          {ggData.maxLat.toFixed(2)} G
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
                         <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向制动：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#f85149', fontFamily: 'monospace' }}>
-                          {Math.max(...(channelsData.channels || []).map(c => c.gLong < 0 ? Math.abs(c.gLong) : 0)).toFixed(2)} G
+                          {ggData.maxBrake.toFixed(2)} G
                         </div>
                       </div>
                     </div>
