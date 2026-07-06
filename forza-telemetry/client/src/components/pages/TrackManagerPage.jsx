@@ -7,7 +7,6 @@ export function TrackManagerPage({ onNavigate }) {
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(null);
   const [mergeSource, setMergeSource] = useState('');
   const [mergeTarget, setMergeTarget] = useState('');
   const [editingTrack, setEditingTrack] = useState(null);
@@ -21,8 +20,8 @@ export function TrackManagerPage({ onNavigate }) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortBy, setSortBy] = useState('time');
+  const [sortDir, setSortDir] = useState('desc');
   // Round 7: 验证结果状态
   const [validationResult, setValidationResult] = useState(null);
 
@@ -36,6 +35,22 @@ export function TrackManagerPage({ onNavigate }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // 切换选中赛道时，自动触发后台质量验证
+  useEffect(() => {
+    if (selectedTrack) {
+      const autoValidate = async () => {
+        try {
+          const res = await fetch(`/api/tracks/${selectedTrack}/validate`);
+          if (res.ok) {
+            const result = await res.json();
+            setValidationResult(prev => ({ ...prev, [selectedTrack]: result }));
+          }
+        } catch {}
+      };
+      autoValidate();
+    }
+  }, [selectedTrack]);
 
   // Round 8: 录制计时器 - 每秒更新按钮显示
   const [recordingElapsed, setRecordingElapsed] = useState(0);
@@ -701,9 +716,17 @@ export function TrackManagerPage({ onNavigate }) {
     }
     list = [...list].sort((a, b) => {
       let cmp = 0;
-      if (sortBy === 'name') cmp = (a[1].name || a[0]).localeCompare(b[1].name || b[0], 'zh-CN');
-      if (sortBy === 'length') cmp = (a[1].length || 0) - (b[1].length || 0);
-      if (sortBy === 'trajectory') cmp = (a[1].trajectoryCount || 0) - (b[1].trajectoryCount || 0);
+      if (sortBy === 'name') {
+        cmp = (a[1].name || a[0]).localeCompare(b[1].name || b[0], 'zh-CN');
+      } else if (sortBy === 'length') {
+        cmp = (a[1].length || 0) - (b[1].length || 0);
+      } else if (sortBy === 'trajectory') {
+        cmp = (a[1].trajectoryCount || 0) - (b[1].trajectoryCount || 0);
+      } else if (sortBy === 'time') {
+        const timeA = new Date(a[1].lastUsedAt || a[1].updatedAt || a[1].createdAt || 0).getTime();
+        const timeB = new Date(b[1].lastUsedAt || b[1].updatedAt || b[1].createdAt || 0).getTime();
+        cmp = timeA - timeB;
+      }
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
@@ -766,6 +789,7 @@ export function TrackManagerPage({ onNavigate }) {
               style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
             />
             {[
+              { key: 'time', label: '时间' },
               { key: 'name', label: '名称' },
               { key: 'length', label: '长度' },
               { key: 'trajectory', label: '轨迹数' }
@@ -821,10 +845,7 @@ export function TrackManagerPage({ onNavigate }) {
                           <>
                             <button onClick={(e) => { e.stopPropagation(); startTrackRace(id); }} style={btnIconStyle} title="开始赛道模式">▶</button>
                             <button onClick={(e) => { e.stopPropagation(); onNavigate && onNavigate('leaderboard', { trackId: id }); }} style={btnIconStyle} title="排行榜">⏱</button>
-                            <button onClick={(e) => { e.stopPropagation(); setShowDetailModal(id); }} style={btnIconStyle} title="赛道详情">ℹ</button>
                             <button onClick={(e) => { e.stopPropagation(); setEditingTrack(id); setEditName(track.name || ''); }} style={btnIconStyle} title="重命名">✎</button>
-                            <button onClick={(e) => { e.stopPropagation(); validateTrack(id); }} style={btnIconStyle} title="验证赛道数据质量">&#x2713;</button>
-                            <button onClick={(e) => { e.stopPropagation(); rebuildTrack(id); }} style={btnIconStyle} title="重建中心线（修复弯道信息稀少）">🔄</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(id); }} style={btnDangerIconStyle} title="删除">✕</button>
                           </>
                         )}
@@ -833,29 +854,13 @@ export function TrackManagerPage({ onNavigate }) {
                     {/* Round 7: 紧凑信息行 - 单行显示长度/弯道/轨迹/比赛场次/最后使用 */}
                     <div style={{ fontSize: 9, color: '#8b949e', lineHeight: 1.4 }}>
                       {track.length ? Math.round(track.length) + 'm' : '-'} ·
-                      {track.turns ? track.turns.length + '弯' : '0弯'} ·
+                      {(track.turns ? track.turns.length : (track.turnCount || 0)) + '弯'} ·
                       {track.trajectoryCount || 0}轨迹
                       {track.sessionCount > 0 ? <span style={{ color: '#58a6ff' }}> · {track.sessionCount}场比赛</span> : ''}
                     </div>
                     {track.lastUsedAt && (
                       <div style={{ fontSize: 8, color: '#484f58', lineHeight: 1.3 }}>
                         最近: {formatRelativeTime(track.lastUsedAt)}
-                      </div>
-                    )}
-                    {/* Round 7: 验证结果内联显示 */}
-                    {validationResult && validationResult[id] && (
-                      <div style={{ fontSize: 8, lineHeight: 1.3, marginTop: 2 }}>
-                        <span style={{
-                          fontWeight: 700,
-                          color: validationResult[id].overallScore >= 85 ? '#3fb950' : validationResult[id].overallScore >= 60 ? '#d29922' : '#f85149',
-                        }}>
-                          数据质量: {validationResult[id].overallScore}/100 ({validationResult[id].grade}级)
-                        </span>
-                        {validationResult[id].suggestions && validationResult[id].suggestions.length > 0 && (
-                          <div style={{ color: '#8b949e', marginTop: 1 }}>
-                            {validationResult[id].suggestions[0]}
-                          </div>
-                        )}
                       </div>
                     )}
                   </>
@@ -888,102 +893,209 @@ export function TrackManagerPage({ onNavigate }) {
           </span>
         </div>
 
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <canvas
-            ref={canvasRef}
-            style={{
-              width: '100%',
-              height: '100%',
-              background: '#0d1117',
-              cursor: isDragging ? 'grabbing' : 'grab'
-            }}
-            onWheel={handleWheel}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          />
-          {!selectedTrack && (
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* 左侧地图预览 */}
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+              <canvas
+                ref={canvasRef}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: '#0d1117',
+                  cursor: isDragging ? 'grabbing' : 'grab'
+                }}
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              />
+              {!selectedTrack && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  color: 'var(--text-muted)',
+                  fontSize: 14
+                }}>
+                  选择赛道查看预览
+                </div>
+              )}
+            </div>
+
+            {/* 赛道长度/弯道汇总信息栏 */}
+            {selectedTrackData && (
+              <div style={{
+                padding: '8px 12px',
+                borderTop: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                display: 'flex',
+                gap: 16
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{selectedTrackData.name}</div>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  长度: {selectedTrackData.length ? Math.round(selectedTrackData.length) + 'm' : '未计算'}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  弯道: {selectedTrackData.turns ? selectedTrackData.turns.length : 0}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 右侧赛道详情与质量面板 */}
+          {selectedTrackData && (
             <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              color: 'var(--text-muted)',
-              fontSize: 14
+              width: 340,
+              borderLeft: '1px solid var(--border)',
+              background: 'var(--bg-secondary)',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              overflow: 'hidden'
             }}>
-              选择赛道查看预览
+              <div style={{
+                padding: '10px 12px 6px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>赛道详情与评分</span>
+                {(selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount || 0) > 0 && (
+                  <span style={{ fontSize: 9, color: '#58a6ff', fontWeight: 600 }}>
+                    基于 {selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount} 次比赛数据
+                  </span>
+                )}
+              </div>
+
+              {/* 数据质量卡片 */}
+              {(() => {
+                const q = validationResult && validationResult[selectedTrack];
+                const gradeColor = q?.overallScore >= 85 ? '#3fb950' : q?.overallScore >= 70 ? '#58a6ff' : q?.overallScore >= 50 ? '#d29922' : '#f85149';
+                const gradeBg = q?.overallScore >= 85 ? 'rgba(63,185,80,0.15)' : q?.overallScore >= 70 ? 'rgba(88,166,255,0.15)' : q?.overallScore >= 50 ? 'rgba(210,153,34,0.15)' : 'rgba(248,81,73,0.15)';
+                return (
+                  <div style={{ padding: 12, borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 900, fontFamily: 'monospace',
+                          background: gradeBg,
+                          color: gradeColor,
+                          border: `2px solid ${gradeColor}`
+                        }}>
+                          {q?.grade || '?'}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            质量评分: {q ? q.overallScore + '/100' : '计算中...'}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                            {selectedTrackData.pointCount || 0}点 · {selectedTrackData.turns?.length || 0}弯 · {selectedTrackData.trajectoryCount || 0}轨迹
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => rebuildTrack(selectedTrack)}
+                        style={btnSmallStyle}
+                        title="重新构建中心线与弯道"
+                      >
+                        🔄 重建
+                      </button>
+                    </div>
+
+                    {/* 分项进度条 */}
+                    {q?.details && (
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                        {Object.entries(q.details).map(([key, val]) => {
+                          const labels = { points: '点', turns: '弯', routeBook: '路', dataRichness: '富', coverage: '覆' };
+                          const barColor = val >= 80 ? '#3fb950' : val >= 50 ? '#d29922' : '#f85149';
+                          return (
+                            <div key={key} style={{ flex: 1 }} title={`${labels[key] || key}: ${val}/100`}>
+                              <div style={{ height: 2, background: '#21262d', borderRadius: 1, overflow: 'hidden' }}>
+                                <div style={{ width: `${val}%`, height: '100%', background: barColor }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 警告/建议 */}
+                    {q?.warnings && q.warnings.length > 0 && (
+                      <div style={{ fontSize: 9, color: '#d29922', display: 'flex', gap: 4, marginBottom: 2 }}>
+                        <span>⚠️</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.warnings[0]}>
+                          {q.warnings[0]}
+                        </span>
+                      </div>
+                    )}
+                    {q?.suggestions && q.suggestions.length > 0 && (
+                      <div style={{ fontSize: 9, color: '#58a6ff', display: 'flex', gap: 4 }}>
+                        <span>💡</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.suggestions[0]}>
+                          {q.suggestions[0]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* 弯道列表 */}
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  弯道列表
+                </div>
+                <div style={{ flex: 1, overflow: 'auto' }}>
+                  {selectedTrackData.turns && selectedTrackData.turns.length > 0 ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)', position: 'sticky', top: 0, zIndex: 1 }}>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>#</th>
+                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
+                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
+                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedTrackData.turns.map((turn, idx) => {
+                          const severityColor = turn.severity === 'critical' ? '#f85149' : turn.severity === 'high' ? '#f0883e' : turn.severity === 'medium' ? '#d29922' : turn.severity === 'low' ? '#3fb950' : '#58a6ff';
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', background: turn.severity === 'critical' ? 'rgba(248,81,73,0.06)' : 'transparent' }}>
+                              <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
+                              <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9 }}>
+                                {turn.turnCategory || turn.type || '-'}
+                              </td>
+                              <td style={{ padding: '6px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
+                                {turn.direction === 'left' ? '左' : '右'}
+                              </td>
+                              <td style={{ padding: '6px 4px', fontFamily: 'monospace' }}>
+                                {turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
+                      暂无弯道数据。<br />
+                      <span style={{ fontSize: 9, color: 'var(--text-secondary)' }}>点击上方“重建”尝试生成中心线。</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Round 3: 底部信息栏长度单位统一为 m */}
-        {selectedTrackData && (
-          <div style={{
-            padding: 12,
-            borderTop: '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
-            display: 'flex',
-            gap: 16
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTrackData.name}</div>
-            <span style={{ fontSize: 11 }}>
-              长度: {selectedTrackData.length ? Math.round(selectedTrackData.length) + 'm' : '未计算'}
-            </span>
-            <span style={{ fontSize: 11 }}>
-              弯道: {selectedTrackData.turns ? selectedTrackData.turns.length : 0}
-            </span>
-          </div>
-        )}
-
-        {/* Round 9: 路书编辑 - 弯道列表与推荐速度 */}
-        {selectedTrackData && selectedTrackData.turns && selectedTrackData.turns.length > 0 && (
-          <div style={{
-            borderTop: '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
-            maxHeight: 200,
-            overflow: 'auto'
-          }}>
-            <div style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>路书 - 弯道列表</span>
-              {/* Round 8: 数据来源显示 */}
-              {(selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount || 0) > 0 && (
-                <span style={{ fontSize: 9, color: '#58a6ff', fontWeight: 600 }}>
-                  基于 {selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount} 次比赛数据
-                </span>
-              )}
-            </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>#</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
-                  <th style={{ padding: '4px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedTrackData.turns.map((turn, idx) => {
-                  const severityColor = turn.severity === 'critical' ? '#f85149' : turn.severity === 'high' ? '#f0883e' : turn.severity === 'medium' ? '#d29922' : turn.severity === 'low' ? '#3fb950' : '#58a6ff';
-                  return (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', background: turn.severity === 'critical' ? 'rgba(248,81,73,0.06)' : 'transparent' }}>
-                      <td style={{ padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
-                      <td style={{ padding: '4px 4px', color: severityColor, fontSize: 9 }}>
-                        {turn.turnCategory || turn.type || '-'}
-                      </td>
-                      <td style={{ padding: '4px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
-                        {turn.direction === 'left' ? '左' : '右'}
-                      </td>
-                      <td style={{ padding: '4px 4px', fontFamily: 'monospace' }}>
-                        {turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       {/* 合并弹窗 */}
@@ -1094,16 +1206,6 @@ export function TrackManagerPage({ onNavigate }) {
           录制中 - 请在游戏中驾驶以采集赛道轨迹
         </div>
       )}
-
-      {/* Round 4: 赛道详情弹窗 */}
-      {showDetailModal && tracks[showDetailModal] && (
-        <TrackDetailModal
-          track={tracks[showDetailModal]}
-          trackId={showDetailModal}
-          onClose={() => setShowDetailModal(null)}
-          onNavigate={onNavigate}
-        />
-      )}
     </div>
   );
 }
@@ -1201,233 +1303,7 @@ function MergePreviewCanvas({ trackA, trackB }) {
   );
 }
 
-// Round 4: 赛道详情弹窗组件
-function TrackDetailModal({ track, trackId, onClose, onNavigate }) {
-  const [detailedTrack, setDetailedTrack] = useState(track);
-  const turns = detailedTrack.turns || [];
-  const routeBook = detailedTrack.routeBook || null;
-  // Round 7: 验证结果
-  const [validation, setValidation] = useState(null);
-  const [loadingValidation, setLoadingValidation] = useState(false);
 
-  useEffect(() => {
-    const loadDetail = async () => {
-      if (track.points && track.points.length > 0) {
-        setDetailedTrack(track);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/tracks/${trackId}`);
-        const detailed = await res.json();
-        setDetailedTrack(detailed);
-      } catch (e) {
-        console.error('Failed to load track detail:', e);
-      }
-    };
-    loadDetail();
-  }, [track, trackId]);
-
-  useEffect(() => {
-    // 弹窗打开时自动验证
-    const doValidate = async () => {
-      setLoadingValidation(true);
-      try {
-        const res = await fetch(`/api/tracks/${trackId}/validate`);
-        if (res.ok) setValidation(await res.json());
-      } catch {}
-      setLoadingValidation(false);
-    };
-    doValidate();
-  }, [trackId]);
-
-  return (
-    <div style={modalOverlayStyle} onClick={onClose}>
-      <div style={{ ...modalContentStyle, maxWidth: 650, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>{track.name || trackId}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 18 }}>×</button>
-        </div>
-
-        {/* Round 7: 验证结果面板 */}
-        <div style={{ marginBottom: 16, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', background: 'var(--bg-primary)', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}>
-            数据质量验证
-          </div>
-          {loadingValidation ? (
-            <div style={{ padding: 10, fontSize: 10, color: '#8b949e' }}>验证中...</div>
-          ) : validation ? (
-            <div style={{ padding: '8px 12px' }}>
-              {/* 综合评分 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, fontWeight: 900, fontFamily: 'monospace',
-                  background: validation.overallScore >= 85 ? 'rgba(63,185,80,0.15)' : validation.overallScore >= 60 ? 'rgba(210,153,34,0.15)' : 'rgba(248,81,73,0.15)',
-                  color: validation.overallScore >= 85 ? '#3fb950' : validation.overallScore >= 60 ? '#d29922' : '#f85149',
-                  border: `2px solid ${validation.overallScore >= 85 ? '#3fb950' : validation.overallScore >= 60 ? '#d29922' : '#f85149'}`,
-                }}>
-                  {validation.grade}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    综合评分: {validation.overallScore}/100
-                  </div>
-                  <div style={{ fontSize: 9, color: '#8b949e' }}>
-                    基于{validation.metadata?.trajectoryCount || '?'}次比赛数据 · {validation.metadata?.pointCount || '?'}个轨迹点
-                  </div>
-                </div>
-              </div>
-              {/* 分项评分 */}
-              {validation.details && Object.keys(validation.details).length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {Object.entries(validation.details).map(([key, val]) => {
-                    const labels = { points: '轨迹点', turns: '弯道质量', routeBook: '路书完整性', dataRichness: '数据丰富度', coverage: '赛道覆盖度' };
-                    const barColor = val >= 80 ? '#3fb950' : val >= 50 ? '#d29922' : '#f85149';
-                    return (
-                      <div key={key} style={{ flex: 1, minWidth: 100 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#8b949e', marginBottom: 2 }}>
-                          <span>{labels[key] || key}</span>
-                          <span style={{ fontFamily: 'monospace', color: barColor }}>{val}</span>
-                        </div>
-                        <div style={{ height: 3, background: '#21262d', borderRadius: 2, overflow: 'hidden' }}>
-                          <div style={{ width: `${val}%`, height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {/* 警告信息 */}
-              {validation.warnings && validation.warnings.length > 0 && (
-                <div style={{ fontSize: 9, color: '#d29922', marginBottom: 4 }}>
-                  {validation.warnings.map((w, i) => (
-                    <div key={i} style={{ marginBottom: 2 }}>&#x26A0; {w}</div>
-                  ))}
-                </div>
-              )}
-              {/* 改进建议 */}
-              {validation.suggestions && validation.suggestions.length > 0 && (
-                <div style={{ fontSize: 9, color: '#58a6ff' }}>
-                  {validation.suggestions.map((s, i) => (
-                    <div key={i} style={{ marginBottom: 2 }}>&#x1F4A1; {s}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-
-        {/* 基础信息 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-          <div style={{ ...statCardStyle }}>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>长度</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#58a6ff' }}>
-              {track.length ? Math.round(track.length) + 'm' : '未计算'}
-            </div>
-          </div>
-          <div style={{ ...statCardStyle }}>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>弯道数</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#58a6ff' }}>
-              {turns.length}
-            </div>
-          </div>
-          <div style={{ ...statCardStyle }}>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>轨迹数</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#58a6ff' }}>
-              {track.trajectoryCount || 0}
-            </div>
-          </div>
-          <div style={{ ...statCardStyle }}>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>轨迹点</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'monospace', color: '#58a6ff' }}>
-              {track.pointCount !== undefined ? track.pointCount : (track.points ? track.points.length : 0)}
-            </div>
-          </div>
-        </div>
-
-        {/* 弯道列表 */}
-        {turns.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>弯道列表</h3>
-            <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>#</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>类型</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>方向</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>角度</th>
-                    <th style={{ padding: 6, textAlign: 'left', color: 'var(--text-secondary)' }}>半径</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {turns.map((turn, idx) => {
-                    const sevColor = turn.severity === 'critical' ? '#f85149' : turn.severity === 'high' ? '#f0883e' : turn.severity === 'medium' ? '#d29922' : turn.severity === 'low' ? '#3fb950' : '#58a6ff';
-                    return (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                        <td style={{ padding: 5, fontWeight: 600 }}>{idx + 1}</td>
-                        <td style={{ padding: 5, color: sevColor, fontSize: 9 }}>{turn.turnCategory || turn.type || '-'}</td>
-                        <td style={{ padding: 5, fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
-                          {turn.direction === 'left' ? '左' : '右'}
-                        </td>
-                        <td style={{ padding: 5, fontFamily: 'monospace' }}>{turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}</td>
-                        <td style={{ padding: 5, fontFamily: 'monospace', color: '#8b949e' }}>{turn.radius ? turn.radius + 'm' : '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 路书信息 */}
-        {routeBook && (
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>路书信息</h3>
-            <div style={{ background: 'var(--bg-primary)', borderRadius: 6, padding: 10, border: '1px solid var(--border)', fontSize: 11 }}>
-              {routeBook.notes && (
-                <div style={{ marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>备注: </span>
-                  <span>{routeBook.notes}</span>
-                </div>
-              )}
-              {routeBook.segments && routeBook.segments.length > 0 && (
-                <div>
-                  <span style={{ color: 'var(--text-secondary)' }}>分段: </span>
-                  <span>{routeBook.segments.length} 段</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 操作按钮 */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => {
-              onClose();
-              onNavigate && onNavigate('dashboard', { trackId, trackName: track.name });
-            }}
-            style={btnPrimaryStyle}
-          >
-            编辑路书
-          </button>
-          <button
-            onClick={() => {
-              onClose();
-              onNavigate && onNavigate('leaderboard', { trackId });
-            }}
-            style={btnSecondaryStyle}
-          >
-            查看排行榜
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const statCardStyle = {
   background: 'var(--bg-primary)',

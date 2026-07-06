@@ -88,6 +88,7 @@
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
   - 📄 [test_merge.js](file:///forza-telemetry/scripts/test_merge.js) 
 - 📂 **server/**
+  - 📄 [clean-metadata.js](file:///forza-telemetry/server/clean-metadata.js) 
   - 📄 [clean-points.js](file:///forza-telemetry/server/clean-points.js) 
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 

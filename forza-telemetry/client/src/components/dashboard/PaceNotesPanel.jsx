@@ -99,6 +99,35 @@ function generatePaceNotes(trackData) {
       // 速度差值信息
       const speedDiff = (turn.bestEntrySpeed || 0) - (turn.bestExitSpeed || 0);
 
+      // 计算到下一个弯道的实际路段距离 (沿中心线计算)
+      let distanceToNext = 0;
+      if (centerline) {
+        const nextTurn = turns[(idx + 1) % turns.length];
+        const start = turn.endIdx !== undefined ? turn.endIdx : turn.index;
+        const end = nextTurn.startIdx !== undefined ? nextTurn.startIdx : nextTurn.index;
+        if (start !== undefined && end !== undefined) {
+          if (start < end) {
+            for (let i = start + 1; i <= end && i < centerline.length; i++) {
+              const dx = centerline[i].x - centerline[i-1].x;
+              const dz = centerline[i].z - centerline[i-1].z;
+              distanceToNext += Math.sqrt(dx * dx + dz * dz);
+            }
+          } else {
+            // 环形赛道跨越起点终点
+            for (let i = start + 1; i < centerline.length; i++) {
+              const dx = centerline[i].x - centerline[i-1].x;
+              const dz = centerline[i].z - centerline[i-1].z;
+              distanceToNext += Math.sqrt(dx * dx + dz * dz);
+            }
+            for (let i = 1; i <= end && i < centerline.length; i++) {
+              const dx = centerline[i].x - centerline[i-1].x;
+              const dz = centerline[i].z - centerline[i-1].z;
+              distanceToNext += Math.sqrt(dx * dx + dz * dz);
+            }
+          }
+        }
+      }
+
       notes.push({
         type: 'turn',
         id: `turn-${idx}`,
@@ -123,6 +152,10 @@ function generatePaceNotes(trackData) {
         // 组合弯信息
         isChicane: turn.isChicane,
         chicaneDirection: turn.chicaneDirection,
+        camber: turn.camber,
+        crest: turn.crest,
+        // 到下一弯的直道物理距离
+        distanceToNext: Math.round(distanceToNext)
       });
     });
   }
@@ -362,6 +395,20 @@ function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
         {note.wrcLabel || dirArrow}
       </span>
 
+      {/* 几何特征徽章 */}
+      {note.crest === 'jump' && (
+        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#f85149', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>飞跳 ✈</span>
+      )}
+      {note.crest === 'crest' && (
+        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#d29922', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>过坡</span>
+      )}
+      {note.camber === 'off-camber' && (
+        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#f0883e', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>外倾 ⚠️</span>
+      )}
+      {note.camber === 'banking' && (
+        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#3fb950', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>斜坡</span>
+      )}
+
       {/* 当前激活指示器 */}
       {isActive && (
         <div
@@ -529,10 +576,17 @@ export function PaceNotesPanel({
       const dirText = note.direction === 'left' ? '左' : note.direction === 'right' ? '右' : '';
       const wrcNum = note.wrcNumber || note.severity || 0;
       const wrcText = wrcNum > 0 ? `${dirText}${wrcNum}` : `${dirText}弯`;
+      
+      let geoText = '';
+      if (note.crest === 'jump') geoText += '，飞跳';
+      else if (note.crest === 'crest') geoText += '，过坡';
+      if (note.camber === 'off-camber') geoText += '，防滑，外倾弯';
+      else if (note.camber === 'banking') geoText += '，带斜坡';
+      
       const gearText = note.recommendedGear ? `, 推荐${note.recommendedGear}档` : '';
       const distText = note.distanceToNext > 0 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
       
-      const speakText = `前有${wrcText}${gearText}${distText}`;
+      const speakText = `前有${wrcText}${geoText}${gearText}${distText}`;
       import('../../utils/speechQueue').then(m => {
         m.speechManager.speak(speakText, 2);
       });
