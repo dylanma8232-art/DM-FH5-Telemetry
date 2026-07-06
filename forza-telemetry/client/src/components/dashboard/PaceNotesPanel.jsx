@@ -169,14 +169,14 @@ function generatePaceNotes(trackData) {
       const dz = next.z - curr.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
-      if (dist > 150) {
+      if (dist > 500) {
         // 长直道 -> 加速区
         notes.push({
           type: 'straight',
           id: `straight-${i}`,
           betweenTurns: [i, i + 1],
           distance: Math.round(dist),
-          label: dist > 300 ? '长直道' : '短直道',
+          label: '长直道',
           severity: 1,
           x: (curr.x + next.x) / 2,
           z: (curr.z + next.z) / 2,
@@ -399,15 +399,6 @@ function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
       {note.crest === 'jump' && (
         <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#f85149', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>飞跳 ✈</span>
       )}
-      {note.crest === 'crest' && (
-        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#d29922', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>过坡</span>
-      )}
-      {note.camber === 'off-camber' && (
-        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#f0883e', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>外倾 ⚠️</span>
-      )}
-      {note.camber === 'banking' && (
-        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 2, background: '#3fb950', color: '#fff', fontWeight: 'bold', transform: 'scale(0.85)', transformOrigin: 'left center', display: 'inline-block' }}>斜坡</span>
-      )}
 
       {/* 当前激活指示器 */}
       {isActive && (
@@ -498,7 +489,7 @@ export function PaceNotesPanel({
 
   // 侦测比赛开始
   useEffect(() => {
-    if (!hasRaceStarted && (isRaceOn === 1 || currentSpeed > 10)) {
+    if (!hasRaceStarted && (isRaceOn || currentSpeed > 10)) {
       setHasRaceStarted(true);
     }
   }, [isRaceOn, currentSpeed, hasRaceStarted]);
@@ -579,12 +570,9 @@ export function PaceNotesPanel({
       
       let geoText = '';
       if (note.crest === 'jump') geoText += '，飞跳';
-      else if (note.crest === 'crest') geoText += '，过坡';
-      if (note.camber === 'off-camber') geoText += '，防滑，外倾弯';
-      else if (note.camber === 'banking') geoText += '，带斜坡';
       
-      const gearText = note.recommendedGear ? `, ${note.recommendedGear}档` : '';
-      const distText = note.distanceToNext > 0 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
+      const gearText = '';
+      const distText = note.distanceToNext > 500 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
       
       const speakText = `前有${wrcText}${geoText}${gearText}${distText}`;
       import('../../utils/speechQueue').then(m => {

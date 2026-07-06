@@ -10,12 +10,6 @@
 
 ## 📂 项目模块结构树与导出分析
 
-- 📄 [UDP-DATA-FIELDS.md](file:///UDP-DATA-FIELDS.md) 
-- 📄 [inspect.js](file:///inspect.js) 
-- 📄 [fix-builder.js](file:///fix-builder.js) 
-- 📄 [add_densify.js](file:///add_densify.js) 
-- 📄 [extract.js](file:///extract.js) 
-- 📄 [recover.js](file:///recover.js) 
 - 📄 [CLAUDE.md](file:///forza-telemetry/CLAUDE.md) 
 - 📄 [README.md](file:///forza-telemetry/README.md) 
 - 📂 **client/**
@@ -67,9 +61,6 @@
     - 📂 **utils/**
       - 📄 [formatters.js](file:///forza-telemetry/client/src/utils/formatters.js)   *(函数/组件: `formatTime`, 函数/组件: `formatGear`, 函数/组件: `formatSpeed`, 函数/组件: `formatPower`, 函数/组件: `formatTemp`, 函数/组件: `formatPercent`)*
       - 📄 [speechQueue.js](file:///forza-telemetry/client/src/utils/speechQueue.js)   *(常量/方法: `speechManager`)*
-    - 📂 **data/**
-      - 📄 [parts.js](file:///forza-telemetry/client/src/data/parts.js) 
-      - 📄 [tunePresets.js](file:///forza-telemetry/client/src/data/tunePresets.js)
   - 📄 [vite.config.js](file:///forza-telemetry/client/vite.config.js)   *(默认导出: `defineConfig`)*
 - 📂 **docs/**
   - 📄 [dashboard-round1.md](file:///forza-telemetry/docs/dashboard-round1.md) 
@@ -94,12 +85,11 @@
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh) 
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
+  - 📄 [clean_history.js](file:///forza-telemetry/scripts/clean_history.js) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
-  - 📂 **data/**
-    - 📄 [tracks-database.json](file:///forza-telemetry/server/data/tracks-database.json)
   - 📂 **src/**
     - 📂 **config/**
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `PORT`, 常量/方法: `UDP_PORT`, 常量/方法: `DATA_DIR`, 常量/方法: `TRACK_DB_PATH`, 常量/方法: `EMIT_INTERVAL_MS`, 常量/方法: `CLEANUP_MAX_SESSIONS`, 常量/方法: `DOWNSAMPLE_RATIO`)*
@@ -136,7 +126,8 @@
 ### 2. 后端服务端 (`forza-telemetry/server`)
 * **`server/src/index.js`**: 主要的 API 服务端，启动 9188 端口 of Express/WebSocket 监听，接收 UDP 数据包，并管理赛道和录制文件的存取。
 * **`server/src/telemetry-parser.js`**: Forza UDP 字节流解析器，根据官方结构体提取车速、引擎转速、胎温、轮速、重力、比赛状态（isRaceOn）等数据。
-* **`server/src/track-builder.js`**: 赛道构建器，包含中心线提取、弯道检测、路书生成、赛道识别等功能。
+* **`server/src/speech-worker.js`**: 语音合成与下发接口。
+* **`server/src/track-manager.js`**: 赛道曲线几何分析器，提取车辆行驶轨迹，通过曲线聚合重算赛道中线及检测弯道。
 
 ---
 
