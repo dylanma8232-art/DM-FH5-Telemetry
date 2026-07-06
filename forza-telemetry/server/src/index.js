@@ -1408,14 +1408,23 @@ async function saveAutoRecordedData(duration) {
   
   const validBestLaps = autoRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
   const validLastLaps = autoRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+  const validRaceTimes = autoRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
   
-  let bestLap = validBestLaps.length > 0 ? validBestLaps[validBestLaps.length - 1].bestLap : 0;
-  let lastLap = validLastLaps.length > 0 ? validLastLaps[validLastLaps.length - 1].lastLap : 0;
+  let bestLap = 0;
+  if (validBestLaps.length > 0) {
+    bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
+  } else if (validRaceTimes.length > 0) {
+    bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
+  let lastLap = 0;
+  if (validLastLaps.length > 0) {
+    lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
+  } else if (validRaceTimes.length > 0) {
+    lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
   let maxLap = autoRecordedData.length > 0 ? Math.max(...autoRecordedData.map(d => d.lapNumber || 0)) : 0;
-  
-  // 修复：不再使用 currentRaceTime 作为最快圈速的 fallback
-  // currentRaceTime 是当前圈已用时间，不是完整圈速
-  // 只使用游戏发送的 bestLap 和 lastLap 字段
   
   const sessionData = {
     id: 'session_' + ts,
@@ -2321,14 +2330,23 @@ app.post('/api/record/save', express.json(), (req, res) => {
   // 保存全量数据
   const validBestLaps = manualRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
   const validLastLaps = manualRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+  const validRaceTimes = manualRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
   
-  let bestLap = validBestLaps.length > 0 ? Math.min(...validBestLaps.map(d => d.bestLap)) : 0;
-  let lastLap = validLastLaps.length > 0 ? Math.max(...validLastLaps.map(d => d.lastLap)) : 0;
+  let bestLap = 0;
+  if (validBestLaps.length > 0) {
+    bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
+  } else if (validRaceTimes.length > 0) {
+    bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
+  let lastLap = 0;
+  if (validLastLaps.length > 0) {
+    lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
+  } else if (validRaceTimes.length > 0) {
+    lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
   let maxLap = manualRecordedData.length > 0 ? Math.max(...manualRecordedData.map(d => d.lapNumber || 0)) : 0;
-  
-  // 修复：不再使用 currentRaceTime 作为最快圈速的 fallback
-  // currentRaceTime 是当前圈已用时间，不是完整圈速
-  // 只使用游戏发送的 bestLap 和 lastLap 字段
   
   const sessionData = {
     id: 'session_' + ts,
