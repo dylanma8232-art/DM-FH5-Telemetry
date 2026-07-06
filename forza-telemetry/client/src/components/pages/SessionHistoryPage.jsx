@@ -1353,12 +1353,12 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} />
-                        <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(2)} tickCount={7} />
+                        <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} tickFormatter={(v) => v.toFixed(2)} tickCount={7} />
                         <Tooltip 
                           cursor={{ strokeDasharray: '3 3' }}
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                          itemStyle={{ fontSize: 10 }}
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
+                          formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']}
                         />
                         <Scatter name="遥测G值" data={channelsData.channels || []} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
                         <ReferenceLine x={0} stroke="#484f58" />
