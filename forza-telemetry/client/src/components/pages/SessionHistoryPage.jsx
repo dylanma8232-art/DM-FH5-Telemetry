@@ -1185,7 +1185,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     ...sectionStyle,
                     marginBottom: 16
                   }}>
-                    <h3 style={sectionTitleStyle}>本场比赛在赛道成长轨迹中的位置</h3>
+                    <h3 style={sectionTitleStyle}>本场在赛道成长轨迹中的位置</h3>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                      曲线向下代表圈速提升（越快越好）。橙色圆点=本场成绩。曲线持续下降说明你在进步；若出现平台期则可能遇到驾驶瓶颈，建议对比前后场的弯道数据找原因。
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'center' }}>
                       <div style={{ height: 100 }}>
                         <ResponsiveContainer width="100%" height={100}>
@@ -1227,25 +1230,24 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 )}
 
                 {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
-                <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16 }}>
                   {/* 左栏：Canvas 痛点与联动赛道图 */}
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
-                    
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12, fontStyle: 'italic' }}>
-                        当前赛道无预设弯道数据，暂不支持弯角诊断热力分析。
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>
+                        暂无弯道数据——请先在赛道管理中对该赛道完成建图。
                       </div>
                     ) : (
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                        红色虚线标出时间流失最严重的 3 个弯道，黄色为当前选择弯道。
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                        红色虚线=失分最多的3个弯道，黄色=当前选中弯道。点击右侧表格行可联动高亮。优先处理红色弯道。
                       </div>
                     )}
                     
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
-                      width={380}
-                      height={320}
+                      width={320}
+                      height={280}
                       highlightedPoints={
                         turnsData?.turns
                           ? turnsData.turns.map((t, idx) => ({
@@ -1271,37 +1273,39 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                   {/* 右栏：赛道所有弯道性能看板 */}
                   <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={sectionTitleStyle}>赛道所有弯道性能看板</h3>
+                    <h3 style={sectionTitleStyle}>弯道性能参数表</h3>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                      点击任意行可在左侧地图高亮该弯道。重点关注弯心速度（越高越好）和横向G（过低说明走线保守，不敢靠近极限）。
+                    </div>
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
                         暂无弯道分析数据
                       </div>
                     ) : (
                       <div style={{ flex: 1, overflowY: 'auto', maxHeight: 330 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, textAlign: 'left' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', position: 'sticky', top: 0, background: '#161b22', zIndex: 1 }}>
                               <th style={{ padding: '8px 6px' }}>弯道</th>
-                              <th style={{ padding: '8px 6px' }}>方向/类型</th>
-                              <th style={{ padding: '8px 6px' }}>推荐速度</th>
+                              <th style={{ padding: '8px 6px' }}>类型</th>
                               <th style={{ padding: '8px 6px' }}>入弯速度</th>
-                              <th style={{ padding: '8px 6px' }}>弯心(APEX)</th>
+                              <th style={{ padding: '8px 6px' }}>弯心速度</th>
                               <th style={{ padding: '8px 6px' }}>出弯速度</th>
-                              <th style={{ padding: '8px 6px' }}>弯心档位</th>
-                              <th style={{ padding: '8px 6px' }}>车速偏差</th>
+                              <th style={{ padding: '8px 6px' }}>档位</th>
+                              <th style={{ padding: '8px 6px' }}>横向G</th>
+                              <th style={{ padding: '8px 6px' }}>制动G</th>
                             </tr>
                           </thead>
                           <tbody>
                             {turnsData.turns.map((t, idx) => {
                               const apexSpeed = t.current?.apexSpeed ?? 0;
-                              const recSpeed = t.recommendedSpeed ?? 0;
-                              const delta = recSpeed > 0 ? apexSpeed - recSpeed : 0;
-                              const deltaColor = delta >= 0 ? '#3fb950' : (delta >= -10 ? '#d29922' : '#f85149');
+                              const peakLatG = t.current?.peakLatG ?? 0;
+                              const longBrakeG = t.current?.longBrakeG ?? 0;
+                              const gColor = peakLatG > 2.5 ? '#3fb950' : peakLatG > 1.5 ? '#d29922' : 'var(--text-secondary)';
                               const isSelected = activeTurnIdx === idx;
-                              
                               return (
                                 <tr
-                                  key={t.index}
+                                  key={t.index ?? idx}
                                   onClick={() => setActiveTurnIdx(idx)}
                                   style={{
                                     borderBottom: '1px solid rgba(48, 54, 61, 0.3)',
@@ -1310,29 +1314,14 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                                     transition: 'background 0.2s'
                                   }}
                                 >
-                                  <td style={{ padding: '8px 6px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'inherit' }}>
-                                    {t.name} {isSelected && '🎯'}
-                                  </td>
-                                  <td style={{ padding: '8px 6px', color: 'var(--text-secondary)' }}>
-                                    {t.direction === 'left' ? '左转' : '右转'} ({t.turnCategory || t.type})
-                                  </td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{recSpeed} km/h</td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{t.current?.entrySpeed || 0} km/h</td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--accent)' }}>
-                                    {apexSpeed} km/h
-                                  </td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>{t.current?.exitSpeed || 0} km/h</td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace' }}>
-                                    {(() => {
-                                      const g = t.current?.gear;
-                                      if (g === 0) return 'N';
-                                      if (g === 11 || g === 255) return 'R';
-                                      return g !== undefined ? `${g}档` : '-';
-                                    })()}
-                                  </td>
-                                  <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 700, color: deltaColor }}>
-                                    {delta >= 0 ? `+${delta.toFixed(0)}` : delta.toFixed(0)} km/h
-                                  </td>
+                                  <td style={{ padding: '8px 6px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'inherit' }}>{t.name}</td>
+                                  <td style={{ padding: '8px 6px' }}>{t.direction === 'left' ? '左' : '右'}</td>
+                                  <td style={{ padding: '8px 6px' }}>{t.current?.entrySpeed || 0}</td>
+                                  <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--accent)' }}>{apexSpeed}</td>
+                                  <td style={{ padding: '8px 6px' }}>{t.current?.exitSpeed || 0}</td>
+                                  <td style={{ padding: '8px 6px' }}>{t.current?.gear ?? '-'}</td>
+                                  <td style={{ padding: '8px 6px', color: gColor }}>{peakLatG.toFixed(1)}</td>
+                                  <td style={{ padding: '8px 6px' }}>{longBrakeG.toFixed(1)}</td>
                                 </tr>
                               );
                             })}
@@ -1355,7 +1344,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆</h3>
                   <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    散点反映横向G力与纵向G力的物理结合。散点越往外扩散，说明过载极限压榨越充分。重合点越深说明该状态维持的频率越高（热力图效果）。
+                    注：重合点越密集说明该极限状态保持越久；呈十字形分布通常意味着欠缺循迹刹车。
                   </div>
                 </div>
                 
@@ -1364,8 +1353,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis type="number" dataKey="gLat" name="横向G值" domain={[-1.8, 1.8]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
-                        <YAxis type="number" dataKey="gLong" name="纵向G值" domain={[-1.8, 1.8]} stroke="#8b949e" unit="G" style={{ fontSize: 9 }} />
+                        <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" style={{ fontSize: 9 }} />
                         <Tooltip 
                           cursor={{ strokeDasharray: '3 3' }}
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
@@ -1379,32 +1368,22 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   </div>
                   
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>极限诊断分析</h4>
+                    <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>极限诊断分析</h4>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5 }}>
+                      这些是本圈内的峰值G力。横向G反映过弯极限压榨程度，制动G反映刹车力度。数值越高说明你在更充分地使用轮胎抓地力极限。
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11 }}>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大横向过弯力：</div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大横向力：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace' }}>
                           {Math.max(...(channelsData.channels || []).map(c => Math.abs(c.gLat || 0))).toFixed(2)} G
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向加速力：</div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: '#58a6ff', fontFamily: 'monospace' }}>
-                          {Math.max(...(channelsData.channels || []).map(c => c.gLong > 0 ? c.gLong : 0)).toFixed(2)} G
-                        </div>
-                      </div>
-                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向制动力：</div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>最大纵向制动：</div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: '#f85149', fontFamily: 'monospace' }}>
                           {Math.max(...(channelsData.channels || []).map(c => c.gLong < 0 ? Math.abs(c.gLong) : 0)).toFixed(2)} G
                         </div>
-                      </div>
-                      <div style={{ background: 'rgba(88,166,255,0.05)', border: '1px solid rgba(88,166,255,0.2)', padding: 10, borderRadius: 6, lineHeight: 1.5 }}>
-                        <div style={{ fontWeight: 700, color: '#58a6ff', marginBottom: 4 }}>💡 摩擦圆识图指南</div>
-                        <p style={{ margin: 0, fontSize: 10, color: 'var(--text-secondary)' }}>
-                          散点偏下代表大力刹车，偏上代表全力加速，偏左/偏右代表左右急速过弯。<br/>
-                          如果您的摩擦圆散点呈**“十字形”**（只有直道大力刹车和弯中横向，没有斜向散点），说明您存在“刹车没松完不敢打方向”或“方向没回正不敢开油”的问题，即**入弯循迹刹车 (Trail Braking) 不足**。
-                        </p>
                       </div>
                     </div>
                   </div>
@@ -1415,12 +1394,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'tires' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮荷载荷与温度底盘</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    车轮 2x2 底盘布局。轮胎温区包含内/中/外 (IMO) 细节（调校必备）；轴荷反映过弯侧滑角与驱动轮打滑率。
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮胎载荷与温度</h3>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
+                    四轮温度分布：内/中/外三区温度应接近均匀。外侧偏高说明走线过激或外倾角不足；内侧偏高说明内倾角过多。悬挂行程反映过弯侧倾强度，前轴压缩=入弯前移，后轴可用于识别甩尾风险。
                   </div>
                 </div>
-                
                 <TiresChassisPanel channels={channelsData.channels || []} />
               </div>
             )}
@@ -1428,28 +1406,31 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'shifts' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡与引擎动力诊断</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    分析升降档物理空间分布与单圈引擎转速、扭矩释放曲线，识别拖档或弯中剧烈变速的失衡风险。
-                  </div>
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡分布与扭矩曲线</h3>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, marginBottom: 16 }}>
-                  {/* 左栏：2D 轨道换挡分布 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 16 }}>
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>换挡点空间分布</h4>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>换挡点空间分布</h4>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                      绿色=升档，红色=降档。密集在直道末尾是正常的；如果红点大量出现在弯道区域，关注入弯刈档时机。
+                    </div>
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
-                      width={380}
-                      height={280}
+                      width={460}
+                      height={300}
                       highlightedPoints={
                         (() => {
                           const pts = [];
                           const points = channelsData.channels || [];
+                          let lastDist = -999;
                           for (let i = 1; i < points.length; i++) {
                             const prev = points[i - 1];
                             const curr = points[i];
                             if (curr.gear !== prev.gear && curr.gear > 0 && prev.gear > 0) {
+                              const dist = curr.distance || 0;
+                              if (dist - lastDist < 50) continue; 
+                              lastDist = dist;
                               pts.push({
                                 x: curr.x,
                                 z: curr.z,
@@ -1464,42 +1445,23 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     />
                   </div>
 
-                  {/* 右栏：单圈转速与扭矩变化通道图 */}
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>引擎转速 (RPM) 与输出扭矩 (Torque) 曲线</h4>
-                    <div style={{ height: 280 }}>
+                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转速与扭矩曲线</h4>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                      蓝色=转速，橙色=扭矩。升档后转速骤降幅度越小，说明升档时机越准确。
+                    </div>
+                    <div style={{ height: 200 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={channelsData.channels || []} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                        <LineChart data={channelsData.channels || []}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis dataKey="distance" name="距离" unit="m" stroke="#8b949e" style={{ fontSize: 8 }} />
-                          <YAxis yAxisId="left" orientation="left" name="转速" domain={['auto', 'auto']} stroke="#58a6ff" unit="rpm" style={{ fontSize: 8 }} />
-                          <YAxis yAxisId="right" orientation="right" name="扭矩" domain={['auto', 'auto']} stroke="#ff7b72" unit="N·m" style={{ fontSize: 8 }} />
-                          <Tooltip
-                            contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                            itemStyle={{ fontSize: 10 }}
-                          />
-                          <Line yAxisId="left" type="monotone" dataKey="rpm" stroke="#58a6ff" strokeWidth={1.5} dot={false} isAnimationActive={false} name="转速" />
-                          <Line yAxisId="right" type="monotone" dataKey="torque" stroke="#ff7b72" strokeWidth={1.5} dot={false} isAnimationActive={false} name="扭矩" />
+                          <XAxis dataKey="distance" hide={true} />
+                          <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} stroke="#58a6ff" />
+                          <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} stroke="#ff7b72" />
+                          <Line yAxisId="left" type="monotone" dataKey="rpm" stroke="#58a6ff" strokeWidth={1} dot={false} />
+                          <Line yAxisId="right" type="monotone" dataKey="torque" stroke="#ff7b72" strokeWidth={1} dot={false} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                  </div>
-                </div>
-
-                {/* 下方：换挡诊断说明 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div style={{ ...sectionStyle, background: 'rgba(63,185,80,0.03)', border: '1px solid rgba(63,185,80,0.15)', padding: 12, borderRadius: 6 }}>
-                    <span style={{ color: '#3fb950', fontWeight: 700, fontSize: 11 }}>● 绿色标识：升档点 (Upshift)</span>
-                    <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      升档应当发生在转速接近红线、马力爆发即将衰退的时刻。若右侧曲线中 RPM 过早跌落，说明升档太早（拖档），车辆无法发挥最大输出功率。
-                    </p>
-                  </div>
-                  
-                  <div style={{ ...sectionStyle, background: 'rgba(248,81,73,0.03)', border: '1px solid rgba(248,81,73,0.15)', padding: 12, borderRadius: 6 }}>
-                    <span style={{ color: '#f85149', fontWeight: 700, fontSize: 11 }}>● 红色标识：降档点 (Downshift)</span>
-                    <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      降档应随制动同步、顺滑地进行。**切忌在横向过弯 G 力达到极限（弯心 APEX）时剧烈降档**，因为引擎制动力突变容易使后轴失控打滑。
-                    </p>
                   </div>
                 </div>
               </div>
@@ -1508,9 +1470,9 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'pedals' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>踏板动力学与滑行区间 (Pedal Overlap & Coasting)</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    油门与刹车重叠对齐图。**空油空刹滑行 (Coasting)** 区域是由于入弯过早或犹豫不决导致的圈速隐形杀手。
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>踏板动力学与滑行分析</h3>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
+                    绿色=油门，红色=刹车，X轴为行进距离。理想状态：刹车区间结束后油门立即衔接（无空档滑行）；入弯时刹车应有逐渐松开的渐变段（循迹刹车），而非突然松开。油门与刹车短暂重叠是正常的跟趾换挡或稳定技巧。
                   </div>
                 </div>
 
@@ -1519,35 +1481,24 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={channelsData.channels || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" name="距离" stroke="#8b949e" unit="m" style={{ fontSize: 9 }} />
-                        <YAxis stroke="#8b949e" domain={[0, 100]} unit="%" style={{ fontSize: 9 }} />
-                        <Tooltip
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                          labelStyle={{ fontSize: 10, color: '#8b949e' }}
-                          itemStyle={{ fontSize: 10 }}
-                        />
-                        <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={2} dot={false} name="油门开度" />
-                        <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={2} dot={false} name="刹车压力" />
+                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis stroke="#8b949e" domain={[0, 100]} style={{ fontSize: 9 }} />
+                        <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={2} dot={false} />
+                        <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
 
                   <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 10px', fontSize: 12 }}>滑行效率分析</h4>
                     {(() => {
                       const list = channelsData.channels || [];
                       let coastingCount = 0;
-                      let totalCount = list.length;
-                      list.forEach(c => {
-                        if ((c.throttle || 0) < 5 && (c.brake || 0) < 5 && (c.speed || 0) > 20) {
-                          coastingCount++;
-                        }
-                      });
-                      const ratio = totalCount > 0 ? Math.round((coastingCount / totalCount) * 100) : 0;
+                      list.forEach(c => { if ((c.throttle || 0) < 5 && (c.brake || 0) < 5 && (c.speed || 0) > 20) coastingCount++; });
+                      const ratio = list.length > 0 ? Math.round((coastingCount / list.length) * 100) : 0;
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11 }}>
                           <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', padding: 10, borderRadius: 6 }}>
-                            <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>本圈滑行段占比 (Coasting Ratio)：</div>
+                             <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>本圈滑行占比：</div>
                             <div style={{ fontSize: 22, fontWeight: 900, color: ratio > 15 ? 'var(--danger)' : ratio > 8 ? 'var(--warning)' : 'var(--success)', fontFamily: 'monospace' }}>
                               {ratio} %
                             </div>
@@ -1574,16 +1525,16 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {activeChart === 'overlay' && channelsData && (
               <div>
                 <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>多通道距离对齐对标工作台 (Distance-Aligned Overlay)</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    以相同的物理距离为 X 轴。鼠标滑动时，所有通道图表的十字准星将保持**实时跨轴同步联动**，实现最高精度对标。
+                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>多通道对标工作台</h3>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                    所有通道以行进距离为X轴对齐，鼠标悬停时所有图表同步联动。对比方式：找车速波谷（制动点），对照下方踏板图看刹车是否干净；再看方向盘转角图，判断弯中是否有多余修正。档位图可识别降档位置是否过晚。
                   </div>
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ ...sectionStyle, height: 160, padding: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>车速曲线 (Speed Profile)</span>
+                      <span style={{ fontWeight: 600 }}>车速曲线</span>
                       <span style={{ color: '#58a6ff', fontFamily: 'monospace' }}>最高: {Math.max(...channelsData.channels.map(c => c.speed))} km/h</span>
                     </div>
                     <ResponsiveContainer width="100%" height="80%">
@@ -1599,7 +1550,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                   <div style={{ ...sectionStyle, height: 130, padding: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>踏板深度 (Pedals)</span>
+                      <span style={{ fontWeight: 600 }}>踏板深度</span>
                     </div>
                     <ResponsiveContainer width="100%" height="80%">
                       <LineChart data={channelsData.channels} syncId="overlaySync">
@@ -1615,7 +1566,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                   <div style={{ ...sectionStyle, height: 130, padding: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>方向盘转角 (Steering)</span>
+                      <span style={{ fontWeight: 600 }}>方向盘转角</span>
                     </div>
                     <ResponsiveContainer width="100%" height="80%">
                       <LineChart data={channelsData.channels} syncId="overlaySync">
@@ -1630,7 +1581,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                   <div style={{ ...sectionStyle, height: 130, padding: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>档位 (Gear Selection)</span>
+                      <span style={{ fontWeight: 600 }}>档位</span>
                     </div>
                     <ResponsiveContainer width="100%" height="80%">
                       <LineChart data={channelsData.channels} syncId="overlaySync">
