@@ -287,7 +287,10 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     if (navIntent._subTab === 'leaderboard') {
       setTrackFilter('');
       setSelectedSession(null);
-      if (navIntent.trackId && sessions.length > 0) {
+      // 优先使用直接传递的trackName
+      if (navIntent.trackName) {
+        setTrackFilter(navIntent.trackName);
+      } else if (navIntent.trackId && sessions.length > 0) {
         const matched = sessions.find(s => s.trackId === navIntent.trackId);
         if (matched) setTrackFilter(matched.trackName);
       }
@@ -1145,6 +1148,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {/* 对比维度表 */}
             <div style={sectionStyle}>
               <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>关键指标对比</h4>
+              <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>对比两场比赛的核心指标。正值=绿色=A更好，负值=红色=B更好。</div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
@@ -1177,6 +1181,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {compareAnalysisA.驾驶评分?.维度 && compareAnalysisB.驾驶评分?.维度 && (
               <div style={{ ...sectionStyle, marginTop: 12 }}>
                 <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>评分维度对比</h4>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>对比两场比赛各维度的驾驶评分。数字越大越好，差值显示A比B好多少。</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
                   {Object.keys(compareAnalysisA.驾驶评分.维度).map(dim => {
                     const a = compareAnalysisA.驾驶评分.维度[dim];
@@ -1357,6 +1362,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {advancedData && advancedData.sessionId === selectedSession && advancedData.lossTime && advancedData.lossTime.length > 0 && (
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>分段损失时间</h3>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每个赛段相比理论最佳的损失时间。红色柱子越高说明该赛段越慢，优先改进最高的红色赛段。</div>
                     {advancedData.lossTime.every(s => s.lossTime === 0) ? (
                       <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
@@ -1677,6 +1683,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* 踏板曲线 */}
                   <div style={{ ...sectionStyle, height: 300 }}>
                     <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>油门 & 刹车</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>绿色=油门开度，红色=刹车力度。理想状态：刹车结束后油门立即衔接，入弯时刹车应有渐变段（循迹刹车）。</div>
                     <ResponsiveContainer width="100%" height="85%">
                       <LineChart data={channelsData.channels || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
@@ -1714,6 +1721,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* 转向输入 */}
                   <div style={{ ...sectionStyle, height: 250 }}>
                     <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>方向盘转角</h4>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>正值=向右转，负值=向左转。弯中曲线应平滑，频繁抖动说明方向盘修正过多。</div>
                     <ResponsiveContainer width="100%" height="85%">
                       <LineChart data={channelsData.channels || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
@@ -1953,6 +1961,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 影子车回放 */}
                 <div style={sectionStyle}>
                   <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>影子车回放</h4>
+                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>在赛道俯视图上回放你的行驶轨迹，观察走线是否合理。</div>
                   {sessionDetail ? (
                     <ReplayPlayer positions={sessionDetail.positions || []} data={sessionDetail.data || []} />
                   ) : (
@@ -1965,6 +1974,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* AI驾驶教练 */}
                 <div style={{ ...sectionStyle, marginTop: 16 }}>
                   <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>AI 驾驶教练</h4>
+                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>基于遥测数据的智能分析，给出具体的驾驶改进建议。</div>
                   <AICoachPanel sessionId={selectedSession} />
                 </div>
               </div>
@@ -2639,6 +2649,7 @@ function CornerEvolutionPanel({ turns, activeTurnIdx }) {
         <h4 style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>
           {turn.name} 弯道历史速度变化趋势 {turn.turnCategory ? `(${turn.turnCategory})` : ''}
         </h4>
+        <div style={{ fontSize: 10, color: '#8b949e', marginTop: 4, lineHeight: 1.5 }}>每个点代表一场最快圈中该弯道的速度。曲线向上说明弯道速度在提升，你在进步。</div>
         <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
           <span style={{ color: '#58a6ff' }}>● 入弯速度</span>
           <span style={{ color: '#3fb950' }}>● 弯心速度</span>
