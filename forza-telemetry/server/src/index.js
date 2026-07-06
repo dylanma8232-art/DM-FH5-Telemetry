@@ -110,6 +110,100 @@ function saveTracksDatabase(data) {
   }
 }
 
+// 读取并自动解压赛道详情文件 (Brotli/Gzip/JSON 兼容)
+function readTrackDetail(trackId) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
+  const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
+  const jsonPath = path.join(tracksDir, `${trackId}.json`);
+
+  if (fs.existsSync(brPath)) {
+    try {
+      const buffer = fs.readFileSync(brPath);
+      const decompressed = zlib.brotliDecompressSync(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (e) {
+      console.error(`[readTrackDetail] 解压 Brotli 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  if (fs.existsSync(gzPath)) {
+    try {
+      const buffer = fs.readFileSync(gzPath);
+      const decompressed = zlib.gunzipSync(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (e) {
+      console.error(`[readTrackDetail] 解压 Gzip 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const content = fs.readFileSync(jsonPath, 'utf8');
+      return JSON.parse(content);
+    } catch (e) {
+      console.error(`[readTrackDetail] 读取 JSON 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  return null;
+}
+
+// 写入并使用 Brotli 压缩赛道详情文件 (默认质量 5, 速度极快且压缩比极高)
+function writeTrackDetail(trackId, trackDetail) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
+  const jsonPath = path.join(tracksDir, `${trackId}.json`);
+  const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
+
+  try {
+    fs.mkdirSync(tracksDir, { recursive: true });
+    
+    // 使用紧凑的一行 JSON 字符串
+    const jsonStr = JSON.stringify(trackDetail);
+    const buffer = Buffer.from(jsonStr, 'utf8');
+    
+    // Brotli 压缩 (Quality Level = 5 是计算速度与压缩体积的最佳平衡点)
+    const compressed = zlib.brotliCompressSync(buffer, {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 5
+      }
+    });
+    
+    fs.writeFileSync(brPath, compressed);
+
+    // 清理旧的不压缩/Gzip格式文件，释放磁盘空间
+    if (fs.existsSync(jsonPath)) {
+      try { fs.unlinkSync(jsonPath); } catch {}
+    }
+    if (fs.existsSync(gzPath)) {
+      try { fs.unlinkSync(gzPath); } catch {}
+    }
+    return true;
+  } catch (err) {
+    console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, err.message);
+    return false;
+  }
+}
+
+// 删除赛道文件 (删除所有可能的文件格式)
+function deleteTrackDetail(trackId) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
+  const jsonPath = path.join(tracksDir, `${trackId}.json`);
+  const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
+
+  try {
+    if (fs.existsSync(brPath)) fs.unlinkSync(brPath);
+    if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
+    if (fs.existsSync(gzPath)) fs.unlinkSync(gzPath);
+    return true;
+  } catch (err) {
+    console.error(`[deleteTrackDetail] 删除赛道 ${trackId} 失败:`, err.message);
+    return false;
+  }
+}
+
 function generateLowfiTelemetry(hifiData, hifiPositions) {
   if (!hifiData || hifiData.length === 0) {
     return { data: [], positions: hifiPositions || [] };
@@ -738,6 +832,8 @@ function extractTrackPoint(telemetry) {
     gLong: acc.z || 0,
     gLat: acc.x || 0,
     gVert: acc.y || 0,
+    roll: telemetry.roll || 0,
+    pitch: telemetry.pitch || 0,
     slipFL: tireSlip.frontLeft || 0,
     slipFR: tireSlip.frontRight || 0,
     slipRL: tireSlip.rearLeft || 0,
@@ -1189,6 +1285,16 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
   if (nextTurnDist < PRE_WARN_DIST && nextTurnDist >= FINAL_WARN_DIST) {
     if (lastAnnouncedTurnIndex !== nextTurnIndex || now - lastAnnounceTime > ANNOUNCE_COOLDOWN_MS) {
       const distText = Math.round(nextTurnDist / 10) * 10;
+      
+      let geoText = '';
+      if (nextTurn.crest === 'jump') geoText += '飞跳';
+      else if (nextTurn.crest === 'crest') geoText += '过坡';
+      if (nextTurn.camber === 'off-camber') geoText += '外倾';
+      else if (nextTurn.camber === 'banking') geoText += '斜坡';
+      
+      const geoTextWithComma = geoText ? '，' + geoText : '';
+      const geoTextCompact = geoText ? ' ' + geoText : '';
+
       if (consecutiveTurn) {
         const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
         let nextLevel;
@@ -1199,11 +1305,11 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
         else if (nextAngle > 40) nextLevel = 4;
         else if (nextAngle > 25) nextLevel = 5;
         else nextLevel = 6;
-        announceText = direction + level + '接' + nextDir + nextLevel;
-        ttsText = direction + level + '接' + nextDir + nextLevel;
+        announceText = direction + level + geoTextCompact + '接' + nextDir + nextLevel;
+        ttsText = direction + level + geoTextWithComma + '，接' + nextDir + nextLevel;
       } else {
-        announceText = direction + level + ' ' + distText;
-        ttsText = direction + level + '，' + distText + '米';
+        announceText = direction + level + geoTextCompact + ' ' + distText;
+        ttsText = direction + level + geoTextWithComma + '，' + distText + '米';
       }
       shouldAnnounce = true;
       announcePhase = 'pre';
@@ -1212,8 +1318,16 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
   // 最终提示阶段（距离近时）
   else if (nextTurnDist < FINAL_WARN_DIST && nextTurnDist >= 30) {
     if (lastAnnouncedTurnIndex !== nextTurnIndex) {
-      announceText = direction + level;
-      ttsText = direction + level;
+      let geoText = '';
+      if (nextTurn.crest === 'jump') geoText += '飞跳';
+      else if (nextTurn.crest === 'crest') geoText += '过坡';
+      if (nextTurn.camber === 'off-camber') geoText += '外倾';
+
+      const geoTextWithComma = geoText ? '，' + geoText : '';
+      const geoTextCompact = geoText ? ' ' + geoText : '';
+
+      announceText = direction + level + geoTextCompact;
+      ttsText = direction + level + geoTextWithComma;
       shouldAnnounce = true;
       announcePhase = 'final';
     }
@@ -1236,7 +1350,9 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
       turnType: nextTurn.type,
       announceType: announcePhase === 'early' ? 'early_warn' : (announcePhase === 'pre' ? 'pre_warn' : 'final_warn'),
       radius: nextTurn.radius || 0,
-      recommendedSpeed: nextTurn.recommendedSpeed || 0
+      recommendedSpeed: nextTurn.recommendedSpeed || 0,
+      camber: nextTurn.camber,
+      crest: nextTurn.crest
     });
     
     console.log('[领航播报] ' + announceText + ' (' + Math.round(nextTurnDist) + 'm)');
@@ -1355,13 +1471,7 @@ async function saveAutoRecordedData(duration) {
   
   // 赛道模式：直接合并到指定赛道
   if (trackMode && trackId && tracks[trackId]) {
-    const detailPath = path.join(DATA_DIR, 'tracks', `${trackId}.json`);
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      try {
-        trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-      } catch (err) {}
-    }
+    let trackDetail = readTrackDetail(trackId);
     if (!trackDetail) {
       trackDetail = { ...tracks[trackId] }; // 降级回退
     }
@@ -1396,17 +1506,16 @@ async function saveAutoRecordedData(duration) {
     }
     
     // 1. 写入小分包
-    fs.mkdirSync(path.dirname(detailPath), { recursive: true });
-    fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2));
+    writeTrackDetail(trackId, trackDetail);
 
-    // 2. 更新元数据索引
     tracks[trackId] = {
       id: trackId,
       name: trackDetail.name || trackName,
       length: trackDetail.length || 0,
       pointCount: trackDetail.points ? trackDetail.points.length : 0,
+      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
       trajectoryCount: trimmed.length,
-      createdAt: trackDetail.createdAt || tracks[trackId].createdAt || new Date().toISOString(),
+      createdAt: trackDetail.createdAt || (tracks[trackId] ? tracks[trackId].createdAt : null) || new Date().toISOString(),
       updatedAt: trackDetail.updatedAt
     };
     saveTracksDatabase(tracks);
@@ -1476,6 +1585,7 @@ async function saveAutoRecordedData(duration) {
     name: trackName,
     length: trackLength,
     pointCount: simplifiedTraj.length,
+    turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
     trajectoryCount: 1,
     createdAt: trackDetail.createdAt,
     updatedAt: trackDetail.updatedAt
@@ -1528,7 +1638,7 @@ app.get('/api/tracks', (req, res) => {
 });
 
 // 自动愈合老旧赛道的弯道和路书数据（如果弯道缺失，触发重算并存盘）
-function healTrackIfNeeded(trackDetail, id, detailPath) {
+function healTrackIfNeeded(trackDetail, id) {
   if (!trackDetail) return trackDetail;
   
   const hasNoTurns = !trackDetail.turns || trackDetail.turns.length === 0;
@@ -1558,10 +1668,8 @@ function healTrackIfNeeded(trackDetail, id, detailPath) {
       trackDetail.quality = validateTrackQuality(trackDetail);
       
       // 保存更新到详情小包文件
-      if (detailPath && fs.existsSync(detailPath)) {
-        fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2), 'utf8');
-        console.log(`[自愈合] 成功更新并存盘赛道 ${id} 的弯道和路书数据！`);
-      }
+      writeTrackDetail(id, trackDetail);
+      console.log(`[自愈合] 成功更新并存盘赛道 ${id} 的弯道和路书数据！`);
       
       // 同步到内存及大索引中
       if (tracks[id]) {
@@ -1581,17 +1689,16 @@ function healTrackIfNeeded(trackDetail, id, detailPath) {
 // 获取赛道详情 - 从独立小分包文件读取几何坐标点
 app.get('/api/tracks/:id', (req, res) => {
   const id = req.params.id;
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    if (fs.existsSync(detailPath)) {
-      let trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-      trackDetail = healTrackIfNeeded(trackDetail, id, detailPath);
+    let trackDetail = readTrackDetail(id);
+    if (trackDetail) {
+      trackDetail = healTrackIfNeeded(trackDetail, id);
       res.json(trackDetail);
     } else {
       // 降级兼容：如果尚未分拆，直接从内存读取旧的大对象
       let track = tracks[id];
       if (!track) return res.status(404).json({ error: 'Track not found' });
-      track = healTrackIfNeeded(track, id, null);
+      track = healTrackIfNeeded(track, id);
       res.json(track);
     }
   } catch (err) {
@@ -1602,16 +1709,14 @@ app.get('/api/tracks/:id', (req, res) => {
 // 获取赛道导航中线点数据
 app.get('/api/tracks/:id/navigation', (req, res) => {
   const id = req.params.id;
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-      trackDetail = healTrackIfNeeded(trackDetail, id, detailPath);
+    let trackDetail = readTrackDetail(id);
+    if (trackDetail) {
+      trackDetail = healTrackIfNeeded(trackDetail, id);
     } else {
       trackDetail = tracks[id];
       if (trackDetail) {
-        trackDetail = healTrackIfNeeded(trackDetail, id, null);
+        trackDetail = healTrackIfNeeded(trackDetail, id);
       }
     }
     if (!trackDetail) {
@@ -1658,9 +1763,7 @@ app.post('/api/tracks', express.json(), (req, res) => {
   };
 
   // 1. 写入详情小分包
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
-  fs.mkdirSync(path.dirname(detailPath), { recursive: true });
-  fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2));
+  writeTrackDetail(id, trackDetail);
 
   // 2. 写入元数据索引
   tracks[id] = {
@@ -1668,6 +1771,7 @@ app.post('/api/tracks', express.json(), (req, res) => {
     name: trackDetail.name,
     length: trackDetail.length,
     pointCount: simplifiedPoints.length,
+    turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
     trajectoryCount: trackDetail.trajectoryCount,
     createdAt,
     updatedAt: createdAt
@@ -1684,24 +1788,15 @@ app.delete('/api/tracks/:id', (req, res) => {
   saveTracksDatabase(tracks);
   
   // 物理清除对应的几何详情分包
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
-  if (fs.existsSync(detailPath)) {
-    try { fs.unlinkSync(detailPath); } catch (e) {}
-  }
+  deleteTrackDetail(id);
   res.json({ status: 'ok' });
 });
 
 // Round 7: 赛道数据质量验证
 app.get('/api/tracks/:id/validate', (req, res) => {
   const id = req.params.id;
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-    } else {
-      trackDetail = tracks[id];
-    }
+    const trackDetail = readTrackDetail(id) || tracks[id];
     if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
     const result = validateTrackQuality(trackDetail);
     res.json(result);
@@ -1713,12 +1808,9 @@ app.get('/api/tracks/:id/validate', (req, res) => {
 // 重建赛道中心线和弯道数据（修复历史数据中 DBSCAN 过滤导致的稀疏中心线）
 app.post('/api/tracks/:id/rebuild', (req, res) => {
   const id = req.params.id;
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-    } else {
+    let trackDetail = readTrackDetail(id);
+    if (!trackDetail) {
       trackDetail = tracks[id] ? { ...tracks[id] } : null;
     }
     if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
@@ -1751,14 +1843,13 @@ app.post('/api/tracks/:id/rebuild', (req, res) => {
     trackDetail.updatedAt = new Date().toISOString();
 
     // 写回文件
-    if (fs.existsSync(detailPath)) {
-      fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2), 'utf8');
-    }
+    writeTrackDetail(id, trackDetail);
 
     // 同步内存元数据
     if (tracks[id]) {
       tracks[id].length = trackDetail.length;
       tracks[id].pointCount = trackDetail.centerline.length;
+      tracks[id].turnCount = trackDetail.turns ? trackDetail.turns.length : 0;
       tracks[id].updatedAt = trackDetail.updatedAt;
       saveTracksDatabase(tracks);
     }
@@ -1779,14 +1870,8 @@ app.post('/api/tracks/:id/rebuild', (req, res) => {
 // Round 9: 更新弯道推荐速度
 app.put('/api/tracks/:id/turns/:index/speedHint', express.json(), (req, res) => {
   const id = req.params.id;
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-    } else {
-      trackDetail = tracks[id];
-    }
+    let trackDetail = readTrackDetail(id) || tracks[id];
     if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
     if (!trackDetail.turns || !Array.isArray(trackDetail.turns)) return res.status(400).json({ error: 'Track has no turns' });
     
@@ -1797,7 +1882,7 @@ app.put('/api/tracks/:id/turns/:index/speedHint', express.json(), (req, res) => 
     trackDetail.updatedAt = new Date().toISOString();
     
     // 保存回物理分包文件
-    fs.writeFileSync(detailPath, JSON.stringify(trackDetail, null, 2));
+    writeTrackDetail(id, trackDetail);
 
     // 更新索引元数据
     tracks[id].updatedAt = trackDetail.updatedAt;
@@ -2042,22 +2127,14 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
     return res.status(404).json({ error: 'Track not found' });
   }
 
-  const sourcePath = path.join(DATA_DIR, 'tracks', `${sourceTrackId}.json`);
-  const targetPath = path.join(DATA_DIR, 'tracks', `${targetTrackId}.json`);
-
   try {
-    let sourceDetail = null;
-    let targetDetail = null;
-
-    if (fs.existsSync(sourcePath)) {
-      sourceDetail = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-    } else {
+    let sourceDetail = readTrackDetail(sourceTrackId);
+    if (!sourceDetail) {
       sourceDetail = { ...tracks[sourceTrackId] };
     }
 
-    if (fs.existsSync(targetPath)) {
-      targetDetail = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
-    } else {
+    let targetDetail = readTrackDetail(targetTrackId);
+    if (!targetDetail) {
       targetDetail = { ...tracks[targetTrackId] };
     }
 
@@ -2086,12 +2163,10 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
     }
 
     // 1. 删除源赛道几何详情分包
-    if (fs.existsSync(sourcePath)) {
-      try { fs.unlinkSync(sourcePath); } catch (e) {}
-    }
+    deleteTrackDetail(sourceTrackId);
 
     // 2. 写入目标赛道详情分包
-    fs.writeFileSync(targetPath, JSON.stringify(targetDetail, null, 2));
+    writeTrackDetail(targetTrackId, targetDetail);
 
     // 3. 更新内存及 metadata 索引
     delete tracks[sourceTrackId];
@@ -2100,8 +2175,9 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
       name: targetDetail.name || '未命名赛道',
       length: targetDetail.length || 0,
       pointCount: targetDetail.points ? targetDetail.points.length : 0,
+      turnCount: targetDetail.turns ? targetDetail.turns.length : 0,
       trajectoryCount: mergedTrajectories.length,
-      createdAt: targetDetail.createdAt || tracks[targetTrackId].createdAt || new Date().toISOString(),
+      createdAt: targetDetail.createdAt || (tracks[targetTrackId] ? tracks[targetTrackId].createdAt : null) || new Date().toISOString(),
       updatedAt: targetDetail.updatedAt
     };
     saveTracksDatabase(tracks);
@@ -2125,12 +2201,9 @@ app.put('/api/tracks/:id', express.json(), (req, res) => {
     return res.status(404).json({ error: 'Track not found' });
   }
 
-  const detailPath = path.join(DATA_DIR, 'tracks', `${id}.json`);
   try {
-    let trackDetail = null;
-    if (fs.existsSync(detailPath)) {
-      trackDetail = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
-    } else {
+    let trackDetail = readTrackDetail(id);
+    if (!trackDetail) {
       trackDetail = { ...tracks[id] };
     }
 
@@ -2172,7 +2245,7 @@ app.put('/api/tracks/:id', express.json(), (req, res) => {
     const updatedDetail = { ...trackDetail, ...req.body, updatedAt: new Date().toISOString() };
     
     // 保存至物理分包
-    fs.writeFileSync(detailPath, JSON.stringify(updatedDetail, null, 2));
+    writeTrackDetail(id, updatedDetail);
 
     // 更新索引元数据
     tracks[id] = {
@@ -2180,6 +2253,7 @@ app.put('/api/tracks/:id', express.json(), (req, res) => {
       name: updatedDetail.name || '未命名赛道',
       length: updatedDetail.length || 0,
       pointCount: updatedDetail.points ? updatedDetail.points.length : 0,
+      turnCount: updatedDetail.turns ? updatedDetail.turns.length : 0,
       trajectoryCount: updatedDetail.trajectories ? updatedDetail.trajectories.length : (updatedDetail.trajectoryCount || 1),
       createdAt: updatedDetail.createdAt || trackDetail.createdAt || new Date().toISOString(),
       updatedAt: updatedDetail.updatedAt
@@ -2322,8 +2396,11 @@ app.post('/api/record/save', express.json(), (req, res) => {
   // 处理赛道数据
   if (trackId && tracks[trackId]) {
     // 历史赛道：合并轨迹并重新生成中心线
-    const track = tracks[trackId];
-    const existingTrajectories = track.trajectories || [];
+    let trackDetail = readTrackDetail(trackId);
+    if (!trackDetail) {
+      trackDetail = { ...tracks[trackId] };
+    }
+    const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
     existingTrajectories.push(manualRacePositions);
     
     // 【Bug Fix】移除历史轨迹步长10降采样，避免与 RDP 叠加造成间距过大（>100m）。
@@ -2337,21 +2414,31 @@ app.post('/api/record/save', express.json(), (req, res) => {
     // 使用轨迹聚合算法生成中心线
     const trackData = buildTrackFromTrajectories(trimmed);
     
-    track.points = manualRacePositions; // 保留最新轨迹（完整精度）
-    track.pointCount = manualRacePositions.length;
-    track.trajectories = trimmed;
-    track.trajectoryCount = trimmed.length;
-    track.updatedAt = new Date().toISOString();
+    trackDetail.points = manualRacePositions; // 保留最新轨迹（完整精度）
+    trackDetail.pointCount = manualRacePositions.length;
+    trackDetail.trajectories = trimmed;
+    trackDetail.trajectoryCount = trimmed.length;
+    trackDetail.updatedAt = new Date().toISOString();
     
     if (trackData) {
-      track.centerline = trackData.centerline;
-      track.turns = trackData.turns;
-      track.length = trackData.length;
-      track.sectors = generateSectors(trackData.centerline, trackData.turns);
-      track.navigation = generateNavigationData(trackData);
+      trackDetail.centerline = trackData.centerline;
+      trackDetail.turns = trackData.turns;
+      trackDetail.length = trackData.length;
+      trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
+      trackDetail.navigation = generateNavigationData(trackData);
     }
     
+    writeTrackDetail(trackId, trackDetail);
+    
+    tracks[trackId] = {
+      id: trackId,
+      name: trackDetail.name || trackName,
+      length: trackDetail.length || 0,
+      createdAt: trackDetail.createdAt,
+      updatedAt: trackDetail.updatedAt
+    };
     saveTracksDatabase(tracks);
+    
     res.json({ 
       status: 'ok', 
       filename, 
@@ -2360,7 +2447,7 @@ app.post('/api/record/save', express.json(), (req, res) => {
       trackId: trackId, 
       merged: true,
       trajectoryCount: trimmed.length,
-      trackLength: track.length || 0
+      trackLength: trackDetail.length || 0
     });
   } else {
     // 默认直接创建新赛道并立即生成中线与弯道数据（包括手动录制结束保存）
@@ -2368,7 +2455,7 @@ app.post('/api/record/save', express.json(), (req, res) => {
     const trackLength = calculateTrackLength(manualRacePositions);
     const trackData = buildTrackFromTrajectories([manualRacePositions]);
     
-    tracks[newTrackId] = {
+    const trackDetail = {
       id: newTrackId,
       name: trackName,
       points: manualRacePositions,
@@ -2382,6 +2469,16 @@ app.post('/api/record/save', express.json(), (req, res) => {
       navigation: trackData ? generateNavigationData(trackData) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
+    };
+    
+    writeTrackDetail(newTrackId, trackDetail);
+    
+    tracks[newTrackId] = {
+      id: newTrackId,
+      name: trackName,
+      length: trackLength,
+      createdAt: trackDetail.createdAt,
+      updatedAt: trackDetail.updatedAt
     };
     saveTracksDatabase(tracks);
     
