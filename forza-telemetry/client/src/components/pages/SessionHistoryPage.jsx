@@ -1357,20 +1357,27 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {advancedData && advancedData.sessionId === selectedSession && advancedData.lossTime && advancedData.lossTime.length > 0 && (
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>分段损失时间</h3>
-                    <div style={{ height: 160 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={advancedData.lossTime.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.lossTime * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
-                          <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
-                          <Tooltip
-                            contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
-                            formatter={(v) => [v + ' ms', '损失时间']}
-                          />
-                          <Bar dataKey="loss" fill="#f85149" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {advancedData.lossTime.every(s => s.lossTime === 0) ? (
+                      <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
+                        <div style={{ fontSize: 10, color: '#8b949e' }}>只有1圈数据，每个赛段都是当前最佳</div>
+                      </div>
+                    ) : (
+                      <div style={{ height: 160 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={advancedData.lossTime.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.lossTime * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                            <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
+                            <Tooltip
+                              contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
+                              formatter={(v) => [v + ' ms', '损失时间']}
+                            />
+                            <Bar dataKey="loss" fill="#f85149" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 )}
 
