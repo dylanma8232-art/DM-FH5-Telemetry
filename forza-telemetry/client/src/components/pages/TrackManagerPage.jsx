@@ -1150,22 +1150,26 @@ export function TrackManagerPage({ onNavigate }) {
             )}
 
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 10, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>目标赛道（保留，蓝色）</label>
-              <select value={mergeTarget} onChange={e => setMergeTarget(e.target.value)} style={inputStyle}>
-                <option value="">选择赛道</option>
-                {Object.entries(tracks).map(([id, t]) => (
-                  <option key={id} value={id}>{t.name || id}</option>
-                ))}
-              </select>
+              <label style={{ fontSize: 11, color: '#58a6ff', display: 'block', marginBottom: 4, fontWeight: 600 }}>目标赛道（保留，蓝色）</label>
+              <SearchableTrackSelect
+                tracks={tracks}
+                value={mergeTarget}
+                onChange={setMergeTarget}
+                placeholder="搜索目标赛道..."
+                excludeId={mergeSource}
+                highlightColor="#58a6ff"
+              />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 10, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>源赛道（合并后删除，红色）</label>
-              <select value={mergeSource} onChange={e => setMergeSource(e.target.value)} style={inputStyle}>
-                <option value="">选择赛道</option>
-                {Object.entries(tracks).map(([id, t]) => (
-                  <option key={id} value={id}>{t.name || id}</option>
-                ))}
-              </select>
+              <label style={{ fontSize: 11, color: '#f85149', display: 'block', marginBottom: 4, fontWeight: 600 }}>源赛道（合并后删除，红色）</label>
+              <SearchableTrackSelect
+                tracks={tracks}
+                value={mergeSource}
+                onChange={setMergeSource}
+                placeholder="搜索源赛道..."
+                excludeId={mergeTarget}
+                highlightColor="#f85149"
+              />
             </div>
             {!mergeSource || !mergeTarget || mergeSource === mergeTarget ? (
               <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12 }}>请选择两个不同的赛道</div>
@@ -1303,6 +1307,87 @@ function MergePreviewCanvas({ trackA, trackB }) {
   );
 }
 
+// 可搜索赛道下拉组件
+function SearchableTrackSelect({ tracks, value, onChange, placeholder, excludeId, highlightColor = '#58a6ff' }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef(null);
+
+  const entries = Object.entries(tracks).filter(([id]) => id !== excludeId);
+  const filtered = entries.filter(([id, t]) => {
+    const name = (t.name || id).toLowerCase();
+    return name.includes(query.toLowerCase());
+  });
+
+  const selectedName = value && tracks[value] ? (tracks[value].name || value) : '';
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        ref={inputRef}
+        type="text"
+        value={open ? query : selectedName}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => { setQuery(''); setOpen(true); }}
+        onBlur={() => { setTimeout(() => setOpen(false), 200); }}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          padding: '6px 10px',
+          background: 'var(--bg-primary)',
+          border: `1px solid ${value ? highlightColor : 'var(--border)'}`,
+          borderRadius: 4,
+          color: 'var(--text-primary)',
+          fontSize: 12,
+          outline: 'none',
+          boxSizing: 'border-box'
+        }}
+      />
+      {value && (
+        <button
+          onClick={() => { onChange(''); setQuery(''); }}
+          style={{
+            position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', fontSize: 14, padding: '0 4px'
+          }}
+        >×</button>
+      )}
+      {open && filtered.length > 0 && (
+        <div
+          style={{
+            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+            maxHeight: 220, overflowY: 'auto',
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 4, marginTop: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+          }}
+        >
+          {filtered.map(([id, t]) => (
+            <div
+              key={id}
+              onMouseDown={() => { onChange(id); setOpen(false); setQuery(''); }}
+              style={{
+                padding: '6px 10px',
+                cursor: 'pointer',
+                fontSize: 11,
+                background: id === value ? `${highlightColor}22` : 'transparent',
+                color: id === value ? highlightColor : 'var(--text-primary)',
+                borderBottom: '1px solid rgba(48,54,61,0.3)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(88,166,255,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = id === value ? `${highlightColor}22` : 'transparent'}
+            >
+              <span>{t.name || id}</span>
+              <span style={{ fontSize: 9, color: '#484f58', fontFamily: 'monospace' }}>
+                {t.length ? Math.round(t.length) + 'm' : ''} {t.turns ? t.turns.length + '弯' : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 const statCardStyle = {

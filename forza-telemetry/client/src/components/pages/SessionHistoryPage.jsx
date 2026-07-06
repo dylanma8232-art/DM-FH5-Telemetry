@@ -1020,9 +1020,9 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     {session.autoRecorded ? '自动' : '手动'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#8b949e' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#8b949e' }}>
                   <span>{formatDate(session.savedAt)}</span>
-                  <span>最快 <span style={{ color: '#d29922', fontFamily: 'monospace' }}>{formatTime(session.laps?.best)}</span></span>
+                  <span>最快 <span style={{ color: '#d29922', fontFamily: 'monospace', fontWeight: 600 }}>{formatTime(session.laps?.best)}</span></span>
                 </div>
                 {session.tuneId && tunes[session.tuneId] && (
                   <div style={{
@@ -1075,7 +1075,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, padding: '8px 0 4px' }}>
               <button onClick={() => setSessionPage(1)} disabled={sessionPage === 1} style={{ ...btnSmallStyle, fontSize: 9, opacity: sessionPage === 1 ? 0.4 : 1 }}>&laquo;</button>
               <button onClick={() => setSessionPage(p => Math.max(1, p - 1))} disabled={sessionPage === 1} style={{ ...btnSmallStyle, fontSize: 9, opacity: sessionPage === 1 ? 0.4 : 1 }}>&lsaquo;</button>
-              <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 11, color: '#8b949e' }}>
                 {sessionPage} / {totalPages} 页
               </span>
               <button onClick={() => setSessionPage(p => Math.min(totalPages, p + 1))} disabled={sessionPage === totalPages} style={{ ...btnSmallStyle, fontSize: 9, opacity: sessionPage === totalPages ? 0.4 : 1 }}>&rsaquo;</button>
@@ -1088,6 +1088,83 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         {loading ? (
           <LoadingSpinner />
+        ) : compareAnalysisA && compareAnalysisB ? (
+          /* 对比结果面板 */
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ ...sectionTitleStyle, margin: 0 }}>比赛对比分析</h3>
+              <button onClick={clearCompare} style={{ ...btnSmallStyle, background: 'rgba(248,81,73,0.1)', color: '#f85149', borderColor: 'rgba(248,81,73,0.3)' }}>关闭对比</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ ...sectionStyle, borderLeft: '3px solid #58a6ff' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#58a6ff', marginBottom: 8 }}>A: {compareAnalysisA.trackName || '未知赛道'}</div>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 4 }}>{compareAnalysisA.date ? new Date(compareAnalysisA.date).toLocaleString('zh-CN') : ''}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: '#d29922' }}>{formatTime(compareAnalysisA.成绩?.最快圈速)}</div>
+              </div>
+              <div style={{ ...sectionStyle, borderLeft: '3px solid #d29922' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#d29922', marginBottom: 8 }}>B: {compareAnalysisB.trackName || '未知赛道'}</div>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 4 }}>{compareAnalysisB.date ? new Date(compareAnalysisB.date).toLocaleString('zh-CN') : ''}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: '#d29922' }}>{formatTime(compareAnalysisB.成绩?.最快圈速)}</div>
+              </div>
+            </div>
+
+            {/* 对比维度表 */}
+            <div style={sectionStyle}>
+              <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>关键指标对比</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '8px 6px', textAlign: 'left' }}>指标</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'center', color: '#58a6ff' }}>A</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'center', color: '#d29922' }}>B</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'center' }}>差异</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    getCompareDiff(compareAnalysisA.成绩?.最快圈速, compareAnalysisB.成绩?.最快圈速, '最快圈速', 's', true),
+                    getCompareDiff(compareAnalysisA.成绩?.上一圈速, compareAnalysisB.成绩?.上一圈速, '上一圈速', 's', true),
+                    getCompareDiff(compareAnalysisA.成绩?.圈数, compareAnalysisB.成绩?.圈数, '圈数', '圈'),
+                    getCompareDiff(compareAnalysisA.成绩?.总时长 / 1000, compareAnalysisB.成绩?.总时长 / 1000, '总时长', 's', true),
+                    getCompareDiff(compareAnalysisA.驾驶评分?.总分, compareAnalysisB.驾驶评分?.总分, '驾驶评分', '分'),
+                  ].map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(48,54,61,0.5)' }}>
+                      <td style={{ padding: '8px 6px', color: 'var(--text-primary)' }}>{row.label}</td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace' }}>{row.valA != null ? (typeof row.valA === 'number' ? row.valA.toFixed(row.unit === 's' ? 3 : 0) : row.valA) : '-'}</td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace' }}>{row.valB != null ? (typeof row.valB === 'number' ? row.valB.toFixed(row.unit === 's' ? 3 : 0) : row.valB) : '-'}</td>
+                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 600, color: row.color }}>{row.diff != null ? row.displayDiff : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 驾驶评分维度对比 */}
+            {compareAnalysisA.驾驶评分?.维度 && compareAnalysisB.驾驶评分?.维度 && (
+              <div style={{ ...sectionStyle, marginTop: 12 }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>评分维度对比</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+                  {Object.keys(compareAnalysisA.驾驶评分.维度).map(dim => {
+                    const a = compareAnalysisA.驾驶评分.维度[dim];
+                    const b = compareAnalysisB.驾驶评分.维度[dim];
+                    const diff = (a?.分数 || 0) - (b?.分数 || 0);
+                    const color = Math.abs(diff) < 0.5 ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : 'var(--danger)';
+                    return (
+                      <div key={dim} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
+                        <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 6 }}>{dim}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: '#58a6ff', fontFamily: 'monospace' }}>{a?.分数 || 0}</span>
+                          <span style={{ fontSize: 10, color: '#8b949e' }}>vs</span>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: '#d29922', fontFamily: 'monospace' }}>{b?.分数 || 0}</span>
+                        </div>
+                        <div style={{ fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: 600, color }}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         ) : selectedSession && analysis ? (
           <div>
             {/* 面包屑导航 */}
@@ -1181,7 +1258,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             background: 'var(--bg-primary)', borderRadius: 6, padding: 10,
                             border: '1px solid var(--border)'
                           }}>
-                            <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>{name}</div>
+                            <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 4 }}>{name}</div>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                               <span style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'monospace' }}>
                                 {dim.分数}
@@ -1219,7 +1296,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     marginBottom: 16
                   }}>
                     <h3 style={sectionTitleStyle}>本场在赛道成长轨迹中的位置</h3>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
                       曲线向下代表圈速提升（越快越好）。橙色圆点=本场成绩。曲线持续下降说明你在进步；若出现平台期则可能遇到驾驶瓶颈，建议对比前后场的弯道数据找原因。
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'center' }}>
@@ -1245,11 +1322,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         </ResponsiveContainer>
                       </div>
                       <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: 12 }}>
-                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>历史最好成绩：</div>
+                        <div style={{ fontSize: 11, color: '#8b949e' }}>历史最好成绩：</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace', marginBottom: 6 }}>
                           {formatTime(sessionLearningData.best)}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>本场成绩差距：</div>
+                        <div style={{ fontSize: 11, color: '#8b949e' }}>本场成绩差距：</div>
                         <div style={{ fontSize: 12, fontWeight: 600 }}>
                           {sessionLearningData.current <= sessionLearningData.best ? (
                             <span style={{ color: '#d29922' }}>🎉 本场创下新纪录(PB)！</span>
@@ -1268,11 +1345,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   <div style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>
+                      <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, fontStyle: 'italic' }}>
                         暂无弯道数据——请先在赛道管理中对该赛道完成建图。
                       </div>
                     ) : (
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
                         红色虚线=失分最多的3个弯道，黄色=当前选中弯道。点击右侧表格行可联动高亮。优先处理红色弯道。
                       </div>
                     )}
@@ -1307,7 +1384,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* 右栏：赛道所有弯道性能看板 */}
                   <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column' }}>
                     <h3 style={sectionTitleStyle}>弯道性能参数表</h3>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
                       点击任意行可在左侧地图高亮该弯道。重点关注弯心速度（越高越好）和横向G（过低说明走线保守，不敢靠近极限）。
                     </div>
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
@@ -1376,7 +1453,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>G-G 摩擦力圆</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4 }}>
                     注：重合点越密集说明该极限状态保持越久；呈十字形分布通常意味着欠缺循迹刹车。
                   </div>
                 </div>
@@ -1402,7 +1479,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   
                   <div style={sectionStyle}>
                     <h4 style={{ margin: '0 0 6px', fontSize: 12 }}>极限诊断分析</h4>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 10, lineHeight: 1.5 }}>
                       这些是本圈内的峰值G力。横向G反映过弯极限压榨程度，制动G反映刹车力度。数值越高说明你在更充分地使用轮胎抓地力极限。
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11 }}>
@@ -1428,7 +1505,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>轮胎载荷与温度</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6, lineHeight: 1.5 }}>
                     四轮温度分布：内/中/外三区温度应接近均匀。外侧偏高说明走线过激或外倾角不足；内侧偏高说明内倾角过多。悬挂行程反映过弯侧倾强度，前轴压缩=入弯前移，后轴可用于识别甩尾风险。
                   </div>
                 </div>
@@ -1445,7 +1522,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 第一行：换挡点空间分布（全宽） */}
                 <div style={{ ...sectionStyle, marginBottom: 16 }}>
                   <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>换挡点空间分布</h4>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.4 }}>
                     绿色=升档，红色=降档。密集在直道末尾是正常的；如果红点大量出现在弯道区域，关注入弯换挡时机。
                   </div>
                   <InteractiveTrackMap
@@ -1481,7 +1558,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 第二行：转速与扭矩曲线（全宽） */}
                 <div style={sectionStyle}>
                   <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转速与扭矩曲线</h4>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.4 }}>
                     蓝色=转速，橙色=扭矩。升档后转速骤降幅度越小，说明升档时机越准确。
                   </div>
                   <div style={{ height: 260 }}>
@@ -1509,7 +1586,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>踏板动力学与滑行分析</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 6, lineHeight: 1.5 }}>
                     绿色=油门，红色=刹车，X轴为行进距离。理想状态：刹车区间结束后油门立即衔接（无空档滑行）；入弯时刹车应有逐渐松开的渐变段（循迹刹车），而非突然松开。油门与刹车短暂重叠是正常的跟趾换挡或稳定技巧。
                   </div>
                 </div>
@@ -1569,7 +1646,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>多通道对标工作台</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4, lineHeight: 1.5 }}>
                     所有通道以行进距离为X轴对齐，鼠标悬停时所有图表同步联动。对比方式：找车速波谷（制动点），对照下方踏板图看刹车是否干净；再看方向盘转角图，判断弯中是否有多余修正。档位图可识别降档位置是否过晚。
                   </div>
                 </div>
@@ -1660,7 +1737,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>单圈回放</h3>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4 }}>
                     回放本次session的驾驶轨迹与遥测数据
                   </div>
                 </div>
@@ -1802,7 +1879,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           }}>
                             <div>
                               <div style={{ fontSize: 12, fontWeight: 600 }}>{e.vehicleName || `Car #${e.vehicleOrdinal}`}</div>
-                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              <div style={{ fontSize: 11, color: '#8b949e', marginTop: 2 }}>
                                 #{e.vehicleOrdinal} · {getVehicleClass(e.vehicleClass)} {e.vehiclePI} PI
                               </div>
                             </div>
@@ -1980,13 +2057,14 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 }
 
 const btnSmallStyle = {
-  padding: '3px 8px',
+  padding: '4px 10px',
   background: 'var(--bg-tertiary)',
   color: 'var(--text-primary)',
   border: '1px solid var(--border)',
   borderRadius: 4,
   cursor: 'pointer',
-  fontSize: 10
+  fontSize: 11,
+  fontWeight: 500
 };
 
 const sectionStyle = {
