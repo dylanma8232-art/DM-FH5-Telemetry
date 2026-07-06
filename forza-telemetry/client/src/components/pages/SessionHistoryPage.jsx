@@ -2344,6 +2344,7 @@ function CornerEvolutionPanel({ turns, activeTurnIdx }) {
         </div>
       )}
     </div>
+  );
 }
 
 // 轮胎底盘载荷面板组件 (2x2 布局与侧偏/滑移分析)
