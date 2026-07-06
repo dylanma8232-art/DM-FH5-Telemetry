@@ -94,6 +94,7 @@
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `PORT`, 常量/方法: `UDP_PORT`, 常量/方法: `DATA_DIR`, 常量/方法: `TRACK_DB_PATH`, 常量/方法: `EMIT_INTERVAL_MS`, 常量/方法: `CLEANUP_MAX_SESSIONS`, 常量/方法: `DOWNSAMPLE_RATIO`)*
     - 📄 [data-listener.js](file:///forza-telemetry/server/src/data-listener.js) 
     - 📄 [index.js](file:///forza-telemetry/server/src/index.js) 
+    - 📄 [rebuild-tracks.js](file:///forza-telemetry/server/src/rebuild-tracks.js) 
     - 📂 **services/**
       - 📄 [retention.js](file:///forza-telemetry/server/src/services/retention.js)   *(函数/组件: `runSessionRetentionCleanup`)*
       - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)   *(常量/方法: `stateManager`)*
