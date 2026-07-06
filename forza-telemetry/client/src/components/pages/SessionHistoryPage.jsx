@@ -1408,60 +1408,65 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 <div style={{ marginBottom: 12 }}>
                   <h3 style={{ ...sectionTitleStyle, margin: 0 }}>换挡分布与扭矩曲线</h3>
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 16 }}>
-                  <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>换挡点空间分布</h4>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
-                      绿色=升档，红色=降档。密集在直道末尾是正常的；如果红点大量出现在弯道区域，关注入弯刈档时机。
-                    </div>
-                    <InteractiveTrackMap
-                      trackId={analysis.trackId}
-                      width={460}
-                      height={300}
-                      highlightedPoints={
-                        (() => {
-                          const pts = [];
-                          const points = channelsData.channels || [];
-                          let lastDist = -999;
-                          for (let i = 1; i < points.length; i++) {
-                            const prev = points[i - 1];
-                            const curr = points[i];
-                            if (curr.gear !== prev.gear && curr.gear > 0 && prev.gear > 0) {
-                              const dist = curr.distance || 0;
-                              if (dist - lastDist < 50) continue; 
-                              lastDist = dist;
-                              pts.push({
-                                x: curr.x,
-                                z: curr.z,
-                                label: `${prev.gear}→${curr.gear}`,
-                                color: curr.gear > prev.gear ? '#3fb950' : '#f85149'
-                              });
-                            }
-                          }
-                          return pts;
-                        })()
-                      }
-                    />
-                  </div>
 
-                  <div style={sectionStyle}>
-                    <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转速与扭矩曲线</h4>
-                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
-                      蓝色=转速，橙色=扭矩。升档后转速骤降幅度越小，说明升档时机越准确。
-                    </div>
-                    <div style={{ height: 200 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={channelsData.channels || []}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                          <XAxis dataKey="distance" hide={true} />
-                          <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} stroke="#58a6ff" />
-                          <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} stroke="#ff7b72" />
-                          <Line yAxisId="left" type="monotone" dataKey="rpm" stroke="#58a6ff" strokeWidth={1} dot={false} />
-                          <Line yAxisId="right" type="monotone" dataKey="torque" stroke="#ff7b72" strokeWidth={1} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                {/* 第一行：换挡点空间分布（全宽） */}
+                <div style={{ ...sectionStyle, marginBottom: 16 }}>
+                  <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>换挡点空间分布</h4>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                    绿色=升档，红色=降档。密集在直道末尾是正常的；如果红点大量出现在弯道区域，关注入弯换挡时机。
+                  </div>
+                  <InteractiveTrackMap
+                    trackId={analysis.trackId}
+                    width={700}
+                    height={340}
+                    highlightedPoints={
+                      (() => {
+                        const pts = [];
+                        const points = channelsData.channels || [];
+                        let lastDist = -999;
+                        for (let i = 1; i < points.length; i++) {
+                          const prev = points[i - 1];
+                          const curr = points[i];
+                          if (curr.gear !== prev.gear && curr.gear > 0 && prev.gear > 0) {
+                            const dist = curr.distance || 0;
+                            if (dist - lastDist < 50) continue; 
+                            lastDist = dist;
+                            pts.push({
+                              x: curr.x,
+                              z: curr.z,
+                              label: `${prev.gear}→${curr.gear}`,
+                              color: curr.gear > prev.gear ? '#3fb950' : '#f85149'
+                            });
+                          }
+                        }
+                        return pts;
+                      })()
+                    }
+                  />
+                </div>
+
+                {/* 第二行：转速与扭矩曲线（全宽） */}
+                <div style={sectionStyle}>
+                  <h4 style={{ margin: '0 0 4px', fontSize: 12 }}>转速与扭矩曲线</h4>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                    蓝色=转速，橙色=扭矩。升档后转速骤降幅度越小，说明升档时机越准确。
+                  </div>
+                  <div style={{ height: 260 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={channelsData.channels || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                        <XAxis dataKey="distance" stroke="#8b949e" style={{ fontSize: 9 }} />
+                        <YAxis yAxisId="left" orientation="left" domain={['auto', 'auto']} stroke="#58a6ff" label={{ value: 'RPM', angle: -90, position: 'insideLeft', style: { fontSize: 9, fill: '#58a6ff' } }} />
+                        <YAxis yAxisId="right" orientation="right" domain={['auto', 'auto']} stroke="#ff7b72" label={{ value: 'Nm', angle: 90, position: 'insideRight', style: { fontSize: 9, fill: '#ff7b72' } }} />
+                        <Tooltip
+                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
+                          itemStyle={{ fontSize: 10 }}
+                          formatter={(value, name) => [value, name === 'rpm' ? '转速 (RPM)' : '扭矩 (Nm)']}
+                        />
+                        <Line yAxisId="left" type="monotone" dataKey="rpm" stroke="#58a6ff" strokeWidth={1.5} dot={false} />
+                        <Line yAxisId="right" type="monotone" dataKey="torque" stroke="#ff7b72" strokeWidth={1.5} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </div>
