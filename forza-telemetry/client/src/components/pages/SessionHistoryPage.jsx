@@ -1320,13 +1320,19 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       <>
                         <h3 style={sectionTitleStyle}>分段用时</h3>
                         <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>仅1圈数据，显示各赛段用时。跑更多圈后可计算分段损失时间。</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${advancedData.numSectors || 3}, 1fr)`, gap: 8 }}>
-                          {advancedData.theoreticalBest.sectors.map(s => (
-                            <div key={s.sector} style={{ textAlign: 'center', padding: '12px 8px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>S{s.sector}</div>
-                              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-primary)' }}>{(s.bestTime || 0).toFixed(2)}s</div>
-                            </div>
-                          ))}
+                        <div style={{ height: 160 }}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={advancedData.theoreticalBest.sectors.map(s => ({ name: 'S' + s.sector, time: Math.round((s.bestTime || 0) * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                              <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
+                              <Tooltip
+                                contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
+                                formatter={(v) => [(v / 1000).toFixed(2) + ' s', '用时']}
+                              />
+                              <Bar dataKey="time" fill="#58a6ff" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </div>
                       </>
                     )}
@@ -1482,11 +1488,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     )}
                   </div>
                 </div>
-
-                {/* 弯道车速进化分析 */}
-                {turnsData && turnsData.turns && turnsData.turns.length > 0 && (
-                  <CornerEvolutionPanel turns={turnsData.turns} activeTurnIdx={activeTurnIdx} />
-                )}
               </>
             )}
 
@@ -1816,7 +1817,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   </div>
 
                   {/* 分段分析：多圈显示损失时间，单圈显示分段用时 */}
-                  {advancedData?.theoreticalBest && advancedData.theoreticalBest.sectors && advancedData.theoreticalBest.sectors.length > 0 && (
+                  {advancedData && advancedData.theoreticalBest && advancedData.theoreticalBest.sectors && advancedData.theoreticalBest.sectors.length > 0 && (
                     <div style={{ ...sectionStyle, marginTop: 12 }}>
                       {advancedData.lapCount > 1 ? (
                         <>
@@ -2503,62 +2504,6 @@ function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoint
 }
 
 // 弯道历史速度演进面板组件
-function CornerEvolutionPanel({ turns, activeTurnIdx }) {
-  const turn = turns[activeTurnIdx];
-  
-  const chartData = useMemo(() => {
-    if (!turn || !turn.history) return [];
-    return turn.history.map((h, i) => ({
-      index: i + 1,
-      date: new Date(h.savedAt).toLocaleDateString('zh-CN'),
-      '入弯速度': h.entrySpeed,
-      '弯心速度': h.apexSpeed,
-      '出弯速度': h.exitSpeed
-    }));
-  }, [turn]);
-  
-  if (!turn) return null;
-  
-  return (
-    <div style={{ padding: 12, background: 'rgba(22, 27, 34, 0.4)', borderRadius: 8, border: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h4 style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)' }}>
-          {turn.name} 弯道历史速度变化趋势 {turn.turnCategory ? `(${turn.turnCategory})` : ''}
-        </h4>
-        <div style={{ fontSize: 10, color: '#8b949e', marginTop: 4, lineHeight: 1.5 }}>每个点代表一场最快圈中该弯道的速度。曲线向上说明弯道速度在提升，你在进步。</div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 9 }}>
-          <span style={{ color: '#58a6ff' }}>● 入弯速度</span>
-          <span style={{ color: '#3fb950' }}>● 弯心速度</span>
-          <span style={{ color: '#d29922' }}>● 出弯速度</span>
-        </div>
-      </div>
-
-      {chartData.length >= 1 ? (
-        <div style={{ height: 260 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-              <XAxis dataKey="date" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '场次', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
-              <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: 'km/h', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
-              <Tooltip
-                contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}
-                itemStyle={{ fontSize: 10 }}
-              />
-              <Line type="monotone" dataKey="入弯速度" stroke="#58a6ff" strokeWidth={2} dot={{ r: 4 }} />
-              <Line type="monotone" dataKey="弯心速度" stroke="#3fb950" strokeWidth={2.5} dot={{ r: 5 }} />
-              <Line type="monotone" dataKey="出弯速度" stroke="#d29922" strokeWidth={2} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 11, background: '#0d1117', border: '1px solid #21262d', borderRadius: 6 }}>
-          暂无历史对标场次数据（需要在同赛道有同款车记录）以绘制演进趋势。
-        </div>
-      )}
-    </div>
-  );
-}
-
 // 轮胎底盘载荷面板组件 (2x2 布局与侧偏/滑移分析)
 function TiresChassisPanel({ channels }) {
   const getAverage = (arr) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
