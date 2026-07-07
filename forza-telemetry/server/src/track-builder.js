@@ -82,9 +82,11 @@ function detectCurvaturePeriodicity(positions) {
     const ddx = dx2 - dx1;
     const ddz = dz2 - dz1;
     
-    // 曲率公式: kappa = (x'*z'' - z'*x'') / (x'^2 + z'^2)^(3/2)
+    // 曲率公式: kappa = (z'*x'' - x'*z'') / (x'^2 + z'^2)^(3/2)
+    // FH5 左手坐标系：X=East, Z=North, Y=Up
+    // 叉积取反：positive kappa = clockwise = Right turn
     const denominator = Math.pow(dx * dx + dz * dz, 1.5);
-    const cross = dx * ddz - dz * ddx;
+    const cross = dz * ddx - dx * ddz;
     
     curvatures.push(denominator > 1e-6 ? cross / denominator : 0);
   }
@@ -564,9 +566,9 @@ export function smoothCenterline(centerline, iterations = 5) {
     let ddz = pts[i+1].z - 2 * pts[i].z + pts[i-1].z;
     
     let denominator = Math.pow(dx*dx + dz*dz, 1.5);
-    // Signed curvature: positive = Right, negative = Left (depends on coordinate system)
-    // Forza X is East, Z is North. Usually Left is positive in standard math, let's just use raw cross product
-    let cross = dx * ddz - dz * ddx;
+    // FH5 左手坐标系：X=East, Z=North, Y=Up
+    // 叉积取反：positive kappa = clockwise = Right turn
+    let cross = dz * ddx - dx * ddz;
     pts[i].kappa = denominator > 1e-6 ? cross / denominator : 0;
     let radius = Math.abs(pts[i].kappa) > 1e-6 ? 1.0 / Math.abs(pts[i].kappa) : 10000;
     pts[i].radius = Math.min(radius, 10000); // cap at 10km

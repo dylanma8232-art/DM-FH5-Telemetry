@@ -173,7 +173,9 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
               position={telemetryData.position}
               currentSpeed={telemetryData.speedKmh}
               isRaceOn={telemetryData.isRaceOn}
+              racePosition={telemetryData.racePosition}
               compact={true}
+              onExit={() => setTrackData(null)}
             />
           </div>
 
@@ -304,7 +306,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           height: '100%'
         }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} />
+            <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} isRaceOn={telemetryData.isRaceOn} />
           </div>
         </div>
 

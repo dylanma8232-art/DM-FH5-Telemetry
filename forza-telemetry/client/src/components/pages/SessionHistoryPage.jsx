@@ -53,12 +53,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [selectedSessionIds, setSelectedSessionIds] = useState(new Set());
   const [batchMode, setBatchMode] = useState(false);
 
-  // Round 7: 比赛对比功能
-  const [compareSessionA, setCompareSessionA] = useState(null);
-  const [compareSessionB, setCompareSessionB] = useState(null);
-  const [compareAnalysisA, setCompareAnalysisA] = useState(null);
-  const [compareAnalysisB, setCompareAnalysisB] = useState(null);
-  const [compareLoading, setCompareLoading] = useState(false);
+
 
   // Round 9: Session列表分页
   const [sessionPage, setSessionPage] = useState(1);
@@ -71,6 +66,96 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const uniqueTracks = useMemo(() => {
     return [...new Set(sessions.map(s => s.trackName || '未知赛道'))].filter(Boolean)
   }, [sessions])
+
+  // 按赛道分组的成就墙数据
+  const groupedAchievements = useMemo(() => {
+    const map = new Map();
+    for (const entry of lbEntries) {
+      const trackId = entry.trackId || 'unknown';
+      if (!map.has(trackId)) {
+        map.set(trackId, {
+          trackId,
+          trackName: entry.trackName || '未知赛道',
+          bestLap: entry.bestLap || 0,
+          firstLap: entry.firstLap || 0,
+          totalLaps: 0,
+          sessionCount: 0,
+          recentBreakthrough: false,
+          daysSinceLastSession: Infinity,
+          vehicles: [],
+          lastSessionAt: null,
+          recentBestLaps: []
+        });
+      }
+      const item = map.get(trackId);
+      
+      // 记录车辆最佳圈速信息
+      item.vehicles.push({
+        vehicleOrdinal: entry.vehicleOrdinal,
+        vehicleName: entry.vehicleName,
+        vehicleClass: entry.vehicleClass,
+        vehiclePI: entry.vehiclePI,
+        bestLap: entry.bestLap,
+        sessionCount: entry.sessionCount,
+        totalLaps: entry.totalLaps
+      });
+
+      // 累加场次和跑圈数
+      item.totalLaps += entry.totalLaps || 0;
+      item.sessionCount += entry.sessionCount || 0;
+
+      // 寻找绝对最快圈速及车辆
+      if (entry.bestLap > 0 && (item.bestLap === 0 || entry.bestLap < item.bestLap)) {
+        item.bestLap = entry.bestLap;
+        item.vehicleOrdinal = entry.vehicleOrdinal;
+        item.vehicleName = entry.vehicleName;
+        item.vehicleClass = entry.vehicleClass;
+        item.vehiclePI = entry.vehiclePI;
+      }
+      
+      if (entry.recentBreakthrough) {
+        item.recentBreakthrough = true;
+      }
+      
+      if (entry.daysSinceLastSession < item.daysSinceLastSession) {
+        item.daysSinceLastSession = entry.daysSinceLastSession;
+      }
+      
+      if (!item.lastSessionAt || (entry.lastSessionAt && new Date(entry.lastSessionAt) > new Date(item.lastSessionAt))) {
+        item.lastSessionAt = entry.lastSessionAt;
+      }
+    }
+
+    const list = [];
+    map.forEach(item => {
+      // 按照车辆最佳圈速升序排序
+      item.vehicles.sort((a, b) => {
+        if (a.bestLap === 0) return 1;
+        if (b.bestLap === 0) return -1;
+        return a.bestLap - b.bestLap;
+      });
+
+      // 获取最老的一次有效圈速记录作为基准首圈，用于计算提升幅度
+      const validFirstLaps = lbEntries.filter(e => e.trackId === item.trackId && e.firstLap > 0).map(e => e.firstLap);
+      const overallFirstLap = validFirstLaps.length > 0 ? Math.min(...validFirstLaps) : 0;
+      item.firstLap = overallFirstLap;
+
+      // 提取该赛道最后5场比赛的最佳圈速，用于迷你趋势折线图
+      const trackSessions = [...sessions]
+        .filter(s => s.trackId === item.trackId)
+        .reverse();
+      item.recentBestLaps = trackSessions
+        .filter(s => s.laps?.best > 0)
+        .slice(-5)
+        .map((s, i) => ({ index: i + 1, bestLap: s.laps.best }));
+
+      list.push(item);
+    });
+
+    // 最近出赛的排在前面
+    list.sort((a, b) => new Date(b.lastSessionAt) - new Date(a.lastSessionAt));
+    return list;
+  }, [lbEntries, sessions]);
 
   // G-G 摩擦力圆：降采样 + 缓存峰值
   const ggData = useMemo(() => {
@@ -104,6 +189,17 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
     return { sampled, maxLat, maxBrake };
   }, [channelsData])
+
+  // 分段用时数据缓存
+  const sectorTimingData = useMemo(() => {
+    if (!advancedData || !advancedData.lapSectorDetails || advancedData.lapSectorDetails.length === 0) return null;
+    const isMultiLap = advancedData.lapCount > 1;
+    const allLosses = advancedData.lapSectorDetails.flatMap(lap => lap.sectors.map(s => s.loss));
+    const allTimes = advancedData.lapSectorDetails.flatMap(lap => lap.sectors.map(s => s.time));
+    const maxTime = Math.max(...allTimes);
+    const maxLoss = Math.max(...allLosses.map(l => Math.max(0, l)), 0.01);
+    return { isMultiLap, maxTime, maxLoss };
+  }, [advancedData])
 
   const myFilteredSessions = sessions.filter(s => {
     const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
@@ -197,68 +293,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     }
   };
 
-  // Round 7: 选择对比session
-  const selectCompareSession = async (sessionId) => {
-    // 点击已选中的按钮 → 取消选择
-    if (compareSessionA === sessionId) {
-      clearCompare();
-      return;
-    }
-    if (compareSessionB === sessionId) {
-      setCompareSessionB(null);
-      setCompareAnalysisB(null);
-      return;
-    }
 
-    if (compareSessionA === null) {
-      setCompareSessionA(sessionId);
-      toast('已选择第一个Session，请再选择一个', 'info');
-    } else if (compareSessionB === null && sessionId !== compareSessionA) {
-      setCompareSessionB(sessionId);
-      setCompareLoading(true);
-      try {
-        const [resA, resB] = await Promise.all([
-          fetch('/api/analysis/' + compareSessionA),
-          fetch('/api/analysis/' + sessionId)
-        ]);
-        const dataA = await resA.json();
-        const dataB = await resB.json();
-        setCompareAnalysisA(dataA);
-        setCompareAnalysisB(dataB);
-      } catch (e) {
-        toast('加载对比数据失败', 'error');
-      } finally {
-        setCompareLoading(false);
-      }
-    } else {
-      toast('已选择两个Session，请先清除', 'info');
-    }
-  };
-
-  const clearCompare = () => {
-    setCompareSessionA(null);
-    setCompareSessionB(null);
-    setCompareAnalysisA(null);
-    setCompareAnalysisB(null);
-  };
-
-  // Round 7: 对比维度差值计算
-  const getCompareDiff = (keyA, keyB, label, unit = '', invert = false) => {
-    const valA = keyA != null && keyA !== undefined ? parseFloat(keyA) : null;
-    const valB = keyB != null && keyB !== undefined ? parseFloat(keyB) : null;
-    if (valA === null || valB === null) return { label, valA, valB, diff: null, color: 'var(--text-secondary)' };
-    const diff = valA - valB;
-    // 对于圈速等越小越好的指标，invert=true时正差值表示A更慢（红色）
-    let color = 'var(--text-secondary)';
-    if (Math.abs(diff) > 0.001) {
-      if (invert) {
-        color = diff > 0 ? 'var(--danger)' : 'var(--success)';
-      } else {
-        color = diff > 0 ? 'var(--success)' : 'var(--danger)';
-      }
-    }
-    return { label, valA, valB, diff: Math.abs(diff), color, displayDiff: (diff > 0 ? '+' : '') + (unit === 's' ? diff.toFixed(3) : diff.toFixed(1)) + unit };
-  };
 
   // Round 5: 切换选择Session
   const toggleSessionSelect = (e, sessionId) => {
@@ -836,23 +871,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
   }, [myFilteredSessions, sessionPage]);
   const totalPages = Math.ceil(myFilteredSessions.length / SESSION_PAGE_SIZE);
 
-  // 计算当前 Session 在赛道历史学习曲线上的位置
-  const sessionLearningData = useMemo(() => {
-    if (!analysis?.trackId) return null;
-    const trackSessions = [...sessions].filter(s => s.trackId === analysis.trackId).reverse();
-    const data = trackSessions
-      .filter(s => s.laps?.best > 0)
-      .map((s, idx) => ({
-        index: idx + 1,
-        bestLap: s.laps.best,
-        sessionId: s.id,
-        isCurrent: s.id === selectedSession
-      }));
-    if (data.length === 0) return null;
-    const best = Math.min(...data.map(d => d.bestLap));
-    const current = data.find(d => d.sessionId === selectedSession)?.bestLap || 0;
-    return { data, best, current };
-  }, [sessions, analysis?.trackId, selectedSession]);
+
 
   // Round 1: 改进优先级 - 从5维度中找得分最低的3个
   const worst3 = useMemo(() => {
@@ -1007,10 +1026,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* Round 6: PDF报告 */}
                   <button onClick={(e) => { e.stopPropagation(); exportPDFReport(session.id); }} style={{ ...btnSmallStyle, background: 'rgba(188,140,255,0.1)', color: '#bc8cff', borderColor: 'rgba(188,140,255,0.3)' }}>PDF报告</button>
                   <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(session.id); }} style={{ ...btnSmallStyle, background: 'rgba(218,54,51,0.1)', color: '#f85149', borderColor: 'rgba(248,81,73,0.3)' }}>删除</button>
-                  {/* Round 7: 对比按钮 */}
-                  <button onClick={(e) => { e.stopPropagation(); selectCompareSession(session.id); }} style={{ ...btnSmallStyle, background: (compareSessionA === session.id || compareSessionB === session.id) ? 'rgba(210,153,34,0.15)' : 'var(--bg-tertiary)', color: (compareSessionA === session.id || compareSessionB === session.id) ? '#d29922' : 'var(--text-primary)', borderColor: (compareSessionA === session.id || compareSessionB === session.id) ? 'rgba(210,153,34,0.3)' : 'var(--border)' }}>
-                    {compareSessionA === session.id ? 'A已选' : compareSessionB === session.id ? 'B已选' : '对比'}
-                  </button>
+
                   {/* Round 5: 批量选择复选框 */}
                   {batchMode && (
                     <div
@@ -1052,85 +1068,6 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         {loading ? (
           <LoadingSpinner />
-        ) : compareAnalysisA && compareAnalysisB ? (
-          /* 对比结果面板 */
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ ...sectionTitleStyle, margin: 0 }}>比赛对比分析</h3>
-              <button onClick={clearCompare} style={{ ...btnSmallStyle, background: 'rgba(248,81,73,0.1)', color: '#f85149', borderColor: 'rgba(248,81,73,0.3)' }}>关闭对比</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div style={{ ...sectionStyle, borderLeft: '3px solid #58a6ff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#58a6ff', marginBottom: 8 }}>A: {compareAnalysisA.trackName || '未知赛道'}</div>
-                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 4 }}>{compareAnalysisA.date ? new Date(compareAnalysisA.date).toLocaleString('zh-CN') : ''}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: '#d29922' }}>{formatTime(compareAnalysisA.成绩?.最快圈速)}</div>
-              </div>
-              <div style={{ ...sectionStyle, borderLeft: '3px solid #d29922' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#d29922', marginBottom: 8 }}>B: {compareAnalysisB.trackName || '未知赛道'}</div>
-                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 4 }}>{compareAnalysisB.date ? new Date(compareAnalysisB.date).toLocaleString('zh-CN') : ''}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: '#d29922' }}>{formatTime(compareAnalysisB.成绩?.最快圈速)}</div>
-              </div>
-            </div>
-
-            {/* 对比维度表 */}
-            <div style={sectionStyle}>
-              <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>关键指标对比</h4>
-              <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>对比两场比赛的核心指标。正值=绿色=A更好，负值=红色=B更好。</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                    <th style={{ padding: '8px 6px', textAlign: 'left' }}>指标</th>
-                    <th style={{ padding: '8px 6px', textAlign: 'center', color: '#58a6ff' }}>A</th>
-                    <th style={{ padding: '8px 6px', textAlign: 'center', color: '#d29922' }}>B</th>
-                    <th style={{ padding: '8px 6px', textAlign: 'center' }}>差异</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    getCompareDiff(compareAnalysisA.成绩?.最快圈速, compareAnalysisB.成绩?.最快圈速, '最快圈速', 's', true),
-                    getCompareDiff(compareAnalysisA.成绩?.上一圈速, compareAnalysisB.成绩?.上一圈速, '上一圈速', 's', true),
-                    getCompareDiff(compareAnalysisA.成绩?.圈数, compareAnalysisB.成绩?.圈数, '圈数', '圈'),
-                    getCompareDiff(compareAnalysisA.成绩?.总时长 / 1000, compareAnalysisB.成绩?.总时长 / 1000, '总时长', 's', true),
-                    getCompareDiff(compareAnalysisA.驾驶评分?.总分, compareAnalysisB.驾驶评分?.总分, '驾驶评分', '分'),
-                  ].map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(48,54,61,0.5)' }}>
-                      <td style={{ padding: '8px 6px', color: 'var(--text-primary)' }}>{row.label}</td>
-                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace' }}>{row.valA != null ? (typeof row.valA === 'number' ? row.valA.toFixed(row.unit === 's' ? 3 : 0) : row.valA) : '-'}</td>
-                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace' }}>{row.valB != null ? (typeof row.valB === 'number' ? row.valB.toFixed(row.unit === 's' ? 3 : 0) : row.valB) : '-'}</td>
-                      <td style={{ padding: '8px 6px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 600, color: row.color }}>{row.diff != null ? row.displayDiff : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 驾驶评分维度对比 */}
-            {compareAnalysisA.驾驶评分?.维度 && compareAnalysisB.驾驶评分?.维度 && (
-              <div style={{ ...sectionStyle, marginTop: 12 }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: 12 }}>评分维度对比</h4>
-                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>对比两场比赛各维度的驾驶评分。数字越大越好，差值显示A比B好多少。</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
-                  {Object.keys(compareAnalysisA.驾驶评分.维度).map(dim => {
-                    const a = compareAnalysisA.驾驶评分.维度[dim];
-                    const b = compareAnalysisB.驾驶评分.维度[dim];
-                    const diff = (a?.分数 || 0) - (b?.分数 || 0);
-                    const color = Math.abs(diff) < 0.5 ? 'var(--text-secondary)' : diff > 0 ? 'var(--success)' : 'var(--danger)';
-                    return (
-                      <div key={dim} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
-                        <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 6 }}>{dim}</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: '#58a6ff', fontFamily: 'monospace' }}>{a?.分数 || 0}</span>
-                          <span style={{ fontSize: 10, color: '#8b949e' }}>vs</span>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: '#d29922', fontFamily: 'monospace' }}>{b?.分数 || 0}</span>
-                        </div>
-                        <div style={{ fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: 600, color }}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         ) : selectedSession && analysis ? (
           <div>
             {/* 面包屑导航 */}
@@ -1285,80 +1222,64 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   );
                 })()}
 
-                {/* 分段分析：多圈显示每圈损失时间，单圈不显示 */}
-                {advancedData && advancedData.sessionId === selectedSession && advancedData.lapCount > 1 && advancedData.lapSectorDetails && advancedData.lapSectorDetails.length > 0 && (
-                  <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>分段损失时间</h3>
-                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每圈各赛段相比理论最佳的损失时间。红色柱子越高说明该赛段越慢。</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                {/* 分段分析：多圈显示每圈损失时间，单圈显示分段用时 */}
+                {sectorTimingData && advancedData && advancedData.sessionId === selectedSession && (() => {
+                  const { isMultiLap } = sectorTimingData;
+                  return (
+                    <div style={sectionStyle}>
+                      <h3 style={sectionTitleStyle}>
+                        {isMultiLap ? '分段损失时间' : '分段用时'}
+                      </h3>
+                      <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12, lineHeight: 1.5 }}>
+                        {isMultiLap
+                          ? '每圈各赛段相比理论最佳的损失时间。'
+                          : '当前比赛不同分段的用时。'}
+                      </div>
                       {advancedData.lapSectorDetails.map(lap => (
-                        <div key={lap.lap} style={{ padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>第{lap.lap}圈 ({lap.totalTime.toFixed(2)}s)</div>
-                          <div style={{ height: 80 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={lap.sectors.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.loss * 1000) }))} margin={{ top: 2, right: 4, bottom: 2, left: 0 }}>
-                                <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#8b949e' }} />
-                                <YAxis tick={{ fontSize: 8, fill: '#8b949e' }} unit="ms" width={35} />
-                                <Tooltip
-                                  contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                                  formatter={(v) => [v + ' ms', '损失']}
-                                />
-                                <Bar dataKey="loss" fill={lap.sectors.every(s => s.loss === 0) ? '#3fb950' : '#f85149'} radius={[3, 3, 0, 0]} />
-                              </BarChart>
-                            </ResponsiveContainer>
+                        <div key={lap.lap} style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: '#e6edf3' }}>
+                            {isMultiLap ? `第${lap.lap}圈` : '分段用时'}
+                            <span style={{ fontSize: 10, fontWeight: 400, color: '#8b949e', marginLeft: 8 }}>
+                              {lap.totalTime.toFixed(2)}s
+                            </span>
                           </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #21262d' }}>
+                                <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 600 }}>分段</th>
+                                <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>用时</th>
+                                {isMultiLap && <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>损失</th>}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lap.sectors.map(s => {
+                                const isBest = isMultiLap ? s.loss === 0 : s.time === Math.min(...lap.sectors.map(x => x.time));
+                                const isWorst = isMultiLap ? s.loss === Math.max(...lap.sectors.map(x => x.loss)) : s.time === Math.max(...lap.sectors.map(x => x.time));
+                                const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
+                                const lossColor = s.loss === 0 ? '#3fb950' : s.loss > 200 ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
+                                return (
+                                  <tr key={s.sector} style={{ borderBottom: '1px solid rgba(33, 38, 45, 0.5)' }}>
+                                    <td style={{ padding: '6px 8px', color: '#8b949e' }}>S{s.sector}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 600 }}>
+                                      {s.time.toFixed(2)}s
+                                    </td>
+                                    {isMultiLap && (
+                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: 600 }}>
+                                        {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
-                {/* 赛道学习曲线位置 */}
-                {sessionLearningData && sessionLearningData.data.length > 1 && (
-                  <div style={{ ...sectionStyle, marginBottom: 16 }}>
-                    <h3 style={sectionTitleStyle}>本场在赛道成长轨迹中的位置</h3>
-                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
-                      曲线向下代表圈速提升（越快越好）。橙色圆点=本场成绩。曲线持续下降说明你在进步；若出现平台期则可能遇到驾驶瓶颈，建议对比前后场的弯道数据找原因。
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, alignItems: 'center' }}>
-                      <div style={{ height: 100 }}>
-                        <ResponsiveContainer width="100%" height={100}>
-                          <LineChart data={sessionLearningData.data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="index" tickFormatter={v => `第${v}次`} tick={{ fontSize: 10, fill: '#8b949e' }} />
-                            <YAxis domain={['auto', 'auto']} tickFormatter={v => formatTime(v)} tick={{ fontSize: 10, fill: '#8b949e' }} width={55} reversed />
-                            <Line
-                              type="monotone" dataKey="bestLap"
-                              stroke="#58a6ff" strokeWidth={1.5}
-                              dot={(props) => {
-                                const { cx, cy, payload } = props;
-                                if (payload.isCurrent) {
-                                  return <circle cx={cx} cy={cy} r={6} fill="#ff9500" stroke="#fff" strokeWidth={2} />;
-                                }
-                                return <circle cx={cx} cy={cy} r={3} fill="#58a6ff" stroke="none" />;
-                              }}
-                              isAnimationActive={false}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, padding: 12 }}>
-                        <div style={{ fontSize: 11, color: '#8b949e' }}>历史最好成绩：</div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: '#3fb950', fontFamily: 'monospace', marginBottom: 6 }}>
-                          {formatTime(sessionLearningData.best)}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#8b949e' }}>本场成绩差距：</div>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>
-                          {sessionLearningData.current <= sessionLearningData.best ? (
-                            <span style={{ color: '#d29922' }}>本场创下新纪录PB！</span>
-                          ) : (
-                            <span style={{ color: '#ff9500' }}>慢了 {(sessionLearningData.current - sessionLearningData.best).toFixed(3)} 秒</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -1790,33 +1711,62 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     </ResponsiveContainer>
                   </div>
 
-                  {/* 分段分析：多圈显示每圈损失时间，单圈不显示 */}
-                  {advancedData && advancedData.sessionId === selectedSession && advancedData.lapCount > 1 && advancedData.lapSectorDetails && advancedData.lapSectorDetails.length > 0 && (
-                    <div style={{ ...sectionStyle, marginTop: 12 }}>
-                      <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>分段损失时间</h4>
-                      <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每圈各赛段相比理论最佳的损失时间。红色柱子越高说明该赛段越慢。</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                  {/* 分段分析：多圈显示每圈损失时间，单圈显示分段用时 */}
+                  {sectorTimingData && advancedData && advancedData.sessionId === selectedSession && (() => {
+                    const { isMultiLap } = sectorTimingData;
+                    return (
+                      <div style={{ ...sectionStyle, marginTop: 12 }}>
+                        <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>
+                          {isMultiLap ? '分段损失时间' : '分段用时'}
+                        </h4>
+                        <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
+                          {isMultiLap
+                            ? '每圈各赛段相比理论最佳的损失时间。'
+                            : '当前比赛不同分段的用时。'}
+                        </div>
                         {advancedData.lapSectorDetails.map(lap => (
-                          <div key={lap.lap} style={{ padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>第{lap.lap}圈 ({lap.totalTime.toFixed(2)}s)</div>
-                            <div style={{ height: 80 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={lap.sectors.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.loss * 1000) }))} margin={{ top: 2, right: 4, bottom: 2, left: 0 }}>
-                                  <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#8b949e' }} />
-                                  <YAxis tick={{ fontSize: 8, fill: '#8b949e' }} unit="ms" width={35} />
-                                  <Tooltip
-                                    contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                                    formatter={(v) => [v + ' ms', '损失']}
-                                  />
-                                  <Bar dataKey="loss" fill={lap.sectors.every(s => s.loss === 0) ? '#3fb950' : '#f85149'} radius={[3, 3, 0, 0]} />
-                                </BarChart>
-                              </ResponsiveContainer>
+                          <div key={lap.lap} style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: '#e6edf3' }}>
+                              {isMultiLap ? `第${lap.lap}圈` : '分段用时'}
+                              <span style={{ fontSize: 10, fontWeight: 400, color: '#8b949e', marginLeft: 8 }}>
+                                {lap.totalTime.toFixed(2)}s
+                              </span>
                             </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid #21262d' }}>
+                                  <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 600 }}>分段</th>
+                                  <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>用时</th>
+                                  {isMultiLap && <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>损失</th>}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lap.sectors.map(s => {
+                                  const isBest = isMultiLap ? s.loss === 0 : s.time === Math.min(...lap.sectors.map(x => x.time));
+                                  const isWorst = isMultiLap ? s.loss === Math.max(...lap.sectors.map(x => x.loss)) : s.time === Math.max(...lap.sectors.map(x => x.time));
+                                  const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
+                                  const lossColor = s.loss === 0 ? '#3fb950' : s.loss > 200 ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
+                                  return (
+                                    <tr key={s.sector} style={{ borderBottom: '1px solid rgba(33, 38, 45, 0.5)' }}>
+                                      <td style={{ padding: '6px 8px', color: '#8b949e' }}>S{s.sector}</td>
+                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 600 }}>
+                                        {s.time.toFixed(2)}s
+                                      </td>
+                                      {isMultiLap && (
+                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: 600 }}>
+                                          {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
+                                        </td>
+                                      )}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* 一致性指标 */}
                   {advancedData?.consistency && advancedData.lapCount > 1 && (
@@ -2037,6 +1987,52 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       </div>
                     </div>
                   )}
+
+                  {/* 历次比赛记录列表 */}
+                  {trackSessions.length > 0 && (
+                    <div style={{ background: 'var(--bg-secondary)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>该赛道历史比赛记录</div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                              <th style={{ padding: '8px 6px' }}>出赛日期</th>
+                              <th style={{ padding: '8px 6px' }}>出赛车辆</th>
+                              <th style={{ padding: '8px 6px' }}>最快圈速</th>
+                              <th style={{ padding: '8px 6px' }}>总跑圈数</th>
+                              <th style={{ padding: '8px 6px', textAlign: 'right' }}>操作</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trackSessions.map(session => (
+                              <tr key={session.id} style={{ borderBottom: '1px solid rgba(48, 54, 61, 0.3)' }}>
+                                <td style={{ padding: '8px 6px' }}>{formatDate(session.savedAt)}</td>
+                                <td style={{ padding: '8px 6px' }}>{session.vehicle?.name || `Car #${session.vehicle?.ordinal}`}</td>
+                                <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>
+                                  {session.laps?.best > 0 ? formatTime(session.laps.best) : '-'}
+                                </td>
+                                <td style={{ padding: '8px 6px' }}>{session.laps?.count || 0}圈</td>
+                                <td style={{ padding: '8px 6px', textAlign: 'right' }}>
+                                  <button
+                                    onClick={() => loadAnalysis(session.id)}
+                                    style={{
+                                      ...btnSmallStyle,
+                                      background: 'rgba(88, 166, 255, 0.1)',
+                                      color: '#58a6ff',
+                                      borderColor: 'rgba(88, 166, 255, 0.3)',
+                                      padding: '2px 8px'
+                                    }}
+                                  >
+                                    查看详情
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -2048,7 +2044,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>我的赛道成就墙</h2>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  共跑过 {lbEntries.length} 个赛道-车辆组合，点击卡片聚焦该赛道
+                  共跑过 {groupedAchievements.length} 个赛道，点击卡片聚焦该赛道
                 </div>
               </div>
               <button onClick={loadLeaderboard} style={{
@@ -2063,7 +2059,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             {/* 卡片网格 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
               {(() => {
-                const filteredAchievements = lbEntries.filter(entry => {
+                const filteredAchievements = groupedAchievements.filter(entry => {
                   return !sessionSearchQuery.trim() || entry.trackName.toLowerCase().includes(sessionSearchQuery.toLowerCase());
                 });
 
@@ -2072,14 +2068,17 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 }
 
                 return filteredAchievements.map(entry => {
-                  const improvementSec = entry.firstLap > 0 && entry.bestLap > 0 ? entry.firstLap - entry.bestLap : 0;
                   const badges = [];
                   if (entry.recentBreakthrough) badges.push({ icon: '🔥', label: '突破', color: '#ff9500' });
                   if (entry.daysSinceLastSession > 30) badges.push({ icon: '❄️', label: '冷落', color: '#58a6ff' });
 
+                  const vehicleText = entry.bestLap > 0
+                    ? `最快车辆: ${entry.vehicleName || `Car #${entry.vehicleOrdinal}`} (${getVehicleClass(entry.vehicleClass)} ${entry.vehiclePI} PI)`
+                    : '暂无有效纪录';
+
                   return (
                     <div
-                      key={entry.trackId + '_' + entry.vehicleOrdinal}
+                      key={entry.trackId}
                       onClick={() => {
                         setTrackFilter(entry.trackName);
                       }}
@@ -2126,18 +2125,18 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
                         {/* 车辆信息 */}
                         <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                          {entry.vehicleName || `Car #${entry.vehicleOrdinal}`} ({getVehicleClass(entry.vehicleClass)} {entry.vehiclePI} PI)
+                          {vehicleText}
                         </div>
 
                         {/* 最佳圈速与微缩趋势线 */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 800, color: '#3fb950', fontFamily: 'monospace' }}>
-                              {lbFormatTime(entry.bestLap)}
+                              {entry.bestLap > 0 ? lbFormatTime(entry.bestLap) : '-'}
                             </div>
-                            {improvementSec > 0 && (
+                            {entry.improvementSec > 0 && (
                               <div style={{ fontSize: 9, color: '#3fb950', marginTop: 2, fontWeight: 600 }}>
-                                ▼ {improvementSec.toFixed(2)}s (超越首圈)
+                                ▼ {entry.improvementSec.toFixed(2)}s (超越首圈)
                               </div>
                             )}
                           </div>

@@ -86,7 +86,9 @@
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
   - 📄 [clean_history.js](file:///forza-telemetry/scripts/clean_history.js) 
+  - 📄 [clean_sessions.js](file:///forza-telemetry/scripts/clean_sessions.js) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
+  - 📄 [start-server.sh](file:///forza-telemetry/scripts/start-server.sh) 
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
@@ -137,13 +139,3 @@
 1. **主入口分析**：先看 [App.jsx](file:///forza-telemetry/client/src/App.jsx) 与 [index.js](file:///forza-telemetry/server/src/index.js)。
 2. **遥测数据解析**：查看 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js) 掌握遥测字节结构。
 3. **数据关联**：使用 `codegraph_explore` 查看特定函数的上下文调用，尽量避免直接全量拉取组件文件。
-
-## 赛后分析模块说明
-
-### 分段分析
-- **单圈比赛**：不显示分段损失时间（没有对比意义）
-- **多圈比赛**：显示每一圈各分段的损失时间，让用户看到是哪一圈哪个分段慢
-
-### 弯道数据
-- **总览Tab**：显示弯道速度详情（入弯/弯心/出弯速度）
-- **不再显示**：弯道历史速度变化趋势（已删除）
