@@ -4006,12 +4006,25 @@ app.get('/api/analysis/:sessionId/advanced', (req, res) => {
     }
 
     let lossTime = [];
+    const lapSectorDetails = [];
     if (allSectorTimes.length > 0) {
       const bestLap = allSectorTimes.reduce((min, l) => l.totalTime < min.totalTime ? l : min);
       lossTime = bestSectors.map((best, s) => ({
         sector: s + 1,
         lossTime: Math.round((bestLap.sectorTimes[s] - best) * 1000) / 1000
       }));
+      // 每圈各分段的用时详情
+      for (const lap of allSectorTimes) {
+        lapSectorDetails.push({
+          lap: lap.ln,
+          totalTime: lap.totalTime,
+          sectors: lap.sectorTimes.map((t, s) => ({
+            sector: s + 1,
+            time: Math.round(t * 1000) / 1000,
+            loss: Math.round((t - bestSectors[s]) * 1000) / 1000
+          }))
+        });
+      }
     }
 
     const rpmBuckets = new Map();
@@ -4052,6 +4065,7 @@ app.get('/api/analysis/:sessionId/advanced', (req, res) => {
       },
       consistency: { lapTimeStd, sectorStd },
       lossTime,
+      lapSectorDetails,
       powerCurve
     });
   } catch (e) {
