@@ -1285,31 +1285,50 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   );
                 })()}
 
-                {/* 损失时间条形图 */}
-                {advancedData && advancedData.sessionId === selectedSession && advancedData.lossTime && advancedData.lossTime.length > 0 && (
+                {/* 分段分析：多圈显示损失时间，单圈显示分段用时 */}
+                {advancedData && advancedData.sessionId === selectedSession && advancedData.theoreticalBest && advancedData.theoreticalBest.sectors && advancedData.theoreticalBest.sectors.length > 0 && (
                   <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>分段损失时间</h3>
-                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每个赛段相比理论最佳的损失时间。红色柱子越高说明该赛段越慢，优先改进最高的红色赛段。</div>
-                    {advancedData.lossTime.every(s => s.lossTime === 0) ? (
-                      <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
-                        <div style={{ fontSize: 10, color: '#8b949e' }}>只有1圈数据，每个赛段都是当前最佳</div>
-                      </div>
+                    {advancedData.lapCount > 1 ? (
+                      <>
+                        <h3 style={sectionTitleStyle}>分段损失时间</h3>
+                        <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每个赛段相比理论最佳的损失时间。红色柱子越高说明该赛段越慢，优先改进最高的红色赛段。</div>
+                        {advancedData.lossTime && advancedData.lossTime.length > 0 && advancedData.lossTime.every(s => s.lossTime === 0) ? (
+                          <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
+                            <div style={{ fontSize: 10, color: '#8b949e' }}>每个赛段都是当前最佳，没有损失时间</div>
+                          </div>
+                        ) : advancedData.lossTime && advancedData.lossTime.length > 0 ? (
+                          <div style={{ height: 160 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={advancedData.lossTime.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.lossTime * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                                <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
+                                <Tooltip
+                                  contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
+                                  formatter={(v) => [v + ' ms', '损失时间']}
+                                />
+                                <Bar dataKey="loss" fill="#f85149" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: 20, color: '#8b949e' }}>数据不足，无法计算损失时间</div>
+                        )}
+                      </>
                     ) : (
-                      <div style={{ height: 160 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={advancedData.lossTime.map(s => ({ name: 'S' + s.sector, loss: Math.round(s.lossTime * 1000) }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#8b949e' }} />
-                            <YAxis tick={{ fontSize: 10, fill: '#8b949e' }} unit="ms" width={50} />
-                            <Tooltip
-                              contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
-                              formatter={(v) => [v + ' ms', '损失时间']}
-                            />
-                            <Bar dataKey="loss" fill="#f85149" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
+                      <>
+                        <h3 style={sectionTitleStyle}>分段用时</h3>
+                        <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>仅1圈数据，显示各赛段用时。跑更多圈后可计算分段损失时间。</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${advancedData.numSectors || 3}, 1fr)`, gap: 8 }}>
+                          {advancedData.theoreticalBest.sectors.map(s => (
+                            <div key={s.sector} style={{ textAlign: 'center', padding: '12px 8px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)' }}>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>S{s.sector}</div>
+                              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-primary)' }}>{(s.bestTime || 0).toFixed(2)}s</div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -1796,17 +1815,19 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     </ResponsiveContainer>
                   </div>
 
-                  {/* 分段耗时对比 */}
-                  {advancedData?.lossTime && advancedData.lossTime.length > 0 && (
+                  {/* 分段分析：多圈显示损失时间，单圈显示分段用时 */}
+                  {advancedData?.theoreticalBest && advancedData.theoreticalBest.sectors && advancedData.theoreticalBest.sectors.length > 0 && (
                     <div style={{ ...sectionStyle, marginTop: 12 }}>
-                      <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>分段耗时对比</h4>
-                      <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每个赛段相比理论最佳的损失时间。红色=损失大，绿色=接近最佳，优先改进红色赛段。</div>
-                      {advancedData.lossTime.every(s => s.lossTime === 0) ? (
-                        <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
-                          <div style={{ fontSize: 10, color: '#8b949e' }}>只有1圈数据，每个赛段都是当前最佳</div>
-                        </div>
-                      ) : (
+                      {advancedData.lapCount > 1 ? (
+                        <>
+                          <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>分段损失时间</h4>
+                          <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>每个赛段相比理论最佳的损失时间。红色=损失大，绿色=接近最佳，优先改进红色赛段。</div>
+                          {advancedData.lossTime && advancedData.lossTime.length > 0 && advancedData.lossTime.every(s => s.lossTime === 0) ? (
+                            <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(63,185,80,0.1)', border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#3fb950', marginBottom: 4 }}>当前就是最佳成绩</div>
+                              <div style={{ fontSize: 10, color: '#8b949e' }}>每个赛段都是当前最佳</div>
+                            </div>
+                          ) : advancedData.lossTime && advancedData.lossTime.length > 0 ? (
                         <div style={{ height: 200 }}>
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={advancedData.lossTime.map(s => ({
@@ -1831,13 +1852,13 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   )}
 
                   {/* 一致性指标 */}
-                  {advancedData?.consistency && (
+                  {advancedData?.consistency && advancedData.lapCount > 1 && (
                     <div style={{ ...sectionStyle, marginTop: 12 }}>
                       <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>一致性分析</h4>
                       <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>圈速和分段的标准差，数值越小越稳定。圈速标准差0.5秒以内为优秀，1秒以内为良好。</div>
                       {advancedData.consistency.lapTimeStd === 0 && (advancedData.consistency.sectorStd || []).every(s => s === 0) ? (
                         <div style={{ textAlign: 'center', padding: '20px 0', background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)', borderRadius: 6 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#58a6ff', marginBottom: 4 }}>只有1圈数据</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#58a6ff', marginBottom: 4 }}>数据不足</div>
                           <div style={{ fontSize: 10, color: '#8b949e' }}>需要多圈数据才能计算一致性指标</div>
                         </div>
                       ) : (

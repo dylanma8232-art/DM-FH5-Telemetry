@@ -4037,6 +4037,8 @@ app.get('/api/analysis/:sessionId/advanced', (req, res) => {
       }));
 
     res.json({
+      lapCount: lapInfos.length,
+      numSectors,
       usOsIndex,
       differential,
       trailBraking: {
