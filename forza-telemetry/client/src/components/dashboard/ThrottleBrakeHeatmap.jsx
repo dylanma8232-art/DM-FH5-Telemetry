@@ -56,7 +56,6 @@ export function ThrottleBrakeHeatmap({ session, mode: initialMode = 'throttle' }
       if (i === 0) ctx.moveTo(s.x, s.y);
       else ctx.lineTo(s.x, s.y);
     });
-    ctx.closePath();
     ctx.stroke();
 
     // 计算每个点的颜色
