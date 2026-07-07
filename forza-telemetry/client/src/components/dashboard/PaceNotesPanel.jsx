@@ -472,7 +472,9 @@ export function PaceNotesPanel({
   position,
   currentSpeed = 0,
   isRaceOn = 0,
+  racePosition = 0,
   compact = false,
+  onExit,
 }) {
   const [activeTurnIdx, setActiveTurnIdx] = useState(-1);
   const [nextTurnIdx, setNextTurnIdx] = useState(-1);
@@ -487,12 +489,19 @@ export function PaceNotesPanel({
     setHasRaceStarted(false);
   }, [trackData?.id]);
 
-  // 侦测比赛开始
+  // 侦测比赛开始/结束
   useEffect(() => {
-    if (!hasRaceStarted && (isRaceOn || currentSpeed > 10)) {
+    // 比赛开始条件：isRaceOn 且有比赛名次
+    if (!hasRaceStarted && isRaceOn && racePosition > 0) {
       setHasRaceStarted(true);
     }
-  }, [isRaceOn, currentSpeed, hasRaceStarted]);
+    // 比赛结束条件：isRaceOn 变为 false
+    if (hasRaceStarted && !isRaceOn) {
+      setHasRaceStarted(false);
+      setActiveTurnIdx(-1);
+      setNextTurnIdx(-1);
+    }
+  }, [isRaceOn, racePosition, hasRaceStarted]);
 
   // 生成路书数据
   const paceNotes = useMemo(() => generatePaceNotes(trackData), [trackData]);
@@ -564,19 +573,23 @@ export function PaceNotesPanel({
   useEffect(() => {
     if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx] && hasRaceStarted) {
       const note = turnNotes[activeTurnIdx];
-      const dirText = note.direction === 'left' ? '左' : note.direction === 'right' ? '右' : '';
-      const wrcNum = note.wrcNumber || note.severity || 0;
-      const wrcText = wrcNum > 0 ? `${dirText}${wrcNum}` : `${dirText}弯`;
+      const dir = note.direction === 'left' ? '左' : '右';
+      const num = note.wrcNumber || note.severity || 3;
+      let text = `${dir}${num}`;
       
-      let geoText = '';
-      if (note.crest === 'jump') geoText += '，飞跳';
+      // 检查是否有连续弯道（下一个弯道距离很近）
+      const nextNote = turnNotes[activeTurnIdx + 1];
+      if (nextNote && note.distanceToNext < 150) {
+        const nextDir = nextNote.direction === 'left' ? '左' : '右';
+        const nextNum = nextNote.wrcNumber || nextNote.severity || 3;
+        text += `接${nextDir}${nextNum}`;
+      }
       
-      const gearText = '';
-      const distText = note.distanceToNext > 500 ? `, 后接${Math.round(note.distanceToNext)}米直道` : '';
+      // 地形描述
+      if (note.crest === 'jump') text += '飞跳';
       
-      const speakText = `前有${wrcText}${geoText}${gearText}${distText}`;
       import('../../utils/speechQueue').then(m => {
-        m.speechManager.speak(speakText, 2);
+        m.speechManager.speak(text, 2);
       });
     }
   }, [activeTurnIdx, turnNotes, hasRaceStarted]);
@@ -662,7 +675,7 @@ export function PaceNotesPanel({
                 if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
                   try {
                     await fetch('/api/trackMode/stop', { method: 'POST' });
-                    window.location.reload();
+                    if (onExit) onExit();
                   } catch (e) {
                     console.error(e);
                   }
@@ -815,8 +828,7 @@ export function PaceNotesPanel({
               if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
                 try {
                   await fetch('/api/trackMode/stop', { method: 'POST' });
-                  // 强制页面刷新或者依赖 DashboardPage 的 polling
-                  window.location.reload();
+                  if (onExit) onExit();
                 } catch (e) {
                   console.error(e);
                 }

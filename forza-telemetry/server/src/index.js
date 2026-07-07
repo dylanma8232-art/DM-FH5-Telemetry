@@ -3950,9 +3950,15 @@ app.get('/api/analysis/:sessionId/advanced', (req, res) => {
       lapsMap.get(ln).push(d);
     }
 
+    // 判断是否为单圈比赛：所有lapNumber都是0，或最大圈数<=1
+    const maxLapNum = Math.max(...lapsMap.keys());
+    const isSingleLap = maxLapNum <= 1;
+
     const lapInfos = [];
     for (const [ln, frames] of lapsMap) {
-      if (ln === 0 || frames.length < 100) continue;
+      // 单圈比赛：不过滤ln===0，把全部数据当作一个完整圈
+      if (!isSingleLap && ln === 0) continue;
+      if (frames.length < 100) continue;
       const times = frames.map(f => f.currentLap || 0).filter(t => t > 0);
       if (times.length < 2) continue;
       const duration = Math.max(...times) - Math.min(...times);
@@ -4998,6 +5004,10 @@ function buildLeaderboard() {
     // 动态查询最新赛道名称
     const latestTrackName = tracks[g.trackId]?.name || g.trackName || '未知赛道';
 
+    // 动态获取车辆名称
+    const vehicleDetail = vehicles[String(g.vehicleOrdinal)];
+    const vehicleName = vehicleDetail?.name || `Car #${g.vehicleOrdinal}`;
+
     // 首圈（第一次有有效圈速的session）
     const firstValidSession = g.sessions.find(s => s.bestLap > 0);
     const firstLap = firstValidSession ? firstValidSession.bestLap : 0;
@@ -5017,6 +5027,7 @@ function buildLeaderboard() {
       trackId: g.trackId,
       trackName: latestTrackName,
       vehicleOrdinal: g.vehicleOrdinal,
+      vehicleName,
       vehicleClass: g.vehicleClass,
       vehiclePI: g.vehiclePI,
       bestLap: g.bestLap === Infinity ? 0 : g.bestLap,

@@ -71,7 +71,7 @@ function formatSecTime(seconds) {
   return `${seconds.toFixed(2)}秒`;
 }
 
-export function RacePerformanceTimingPanel({ data, trackData }) {
+export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   const telemetryData = data || {};
   const {
     racePosition = 0,
@@ -94,6 +94,16 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
   const lapSectorBufferRef = useRef([]);
 
   const [lapHistory, setLapHistory] = useState([]);
+
+  // 比赛状态检测
+  const [raceActive, setRaceActive] = useState(false);
+  useEffect(() => {
+    if (isRaceOn && currentRaceTime > 0) {
+      setRaceActive(true);
+    } else if (!isRaceOn) {
+      setRaceActive(false);
+    }
+  }, [isRaceOn, currentRaceTime]);
 
   // 根据当前位置与赛道分段对比
   const sectorsList = trackData?.sectors || [];
@@ -200,6 +210,34 @@ export function RacePerformanceTimingPanel({ data, trackData }) {
   };
 
   const deltaDisplay = getDeltaDisplay();
+
+  // 非比赛状态显示等待界面
+  if (!raceActive) {
+    return (
+      <div style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px 16px',
+        background: 'rgba(22, 27, 34, 0.65)',
+        border: '1px solid var(--border, #21262d)',
+        borderRadius: 8,
+        boxSizing: 'border-box'
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1, marginBottom: 10 }}>
+          圈速与分段计时
+        </div>
+        <div style={{ fontSize: 14, color: '#8b949e', fontWeight: 500 }}>
+          等待比赛开始...
+        </div>
+        <div style={{ fontSize: 10, color: '#484f58', marginTop: 6 }}>
+          进入比赛后自动开始计时
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
