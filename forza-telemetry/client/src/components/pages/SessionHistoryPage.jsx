@@ -1829,26 +1829,35 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                               <div style={{ fontSize: 10, color: '#8b949e' }}>每个赛段都是当前最佳</div>
                             </div>
                           ) : advancedData.lossTime && advancedData.lossTime.length > 0 ? (
-                        <div style={{ height: 200 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={advancedData.lossTime.map(s => ({
-                              sector: 'S' + (s.sector + 1),
-                              lossTime: Math.round(s.lossTime * 1000),
-                              fill: s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'
-                            }))}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                              <XAxis dataKey="sector" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '赛段', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
-                              <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '损失时间(ms)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
-                              <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v) => [v + ' ms', '损失时间']} />
-                              <Bar dataKey="lossTime" radius={[4,4,0,0]}>
-                                {advancedData.lossTime.map((s, idx) => (
-                                  <Cell key={idx} fill={s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
+                            <div style={{ height: 200 }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={advancedData.lossTime.map(s => ({
+                                  sector: 'S' + s.sector,
+                                  lossTime: Math.round(s.lossTime * 1000),
+                                  fill: s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'
+                                }))}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                                  <XAxis dataKey="sector" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} />
+                                  <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: 'ms', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
+                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v) => [v + ' ms', '损失时间']} />
+                                  <Bar dataKey="lossTime" radius={[4,4,0,0]}>
+                                    {advancedData.lossTime.map((s, idx) => (
+                                      <Cell key={idx} fill={s.lossTime > 0.5 ? '#f85149' : s.lossTime > 0.2 ? '#d29922' : '#3fb950'} />
+                                    ))}
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: 12, color: '#8b949e', fontSize: 11 }}>数据不足</div>
+                          )}
+                        </>
+                      ) : advancedData.theoreticalBest.sectors.map((s, i) => (
+                        <div key={i} style={{ display: 'inline-block', margin: '0 4px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>S{s.sector}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace' }}>{(s.bestTime || 0).toFixed(2)}s</div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   )}
 
