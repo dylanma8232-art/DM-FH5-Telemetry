@@ -1377,6 +1377,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     )}
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
+                      fallbackPositions={sessionDetail?.positions || []}
                       width={480}
                       height={320}
                       highlightedPoints={
@@ -2291,7 +2292,7 @@ function TrackThumbnail({ trackId }) {
 }
 
 // 交互式 Canvas 赛道图组件
-function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [] }) {
+function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [] }) {
   const canvasRef = useRef(null);
   const [positions, setPositions] = useState([]);
   
@@ -2315,15 +2316,18 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     fetchPositions();
   }, [trackId]);
 
+  // 选择最终要绘制的点集：优先赛道中心线，若中心线点数不足则用实际行驶轨迹兜底
+  const drawPositions = positions.length >= 2 ? positions : fallbackPositions;
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || positions.length < 2) return;
+    if (!canvas || drawPositions.length < 2) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
     
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    positions.forEach(p => {
+    drawPositions.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.z < minZ) minZ = p.z;
@@ -2345,7 +2349,7 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
     ctx.fillRect(0, 0, w, h);
 
     // 降采样（与赛道管理一致：>1000点时降采样到500）
-    let pts = positions;
+    let pts = drawPositions;
     if (pts.length > 1000) {
       const step = Math.ceil(pts.length / 500);
       const sampled = [pts[0]];
@@ -2394,7 +2398,6 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
         if (i === 0) ctx.moveTo(px, pz);
         else ctx.lineTo(px, pz);
       });
-      ctx.closePath();
       ctx.stroke();
     }
     
@@ -2410,7 +2413,6 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
       if (i === 0) ctx.moveTo(px, pz);
       else ctx.lineTo(px, pz);
     });
-    ctx.closePath();
     ctx.stroke();
 
     // 3. 绘制滑行高亮（Coasting）
@@ -2470,7 +2472,7 @@ function InteractiveTrackMap({ trackId, highlightedPoints = [], cursorPoint = nu
       ctx.arc(cx, cy, 4, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [positions, highlightedPoints, cursorPoint, showCoasting, coastingPoints]);
+  }, [drawPositions, highlightedPoints, cursorPoint, showCoasting, coastingPoints]);
   
   return (
     <div style={{ background: '#0d1117', border: '1px solid #21262d', borderRadius: 8, padding: 8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
