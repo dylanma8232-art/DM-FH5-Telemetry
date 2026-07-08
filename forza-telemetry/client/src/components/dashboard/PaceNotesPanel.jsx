@@ -76,7 +76,7 @@ function generatePaceNotes(trackData) {
   // 1. 从弯道数据生成弯道路书（WRC标准）
   if (turns && turns.length > 0) {
     turns.forEach((turn, idx) => {
-      const recSpeed = turn.recommendedSpeed || 0;
+      const recSpeed = turn.apexSpeed || turn.bestApexSpeed || 0;
       const recGear = recSpeed > 0 ? recommendGearForSpeed(recSpeed) : null;
       const severity = TURN_SEVERITY[turn.type] || 3;
       const dirLabel = turn.direction === 'left' ? '左' : '右';
@@ -143,7 +143,7 @@ function generatePaceNotes(trackData) {
         turnType: turn.type,
         turnTypeLabel: TURN_TYPE_LABELS[turn.type] || turn.type,
         severity,
-        recommendedSpeed: recSpeed,
+        entrySpeed: turn.entrySpeed || turn.bestEntrySpeed || 0,
         recommendedGear: recGear,
         brakeDistance,
         speedDiff,
@@ -183,8 +183,8 @@ function generatePaceNotes(trackData) {
         });
       }
 
-      if (next.recommendedSpeed > 0 && curr.recommendedSpeed > 0) {
-        const speedDelta = next.recommendedSpeed - curr.recommendedSpeed;
+      if (next.entrySpeed > 0 && curr.entrySpeed > 0) {
+        const speedDelta = next.entrySpeed - curr.entrySpeed;
         if (speedDelta < -40) {
           // 急剧减速区
           notes.push({
@@ -574,19 +574,31 @@ export function PaceNotesPanel({
     if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx] && hasRaceStarted) {
       const note = turnNotes[activeTurnIdx];
       const dir = note.direction === 'left' ? '左' : '右';
-      const num = note.wrcNumber || note.severity || 3;
-      let text = `${dir}${num}`;
+      let sev = note.severity || note.wrcNumber || 3;
+      if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
+      
+      let text = `${dir}${sev}`;
       
       // 检查是否有连续弯道（下一个弯道距离很近）
       const nextNote = turnNotes[activeTurnIdx + 1];
       if (nextNote && note.distanceToNext < 150) {
         const nextDir = nextNote.direction === 'left' ? '左' : '右';
-        const nextNum = nextNote.wrcNumber || nextNote.severity || 3;
-        text += `接${nextDir}${nextNum}`;
+        let nextSev = nextNote.severity || nextNote.wrcNumber || 3;
+        if (nextSev === 'critical' || nextSev === 'hairpin') nextSev = '发卡';
+        text += `，接 ${nextDir}${nextSev}`;
       }
       
-      // 地形描述
-      if (note.crest === 'jump') text += '飞跳';
+      // 地形与倾角描述
+      if (note.crest === 'jump') text += '，飞跳';
+      else if (note.crest === 'crest') text += '，过坡';
+      
+      if (note.camber === 'off-camber') text += '，外倾';
+      else if (note.camber === 'banking') text += '，斜坡';
+      
+      // 自定义语音备注
+      if (note.customNote) {
+        text += `，${note.customNote}`;
+      }
       
       import('../../utils/speechQueue').then(m => {
         m.speechManager.speak(text, 2);

@@ -7,7 +7,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { parseTelemetryPacket } from './telemetry-parser.js';
-import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, recognizeTrack, validateTrackQuality, detectTurnsEnhanced, buildRouteBook } from './track-builder.js';
+import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook } from './track-builder.js';
 import zlib from 'zlib';
 import { writeJsonAsync, writeBrotliAsync } from './storage/file-db.js';
 import { stateManager } from './services/state-manager.js';
@@ -1019,6 +1019,129 @@ let lastAnnouncedTurnIndex = -1;
 let lastAnnounceTime = 0;
 const ANNOUNCE_COOLDOWN_MS = 3000;
 
+// 自动识别赛道：稀疏坐标内存缓存 (trackId -> downsampled [{x, z}])
+const trackCoordinatesCache = new Map();
+
+// 自动识别赛道核心算法：空间距离 + 时序单调性
+function recognizeTrack(currentPositions, tracksDict) {
+  if (!currentPositions || currentPositions.length < 15) return [];
+
+  // 1. 确保所有已知赛道的稀疏坐标点都已解压加载到内存缓存中
+  for (const trackId of Object.keys(tracksDict)) {
+    if (!trackCoordinatesCache.has(trackId)) {
+      try {
+        const detail = readTrackDetail(trackId);
+        if (detail) {
+          const rawPts = (detail.centerline && detail.centerline.length > 0) 
+            ? detail.centerline 
+            : (detail.points || []);
+            
+          if (rawPts.length > 0) {
+            // 等间距均匀抽取 100 个点用于匹配，保持极高运算速度
+            const sampled = [];
+            const step = Math.max(1, Math.floor(rawPts.length / 100));
+            for (let i = 0; i < rawPts.length; i += step) {
+              sampled.push({ x: rawPts[i].x, z: rawPts[i].z });
+              if (sampled.length >= 100) break;
+            }
+            trackCoordinatesCache.set(trackId, sampled);
+          }
+        }
+      } catch (err) {
+        console.error(`[recognizeTrack] 惰性缓存加载失败 ${trackId}:`, err.message);
+      }
+    }
+  }
+
+  // 2. 对当前行驶轨迹进行下采样，取最近的 150 个点并稀疏化到 30 个点
+  const recentPositions = currentPositions.slice(-150);
+  const S = [];
+  const sStep = Math.max(1, Math.floor(recentPositions.length / 30));
+  for (let i = 0; i < recentPositions.length; i += sStep) {
+    S.push({ x: recentPositions[i].x, z: recentPositions[i].z });
+    if (S.length >= 30) break;
+  }
+  if (S.length < 10) return []; // 轨迹太短不进行比对
+
+  const matches = [];
+
+  // 3. 遍历比对各个赛道
+  for (const [trackId, centerline] of trackCoordinatesCache.entries()) {
+    const M = centerline.length;
+    let matchedCount = 0;
+    let totalDist = 0;
+    const matchedIndices = [];
+
+    // 计算当前轨迹的各个采样点到中心线的最短距离
+    for (const s of S) {
+      let minDist = Infinity;
+      let minIdx = -1;
+      
+      for (let j = 0; j < M; j++) {
+        const c = centerline[j];
+        const dx = s.x - c.x;
+        const dz = s.z - c.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < minDist) {
+          minDist = dist;
+          minIdx = j;
+        }
+      }
+
+      // 距离阈值设定为 25 米
+      if (minDist < 25) {
+        matchedCount++;
+        totalDist += minDist;
+        matchedIndices.push(minIdx);
+      }
+    }
+
+    // 匹配比率
+    const matchRatio = matchedCount / S.length;
+    if (matchRatio < 0.4) continue; // 匹配率太低，放弃
+
+    // 平均匹配距离
+    const avgDist = totalDist / matchedCount;
+    // 距离得分 (0 - 1.0) (衰减系数调整为 20.0，使中等偏离更平缓)
+    const distScore = Math.exp(-avgDist / 20.0);
+
+    // 时序单调性校验 (方向连续性比对)
+    let forwardSteps = 0;
+    let backwardSteps = 0;
+    for (let k = 1; k < matchedIndices.length; k++) {
+      const idxA = matchedIndices[k - 1];
+      const idxB = matchedIndices[k];
+      const diff = (idxB - idxA + M) % M;
+      if (diff === 0) continue;
+      if (diff < M / 2) {
+        forwardSteps++;
+      } else {
+        backwardSteps++;
+      }
+    }
+    const stepsTotal = forwardSteps + backwardSteps;
+    const seqScore = stepsTotal > 0 ? Math.max(forwardSteps, backwardSteps) / stepsTotal : 1.0;
+
+    // 置信度 = 匹配率 * 距离得分 * (0.3 + 0.7 * 单调性得分)
+    const confidence = matchRatio * distScore * (0.3 + 0.7 * seqScore);
+
+    matches.push({
+      trackId,
+      trackName: tracksDict[trackId]?.name || trackId,
+      confidence,
+      details: {
+        matchRatio: parseFloat(matchRatio.toFixed(2)),
+        avgDistance: parseFloat(avgDist.toFixed(1)),
+        monotonicity: parseFloat(seqScore.toFixed(2))
+      }
+    });
+  }
+
+  // 置信度降序排序
+  matches.sort((a, b) => b.confidence - a.confidence);
+  return matches;
+}
+
 // 执行赛道识别
 async function performTrackRecognition(currentPositions) {
   try {
@@ -1231,16 +1354,21 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
     EARLY_WARN_DIST = 0;
   }
   
-  const direction = nextTurn.direction === 'left' ? '左' : '右';
+  const direction = nextTurn.direction === 'left' ? '左' : (nextTurn.direction === 'right' ? '右' : '');
   const angle = nextTurn.angle || 0;
   
-  let level;
-  if (angle > 120) level = 1;
-  else if (angle > 90) level = 2;
-  else if (angle > 60) level = 3;
-  else if (angle > 40) level = 4;
-  else if (angle > 25) level = 5;
-  else level = 6;
+  let level = nextTurn.severity || nextTurn.type || '';
+  if (level === 'critical' || level === 'hairpin') level = '发卡';
+  if (String(level).includes('发卡')) level = '发卡';
+  
+  if (!level || (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(level)))) {
+    if (angle > 120) level = '发卡';
+    else if (angle > 90) level = '2';
+    else if (angle > 60) level = '3';
+    else if (angle > 40) level = '4';
+    else if (angle > 25) level = '5';
+    else level = '6';
+  }
   
   let announceText = '';
   let ttsText = '';
@@ -1280,20 +1408,31 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
 
       if (consecutiveTurn) {
         const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
-        let nextLevel;
-        const nextAngle = consecutiveTurn.angle || 0;
-        if (nextAngle > 120) nextLevel = 1;
-        else if (nextAngle > 90) nextLevel = 2;
-        else if (nextAngle > 60) nextLevel = 3;
-        else if (nextAngle > 40) nextLevel = 4;
-        else if (nextAngle > 25) nextLevel = 5;
-        else nextLevel = 6;
+        let nextLevel = consecutiveTurn.severity || consecutiveTurn.type || '';
+        if (nextLevel === 'critical' || nextLevel === 'hairpin') nextLevel = '发卡';
+        if (String(nextLevel).includes('发卡')) nextLevel = '发卡';
+        
+        if (!nextLevel || (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(nextLevel)))) {
+          const nextAngle = consecutiveTurn.angle || 0;
+          if (nextAngle > 120) nextLevel = '发卡';
+          else if (nextAngle > 90) nextLevel = '2';
+          else if (nextAngle > 60) nextLevel = '3';
+          else if (nextAngle > 40) nextLevel = '4';
+          else if (nextAngle > 25) nextLevel = '5';
+          else nextLevel = '6';
+        }
         announceText = direction + level + geoTextCompact + '接' + nextDir + nextLevel;
         ttsText = direction + level + geoTextWithComma + '，接' + nextDir + nextLevel;
       } else {
         announceText = direction + level + geoTextCompact + ' ' + distText;
         ttsText = direction + level + geoTextWithComma + '，' + distText + '米';
       }
+      
+      if (nextTurn.customNote) {
+        announceText += ' ' + nextTurn.customNote;
+        ttsText += '，' + nextTurn.customNote;
+      }
+      
       shouldAnnounce = true;
       announcePhase = 'pre';
     }
@@ -1311,6 +1450,10 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
 
       announceText = direction + level + geoTextCompact;
       ttsText = direction + level + geoTextWithComma;
+      if (nextTurn.customNote) {
+        announceText += ' ' + nextTurn.customNote;
+        ttsText += '，' + nextTurn.customNote;
+      }
       shouldAnnounce = true;
       announcePhase = 'final';
     }
@@ -1333,7 +1476,6 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
       turnType: nextTurn.type,
       announceType: announcePhase === 'early' ? 'early_warn' : (announcePhase === 'pre' ? 'pre_warn' : 'final_warn'),
       radius: nextTurn.radius || 0,
-      recommendedSpeed: nextTurn.recommendedSpeed || 0,
       camber: nextTurn.camber,
       crest: nextTurn.crest
     });
@@ -1871,6 +2013,51 @@ app.put('/api/tracks/:id/turns/:index/speedHint', express.json(), (req, res) => 
     res.json({ status: 'ok', turnIndex: idx, speedHint: trackDetail.turns[idx].speedHint });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update speedHint' });
+  }
+});
+
+// Round 10: 批量更新/编辑弯道与备注路书
+app.put('/api/tracks/:id/turns', express.json(), (req, res) => {
+  const id = req.params.id;
+  try {
+    let trackDetail = readTrackDetail(id) || tracks[id];
+    if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
+    
+    const newTurns = req.body.turns;
+    if (!Array.isArray(newTurns)) {
+      return res.status(400).json({ error: 'Invalid turns data' });
+    }
+    
+    // 更新弯道数组
+    trackDetail.turns = newTurns;
+    trackDetail.updatedAt = new Date().toISOString();
+    
+    // 重新计算路书（确保语音播报文本与特征同步）
+    const centerline = trackDetail.centerline || [];
+    trackDetail.routeBook = buildRouteBook(centerline, newTurns, centerline);
+    
+    // 重新评估数据质量评分并写回
+    trackDetail.quality = validateTrackQuality(trackDetail);
+    
+    // 保存物理分包文件
+    writeTrackDetail(id, trackDetail);
+    
+    // 更新主索引元数据
+    if (tracks[id]) {
+      tracks[id].turnCount = newTurns.length;
+      tracks[id].updatedAt = trackDetail.updatedAt;
+      saveTracksDatabase(tracks);
+    }
+    
+    res.json({ 
+      status: 'ok', 
+      turns: trackDetail.turns, 
+      routeBook: trackDetail.routeBook,
+      turnCount: newTurns.length
+    });
+  } catch (err) {
+    console.error('Failed to update turns:', err);
+    res.status(500).json({ error: 'Failed to update turns: ' + err.message });
   }
 });
 
@@ -4217,7 +4404,6 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
         type: turn.type,
         turnCategory: turn.turnCategory || turn.type,
         direction: turn.direction,
-        recommendedSpeed: turn.recommendedSpeed || 0,
         speedHint: turn.speedHint || '',
         radius: turn.radius || 9999,
         current: {
