@@ -333,6 +333,18 @@ function getDirectionArrow(direction) {
   }
 }
 
+/**
+ * 实时获取/拼装WRC路书评级文本（例如“左3”/“右发卡”）
+ */
+function getWrcLabel(note) {
+  if (!note) return '';
+  if (note.wrcLabel) return note.wrcLabel;
+  const dir = note.direction === 'left' ? '左' : '右';
+  let sev = note.severity || note.type || '';
+  if (sev === '发卡弯') sev = '发卡';
+  return `${dir}${sev}`;
+}
+
 // ==================== 路书条目子组件 ====================
 
 /** 弯道路书条目 - WRC简化版 */
@@ -523,41 +535,55 @@ export function PaceNotesPanel({
     const nearestIdx = findNearestIndex(position, trackData.centerline);
     if (nearestIdx < 0) return;
 
-    // 找到最近的弯道（通过 centerline index 比较）
-    let closestTurnIdx = -1;
-    let closestDist = Infinity;
+    const centerlineLength = trackData.centerline.length;
+    let nextForwardIdx = -1;
 
-    turnNotes.forEach((note, idx) => {
-      if (note.index === undefined) return;
-      const dist = Math.abs(note.index - nearestIdx);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestTurnIdx = idx;
+    // 查找前方最近的弯道
+    for (let i = 0; i < turnNotes.length; i++) {
+      if (turnNotes[i].index > nearestIdx) {
+        nextForwardIdx = i;
+        break;
       }
-    });
+    }
+    if (nextForwardIdx === -1 && turnNotes.length > 0) {
+      nextForwardIdx = 0; // 跨过终点后下一个是第 0 个弯
+    }
 
-    // 20个索引点以内认为"处于弯道中"
-    const isAtTurn = closestDist < 20;
-    if (isAtTurn) {
-      setActiveTurnIdx(closestTurnIdx);
-      // 下一个弯道
-      const next = closestTurnIdx + 1 < turnNotes.length ? closestTurnIdx + 1 : -1;
-      setNextTurnIdx(next);
-      setScrollToActive(true);
+    if (nextForwardIdx !== -1) {
+      const targetNote = turnNotes[nextForwardIdx];
+      let indexDiff = targetNote.index - nearestIdx;
+      if (indexDiff < 0) {
+        indexDiff = (targetNote.index + centerlineLength) - nearestIdx;
+      }
+
+      // 动态前瞻点数。时间视界 t_preview = 2.5 秒，点距 = 2 米。
+      const pointsPreview = Math.max(25, Math.round(currentSpeed * 0.347));
+
+      let passedDiff = nearestIdx - targetNote.index;
+      if (passedDiff < 0) {
+        passedDiff = (nearestIdx + centerlineLength) - targetNote.index;
+      }
+
+      const isApproaching = indexDiff <= pointsPreview;
+      // 出弯 12 个点 (约 24 米) 后认为已通过弯心，退出当前弯激活状态
+      const hasPassed = passedDiff > 12 && passedDiff < centerlineLength - pointsPreview;
+
+      if (isApproaching && !hasPassed) {
+        setActiveTurnIdx(nextForwardIdx);
+        const next = nextForwardIdx + 1 < turnNotes.length ? nextForwardIdx + 1 : 0;
+        setNextTurnIdx(next);
+        setScrollToActive(true);
+      } else {
+        setActiveTurnIdx(-1);
+        setNextTurnIdx(nextForwardIdx);
+        setScrollToActive(false);
+      }
     } else {
-      // 查找前方最近的弯道
-      let nextForward = -1;
-      for (let i = 0; i < turnNotes.length; i++) {
-        if (turnNotes[i].index > nearestIdx) {
-          nextForward = i;
-          break;
-        }
-      }
       setActiveTurnIdx(-1);
-      setNextTurnIdx(nextForward);
+      setNextTurnIdx(-1);
       setScrollToActive(false);
     }
-  }, [position, trackData, turnNotes]);
+  }, [position, trackData, turnNotes, currentSpeed]);
 
   // 自动滚动到当前激活弯道
   useEffect(() => {
@@ -753,15 +779,16 @@ export function PaceNotesPanel({
               {/* WRC编号（核心） */}
               <span
                 style={{
-                  fontSize: 48,
+                  fontSize: 42,
                   fontWeight: 900,
-                  fontFamily: 'monospace',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
                   color: displayNote.direction === 'left' ? '#a371f7' : '#f0883e',
-                  lineHeight: 1,
+                  lineHeight: 1.1,
+                  textAlign: 'center',
                   textShadow: displayNote === activeNote ? '0 0 20px rgba(88,166,255,0.5)' : 'none',
                 }}
               >
-                {displayNote.wrcLabel || getDirectionArrow(displayNote.direction)}
+                {getDirectionArrow(displayNote.direction)} {getWrcLabel(displayNote)}
               </span>
             </div>
 
@@ -775,7 +802,7 @@ export function PaceNotesPanel({
                 textAlign: 'center',
                 fontWeight: 700,
               }}>
-                下一个：{nextNote.wrcLabel || (nextNote.direction === 'left' ? '左' : '右')}
+                下一个：{getWrcLabel(nextNote)}
               </div>
             )}
           </div>

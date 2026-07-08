@@ -644,7 +644,40 @@ export function smoothCenterline(centerline, iterations = 5) {
 
 export function generateNavigationData() { return {}; }
 export function calculateTrackSimilarity() { return 1; }
-export function generateSectors() { return []; }
+/**
+ * 自动平均切分3个Sectors
+ */
+export function generateSectors(centerline) {
+  if (!centerline || centerline.length < 10) return [];
+  const N = centerline.length;
+  const s1Idx = Math.floor(N / 3);
+  const s2Idx = Math.floor(2 * N / 3);
+  const s3Idx = N - 1;
+
+  return [
+    {
+      sectorIndex: 1,
+      centerlineIndex: s1Idx,
+      x: centerline[s1Idx].x,
+      y: centerline[s1Idx].y,
+      z: centerline[s1Idx].z
+    },
+    {
+      sectorIndex: 2,
+      centerlineIndex: s2Idx,
+      x: centerline[s2Idx].x,
+      y: centerline[s2Idx].y,
+      z: centerline[s2Idx].z
+    },
+    {
+      sectorIndex: 3,
+      centerlineIndex: s3Idx,
+      x: centerline[s3Idx].x,
+      y: centerline[s3Idx].y,
+      z: centerline[s3Idx].z
+    }
+  ];
+}
 export function recognizeTrack() { return null; }
 export function validateTrackQuality(trackData) {
   if (!trackData) {
