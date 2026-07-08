@@ -3051,14 +3051,37 @@ function calculateDrivingScore(session) {
   else if (total >= 40) grade = 'C';
   else grade = 'D';
   
-  // 生成建议
+  // 生成建议（引用实际数据）
   const advice = [];
-  if (lapScore < 14) advice.push('圈速不稳定，专注完成完整圈并参考最佳圈节奏');
-  if (brakeScore < 12) advice.push('刹车控制需改进：避免过晚刹车，多利用直道末端的重刹区');
-  if (throttleScore < 12) advice.push('出弯油门响应偏慢，弯心过后应渐进给油保持牵引力');
-  if (lineScore < 12) advice.push('走线偏激进或偏保守，尝试贴近赛道上公认的赛车线');
-  if (consistencyScore < 12) advice.push('圈速波动大，专注每圈相同节奏，避免刻意刷单圈');
-  if (advice.length === 0) advice.push('表现优秀！保持当前节奏，挑战自我极限');
+  const avgLap = lapTimes.length > 0 ? lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length : 0;
+  
+  if (lapScore < 14) {
+    const delta = avgLap > 0 && bestLap > 0 ? (avgLap - bestLap).toFixed(1) : '?';
+    advice.push(`平均圈速比最佳圈慢${delta}秒，专注每圈复刻最佳圈的刹车点和走线节奏`);
+  }
+  if (brakeScore < 12) {
+    const heavyPct = totalBrakeCount > 0 ? Math.round(heavyBrakeCount / totalBrakeCount * 100) : 0;
+    if (heavyPct < 20) {
+      advice.push(`重刹占比仅${heavyPct}%，制动偏保守，建议在直道末端大胆重刹以缩短制动距离`);
+    } else if (maxConsecutive > 100) {
+      advice.push(`存在连续长刹（最长${maxConsecutive}帧），尝试分段制动：先重刹再松开再轻刹入弯`);
+    } else {
+      advice.push(`重刹占比${heavyPct}%，刹车节奏需优化，注意在直道末端而非弯中才开始重刹`);
+    }
+  }
+  if (throttleScore < 12) {
+    const throttlePct = corneringCount > 0 ? Math.round(goodThrottleInCorner / corneringCount * 100) : 0;
+    advice.push(`弯中给油比例仅${throttlePct}%，出弯时应渐进给油，弯心过后尽早建立牵引力`);
+  }
+  if (lineScore < 12) {
+    const goodPct = positions.length > 0 ? Math.round(goodLineCount / positions.length * 100) : 0;
+    advice.push(`走线良好率${goodPct}%，偏差较大，建议参考赛道理想赛车线，利用路缘石扩大弯道半径`);
+  }
+  if (consistencyScore < 12) {
+    const std = lapTimes.length >= 2 ? Math.sqrt(lapTimes.reduce((sum, t) => sum + (t - avgLap) ** 2, 0) / lapTimes.length) : 0;
+    advice.push(`圈速标准差${std.toFixed(2)}秒，波动明显，专注每圈相同节奏而非刻意刷单圈`);
+  }
+  if (advice.length === 0) advice.push('表现优秀！保持当前节奏，尝试挑战理论最快圈（各分段最佳拼接）');
   
   return {
     总分: total,
