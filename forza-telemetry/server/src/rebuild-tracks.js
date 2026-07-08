@@ -37,6 +37,156 @@ function writeTrackDetail(trackId, trackDetail) {
     });
     fs.writeFileSync(brPath, compressed);
     return true;
+  } catch (e) {
+    console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, e.message);
+    return false;
+  }
+}
+
+/**
+ * 写入 JSON 文件
+ */
+function writeJSON(filepath, data) {
+  try {
+    writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error(`写入文件失败: ${filepath}`, e.message);
+    return false;
+  }
+}
+
+/**
+ * 读取 Brotli 压缩的 JSON 文件
+ */
+function readBrotliJSON(filepath) {
+  try {
+    const compressed = readFileSync(filepath);
+    const decompressed = zlib.brotliDecompressSync(compressed);
+    return JSON.parse(decompressed.toString('utf8'));
+  } catch (e) {
+    console.error(`读取 Brotli 文件失败: ${filepath}`, e.message);
+    return null;
+  }
+}
+
+/**
+ * 写入 Brotli 压缩的 JSON 文件
+ */
+function writeBrotliJSON(filepath, data) {
+  try {
+    const json = JSON.stringify(data);
+    const compressed = zlib.brotliCompressSync(Buffer.from(json), BROTLI_OPTIONS);
+    writeFileSync(filepath, compressed);
+    return true;
+  } catch (e) {
+    console.error(`写入 Brotli 文件失败: ${filepath}`, e.message);
+    return false;
+  }
+}
+
+/**
+ * 计算轨迹长度
+ */
+function calculateTrackLength(positions) {
+  if (!positions || positions.length < 2) return 0;
+  let length = 0;
+  for (let i = 1; i < positions.length; i++) {
+    const dx = positions[i].x - positions[i-1].x;
+    const dz = positions[i].z - positions[i-1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return Math.round(length);
+}
+
+/**
+ * 重建单条赛道
+ */
+function rebuildTrack(trackId, trackDetail) {
+  console.log(`\n重建赛道: ${trackId} (${trackDetail.name})`);
+  console.log(`  原始数据: ${trackDetail.trajectoryCount} 条轨迹, ${trackDetail.turnCount || 0} 个弯道, ${trackDetail.length} 米`);
+  
+  // 获取轨迹数据
+  const trajectories = trackDetail.trajectories || [];
+  if (trajectories.length === 0) {
+    console.log(`  ⚠️ 无轨迹数据，跳过`);
+    return null;
+  }
+  
+  // 应用环道检测和重建
+  const trackData = buildTrackFromTrajectories(trajectories);
+  if (!trackData) {
+    console.log(`  ❌ 重建失败`);
+    return null;
+  }
+  
+  console.log(`  新数据: ${trackData.turns.length} 个弯道, ${trackData.length} 米, ${trackData.centerline.length} 个中心线点`);
+  
+  // 更新赛道详情
+  const updatedDetail = {
+    ...trackDetail,
+    points: trackData.centerline,
+    centerline: trackData.centerline,
+    sectors: generateSectors(trackData.centerline),
+    turns: trackData.turns,
+    length: trackData.length,
+    pointCount: trackData.centerline.length,
+    routeBook: trackData.routeBook,
+    updatedAt: new Date().toISOString()
+  };
+  
+  // 验证质量
+  const quality = validateTrackQuality(updatedDetail);
+  console.log(`  质量评分: ${quality.overallScore}/100`);
+  
+  return updatedDetail;
+}
+
+/**
+ * 清洗 vehicles.json
+ */
+function cleanVehiclesData(vehicles, tracksMetadata) {
+  console.log('\n=== 清洗 vehicles.json ===');
+  
+  let cleanedCount = 0;
+  let removedCount = 0;
+  
+  for (const [ordinal, vehicle] of Object.entries(vehicles)) {
+    if (!vehicle.tracks || vehicle.tracks.length === 0) continue;
+    
+    const originalTracks = [...vehicle.tracks];
+    const cleanedTracks = [];
+    
+    for (const trackRef of originalTracks) {
+      // 检查是否是 trackId 格式
+      if (trackRef.startsWith('track_')) {
+        // 已经是 trackId，检查是否存在
+        if (tracksMetadata[trackRef]) {
+          cleanedTracks.push(trackRef);
+        } else {
+          console.log(`  移除孤儿 trackId: ${trackRef} (车辆 ${ordinal})`);
+          removedCount++;
+        }
+      } else {
+        // 是 trackName，尝试转换为 trackId
+        const matchedTrackId = Object.entries(tracksMetadata).find(
+          ([id, meta]) => meta.name === trackRef
+        )?.[0];
+        
+        if (matchedTrackId) {
+          cleanedTracks.push(matchedTrackId);
+          cleanedCount++;
+          console.log(`  转换: "${trackRef}" -> ${matchedTrackId} (车辆 ${ordinal})`);
+        } else {
+          // 无法匹配，移除
+          console.log(`  移除无法匹配的 trackName: "${trackRef}" (车辆 ${ordinal})`);
+          removedCount++;
+        }
+>>>>>>> 8d3f88d (feat: optimize pace notes warning timing, add HUD alphanumeric labels, fix track rebuild sectors empty bug and update knowledge graph)
+      }
+    });
+    fs.writeFileSync(brPath, compressed);
+    return true;
   } catch (err) {
     console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, err.message);
     return false;
@@ -142,3 +292,38 @@ async function run() {
 }
 
 run();
+
+/**
+ * 自动平均切分3个Sectors
+ */
+function generateSectors(centerline) {
+  if (!centerline || centerline.length < 10) return [];
+  const N = centerline.length;
+  const s1Idx = Math.floor(N / 3);
+  const s2Idx = Math.floor(2 * N / 3);
+  const s3Idx = N - 1;
+
+  return [
+    {
+      sectorIndex: 1,
+      centerlineIndex: s1Idx,
+      x: centerline[s1Idx].x,
+      y: centerline[s1Idx].y,
+      z: centerline[s1Idx].z
+    },
+    {
+      sectorIndex: 2,
+      centerlineIndex: s2Idx,
+      x: centerline[s2Idx].x,
+      y: centerline[s2Idx].y,
+      z: centerline[s2Idx].z
+    },
+    {
+      sectorIndex: 3,
+      centerlineIndex: s3Idx,
+      x: centerline[s3Idx].x,
+      y: centerline[s3Idx].y,
+      z: centerline[s3Idx].z
+    }
+  ];
+}

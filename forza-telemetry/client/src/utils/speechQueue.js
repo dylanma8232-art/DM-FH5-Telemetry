@@ -43,6 +43,10 @@ class SpeechQueueManager {
     this.lastSpokenTime = now;
 
     const utterance = new SpeechSynthesisUtterance(text);
+    // 强引用挂载到全局，防垃圾回收导致 onend 丢失
+    if (!window._activeUtterances) window._activeUtterances = new Set();
+    window._activeUtterances.add(utterance);
+
     // 竞速场景下语速调快一点 (默认 1.05，确保咬字极度清晰)
     utterance.rate = options.rate || 1.05; 
     utterance.volume = options.volume || 1.0;
@@ -55,17 +59,28 @@ class SpeechQueueManager {
       utterance.voice = zhVoice;
     }
 
-    utterance.onend = () => {
+    const cleanUp = () => {
       this.isPlaying = false;
       this.currentPriority = 0;
       this.currentUtterance = null;
+      if (window._activeUtterances) {
+        window._activeUtterances.delete(utterance);
+      }
+      if (this.safeguardTimer) {
+        clearTimeout(this.safeguardTimer);
+        this.safeguardTimer = null;
+      }
     };
 
-    utterance.onerror = () => {
-      this.isPlaying = false;
-      this.currentPriority = 0;
-      this.currentUtterance = null;
-    };
+    utterance.onend = cleanUp;
+    utterance.onerror = cleanUp;
+
+    // 5秒强行超时自愈，防止语音引擎底层死锁
+    if (this.safeguardTimer) clearTimeout(this.safeguardTimer);
+    this.safeguardTimer = setTimeout(() => {
+      console.warn('[Speech] 语音播报触发保底超时自愈');
+      cleanUp();
+    }, 5000);
 
     this.currentUtterance = utterance;
     window.speechSynthesis.speak(utterance);
@@ -79,7 +94,14 @@ class SpeechQueueManager {
       window.speechSynthesis.cancel();
       this.isPlaying = false;
       this.currentPriority = 0;
+      if (this.currentUtterance && window._activeUtterances) {
+        window._activeUtterances.delete(this.currentUtterance);
+      }
       this.currentUtterance = null;
+      if (this.safeguardTimer) {
+        clearTimeout(this.safeguardTimer);
+        this.safeguardTimer = null;
+      }
     }
   }
 
