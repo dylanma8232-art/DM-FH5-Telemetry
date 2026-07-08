@@ -25,7 +25,6 @@ export function PaceNoteExport({ paceNotes, trackData, turnNotes }) {
     paceNotes.forEach((note, idx) => {
       if (note.type === 'turn') {
         text += `[${String(idx + 1).padStart(2, '0')}] ${note.dirLabel}转 ${note.turnTypeLabel} ${note.angle}°`;
-        if (note.recommendedSpeed > 0) text += ` | ${note.recommendedSpeed}km/h`;
         if (note.recommendedGear !== null) text += ` | ${note.recommendedGear}档`;
         if (note.brakeDistance > 10) text += ` | -${note.brakeDistance}m刹车`;
         text += '\n';
@@ -109,11 +108,6 @@ export function PaceNoteExport({ paceNotes, trackData, turnNotes }) {
         );
 
         let xPos = 320;
-        if (note.recommendedSpeed > 0) {
-          ctx.fillStyle = '#3fb950';
-          ctx.fillText(`${note.recommendedSpeed}km/h`, xPos, y + 16);
-          xPos += 80;
-        }
         if (note.recommendedGear !== null) {
           ctx.fillStyle = '#58a6ff';
           ctx.fillText(`${note.recommendedGear}档`, xPos, y + 16);

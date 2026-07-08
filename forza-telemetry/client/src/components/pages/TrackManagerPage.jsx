@@ -10,6 +10,8 @@ export function TrackManagerPage({ onNavigate }) {
   const [mergeSource, setMergeSource] = useState('');
   const [mergeTarget, setMergeTarget] = useState('');
   const [editingTrack, setEditingTrack] = useState(null);
+  const [editingTurnIndex, setEditingTurnIndex] = useState(null); // 当前正在编辑的弯道索引 (0, 1, 2...)
+  const [editTurnForm, setEditTurnForm] = useState(null); // 当前编辑弯道的表单参数
   // Round 8: 录制模式状态
   const [isRecording, setIsRecording] = useState(false);
   const [recordStartTime, setRecordStartTime] = useState(null);
@@ -172,6 +174,151 @@ export function TrackManagerPage({ onNavigate }) {
     }
   };
 
+  // 选中编辑弯道
+  const selectTurnForEdit = (idx) => {
+    const track = tracks[selectedTrack];
+    if (!track || !track.turns || !track.turns[idx]) return;
+    const turn = track.turns[idx];
+    setEditingTurnIndex(idx);
+    
+    // 换算 severity 默认值
+    let sev = turn.severity || turn.type || '';
+    if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
+    if (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(sev))) {
+      // 降级使用角度换算
+      const angle = turn.angle || 0;
+      if (angle > 120) sev = '发卡';
+      else if (angle > 90) sev = '2';
+      else if (angle > 60) sev = '3';
+      else if (angle > 40) sev = '4';
+      else if (angle > 25) sev = '5';
+      else sev = '6';
+    }
+
+    setEditTurnForm({
+      direction: turn.direction || 'left',
+      severity: String(sev),
+      customNote: turn.customNote || '',
+      camber: turn.camber || null,
+      crest: turn.crest || null
+    });
+  };
+
+  // 保存弯道修改
+  const saveTurnChanges = async () => {
+    const track = tracks[selectedTrack];
+    if (!track || editingTurnIndex === null || !editTurnForm) return;
+    
+    const updatedTurns = [...(track.turns || [])];
+    const originalTurn = updatedTurns[editingTurnIndex];
+    
+    // 合并修改后的字段
+    updatedTurns[editingTurnIndex] = {
+      ...originalTurn,
+      direction: editTurnForm.direction,
+      severity: editTurnForm.severity,
+      customNote: editTurnForm.customNote,
+      camber: editTurnForm.camber,
+      crest: editTurnForm.crest,
+      // 顺便把 turnCategory / type 更新为我们修改后的级别
+      turnCategory: editTurnForm.severity === '发卡' ? '发卡' : editTurnForm.severity + '级弯',
+      type: editTurnForm.severity === '发卡' ? 'hairpin' : 'normal'
+    };
+
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turns: updatedTurns })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // 更新本地 tracks 字典
+        setTracks(prev => ({
+          ...prev,
+          [selectedTrack]: {
+            ...prev[selectedTrack],
+            turns: data.turns,
+            routeBook: data.routeBook,
+            turnCount: data.turnCount
+          }
+        }));
+        
+        // 重置编辑状态
+        setEditingTurnIndex(null);
+        setEditTurnForm(null);
+        toast('路书弯道保存成功！', 'success');
+        
+        // 自动触发质量分数的重新验证拉取
+        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+        if (qRes.ok) {
+          const qResult = await qRes.json();
+          setValidationResult(prev => ({
+            ...prev,
+            [selectedTrack]: qResult
+          }));
+        }
+      } else {
+        toast('保存弯道失败', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      toast('保存弯道请求出错: ' + e.message, 'error');
+    }
+  };
+
+  // 删除当前弯道
+  const deleteTurn = async (idxToDelete) => {
+    const track = tracks[selectedTrack];
+    if (!track || idxToDelete === null) return;
+    
+    if (!window.confirm(`确认从路书中删除 弯道 T${idxToDelete + 1} 吗？`)) return;
+
+    const updatedTurns = (track.turns || []).filter((_, idx) => idx !== idxToDelete);
+
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turns: updatedTurns })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setTracks(prev => ({
+          ...prev,
+          [selectedTrack]: {
+            ...prev[selectedTrack],
+            turns: data.turns,
+            routeBook: data.routeBook,
+            turnCount: data.turnCount
+          }
+        }));
+        
+        // 重置编辑状态
+        setEditingTurnIndex(null);
+        setEditTurnForm(null);
+        toast('弯道删除成功！', 'success');
+        
+        // 自动重新拉取质量分数
+        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+        if (qRes.ok) {
+          const qResult = await qRes.json();
+          setValidationResult(prev => ({
+            ...prev,
+            [selectedTrack]: qResult
+          }));
+        }
+      } else {
+        toast('删除弯道失败', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      toast('删除弯道请求出错: ' + e.message, 'error');
+    }
+  };
+
   const mergeTracks = async () => {
     if (!mergeSource || !mergeTarget || mergeSource === mergeTarget) {
       toast('请选择不同的赛道进行合并', 'error');
@@ -262,7 +409,6 @@ export function TrackManagerPage({ onNavigate }) {
         angle: t.angle,
         severity: t.severity,
         radius: t.radius,
-        recommendedSpeed: t.recommendedSpeed,
         speedHint: t.speedHint,
         entrySpeed: t.entrySpeed,
         apexSpeed: t.apexSpeed,
@@ -317,9 +463,6 @@ export function TrackManagerPage({ onNavigate }) {
       txt += `弯道 ${String(i + 1).padStart(2, ' ')}`.padEnd(14);
       txt += `${dir}${type}`.padEnd(10);
       txt += `${(t.angle || 0).toFixed(0).padStart(3)}°`.padEnd(6);
-      if (t.recommendedSpeed || t.speedHint) {
-        txt += `推荐: ${t.recommendedSpeed || t.speedHint}km/h`.padEnd(20);
-      }
       if (t.entrySpeed) txt += `入弯: ${t.entrySpeed}km/h `.padEnd(14);
       if (t.apexSpeed) txt += `弯中: ${t.apexSpeed}km/h `.padEnd(14);
       if (t.exitSpeed) txt += `出弯: ${t.exitSpeed}km/h `.padEnd(14);
@@ -355,7 +498,7 @@ export function TrackManagerPage({ onNavigate }) {
 
     // 半透明背景
     ctx.fillStyle = 'rgba(13,17,23,0.85)';
-    const bgW = 260;
+    const bgW = 200;
     const bgH = turnsList.length * lineH + 25;
     ctx.fillRect(startX - 5, startY - 5, bgW, bgH);
 
@@ -384,20 +527,14 @@ export function TrackManagerPage({ onNavigate }) {
       ctx.fillStyle = sevColor;
       ctx.fillText(`${(t.angle || 0).toFixed(0)}°`, startX + 45, y);
 
-      ctx.fillStyle = '#3fb950';
-      ctx.fillText(t.recommendedSpeed || t.speedHint || '-', startX + 75, y);
-
-      ctx.fillStyle = '#484f58';
-      ctx.fillText('km/h', startX + 105, y);
-
       if (t.suggestedGearDrop > 0) {
         ctx.fillStyle = '#d29922';
-        ctx.fillText(`-${t.suggestedGearDrop}`, startX + 145, y);
+        ctx.fillText(`-${t.suggestedGearDrop}`, startX + 75, y);
       }
 
       if (t.entrySpeed) {
         ctx.fillStyle = '#58a6ff';
-        ctx.fillText(`>${t.entrySpeed}`, startX + 170, y);
+        ctx.fillText(`>${t.entrySpeed}`, startX + 105, y);
       }
     }
 
@@ -471,52 +608,90 @@ export function TrackManagerPage({ onNavigate }) {
     ctx.scale(transform.scale, transform.scale);
 
     let points = resolvedPoints;
-    if (points.length > 1000) {
-      const step = Math.ceil(points.length / 500);
-      const sampled = [points[0]];
-      for (let i = step; i < points.length - 1; i += step) {
-        sampled.push(points[i]);
-      }
-      sampled.push(points[points.length - 1]);
-      points = sampled;
-    }
 
-    // 绘制真实赛道边界多边形 (如果存在 width 数据)
-    if (points[0].widthLeft !== undefined) {
-      ctx.fillStyle = 'rgba(136, 148, 160, 0.4)'; // 柏油路面灰色
+    // 辅助函数：判断点 i 属于哪个弯道
+    const getTurnInfo = (idx) => {
+      const turns = track.turns || [];
+      for (let tIdx = 0; tIdx < turns.length; tIdx++) {
+        const turn = turns[tIdx];
+        if (idx >= turn.startIdx && idx <= turn.endIdx) {
+          return {
+            turn,
+            isEditing: editingTurnIndex === tIdx
+          };
+        }
+      }
+      return null;
+    };
+
+    // 2. 绘制赛道路面多边形与边缘线（相邻两点之间填充四边形梯形）
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const yaw1 = p1.yaw || 0;
+      const yaw2 = p2.yaw || 0;
+      
+      // 保底半宽 6m，最大 12m
+      const wl1 = Math.max(p1.widthLeft || 0, 6.0);
+      const wr1 = Math.max(p1.widthRight || 0, 6.0);
+      const wl2 = Math.max(p2.widthLeft || 0, 6.0);
+      const wr2 = Math.max(p2.widthRight || 0, 6.0);
+
+      // 法线向量
+      const nx1 = -Math.cos(yaw1);
+      const nz1 = Math.sin(yaw1);
+      const nx2 = -Math.cos(yaw2);
+      const nz2 = Math.sin(yaw2);
+
+      // 计算 P1 / P2 的左右边界坐标并转换为屏幕坐标
+      const sL1 = toScreen({ x: p1.x + nx1 * wl1, z: p1.z + nz1 * wl1 });
+      const sR1 = toScreen({ x: p1.x - nx1 * wr1, z: p1.z - nz1 * wr1 });
+      const sL2 = toScreen({ x: p2.x + nx2 * wl2, z: p2.z + nz2 * wl2 });
+      const sR2 = toScreen({ x: p2.x - nx2 * wr2, z: p2.z - nz2 * wr2 });
+
+      // 判断分段颜色
+      const turnInfo = getTurnInfo(i);
+      if (turnInfo) {
+        if (turnInfo.isEditing) {
+          ctx.fillStyle = 'rgba(255, 211, 61, 0.85)'; // 当前编辑弯道：极高亮发光黄色
+        } else {
+          ctx.fillStyle = 'rgba(240, 136, 62, 0.45)'; // 普通弯道：亮橙黄色
+        }
+      } else {
+        ctx.fillStyle = 'rgba(56, 139, 253, 0.12)'; // 直道：深灰蓝色
+      }
+
+      // 绘制路面梯形并填充
       ctx.beginPath();
-      // Draw left boundary
-      for (let i = 0; i < points.length; i++) {
-        const pt = points[i];
-        const yaw = pt.yaw || 0;
-        const wl = pt.widthLeft || 2;
-        // Normal vector to the left is (-cos(yaw), -sin(yaw)) assuming Z is up. Wait, Forza X=East, Z=North. 
-        // We already projected it in the backend. The offset in world coords:
-        const nx = -Math.cos(yaw);
-        const nz = Math.sin(yaw); // Z might be inverted on screen? In Forza Z is North, X is East.
-        // Screen coords:
-        const sx = (pt.x + nx * wl - minX) * sc + ox;
-        const sz = (pt.z + nz * wl - minZ) * sc + oz;
-        if (i === 0) ctx.moveTo(sx, sz);
-        else ctx.lineTo(sx, sz);
-      }
-      // Draw right boundary (reverse order)
-      for (let i = points.length - 1; i >= 0; i--) {
-        const pt = points[i];
-        const yaw = pt.yaw || 0;
-        const wr = pt.widthRight || 2;
-        const nx = Math.cos(yaw);
-        const nz = -Math.sin(yaw);
-        const sx = (pt.x + nx * wr - minX) * sc + ox;
-        const sz = (pt.z + nz * wr - minZ) * sc + oz;
-        ctx.lineTo(sx, sz);
-      }
+      ctx.moveTo(sL1.sx, sL1.sy);
+      ctx.lineTo(sL2.sx, sL2.sy);
+      ctx.lineTo(sR2.sx, sR2.sy);
+      ctx.lineTo(sR1.sx, sR1.sy);
       ctx.closePath();
       ctx.fill();
+
+      // 绘制两侧白色边缘线
+      ctx.strokeStyle = turnInfo ? (turnInfo.isEditing ? '#ffd33d' : 'rgba(240, 136, 62, 0.7)') : 'rgba(88, 166, 255, 0.35)';
+      ctx.lineWidth = 1 / transform.scale;
+      
+      // 左边缘线
+      ctx.beginPath();
+      ctx.moveTo(sL1.sx, sL1.sy);
+      ctx.lineTo(sL2.sx, sL2.sy);
+      ctx.stroke();
+
+      // 右边缘线
+      ctx.beginPath();
+      ctx.moveTo(sR1.sx, sR1.sy);
+      ctx.lineTo(sR2.sx, sR2.sy);
+      ctx.stroke();
     }
 
-    // 主轨迹线 (中心线)
-    ctx.lineWidth = 2 / transform.scale;
+    // 3. 绘制主行车线 (中心线)
+    ctx.lineWidth = 1.5 / transform.scale;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#58a6ff';
@@ -525,6 +700,78 @@ export function TrackManagerPage({ onNavigate }) {
     for (let i = 1; i < points.length; i++) {
       ctx.lineTo((points[i].x - minX) * sc + ox, (points[i].z - minZ) * sc + oz);
     }
+    ctx.stroke();
+
+    // 4. 绘制 WRC 弯角标签（Tactical HUD Overlay）
+    const turns = track.turns || [];
+    turns.forEach((turn, tIdx) => {
+      const apexPt = resolvedPoints[turn.index];
+      if (!apexPt) return;
+      const sApex = toScreen(apexPt);
+      
+      // 决定标签徽章的颜色
+      const isEditing = editingTurnIndex === tIdx;
+      let badgeColor = '#58a6ff'; // default blue
+      const sev = turn.severity || turn.type || '';
+      
+      if (sev.includes('发卡') || sev === 'critical') badgeColor = '#f85149'; // red for hairpin
+      else if (['2', '3'].includes(String(sev))) badgeColor = '#f0883e'; // orange for sharp/medium
+      else if (['4', '5', '6'].includes(String(sev))) badgeColor = '#3fb950'; // green for easy
+      
+      // 绘制定位发光环 (如果是选中编辑的弯道)
+      if (isEditing) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5 / transform.scale;
+        ctx.beginPath();
+        ctx.arc(sApex.sx, sApex.sy, 14 / transform.scale, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(sApex.sx, sApex.sy, 6 / transform.scale, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 普通弯心标个小点
+        ctx.fillStyle = badgeColor;
+        ctx.beginPath();
+        ctx.arc(sApex.sx, sApex.sy, 3 / transform.scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 缩放比例足够大时，或者当前选中编辑时，才在地图上画出文字标签以防过于拥挤
+      if (transform.scale > 1.2 || isEditing) {
+        const text = (turn.direction === 'left' ? 'L' : 'R') + (sev.includes('发卡') ? '发卡' : sev);
+        ctx.font = `bold ${Math.round(8 / transform.scale)}px monospace`;
+        const textWidth = ctx.measureText(text).width;
+        const paddingX = 4 / transform.scale;
+        const paddingY = 2 / transform.scale;
+        const rectW = textWidth + paddingX * 2;
+        const rectH = 10 / transform.scale + paddingY * 2;
+
+        const rx = sApex.sx - rectW / 2;
+        const ry = sApex.sy - 15 / transform.scale - rectH;
+
+        // 绘制标签背景框
+        ctx.fillStyle = isEditing ? '#ffffff' : 'rgba(13, 17, 23, 0.85)';
+        ctx.strokeStyle = isEditing ? '#ffd33d' : badgeColor;
+        ctx.lineWidth = 1 / transform.scale;
+        
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(rx, ry, rectW, rectH, 3 / transform.scale);
+        } else {
+          ctx.rect(rx, ry, rectW, rectH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // 绘制文本
+        ctx.fillStyle = isEditing ? '#0d1117' : '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, sApex.sx, ry + rectH / 2);
+      }
+    });
     ctx.stroke();
 
     // Round 5: 方向箭头 - 每隔一段距离绘制行驶方向箭头
@@ -1049,10 +1296,175 @@ export function TrackManagerPage({ onNavigate }) {
                 );
               })()}
 
+              {/* 弯道编辑表单（与数据质量卡片联动展示） */}
+              {editingTurnIndex !== null && editTurnForm && (
+                <div style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>
+                      ⚙️ 编辑弯道 T{editingTurnIndex + 1}
+                    </span>
+                    <button 
+                      onClick={() => { setEditingTurnIndex(null); setEditTurnForm(null); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 11 }}
+                    >
+                      取消
+                    </button>
+                  </div>
+
+                  {/* 方向与级别 */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {/* 方向选择 */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>转向方向</div>
+                      <div style={{ display: 'flex', gap: 2 }}>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'left' }))}
+                          style={{
+                            flex: 1, padding: '4px 0', fontSize: 10, borderRadius: 4, cursor: 'pointer',
+                            background: editTurnForm.direction === 'left' ? '#1f6feb' : '#21262d',
+                            color: '#fff',
+                            border: editTurnForm.direction === 'left' ? '1px solid #58a6ff' : '1px solid #30363d',
+                            fontWeight: editTurnForm.direction === 'left' ? 600 : 400
+                          }}
+                        >
+                          ← 左 (L)
+                        </button>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'right' }))}
+                          style={{
+                            flex: 1, padding: '4px 0', fontSize: 10, borderRadius: 4, cursor: 'pointer',
+                            background: editTurnForm.direction === 'right' ? '#f85149' : '#21262d',
+                            color: '#fff',
+                            border: editTurnForm.direction === 'right' ? '1px solid #f85149' : '1px solid #30363d',
+                            fontWeight: editTurnForm.direction === 'right' ? 600 : 400
+                          }}
+                        >
+                          右 (R) →
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 严重度级别 */}
+                    <div style={{ flex: 1.2 }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>WRC 严重度</div>
+                      <select
+                        value={editTurnForm.severity}
+                        onChange={(e) => setEditTurnForm(prev => ({ ...prev, severity: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '4px', fontSize: 10, borderRadius: 4,
+                          background: '#21262d', color: '#fff', border: '1px solid #30363d',
+                          height: 24, cursor: 'pointer'
+                        }}
+                      >
+                        <option value="发卡">发卡弯</option>
+                        <option value="1">1级弯</option>
+                        <option value="2">2级弯</option>
+                        <option value="3">3级弯</option>
+                        <option value="4">4级弯</option>
+                        <option value="5">5级弯</option>
+                        <option value="6">6级弯</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 倾角与盲坡 */}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>路面倾角 (Camber)</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={editTurnForm.camber === 'banking'}
+                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'banking' : null }))}
+                          />
+                          带倾角 (Banking)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={editTurnForm.camber === 'off-camber'}
+                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'off-camber' : null }))}
+                          />
+                          反倾角 (Off-camber)
+                        </label>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>坡度起伏 (Crest)</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={editTurnForm.crest === 'crest'}
+                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'crest' : null }))}
+                          />
+                          盲坡/过坡 (Crest)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={editTurnForm.crest === 'jump'}
+                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'jump' : null }))}
+                          />
+                          飞跳 (Jump)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 自定义备注 */}
+                  <div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>自定义语音备注 (TTS Speech)</div>
+                    <input
+                      type="text"
+                      placeholder="例如：压路肩 / 靠内侧 / 出弯有积水"
+                      value={editTurnForm.customNote}
+                      onChange={(e) => setEditTurnForm(prev => ({ ...prev, customNote: e.target.value }))}
+                      style={{
+                        width: '100%', padding: '4px 6px', fontSize: 10, borderRadius: 4,
+                        background: '#21262d', color: '#fff', border: '1px solid #30363d',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  {/* 保存与删除 */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                    <button
+                      onClick={saveTurnChanges}
+                      style={{
+                        flex: 1.5, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
+                        background: '#238636', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                      }}
+                    >
+                      💾 保存修改
+                    </button>
+                    <button
+                      onClick={() => deleteTurn(editingTurnIndex)}
+                      style={{
+                        flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
+                        background: '#da3637', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                      }}
+                    >
+                      🗑️ 删除弯道
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* 弯道列表 */}
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  弯道列表
+                  弯道列表 (点击行进行地图定位与编辑)
                 </div>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                   {selectedTrackData.turns && selectedTrackData.turns.length > 0 ? (
@@ -1063,22 +1475,60 @@ export function TrackManagerPage({ onNavigate }) {
                           <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
                           <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
                           <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
+                          <th style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>操作</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedTrackData.turns.map((turn, idx) => {
-                          const severityColor = turn.severity === 'critical' ? '#f85149' : turn.severity === 'high' ? '#f0883e' : turn.severity === 'medium' ? '#d29922' : turn.severity === 'low' ? '#3fb950' : '#58a6ff';
+                          const isCurrentEditing = editingTurnIndex === idx;
+                          let sev = turn.severity || turn.type || '';
+                          if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
+                          let severityColor = '#58a6ff';
+                          if (sev.includes('发卡')) severityColor = '#f85149';
+                          else if (['2', '3'].includes(String(sev))) severityColor = '#f0883e';
+                          else if (['4', '5', '6'].includes(String(sev))) severityColor = '#3fb950';
+
                           return (
-                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)', background: turn.severity === 'critical' ? 'rgba(248,81,73,0.06)' : 'transparent' }}>
+                            <tr 
+                              key={idx} 
+                              onClick={() => selectTurnForEdit(idx)}
+                              style={{ 
+                                borderBottom: '1px solid var(--border-light)', 
+                                cursor: 'pointer',
+                                background: isCurrentEditing 
+                                  ? 'rgba(255, 211, 61, 0.15)' 
+                                  : (turn.severity === 'critical' ? 'rgba(248,81,73,0.04)' : 'transparent'),
+                                borderLeft: isCurrentEditing ? '3px solid #ffd33d' : 'none'
+                              }}
+                            >
                               <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
-                              <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9 }}>
-                                {turn.turnCategory || turn.type || '-'}
+                              <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9, fontWeight: 600 }}>
+                                {sev === '发卡' ? '发卡弯' : (sev + '级弯')}
                               </td>
                               <td style={{ padding: '6px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
                                 {turn.direction === 'left' ? '左' : '右'}
                               </td>
                               <td style={{ padding: '6px 4px', fontFamily: 'monospace' }}>
-                                {turn.angle != null ? turn.angle.toFixed(0) + '\u00B0' : '-'}
+                                {turn.angle != null ? turn.angle.toFixed(0) + '°' : '-'}
+                              </td>
+                              <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteTurn(idx);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#f85149',
+                                    cursor: 'pointer',
+                                    fontSize: 11,
+                                    padding: '2px 4px'
+                                  }}
+                                  title="从路书中删除此弯道"
+                                >
+                                  ✕
+                                </button>
                               </td>
                             </tr>
                           );

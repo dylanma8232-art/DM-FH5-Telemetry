@@ -167,18 +167,22 @@ function detectLoopAndExtractSingleLap(positions) {
     if (Math.abs(closureRatio - periodicRatio) < 0.3) {
       // 取两者的平均值作为最终一圈长度
       const avgLapLength = Math.round((closureIdx + periodicLapLength) / 2);
+      let singleLap = positions.slice(0, avgLapLength + 1);
+      singleLap = stitchLoopTrajectory(singleLap);
       return {
         isLoop: true,
-        singleLap: positions.slice(0, avgLapLength + 1),
+        singleLap: singleLap,
         method: 'combined'
       };
     }
     
     // 结果差异大，优先信任方案D（更精确）
     if (periodicRatio > 0.2 && periodicRatio < 0.8) {
+      let singleLap = positions.slice(0, periodicLapLength + 1);
+      singleLap = stitchLoopTrajectory(singleLap);
       return {
         isLoop: true,
-        singleLap: positions.slice(0, periodicLapLength + 1),
+        singleLap: singleLap,
         method: 'curvature'
       };
     }
@@ -188,9 +192,11 @@ function detectLoopAndExtractSingleLap(positions) {
   if (closureIdx > 0) {
     const closureRatio = closureIdx / positions.length;
     if (closureRatio > 0.2 && closureRatio < 0.9) {
+      let singleLap = positions.slice(0, closureIdx + 1);
+      singleLap = stitchLoopTrajectory(singleLap);
       return {
         isLoop: true,
-        singleLap: positions.slice(0, closureIdx + 1),
+        singleLap: singleLap,
         method: 'closure'
       };
     }
@@ -200,9 +206,11 @@ function detectLoopAndExtractSingleLap(positions) {
   if (periodicLapLength > 0) {
     const periodicRatio = periodicLapLength / positions.length;
     if (periodicRatio > 0.2 && periodicRatio < 0.8) {
+      let singleLap = positions.slice(0, periodicLapLength + 1);
+      singleLap = stitchLoopTrajectory(singleLap);
       return {
         isLoop: true,
-        singleLap: positions.slice(0, periodicLapLength + 1),
+        singleLap: singleLap,
         method: 'curvature'
       };
     }
@@ -210,6 +218,59 @@ function detectLoopAndExtractSingleLap(positions) {
   
   // 都没有检测到环道特征
   return { isLoop: false, singleLap: positions, method: 'none' };
+}
+
+/**
+ * 环道缝合：将环形轨迹的首尾两端平滑连接，抹平发车点与终点之间的物理裂口
+ * @param {Array} traj 轨迹点数组
+ * @returns {Array} 缝合后的轨迹
+ */
+function stitchLoopTrajectory(traj) {
+  if (!traj || traj.length < 50) return traj;
+  
+  const pStart = traj[0];
+  const pEnd = traj[traj.length - 1];
+  const dx = pStart.x - pEnd.x;
+  const dz = pStart.z - pEnd.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  
+  // 如果断口在 5米到 150米之间，进行渐进式平滑缝合
+  if (dist > 5 && dist < 150) {
+    // 选取最后 15% 的点（至少20个点，最多100个点）用于过渡缝合
+    const stitchCount = Math.max(20, Math.min(100, Math.floor(traj.length * 0.15)));
+    const startStitchIdx = traj.length - stitchCount;
+    
+    console.log(`[环道缝合] 缝合断口距离: ${dist.toFixed(2)}米, 过渡点数: ${stitchCount}`);
+    
+    // 对所有的坐标和属性进行线性渐进偏置
+    for (let i = 0; i < stitchCount; i++) {
+      const idx = startStitchIdx + i;
+      const ratio = (i + 1) / stitchCount; // 渐变系数：0 -> 1
+      
+      traj[idx].x += dx * ratio;
+      traj[idx].z += dz * ratio;
+      if (traj[idx].y !== undefined && pStart.y !== undefined) {
+        traj[idx].y += (pStart.y - traj[idx].y) * ratio;
+      }
+      
+      // 平滑过度 yaw 方向角
+      let startYaw = pStart.yaw || 0;
+      let currYaw = traj[idx].yaw || 0;
+      let yawDiff = startYaw - currYaw;
+      while (yawDiff > Math.PI) yawDiff -= 2 * Math.PI;
+      while (yawDiff < -Math.PI) yawDiff += 2 * Math.PI;
+      
+      traj[idx].yaw = currYaw + yawDiff * ratio;
+    }
+    
+    // 强制最后一点完全等同于起点
+    traj[traj.length - 1].x = pStart.x;
+    traj[traj.length - 1].z = pStart.z;
+    if (pStart.y !== undefined) traj[traj.length - 1].y = pStart.y;
+    traj[traj.length - 1].yaw = pStart.yaw;
+  }
+  
+  return traj;
 }
 
 /**
@@ -752,12 +813,24 @@ export function detectTurnsEnhanced(centerline) {
         turnDirection = Math.sign(k); // update direction at apex
       }
       
-      // Threshold to exit a turn (Radius > 300m for a few points)
+      // Threshold to exit a turn (Radius > 300m confirmed by look-ahead debounce)
       if (r > 300) {
-        let lengthPts = i - turnStartIdx;
-        if (lengthPts > 3) {
-          let midIdx = Math.floor((turnStartIdx + i) / 2);
-          let pt = centerline[midIdx];
+        let confirmExit = true;
+        const lookAheadCount = 5;
+        for (let j = 1; j <= lookAheadCount; j++) {
+          if (i + j < centerline.length) {
+            if (centerline[i + j].radius <= 300) {
+              confirmExit = false; // Look-ahead failed, cancel exit
+              break;
+            }
+          }
+        }
+        
+        if (confirmExit) {
+          let lengthPts = i - turnStartIdx;
+          if (lengthPts > 4) { // Only count turns of significant length
+            let midIdx = Math.floor((turnStartIdx + i) / 2);
+            let pt = centerline[midIdx];
           
           let yawStart = centerline[turnStartIdx].yaw || 0;
           let yawEnd = centerline[i].yaw || 0;
@@ -835,13 +908,22 @@ export function detectTurnsEnhanced(centerline) {
               }
             }
 
-            // Rally Pace Note Classification
+            // Rally Pace Note Classification (with angleDiff weighting)
             let severity = "";
-            if (minRadius <= 25) severity = "发卡弯";
-            else if (minRadius <= 45) severity = "2";
-            else if (minRadius <= 75) severity = "3";
-            else if (minRadius <= 110) severity = "4";
-            else if (minRadius <= 150) severity = "5";
+            let equivRadius = minRadius;
+            if (angleDiff < 20.0) {
+              equivRadius = minRadius * 2.0; // High speed slight drift, lower severity
+            } else if (angleDiff < 35.0) {
+              equivRadius = minRadius * 1.4; // Minor bend, slightly lower severity
+            } else if (angleDiff > 120.0) {
+              equivRadius = minRadius * 0.6; // Large hairpin/hairpin-like, higher severity
+            }
+
+            if (equivRadius <= 25) severity = "发卡弯";
+            else if (equivRadius <= 45) severity = "2";
+            else if (equivRadius <= 75) severity = "3";
+            else if (equivRadius <= 110) severity = "4";
+            else if (equivRadius <= 150) severity = "5";
             else severity = "6";
             
             let dirStr = turnDirection > 0 ? "右" : "左";
@@ -882,7 +964,8 @@ export function detectTurnsEnhanced(centerline) {
       }
     }
   }
-  return turns;
+}
+return turns;
 }
 export function buildRouteBook(centerline, turns, allPoints) {
   if (!turns || turns.length === 0) return null;
@@ -1007,7 +1090,6 @@ export function buildRouteBook(centerline, turns, allPoints) {
       direction: turn.direction,
       angle: turn.angle,
       severity: turn.severity,
-      recommendedSpeed: turn.recommendedSpeed,
       camber: turn.camber,
       crest: turn.crest,
       entrySpeed: stableEntrySpeed,

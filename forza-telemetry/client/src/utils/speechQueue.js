@@ -43,8 +43,8 @@ class SpeechQueueManager {
     this.lastSpokenTime = now;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    // 竞速场景下语速调快一点 (默认 1.35)
-    utterance.rate = options.rate || 1.35; 
+    // 竞速场景下语速调快一点 (默认 1.05，确保咬字极度清晰)
+    utterance.rate = options.rate || 1.05; 
     utterance.volume = options.volume || 1.0;
     utterance.pitch = options.pitch || 1.0;
 

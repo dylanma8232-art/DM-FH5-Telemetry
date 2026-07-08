@@ -190,6 +190,8 @@ forza-telemetry/
 - 赛道质量验证（评分 A-F）
 - 从比赛记录导入赛道
 - 弯道速度提示编辑
+- **赛道地图 3D 渲染**：Canvas 高清晰度 12 米保底路宽绘制，直道蓝色/弯道橙色区分渲染，当前编辑弯道高对比亮黄色高亮，并配合弯心 Apex 徽章、发光同心圆进行精准定位。
+- **路书表单编辑器**：在列表与侧边栏支持实时修改弯道的转向方向、WRC 等级、倾角（banking / off-camber）、起伏（crest / jump）以及自定义语音备注，且提供弯角删除与重排序功能。
 - 赛道导出
 - **赛道重建**（应用环道检测重新生成）
 
@@ -341,25 +343,30 @@ DashboardPage → 各子组件渲染
 ### 5.4 赛道识别流
 
 ```
-比赛过程中，每5秒识别一次:
-  当前轨迹 → recognizeTrack(轨迹, 赛道数据库)
-    │
-    ├─ Hausdorff距离 (20%)
-    ├─ 曲率分布 (15%)
-    ├─ 边界框 (10%)
-    ├─ 长度 (10%)
-    ├─ Frechet距离 (30%)
-    └─ 方向分布 (15%)
-    │
-    ▼
-  综合评分 > 0.4 → 发出 'trackRecognized' 事件
-    │
-    ▼
-  前端显示识别结果 → 用户确认/选择
-    │
-    ▼
-  POST /api/trackRecognition/confirm  → 关联赛道
-  POST /api/trackRecognition/select   → 选择其他赛道
+比赛过程中（!trackMode 且 autoRacePositions.length > 50 时，每5秒触发一次）:
+  车手当前位置轨迹 (S) ─[下采样 30 点]──┐
+                                     ▼
+  已知赛道数据库 (tracksDict) ────[等间距抽取 100 点]──► 惰性加载至全局 Map 内存缓存 (trackCoordinatesCache)
+                                                               │
+                                                               ▼
+                                                       空间 Euclidean 距离比对
+                                                       - 25m 阈值内计为 matchedCount
+                                                       - 计算匹配率 Match Ratio = matchedCount / 30
+                                                       - 计算平均偏离 avgDist, 转换距离得分 distScore = exp(-avgDist/20)
+                                                               │
+                                                               ▼
+                                                       时序单调性校验 (Temporal Monotonicity)
+                                                       - 检查匹配点在环形中心线上的索引序列 j_i
+                                                       - 校验序列在环路中的单向推进度 seqScore
+                                                               │
+                                                               ▼
+                                                       综合置信度计算 (confidence)
+                                                       confidence = Match Ratio * distScore * (0.3 + 0.7 * seqScore)
+                                                               │
+                                                               ▼
+  最高置信度最佳匹配 (bestMatch) ────► 若 confidence > 0.6 ──────► 后台自动激活 trackMode 并推送 WebSocket 'trackRecognized' 事件
+                                                                   - 领航播报自动连接，念出自定义备注
+                                                                   - 完赛后数据自动作为第 N 条轨迹合并存盘！
 ```
 
 ### 5.5 环道检测流
@@ -413,6 +420,7 @@ DashboardPage → 各子组件渲染
 | GET | `/api/tracks/:id/validate` | 验证赛道数据质量 |
 | POST | `/api/tracks` | 创建新赛道 |
 | PUT | `/api/tracks/:id` | 更新赛道信息 |
+| PUT | `/api/tracks/:id/turns` | 批量更新/保存赛道弯道路书数据（含自定义语音备注） |
 | DELETE | `/api/tracks/:id` | 删除赛道 |
 | PUT | `/api/tracks/:id/turns/:index/speedHint` | 编辑弯道速度提示 |
 | POST | `/api/tracks/merge` | 合并多条轨迹 |
