@@ -2680,12 +2680,16 @@ app.post('/api/trackMode/start', express.json(), (req, res) => {
   };
   lastTurnIndex = -1;
   
-  console.log(`[赛道模式] 已选择赛道: ${trackMode.trackName}`);
+  // 读取赛道详情获取弯道数据
+  const trackDetail = readTrackDetail(trackId);
+  const turns = trackDetail?.turns || [];
+  
+  console.log(`[赛道模式] 已选择赛道: ${trackMode.trackName}, 弯道数: ${turns.length}`);
   res.json({ 
     status: 'ok', 
     trackId: trackId, 
     trackName: trackMode.trackName,
-    turns: tracks[trackId].turns || []
+    turns: turns
   });
 });
 
@@ -2697,11 +2701,16 @@ app.post('/api/trackMode/stop', (req, res) => {
 });
 
 app.get('/api/trackMode/status', (req, res) => {
+  let turns = [];
+  if (trackMode && trackMode.trackId) {
+    const trackDetail = readTrackDetail(trackMode.trackId);
+    turns = trackDetail?.turns || [];
+  }
   res.json({
     active: !!trackMode,
     trackId: trackMode?.trackId || null,
     trackName: trackMode?.trackName || null,
-    turns: trackMode && tracks[trackMode.trackId] ? tracks[trackMode.trackId].turns || [] : []
+    turns: turns
   });
 });
 

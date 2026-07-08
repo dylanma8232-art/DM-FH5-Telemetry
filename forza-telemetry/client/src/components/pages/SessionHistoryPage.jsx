@@ -1199,9 +1199,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     return count;
                   })() : '--';
 
+                  const bestLapTime = analysis?.成绩?.最快圈速 || analysis?.bestLap || 0;
                   const metrics = [
-                    { label: '最快圈速', value: analysis.bestLap ? formatTime(analysis.bestLap.time) : '--', color: '#3fb950' },
-                    { label: '理论最快圈', value: hasAdv && adv.theoreticalBest?.time ? formatTime(adv.theoreticalBest.time) : '--', color: '#58a6ff' },
+                    { label: '最快圈速', value: bestLapTime > 0 ? formatTime(bestLapTime) : '--', color: '#3fb950', tip: '本场实际最快单圈' },
+                    { label: '理论最快圈', value: hasAdv && adv.theoreticalBest?.time > 0 ? formatTime(adv.theoreticalBest.time) : '--', color: '#58a6ff', tip: '各分段最佳拼接，非实际圈速' },
                     { label: '一致性(σ)', value: hasAdv && adv.consistency?.lapTimeStd != null ? adv.consistency.lapTimeStd.toFixed(3) + 's' : '--', color: '#d29922' },
                     { label: 'Trail Braking', value: hasAdv && adv.trailBraking?.ratio != null ? (adv.trailBraking.ratio * 100).toFixed(1) + '%' : '--', color: '#a371f7' },
                     { label: '最大横向G', value: maxLatG !== '--' ? maxLatG + 'g' : '--', color: '#f0883e' },
@@ -1213,9 +1214,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
                       {metrics.map(m => (
-                        <div key={m.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                        <div key={m.label} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }} title={m.tip || ''}>
                           <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6 }}>{m.label}</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'monospace' }}>{m.value}</div>
+                          {m.tip && <div style={{ fontSize: 8, color: '#484f58', marginTop: 4 }}>{m.tip}</div>}
                         </div>
                       ))}
                     </div>
@@ -1225,6 +1227,12 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 {/* 分段分析：多圈显示每圈损失时间，单圈显示分段用时 */}
                 {sectorTimingData && advancedData && advancedData.sessionId === selectedSession && (() => {
                   const { isMultiLap } = sectorTimingData;
+                  const laps = advancedData.lapSectorDetails;
+                  if (!laps || laps.length === 0) return null;
+                  
+                  // 获取分段数量
+                  const sectorCount = laps[0]?.sectors?.length || 0;
+                  
                   return (
                     <div style={sectionStyle}>
                       <h3 style={sectionTitleStyle}>
@@ -1235,46 +1243,83 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           ? '每圈各赛段相比理论最佳的损失时间。'
                           : '当前比赛不同分段的用时。'}
                       </div>
-                      {advancedData.lapSectorDetails.map(lap => (
-                        <div key={lap.lap} style={{ marginBottom: 16 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: '#e6edf3' }}>
-                            {isMultiLap ? `第${lap.lap}圈` : '分段用时'}
-                            <span style={{ fontSize: 10, fontWeight: 400, color: '#8b949e', marginLeft: 8 }}>
-                              {lap.totalTime.toFixed(2)}s
-                            </span>
-                          </div>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                      
+                      {/* 单圈模式：横向表格 */}
+                      {!isMultiLap && (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
                             <thead>
-                              <tr style={{ borderBottom: '1px solid #21262d' }}>
-                                <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 600 }}>分段</th>
-                                <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>用时</th>
-                                {isMultiLap && <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>损失</th>}
+                              <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
+                                <th style={{ padding: '8px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 700 }}>分段</th>
+                                {laps[0]?.sectors.map(s => {
+                                  const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
+                                  const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
+                                  return (
+                                    <th key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', color: isBest ? '#3fb950' : isWorst ? '#f85149' : '#8b949e', fontWeight: 700 }}>S{s.sector}</th>
+                                  );
+                                })}
                               </tr>
                             </thead>
                             <tbody>
-                              {lap.sectors.map(s => {
-                                const isBest = isMultiLap ? s.loss === 0 : s.time === Math.min(...lap.sectors.map(x => x.time));
-                                const isWorst = isMultiLap ? s.loss === Math.max(...lap.sectors.map(x => x.loss)) : s.time === Math.max(...lap.sectors.map(x => x.time));
-                                const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
-                                const lossColor = s.loss === 0 ? '#3fb950' : s.loss > 200 ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
-                                return (
-                                  <tr key={s.sector} style={{ borderBottom: '1px solid rgba(33, 38, 45, 0.5)' }}>
-                                    <td style={{ padding: '6px 8px', color: '#8b949e' }}>S{s.sector}</td>
-                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 600 }}>
+                              <tr style={{ borderBottom: '1px solid #21262d' }}>
+                                <td style={{ padding: '8px 12px', color: '#8b949e', fontWeight: 500 }}>用时</td>
+                                {laps[0]?.sectors.map(s => {
+                                  const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
+                                  const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
+                                  const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
+                                  return (
+                                    <td key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 700 }}>
                                       {s.time.toFixed(2)}s
                                     </td>
-                                    {isMultiLap && (
-                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: 600 }}>
-                                        {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
-                                      </td>
-                                    )}
+                                  );
+                                })}
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      
+                      {/* 多圈模式：紧凑表格，每圈一行，限制最大高度 */}
+                      {isMultiLap && (
+                        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
+                            <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                              <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
+                                <th style={{ padding: '8px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 700, position: 'sticky', left: 0, background: '#161b22', zIndex: 3 }}>圈</th>
+                                <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>总用时</th>
+                                {Array.from({ length: sectorCount }, (_, i) => (
+                                  <th key={i} style={{ padding: '8px 6px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>S{i + 1}</th>
+                                ))}
+                                <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>损失</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {laps.map((lap, lapIdx) => {
+                                const totalLoss = lap.sectors.reduce((sum, s) => sum + s.loss, 0);
+                                return (
+                                  <tr key={lap.lap} style={{ borderBottom: '1px solid #21262d', background: lapIdx % 2 === 0 ? 'transparent' : 'rgba(22, 27, 34, 0.5)' }}>
+                                    <td style={{ padding: '6px 8px', color: '#e6edf3', fontWeight: 600, position: 'sticky', left: 0, background: lapIdx % 2 === 0 ? '#0d1117' : '#161b22', zIndex: 1 }}>第{lap.lap}圈</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: '#e6edf3', fontWeight: 600 }}>{lap.totalTime.toFixed(2)}s</td>
+                                    {lap.sectors.map(s => {
+                                      const isBest = s.loss === 0;
+                                      const isWorst = s.loss === Math.max(...lap.sectors.map(x => x.loss));
+                                      const lossColor = isBest ? '#3fb950' : isWorst ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
+                                      return (
+                                        <td key={s.sector} style={{ padding: '6px 6px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: isBest || isWorst ? 700 : 400 }}>
+                                          {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
+                                        </td>
+                                      );
+                                    })}
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: totalLoss > 0 ? '#f85149' : '#3fb950', fontWeight: 700 }}>
+                                      {totalLoss > 0 ? '+' : ''}{(totalLoss / 1000).toFixed(2)}s
+                                    </td>
                                   </tr>
                                 );
                               })}
                             </tbody>
                           </table>
                         </div>
-                      ))}
+                      )}
                     </div>
                   );
                 })()}
@@ -1714,6 +1759,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   {/* 分段分析：多圈显示每圈损失时间，单圈显示分段用时 */}
                   {sectorTimingData && advancedData && advancedData.sessionId === selectedSession && (() => {
                     const { isMultiLap } = sectorTimingData;
+                    const laps = advancedData.lapSectorDetails;
+                    if (!laps || laps.length === 0) return null;
+                    
+                    const sectorCount = laps[0]?.sectors?.length || 0;
+                    
                     return (
                       <div style={{ ...sectionStyle, marginTop: 12 }}>
                         <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>
@@ -1724,46 +1774,83 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             ? '每圈各赛段相比理论最佳的损失时间。'
                             : '当前比赛不同分段的用时。'}
                         </div>
-                        {advancedData.lapSectorDetails.map(lap => (
-                          <div key={lap.lap} style={{ marginBottom: 16 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 8, color: '#e6edf3' }}>
-                              {isMultiLap ? `第${lap.lap}圈` : '分段用时'}
-                              <span style={{ fontSize: 10, fontWeight: 400, color: '#8b949e', marginLeft: 8 }}>
-                                {lap.totalTime.toFixed(2)}s
-                              </span>
-                            </div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                        
+                        {/* 单圈模式：横向表格 */}
+                        {!isMultiLap && (
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
                               <thead>
-                                <tr style={{ borderBottom: '1px solid #21262d' }}>
-                                  <th style={{ padding: '4px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 600 }}>分段</th>
-                                  <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>用时</th>
-                                  {isMultiLap && <th style={{ padding: '4px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 600 }}>损失</th>}
+                                <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
+                                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 700 }}>分段</th>
+                                  {laps[0]?.sectors.map(s => {
+                                    const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
+                                    const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
+                                    return (
+                                      <th key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', color: isBest ? '#3fb950' : isWorst ? '#f85149' : '#8b949e', fontWeight: 700 }}>S{s.sector}</th>
+                                    );
+                                  })}
                                 </tr>
                               </thead>
                               <tbody>
-                                {lap.sectors.map(s => {
-                                  const isBest = isMultiLap ? s.loss === 0 : s.time === Math.min(...lap.sectors.map(x => x.time));
-                                  const isWorst = isMultiLap ? s.loss === Math.max(...lap.sectors.map(x => x.loss)) : s.time === Math.max(...lap.sectors.map(x => x.time));
-                                  const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
-                                  const lossColor = s.loss === 0 ? '#3fb950' : s.loss > 200 ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
-                                  return (
-                                    <tr key={s.sector} style={{ borderBottom: '1px solid rgba(33, 38, 45, 0.5)' }}>
-                                      <td style={{ padding: '6px 8px', color: '#8b949e' }}>S{s.sector}</td>
-                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 600 }}>
+                                <tr style={{ borderBottom: '1px solid #21262d' }}>
+                                  <td style={{ padding: '8px 12px', color: '#8b949e', fontWeight: 500 }}>用时</td>
+                                  {laps[0]?.sectors.map(s => {
+                                    const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
+                                    const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
+                                    const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
+                                    return (
+                                      <td key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 700 }}>
                                         {s.time.toFixed(2)}s
                                       </td>
-                                      {isMultiLap && (
-                                        <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: 600 }}>
-                                          {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
-                                        </td>
-                                      )}
+                                    );
+                                  })}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        
+                        {/* 多圈模式：紧凑表格 */}
+                        {isMultiLap && (
+                          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
+                              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                                <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
+                                  <th style={{ padding: '8px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 700, position: 'sticky', left: 0, background: '#161b22', zIndex: 3 }}>圈</th>
+                                  <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>总用时</th>
+                                  {Array.from({ length: sectorCount }, (_, i) => (
+                                    <th key={i} style={{ padding: '8px 6px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>S{i + 1}</th>
+                                  ))}
+                                  <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>损失</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {laps.map((lap, lapIdx) => {
+                                  const totalLoss = lap.sectors.reduce((sum, s) => sum + s.loss, 0);
+                                  return (
+                                    <tr key={lap.lap} style={{ borderBottom: '1px solid #21262d', background: lapIdx % 2 === 0 ? 'transparent' : 'rgba(22, 27, 34, 0.5)' }}>
+                                      <td style={{ padding: '6px 8px', color: '#e6edf3', fontWeight: 600, position: 'sticky', left: 0, background: lapIdx % 2 === 0 ? '#0d1117' : '#161b22', zIndex: 1 }}>第{lap.lap}圈</td>
+                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: '#e6edf3', fontWeight: 600 }}>{lap.totalTime.toFixed(2)}s</td>
+                                      {lap.sectors.map(s => {
+                                        const isBest = s.loss === 0;
+                                        const isWorst = s.loss === Math.max(...lap.sectors.map(x => x.loss));
+                                        const lossColor = isBest ? '#3fb950' : isWorst ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
+                                        return (
+                                          <td key={s.sector} style={{ padding: '6px 6px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: isBest || isWorst ? 700 : 400 }}>
+                                            {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
+                                          </td>
+                                        );
+                                      })}
+                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: totalLoss > 0 ? '#f85149' : '#3fb950', fontWeight: 700 }}>
+                                        {totalLoss > 0 ? '+' : ''}{(totalLoss / 1000).toFixed(2)}s
+                                      </td>
                                     </tr>
                                   );
                                 })}
                               </tbody>
                             </table>
                           </div>
-                        ))}
+                        )}
                       </div>
                     );
                   })()}
