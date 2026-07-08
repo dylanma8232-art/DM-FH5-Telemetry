@@ -6,7 +6,7 @@
  * @param {number} yawThreshold - 方向阈值（弧度），默认45度
  * @returns {number} 闭合点索引，如果没有找到返回 -1
  */
-function findClosurePoint(positions, posThreshold = 30, yawThreshold = Math.PI / 4) {
+function findClosurePoint(positions, posThreshold = 100, yawThreshold = Math.PI / 4) {
   if (!positions || positions.length < 100) return -1;
   
   const origin = positions[0];
@@ -134,7 +134,7 @@ function detectCurvaturePeriodicity(positions) {
   // 4. 验证峰值显著性
   // 自相关系数 > 0.6 表示有明显周期性
   if (bestCorrelation > 0.6 && bestLag > 0) {
-    return bestLap;
+    return bestLag;
   }
   
   return -1;
@@ -344,7 +344,9 @@ export function buildTrackFromTrajectories(trajectories) {
       continue;
     }
     
-    const result = detectLoopAndExtractSingleLap(traj);
+    // 物理补密预处理，防止因丢包或点稀疏导致闭合点与曲率周期检测失败
+    const denseTraj = densifyTrajectory(traj, 5.0);
+    const result = detectLoopAndExtractSingleLap(denseTraj);
     if (result.isLoop) {
       console.log(`[环道检测] 检测到环道，方法: ${result.method}，原始点数: ${traj.length} -> 单圈点数: ${result.singleLap.length}`);
       processedTrajectories.push(result.singleLap);
