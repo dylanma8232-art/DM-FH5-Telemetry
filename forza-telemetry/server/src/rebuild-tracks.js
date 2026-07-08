@@ -246,32 +246,28 @@ async function run() {
     
     console.log(`  新点数: ${trackData.centerline.length}，新弯道数: ${newTurnCount}，新长度: ${trackData.length} 米`);
     
-    // 如果弯道数量或长度发生改变（主要适用于成功识别出环道后切圈，导致点数和弯道数大减）
-    if (newTurnCount !== oldTurnCount || Math.abs(trackData.length - (detail.length || 0)) > 100) {
-      console.log(`  [更新] 检测到物理特征变化。正在写入更新...`);
-      
-      detail.points = trackData.centerline;
-      detail.centerline = trackData.centerline;
-      detail.turns = trackData.turns;
-      detail.length = trackData.length;
-      detail.updatedAt = new Date().toISOString();
-      detail.sectors = generateSectors(trackData.centerline, trackData.turns);
-      detail.navigation = generateNavigationData(trackData);
-      
-      // 保存详情
-      writeTrackDetail(trackId, detail);
-      
-      // 更新元数据
-      meta.length = trackData.length;
-      meta.pointCount = trackData.centerline.length;
-      meta.turnCount = newTurnCount;
-      meta.updatedAt = detail.updatedAt;
-      
-      updatedCount++;
-      console.log(`  [成功] 赛道 [${meta.name}] 已成功更新并重建单圈。`);
-    } else {
-      console.log(`  [无变化] 弯角和长度相同，无需更新。`);
-    }
+    // 强制更新：由于我们升级了双端智能剪裁算法，必须强制重写所有几何中心线以清洗历史残留的尾巴和杂线
+    console.log(`  [更新] 正在强行写入赛道几何更新...`);
+    
+    detail.points = trackData.centerline;
+    detail.centerline = trackData.centerline;
+    detail.turns = trackData.turns;
+    detail.length = trackData.length;
+    detail.updatedAt = new Date().toISOString();
+    detail.sectors = generateSectors(trackData.centerline, trackData.turns);
+    detail.navigation = generateNavigationData(trackData);
+    
+    // 保存详情
+    writeTrackDetail(trackId, detail);
+    
+    // 更新元数据
+    meta.length = trackData.length;
+    meta.pointCount = trackData.centerline.length;
+    meta.turnCount = newTurnCount;
+    meta.updatedAt = detail.updatedAt;
+    
+    updatedCount++;
+    console.log(`  [成功] 赛道 [${meta.name}] 已成功强行更新并重建单圈。`);
   }
   
   if (updatedCount > 0) {
