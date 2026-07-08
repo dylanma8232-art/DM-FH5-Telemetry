@@ -47,3 +47,6 @@ forza-telemetry/server/data/tracks-database.json
 
 # Local Telemetry Data Folder
 forza-telemetry/data/
+
+# 启动脚本（本地使用）
+启动FH5遥测.command

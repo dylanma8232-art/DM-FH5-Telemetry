@@ -86,7 +86,6 @@
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
   - 📄 [clean_history.js](file:///forza-telemetry/scripts/clean_history.js) 
-  - 📄 [clean_sessions.js](file:///forza-telemetry/scripts/clean_sessions.js) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
   - 📄 [start-server.sh](file:///forza-telemetry/scripts/start-server.sh) 
 - 📂 **server/**
