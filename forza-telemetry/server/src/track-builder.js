@@ -151,21 +151,75 @@ function detectLoopAndExtractSingleLap(positions) {
     return { isLoop: false, singleLap: positions, method: 'none' };
   }
   
-  // 方案F：闭合点检测
+  // 1. 全局区间搜寻最优的闭合回路 [i, j]
+  // 赛车轨迹点间距约为 2 米。一圈最短 300 米，对应点数约 150 点以上。一圈通常不超过总长度的 95%
+  const N = positions.length;
+  let bestI = -1;
+  let bestJ = -1;
+  let minClosureDist = Infinity;
+
+  // 设置判定阈值
+  const maxClosureDist = 15.0; // 15米内视为重合
+  const yawDiffLimit = Math.PI / 6; // 30度以内的切线角一致性
+  const minPointsInLap = 150; // 最少150个点
+
+  for (let i = 0; i < N - minPointsInLap; i++) {
+    // 限制 i 只在开头的 40% 区间内搜索，因为切入段（引入线）通常出现在录制前段
+    if (i > N * 0.4) break;
+
+    const pI = positions[i];
+    const yawI = pI.yaw || 0;
+
+    // 搜索尾部可能闭合的切点 j
+    for (let j = i + minPointsInLap; j < N; j++) {
+      const pJ = positions[j];
+      
+      // 快速计算 2D 物理距离
+      const dx = pJ.x - pI.x;
+      const dz = pJ.z - pI.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < maxClosureDist) {
+        // 检查切向角一致性
+        let yawDiff = Math.abs((pJ.yaw || 0) - yawI);
+        if (yawDiff > Math.PI) yawDiff = 2 * Math.PI - yawDiff;
+
+        if (yawDiff < yawDiffLimit) {
+          // 搜寻距离最近、重合度最佳的那一对闭合端点
+          if (dist < minClosureDist) {
+            minClosureDist = dist;
+            bestI = i;
+            bestJ = j;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. 如果找到了极佳的闭合回路子区间 [bestI, bestJ]
+  if (bestI !== -1 && bestJ !== -1) {
+    console.log(`[环道双端剪裁] 成功识别闭合回路: 索引 [${bestI} -> ${bestJ}], 闭合断口距离: ${minClosureDist.toFixed(2)}米`);
+    console.log(`  [剪裁] 开头剪切了前 ${bestI} 个点 (引入线), 尾部剪切了后 ${N - 1 - bestJ} 个点 (偏离段)`);
+
+    let singleLap = positions.slice(bestI, bestJ + 1);
+    singleLap = stitchLoopTrajectory(singleLap);
+
+    return {
+      isLoop: true,
+      singleLap: singleLap,
+      method: 'combined_dual_end'
+    };
+  }
+
+  // 3. 降级回退方案：如果全局区间匹配未成功，降级使用原版的自相关曲率或首端闭合校验
   const closureIdx = findClosurePoint(positions);
-  
-  // 方案D：曲率周期性检测
   const periodicLapLength = detectCurvaturePeriodicity(positions);
   
-  // 组合判断
   if (closureIdx > 0 && periodicLapLength > 0) {
-    // 两个方案都有结果，交叉验证
     const closureRatio = closureIdx / positions.length;
     const periodicRatio = periodicLapLength / positions.length;
     
-    // 如果两个方案的结果相近（差异<30%），高置信度
     if (Math.abs(closureRatio - periodicRatio) < 0.3) {
-      // 取两者的平均值作为最终一圈长度
       const avgLapLength = Math.round((closureIdx + periodicLapLength) / 2);
       let singleLap = positions.slice(0, avgLapLength + 1);
       singleLap = stitchLoopTrajectory(singleLap);
@@ -176,7 +230,6 @@ function detectLoopAndExtractSingleLap(positions) {
       };
     }
     
-    // 结果差异大，优先信任方案D（更精确）
     if (periodicRatio > 0.2 && periodicRatio < 0.8) {
       let singleLap = positions.slice(0, periodicLapLength + 1);
       singleLap = stitchLoopTrajectory(singleLap);
@@ -188,7 +241,6 @@ function detectLoopAndExtractSingleLap(positions) {
     }
   }
   
-  // 只有方案F有结果
   if (closureIdx > 0) {
     const closureRatio = closureIdx / positions.length;
     if (closureRatio > 0.2 && closureRatio < 0.9) {
@@ -202,7 +254,6 @@ function detectLoopAndExtractSingleLap(positions) {
     }
   }
   
-  // 只有方案D有结果
   if (periodicLapLength > 0) {
     const periodicRatio = periodicLapLength / positions.length;
     if (periodicRatio > 0.2 && periodicRatio < 0.8) {
@@ -216,7 +267,6 @@ function detectLoopAndExtractSingleLap(positions) {
     }
   }
   
-  // 都没有检测到环道特征
   return { isLoop: false, singleLap: positions, method: 'none' };
 }
 

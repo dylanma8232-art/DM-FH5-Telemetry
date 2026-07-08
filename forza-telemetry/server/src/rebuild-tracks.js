@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
-import { buildTrackFromTrajectories } from './track-builder.js';
+import { buildTrackFromTrajectories, generateNavigationData } from './track-builder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -178,29 +178,20 @@ function cleanVehiclesData(vehicles, tracksMetadata) {
           cleanedCount++;
           console.log(`  转换: "${trackRef}" -> ${matchedTrackId} (车辆 ${ordinal})`);
         } else {
-          // 无法匹配，移除
           console.log(`  移除无法匹配的 trackName: "${trackRef}" (车辆 ${ordinal})`);
           removedCount++;
         }
->>>>>>> 8d3f88d (feat: optimize pace notes warning timing, add HUD alphanumeric labels, fix track rebuild sectors empty bug and update knowledge graph)
       }
-    });
-    fs.writeFileSync(brPath, compressed);
-    return true;
-  } catch (err) {
-    console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, err.message);
-    return false;
+    }
+    
+    vehicle.tracks = cleanedTracks;
   }
+  
+  console.log(`\n清洗完成: 转换 ${cleanedCount} 条, 移除 ${removedCount} 条孤儿引用`);
+  return vehicles;
 }
 
-// 模拟 generateSectors (若存在)
-function generateSectors(centerline, turns) {
-  return [];
-}
-// 模拟 generateNavigationData (若存在)
-function generateNavigationData() {
-  return {};
-}
+
 
 async function run() {
   console.log('=== 开始重建赛道数据 ===');
