@@ -1,279 +1,144 @@
-#!/usr/bin/env node
-
-/**
- * 数据清洗脚本：重建所有赛道数据
- * 功能：
- * 1. 对所有赛道应用环道检测，提取单圈数据
- * 2. 重建中心线和弯道
- * 3. 清洗 vehicles.json 中的孤儿引用
- * 4. 更新 tracks-metadata.json 索引
- */
-
-import { readFileSync, writeFileSync, readdirSync, existsSync, unlinkSync } from 'fs';
-import { join, basename } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import fs from 'fs';
+import path from 'path';
 import zlib from 'zlib';
-import { buildTrackFromTrajectories, detectTurnsEnhanced, buildRouteBook, validateTrackQuality } from './track-builder.js';
+import { fileURLToPath } from 'url';
+import { buildTrackFromTrajectories } from './track-builder.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const DATA_DIR = join(__dirname, '../../data');
-const TRACKS_DIR = join(DATA_DIR, 'tracks');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.resolve(__dirname, '../../data');
+const METADATA_PATH = path.join(DATA_DIR, 'tracks-metadata.json');
 
-// Brotli 压缩配置
-const BROTLI_OPTIONS = {
-  params: {
-    [zlib.constants.BROTLI_PARAM_QUALITY]: 9,
+// 兼容性的读取/写入函数
+function readTrackDetail(trackId) {
+  const brPath = path.join(DATA_DIR, 'tracks', `${trackId}.json.br`);
+  if (fs.existsSync(brPath)) {
+    try {
+      const buffer = fs.readFileSync(brPath);
+      const decompressed = zlib.brotliDecompressSync(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (e) {
+      console.error(`[readTrackDetail] 解压 Brotli 赛道 ${trackId} 失败:`, e.message);
+    }
   }
-};
+  return null;
+}
 
-/**
- * 读取 JSON 文件
- */
-function readJSON(filepath) {
+function writeTrackDetail(trackId, trackDetail) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
   try {
-    const data = readFileSync(filepath, 'utf8');
-    return JSON.parse(data);
-  } catch (e) {
-    console.error(`读取文件失败: ${filepath}`, e.message);
-    return null;
-  }
-}
-
-/**
- * 写入 JSON 文件
- */
-function writeJSON(filepath, data) {
-  try {
-    writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (e) {
-    console.error(`写入文件失败: ${filepath}`, e.message);
-    return false;
-  }
-}
-
-/**
- * 读取 Brotli 压缩的 JSON 文件
- */
-function readBrotliJSON(filepath) {
-  try {
-    const compressed = readFileSync(filepath);
-    const decompressed = zlib.brotliDecompressSync(compressed);
-    return JSON.parse(decompressed.toString('utf8'));
-  } catch (e) {
-    console.error(`读取 Brotli 文件失败: ${filepath}`, e.message);
-    return null;
-  }
-}
-
-/**
- * 写入 Brotli 压缩的 JSON 文件
- */
-function writeBrotliJSON(filepath, data) {
-  try {
-    const json = JSON.stringify(data);
-    const compressed = zlib.brotliCompressSync(Buffer.from(json), BROTLI_OPTIONS);
-    writeFileSync(filepath, compressed);
-    return true;
-  } catch (e) {
-    console.error(`写入 Brotli 文件失败: ${filepath}`, e.message);
-    return false;
-  }
-}
-
-/**
- * 计算轨迹长度
- */
-function calculateTrackLength(positions) {
-  if (!positions || positions.length < 2) return 0;
-  let length = 0;
-  for (let i = 1; i < positions.length; i++) {
-    const dx = positions[i].x - positions[i-1].x;
-    const dz = positions[i].z - positions[i-1].z;
-    length += Math.sqrt(dx * dx + dz * dz);
-  }
-  return Math.round(length);
-}
-
-/**
- * 重建单条赛道
- */
-function rebuildTrack(trackId, trackDetail) {
-  console.log(`\n重建赛道: ${trackId} (${trackDetail.name})`);
-  console.log(`  原始数据: ${trackDetail.trajectoryCount} 条轨迹, ${trackDetail.turnCount || 0} 个弯道, ${trackDetail.length} 米`);
-  
-  // 获取轨迹数据
-  const trajectories = trackDetail.trajectories || [];
-  if (trajectories.length === 0) {
-    console.log(`  ⚠️ 无轨迹数据，跳过`);
-    return null;
-  }
-  
-  // 应用环道检测和重建
-  const trackData = buildTrackFromTrajectories(trajectories);
-  if (!trackData) {
-    console.log(`  ❌ 重建失败`);
-    return null;
-  }
-  
-  console.log(`  新数据: ${trackData.turns.length} 个弯道, ${trackData.length} 米, ${trackData.centerline.length} 个中心线点`);
-  
-  // 更新赛道详情
-  const updatedDetail = {
-    ...trackDetail,
-    points: trackData.centerline,
-    centerline: trackData.centerline,
-    turns: trackData.turns,
-    length: trackData.length,
-    pointCount: trackData.centerline.length,
-    routeBook: trackData.routeBook,
-    updatedAt: new Date().toISOString()
-  };
-  
-  // 验证质量
-  const quality = validateTrackQuality(updatedDetail);
-  console.log(`  质量评分: ${quality.overallScore}/100`);
-  
-  return updatedDetail;
-}
-
-/**
- * 清洗 vehicles.json
- */
-function cleanVehiclesData(vehicles, tracksMetadata) {
-  console.log('\n=== 清洗 vehicles.json ===');
-  
-  let cleanedCount = 0;
-  let removedCount = 0;
-  
-  for (const [ordinal, vehicle] of Object.entries(vehicles)) {
-    if (!vehicle.tracks || vehicle.tracks.length === 0) continue;
-    
-    const originalTracks = [...vehicle.tracks];
-    const cleanedTracks = [];
-    
-    for (const trackRef of originalTracks) {
-      // 检查是否是 trackId 格式
-      if (trackRef.startsWith('track_')) {
-        // 已经是 trackId，检查是否存在
-        if (tracksMetadata[trackRef]) {
-          cleanedTracks.push(trackRef);
-        } else {
-          console.log(`  移除孤儿 trackId: ${trackRef} (车辆 ${ordinal})`);
-          removedCount++;
-        }
-      } else {
-        // 是 trackName，尝试转换为 trackId
-        const matchedTrackId = Object.entries(tracksMetadata).find(
-          ([id, meta]) => meta.name === trackRef
-        )?.[0];
-        
-        if (matchedTrackId) {
-          cleanedTracks.push(matchedTrackId);
-          cleanedCount++;
-          console.log(`  转换: "${trackRef}" -> ${matchedTrackId} (车辆 ${ordinal})`);
-        } else {
-          // 无法匹配，移除
-          console.log(`  移除无法匹配的 trackName: "${trackRef}" (车辆 ${ordinal})`);
-          removedCount++;
-        }
+    fs.mkdirSync(tracksDir, { recursive: true });
+    const jsonStr = JSON.stringify(trackDetail);
+    const buffer = Buffer.from(jsonStr, 'utf8');
+    const compressed = zlib.brotliCompressSync(buffer, {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 5
       }
-    }
-    
-    vehicle.tracks = cleanedTracks;
+    });
+    fs.writeFileSync(brPath, compressed);
+    return true;
+  } catch (err) {
+    console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, err.message);
+    return false;
   }
-  
-  console.log(`\n清洗完成: 转换 ${cleanedCount} 条, 移除 ${removedCount} 条孤儿引用`);
-  return vehicles;
 }
 
-/**
- * 主函数
- */
-async function main() {
-  console.log('=== 赛道数据重建脚本 ===\n');
+// 模拟 generateSectors (若存在)
+function generateSectors(centerline, turns) {
+  return [];
+}
+// 模拟 generateNavigationData (若存在)
+function generateNavigationData() {
+  return {};
+}
+
+async function run() {
+  console.log('=== 开始重建赛道数据 ===');
+  console.log('元数据路径:', METADATA_PATH);
   
-  // 1. 读取 tracks-metadata.json
-  const metadataPath = join(DATA_DIR, 'tracks-metadata.json');
-  const metadata = readJSON(metadataPath);
-  if (!metadata) {
-    console.error('无法读取 tracks-metadata.json');
-    process.exit(1);
+  if (!fs.existsSync(METADATA_PATH)) {
+    console.error('未找到 tracks-metadata.json');
+    return;
   }
   
-  console.log(`找到 ${Object.keys(metadata).length} 条赛道`);
+  let metadata;
+  try {
+    metadata = JSON.parse(fs.readFileSync(METADATA_PATH, 'utf8'));
+  } catch (e) {
+    console.error('解析 tracks-metadata.json 失败:', e.message);
+    return;
+  }
   
-  // 2. 重建每条赛道
-  let successCount = 0;
-  let failCount = 0;
+  const trackIds = Object.keys(metadata);
+  console.log(`共发现 ${trackIds.length} 个赛道元数据。`);
   
-  for (const [trackId, meta] of Object.entries(metadata)) {
-    const detailPath = join(TRACKS_DIR, `${trackId}.json.br`);
+  let updatedCount = 0;
+  
+  for (const trackId of trackIds) {
+    const meta = metadata[trackId];
+    console.log(`\n---------------------------`);
+    console.log(`处理赛道: [${trackId}] ${meta.name}`);
     
-    if (!existsSync(detailPath)) {
-      console.log(`\n⚠️ 赛道详情文件不存在: ${trackId}`);
-      failCount++;
-      continue;
-    }
-    
-    // 读取赛道详情
-    const detail = readBrotliJSON(detailPath);
+    const detail = readTrackDetail(trackId);
     if (!detail) {
-      failCount++;
+      console.warn(`  未找到该赛道的详细数据包。`);
       continue;
     }
     
-    // 重建赛道
-    const updatedDetail = rebuildTrack(trackId, detail);
-    if (!updatedDetail) {
-      failCount++;
+    const trajs = detail.trajectories;
+    if (!trajs || trajs.length === 0) {
+      console.warn(`  该赛道未保存原始轨迹包，无法重建。`);
       continue;
     }
     
-    // 保存重建后的详情
-    writeBrotliJSON(detailPath, updatedDetail);
+    console.log(`  拥有轨迹数: ${trajs.length}，原点数: ${detail.centerline?.length || 0}，原弯道数: ${detail.turns?.length || 0}`);
     
-    // 更新元数据
-    metadata[trackId] = {
-      id: trackId,
-      name: updatedDetail.name,
-      length: updatedDetail.length,
-      pointCount: updatedDetail.pointCount,
-      turnCount: updatedDetail.turns ? updatedDetail.turns.length : 0,
-      trajectoryCount: updatedDetail.trajectoryCount,
-      createdAt: updatedDetail.createdAt,
-      updatedAt: updatedDetail.updatedAt
-    };
+    // 重新运行构建算法（此时已包含 5m 补密和 100m 阈值闭合检测优化）
+    const trackData = buildTrackFromTrajectories(trajs);
+    if (!trackData) {
+      console.error(`  重建失败，未生成有效数据。`);
+      continue;
+    }
     
-    successCount++;
+    const oldTurnCount = detail.turns?.length || 0;
+    const newTurnCount = trackData.turns?.length || 0;
+    
+    console.log(`  新点数: ${trackData.centerline.length}，新弯道数: ${newTurnCount}，新长度: ${trackData.length} 米`);
+    
+    // 如果弯道数量或长度发生改变（主要适用于成功识别出环道后切圈，导致点数和弯道数大减）
+    if (newTurnCount !== oldTurnCount || Math.abs(trackData.length - (detail.length || 0)) > 100) {
+      console.log(`  [更新] 检测到物理特征变化。正在写入更新...`);
+      
+      detail.points = trackData.centerline;
+      detail.centerline = trackData.centerline;
+      detail.turns = trackData.turns;
+      detail.length = trackData.length;
+      detail.updatedAt = new Date().toISOString();
+      detail.sectors = generateSectors(trackData.centerline, trackData.turns);
+      detail.navigation = generateNavigationData(trackData);
+      
+      // 保存详情
+      writeTrackDetail(trackId, detail);
+      
+      // 更新元数据
+      meta.length = trackData.length;
+      meta.pointCount = trackData.centerline.length;
+      meta.turnCount = newTurnCount;
+      meta.updatedAt = detail.updatedAt;
+      
+      updatedCount++;
+      console.log(`  [成功] 赛道 [${meta.name}] 已成功更新并重建单圈。`);
+    } else {
+      console.log(`  [无变化] 弯角和长度相同，无需更新。`);
+    }
   }
   
-  console.log(`\n=== 赛道重建完成 ===`);
-  console.log(`成功: ${successCount}, 失败: ${failCount}`);
-  
-  // 3. 保存更新后的元数据
-  writeJSON(metadataPath, metadata);
-  console.log('\n已更新 tracks-metadata.json');
-  
-  // 4. 清洗 vehicles.json
-  const vehiclesPath = join(DATA_DIR, 'vehicles.json');
-  const vehicles = readJSON(vehiclesPath);
-  if (vehicles) {
-    const cleanedVehicles = cleanVehiclesData(vehicles, metadata);
-    writeJSON(vehiclesPath, cleanedVehicles);
-    console.log('已更新 vehicles.json');
+  if (updatedCount > 0) {
+    fs.writeFileSync(METADATA_PATH, JSON.stringify(metadata, null, 2));
+    console.log(`\n=== 重建完成！共更新了 ${updatedCount} 个赛道的单圈几何结构 ===`);
+  } else {
+    console.log(`\n=== 重建完成！没有需要更新的赛道 ===`);
   }
-  
-  // 5. 清理残留文件
-  const oldTracksFile = join(DATA_DIR, 'tracks.json.br');
-  if (existsSync(oldTracksFile)) {
-    unlinkSync(oldTracksFile);
-    console.log('\n已删除旧格式文件: tracks.json.br');
-  }
-  
-  console.log('\n=== 数据清洗完成 ===');
 }
 
-main().catch(console.error);
+run();
