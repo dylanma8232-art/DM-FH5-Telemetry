@@ -161,7 +161,7 @@ function detectLoopAndExtractSingleLap(positions) {
   // 设置判定阈值
   const maxClosureDist = 15.0; // 15米内视为重合
   const yawDiffLimit = Math.PI / 6; // 30度以内的切线角一致性
-  const minPointsInLap = 150; // 最少150个点
+  const minPointsInLap = 250; // 最少250个点（约500米一圈）
 
   for (let i = 0; i < N - minPointsInLap; i++) {
     // 限制 i 只在开头的 40% 区间内搜索，因为切入段（引入线）通常出现在录制前段
@@ -196,19 +196,34 @@ function detectLoopAndExtractSingleLap(positions) {
     }
   }
 
-  // 2. 如果找到了极佳的闭合回路子区间 [bestI, bestJ]
+  // 2. 如果找到了闭合回路子区间 [bestI, bestJ]
   if (bestI !== -1 && bestJ !== -1) {
-    console.log(`[环道双端剪裁] 成功识别闭合回路: 索引 [${bestI} -> ${bestJ}], 闭合断口距离: ${minClosureDist.toFixed(2)}米`);
-    console.log(`  [剪裁] 开头剪切了前 ${bestI} 个点 (引入线), 尾部剪切了后 ${N - 1 - bestJ} 个点 (偏离段)`);
+    // 核心物理校验：计算该候选单圈的 2D 空间包络盒跨度，防止小局部发卡弯、原地调头误判为环道
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let k = bestI; k <= bestJ; k++) {
+      const p = positions[k];
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
+    }
+    const xSpan = maxX - minX;
+    const zSpan = maxZ - minZ;
+    const diagonalSpan = Math.sqrt(xSpan * xSpan + zSpan * zSpan);
 
-    let singleLap = positions.slice(bestI, bestJ + 1);
-    singleLap = stitchLoopTrajectory(singleLap);
+    if (diagonalSpan < 150.0) {
+      console.log(`[环道检测拦截] 识别到的闭合回路尺寸过小 (跨度 ${diagonalSpan.toFixed(2)}米 < 150米), 判定为发卡弯或局部掉头噪声，不予截断`);
+    } else {
+      console.log(`[环道双端剪裁] 成功识别有效闭合回路: 索引 [${bestI} -> ${bestJ}], 空间跨度: ${diagonalSpan.toFixed(2)}米, 闭合断口距离: ${minClosureDist.toFixed(2)}米`);
+      console.log(`  [剪裁] 开头剪切了前 ${bestI} 个点 (引入线), 尾部剪切了后 ${N - 1 - bestJ} 个点 (偏离段)`);
 
-    return {
-      isLoop: true,
-      singleLap: singleLap,
-      method: 'combined_dual_end'
-    };
+      let singleLap = positions.slice(bestI, bestJ + 1);
+      singleLap = stitchLoopTrajectory(singleLap);
+
+      return {
+        isLoop: true,
+        singleLap: singleLap,
+        method: 'combined_dual_end'
+      };
+    }
   }
 
   // 3. 降级回退方案：如果全局区间匹配未成功，降级使用原版的自相关曲率或首端闭合校验
