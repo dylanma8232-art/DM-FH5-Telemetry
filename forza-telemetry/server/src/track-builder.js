@@ -480,21 +480,51 @@ export function buildTrackFromTrajectories(trajectories) {
       while(yawDiff > Math.PI) yawDiff -= 2*Math.PI;
       while(yawDiff < -Math.PI) yawDiff += 2*Math.PI;
       
-      // If jump is massive (> 300m) or (jump is > 50m AND angle diff is > 90 deg)
-      if (dist > 300.0 || (dist > 50.0 && Math.abs(yawDiff) > Math.PI / 2)) {
-        if (current.length >= 10) cleanTrajectories.push(current);
+      // 物理极限截断：移距 > 150米百分之百为传送或严重丢包，直接在此强行切断！
+      if (dist > 150.0) {
+        if (current.length >= 15) cleanTrajectories.push(current);
         current = [];
       }
       current.push(traj[i]);
     }
-    if (current.length >= 10) cleanTrajectories.push(current);
+    if (current.length >= 15) cleanTrajectories.push(current);
   }
 
   if (cleanTrajectories.length === 0) return null;
 
   cleanTrajectories.sort((a, b) => b.length - a.length);
   const skeleton = resampleCenterline(cleanTrajectories[0], 2.0);
-  const correctedTrajectories = cleanTrajectories.map(traj => correctTrajectoryDrivingLine(densifyTrajectory(traj, 2.0)));
+
+  // 核心安全升级：过滤丢弃那些平均偏离主中线超过 20 米的脏轨迹段（主要是悬空传送线或乱车线）
+  const validTrajectories = [];
+  for (let idx = 0; idx < cleanTrajectories.length; idx++) {
+    const traj = cleanTrajectories[idx];
+    if (idx === 0) {
+      validTrajectories.push(traj);
+      continue;
+    }
+
+    // 计算整条轨迹上的点到 skeleton 的平均最近距离
+    let sumMinDist = 0;
+    for (const p of traj) {
+      let minDist = Infinity;
+      for (const sp of skeleton) {
+        const d = Math.sqrt((p.x - sp.x) ** 2 + (p.z - sp.z) ** 2);
+        if (d < minDist) minDist = d;
+      }
+      sumMinDist += minDist;
+    }
+    const avgDist = sumMinDist / traj.length;
+
+    // 如果平均偏差 > 20 米，说明是偏离极远的脏线或传送跳跃轨迹线，直接予以剔除
+    if (avgDist > 20.0) {
+      console.log(`[对齐过滤] 丢弃与主赛道平均偏离过大的脏轨迹段, 平均偏离距离: ${avgDist.toFixed(2)}米, 点数: ${traj.length}`);
+    } else {
+      validTrajectories.push(traj);
+    }
+  }
+
+  const correctedTrajectories = validTrajectories.map(traj => correctTrajectoryDrivingLine(densifyTrajectory(traj, 2.0)));
 
   let mergedCenterline = [];
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
