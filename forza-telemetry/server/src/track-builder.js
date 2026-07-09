@@ -142,7 +142,7 @@ function detectCurvaturePeriodicity(positions) {
 
 /**
  * 组合方案F+D：检测环道并提取单圈
- * 优先使用游戏提供的lapNum分组，降级使用几何算法
+ * 优先使用游戏提供的lapNum变更点作为闭合点，降级使用几何算法
  * @param {Array} positions - 轨迹点数组
  * @returns {Object} { isLoop: boolean, singleLap: Array, method: string }
  */
@@ -151,25 +151,29 @@ function detectLoopAndExtractSingleLap(positions) {
     return { isLoop: false, singleLap: positions, method: 'none' };
   }
   
-  // ★ 优先方案：使用游戏提供的lapNum分组提取单圈
-  const lapGroups = {};
-  for (const p of positions) {
-    const ln = p.lapNum || 0;
-    if (!lapGroups[ln]) lapGroups[ln] = [];
-    lapGroups[ln].push(p);
+  // ★ 优先方案：使用游戏提供的lapNum变更点作为闭合点
+  // 当lapNum从N变成N+1时，那个点就是闭合点（一圈结束）
+  const lapChanges = [];
+  for (let i = 1; i < positions.length; i++) {
+    const prevLap = positions[i-1].lapNum || 0;
+    const currLap = positions[i].lapNum || 0;
+    if (currLap > prevLap) {
+      lapChanges.push({ idx: i, fromLap: prevLap, toLap: currLap });
+    }
   }
-  const lapNums = Object.keys(lapGroups).map(Number).sort((a, b) => a - b);
   
-  // 如果有多个圈（lapNum > 0），直接用lapNum提取单圈
-  if (lapNums.length >= 2) {
-    // 选择中间的圈（避免第一圈的引入线和最后一圈的偏离段）
-    // 如果只有2圈，选第2圈；如果3圈以上，选中间的圈
-    const targetIdx = Math.min(Math.floor(lapNums.length / 2), lapNums.length - 1);
-    const targetLap = lapNums[targetIdx];
-    const singleLap = lapGroups[targetLap];
+  // 如果有圈数变更，直接用变更点提取单圈
+  if (lapChanges.length >= 1) {
+    // 选择中间的变更点（避免第一圈和最后一圈）
+    const targetIdx = Math.min(Math.floor(lapChanges.length / 2), lapChanges.length - 1);
+    const change = lapChanges[targetIdx];
     
-    if (singleLap && singleLap.length >= 50) {
-      console.log(`[环道检测] 使用lapNum分组: 圈${targetLap}/${lapNums.length}圈, ${singleLap.length}点`);
+    // 找到这一圈的开始位置（上一个变更点或起点）
+    const startIdx = targetIdx > 0 ? lapChanges[targetIdx - 1].idx : 0;
+    const singleLap = positions.slice(startIdx, change.idx);
+    
+    if (singleLap.length >= 50) {
+      console.log(`[环道检测] 使用lapNum变更点: 圈${change.fromLap}→${change.toLap}在点${change.idx}, 单圈${singleLap.length}点 (从点${startIdx}到${change.idx})`);
       return {
         isLoop: true,
         singleLap: singleLap,
@@ -178,16 +182,13 @@ function detectLoopAndExtractSingleLap(positions) {
     }
   }
   
-  // 如果只有1圈（lapNum全是0），检查是否是点对点赛道
-  if (lapNums.length === 1 && lapNums[0] === 0) {
-    // 检查起点终点距离，如果>500米，判定为点对点赛道
-    const origin = positions[0];
-    const end = positions[positions.length - 1];
-    const endDist = Math.sqrt((end.x - origin.x) ** 2 + (end.z - origin.z) ** 2);
-    if (endDist > 500) {
-      console.log(`[环道检测] 点对点赛道（起点终点距离${endDist.toFixed(0)}米），跳过环道检测`);
-      return { isLoop: false, singleLap: positions, method: 'none' };
-    }
+  // 如果没有lapNum变更，检查是否是点对点赛道
+  const origin = positions[0];
+  const end = positions[positions.length - 1];
+  const endDist = Math.sqrt((end.x - origin.x) ** 2 + (end.z - origin.z) ** 2);
+  if (endDist > 500) {
+    console.log(`[环道检测] 点对点赛道（起点终点距离${endDist.toFixed(0)}米），跳过环道检测`);
+    return { isLoop: false, singleLap: positions, method: 'none' };
   }
   
   // 1. 全局搜寻所有满足闭合距离与切角一致性的回路候选
