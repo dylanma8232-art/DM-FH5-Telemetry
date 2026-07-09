@@ -242,6 +242,36 @@ export function buildTrackFromTrajectories(trajectories) {
     }
   }
 
+  // ★ 环道首尾对齐：找到所有单圈的起始点聚类中心，对齐所有轨迹的首尾
+  const loopTrajectories = processedTrajectories.filter(t => t && t.length > 50);
+  if (loopTrajectories.length > 1) {
+    // 收集所有单圈的起点和终点
+    const startPoints = loopTrajectories.map(t => ({ x: t[0].x, z: t[0].z }));
+    const endPoints = loopTrajectories.map(t => ({ x: t[t.length-1].x, z: t[t.length-1].z }));
+    
+    // 找到起点的聚类中心（排除异常值）
+    const avgStartX = startPoints.reduce((s, p) => s + p.x, 0) / startPoints.length;
+    const avgStartZ = startPoints.reduce((s, p) => s + p.z, 0) / startPoints.length;
+    
+    // 对每个单圈，计算起点到聚类中心的偏移，然后平移整个轨迹
+    for (const traj of loopTrajectories) {
+      const offsetX = avgStartX - traj[0].x;
+      const offsetZ = avgStartZ - traj[0].z;
+      const dist = Math.sqrt(offsetX * offsetX + offsetZ * offsetZ);
+      
+      // 只对齐偏移较大的轨迹（>10米）
+      if (dist > 10) {
+        console.log(`[环道对齐] 轨迹起点偏移${dist.toFixed(1)}米，平移到聚类中心`);
+        for (const p of traj) {
+          p.x += offsetX;
+          p.z += offsetZ;
+        }
+        // 重新缝合
+        stitchLoopTrajectory(traj);
+      }
+    }
+  }
+
   const cleanTrajectories = [];
   for (const traj of processedTrajectories) {
     if (!traj || traj.length < 2) continue;
