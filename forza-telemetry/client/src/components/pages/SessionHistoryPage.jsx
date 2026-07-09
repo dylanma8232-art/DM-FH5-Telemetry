@@ -928,7 +928,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">æ
             paginatedSessions.map((session) => (
               <div 
                 key={session.id} 
-                onClick={() => batchMode ? toggleSessionSelect(event, session.id) : loadAnalysis(session.id)}
+                onClick={() => batchMode ? toggleSessionSelect(e, session.id) : loadAnalysis(session.id)}
                 style={{
                   padding: 8,
                   background: batchMode && selectedSessionIds.has(session.id) ? 'rgba(88,166,255,0.1)' : selectedSession === session.id ? '#0d1117' : '#161b22',
