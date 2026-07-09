@@ -1679,12 +1679,12 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">æ
                                         const lossColor = isBest ? '#3fb950' : isWorst ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
                                         return (
                                           <td key={s.sector} style={{ padding: '6px 6px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: isBest || isWorst ? 700 : 400 }}>
-                                            {s.loss > 0 ? '+' : ''}{(s.loss / 1000).toFixed(2)}s
+{s.loss > 0 ? '+' : ''}{s.loss.toFixed(2)}s
                                           </td>
                                         );
                                       })}
                                       <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: totalLoss > 0 ? '#f85149' : '#3fb950', fontWeight: 700 }}>
-                                        {totalLoss > 0 ? '+' : ''}{(totalLoss / 1000).toFixed(2)}s
+{totalLoss > 0 ? '+' : ''}{totalLoss.toFixed(2)}s
                                       </td>
                                     </tr>
                                   );
