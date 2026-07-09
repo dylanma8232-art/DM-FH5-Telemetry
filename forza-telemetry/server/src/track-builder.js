@@ -1507,11 +1507,11 @@ function reconstructTrackGeometry(centerline, turns) {
       turnPoints.push(centerline[i]);
     }
     
-    // 拟合圆弧（跳过角度 > 100° 的发卡弯，避免圆弧拟合失败导致路径交叉）
+    // 拟合圆弧（跳过角度 > 60° 的弯道，避免圆弧拟合失败导致路径交叉）
     const arc = fitArcToPoints(turnPoints);
     const turnAngle = turn.angle || 0;
     
-    if (arc && arc.radius > 5 && arc.radius < 500 && turnAngle < 100) {
+    if (arc && arc.radius > 5 && arc.radius < 500 && turnAngle < 60) {
       // 计算弯道的起始和结束角度
       const startAngle = Math.atan2(turnPoints[0].z - arc.cz, turnPoints[0].x - arc.cx);
       const endAngle = Math.atan2(turnPoints[turnPoints.length - 1].z - arc.cz, turnPoints[turnPoints.length - 1].x - arc.cx);
