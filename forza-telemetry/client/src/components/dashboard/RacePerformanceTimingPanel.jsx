@@ -125,10 +125,11 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   }, [lapNumber, lastLap, sectorsList.length, currentRaceTimeFallback]);
   const currentSectorTime = useMemo(() => {
     if (sectorsList.length === 0 || state.currentSector >= sectorsList.length) return 0;
+    if (lapNumber <= 0 || currentRaceTime <= 0) return 0;
     const startT = sectorStartTimesRef.current[state.currentSector] || 0;
     if (startT === 0) return 0;
     return Math.max(0, currentRaceTimeFallback - startT);
-  }, [currentRaceTimeFallback, sectorsList.length, state.currentSector]);
+  }, [currentRaceTimeFallback, sectorsList.length, state.currentSector, lapNumber, currentRaceTime]);
 
   // 载入赛道分段
   useEffect(() => {
@@ -142,8 +143,8 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   useEffect(() => {
     if (sectorsList.length === 0 || !position?.x) return;
 
-    // 动态初始化第 0 分段的起始时间
-    if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0) {
+    // 动态初始化第 0 分段的起始时间：必须在比赛中且有圈数据
+    if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0 && lapNumber > 0 && currentRaceTime > 0) {
       sectorStartTimesRef.current[0] = currentRaceTimeFallback;
     }
     
