@@ -29,17 +29,15 @@ function recommendGearForSpeed(speedKmh) {
   return 7;
 }
 
-/** 弯道类型中文标签 */
+/** 弯道类型中文标签（统一 1-6 等级） */
 const TURN_TYPE_LABELS = {
-  hairpin: '发卡',
-  sharp: '急弯',
-  medium: '中弯',
-  slow: '缓弯',
-  gentle: '微弯',
-  slight: '极微弯',
-  micro: '直道',
-  sweeping: '高速',
-  chicane: 'S弯',
+  hairpin: '1',
+  sharp: '2',
+  medium: '3',
+  gentle: '4',
+  slight: '5',
+  micro: '6',
+  sweeping: '4',
 };
 
 /** 弯道类型严重度（越高越需要注意） */
@@ -47,12 +45,10 @@ const TURN_SEVERITY = {
   hairpin: 6,
   sharp: 5,
   medium: 4,
-  slow: 3,
-  gentle: 2,
-  slight: 1,
-  micro: 0,
-  sweeping: 2,
-  chicane: 5,
+  gentle: 3,
+  slight: 2,
+  micro: 1,
+  sweeping: 3,
 };
 
 /** 路面类型映射 */
@@ -334,14 +330,12 @@ function getDirectionArrow(direction) {
 }
 
 /**
- * 实时获取/拼装WRC路书评级文本（例如“左3”/“右发卡”）
+ * 标准拉力路书标签：方向+等级（如 "左3" / "右1"）
  */
 function getWrcLabel(note) {
   if (!note) return '';
-  if (note.wrcLabel) return note.wrcLabel;
   const dir = note.direction === 'left' ? '左' : '右';
-  let sev = note.severity || note.type || '';
-  if (sev === '发卡弯') sev = '发卡';
+  const sev = note.severity || '3';
   return `${dir}${sev}`;
 }
 
@@ -600,8 +594,7 @@ export function PaceNotesPanel({
     if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx] && hasRaceStarted) {
       const note = turnNotes[activeTurnIdx];
       const dir = note.direction === 'left' ? '左' : '右';
-      let sev = note.severity || note.wrcNumber || 3;
-      if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
+      let sev = note.severity || '3';
       
       let text = `${dir}${sev}`;
       
@@ -609,8 +602,7 @@ export function PaceNotesPanel({
       const nextNote = turnNotes[activeTurnIdx + 1];
       if (nextNote && note.distanceToNext < 150) {
         const nextDir = nextNote.direction === 'left' ? '左' : '右';
-        let nextSev = nextNote.severity || nextNote.wrcNumber || 3;
-        if (nextSev === 'critical' || nextSev === 'hairpin') nextSev = '发卡';
+        let nextSev = nextNote.severity || '3';
         text += `，接 ${nextDir}${nextSev}`;
       }
       

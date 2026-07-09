@@ -151,47 +151,93 @@ function detectLoopAndExtractSingleLap(positions) {
     return { isLoop: false, singleLap: positions, method: 'none' };
   }
   
-  // 1. 全局区间搜寻最优的闭合回路 [i, j]
-  // 赛车轨迹点间距约为 2 米。一圈最短 300 米，对应点数约 150 点以上。一圈通常不超过总长度的 95%
+  // 1. 全局搜寻所有满足闭合距离与切角一致性的回路候选
   const N = positions.length;
-  let bestI = -1;
-  let bestJ = -1;
-  let minClosureDist = Infinity;
 
-  // 设置判定阈值
+  // 动态计算平均点距，防止高频/低频采样下 minPointsInLap 错判
+  let totalDist = 0;
+  let count = 0;
+  for (let i = 1; i < Math.min(N, 50); i++) {
+    const dx = positions[i].x - positions[i-1].x;
+    const dz = positions[i].z - positions[i-1].z;
+    totalDist += Math.sqrt(dx * dx + dz * dz);
+    count++;
+  }
+  const avgSpacing = count > 0 ? totalDist / count : 2.0;
+
   const maxClosureDist = 15.0; // 15米内视为重合
   const yawDiffLimit = Math.PI / 6; // 30度以内的切线角一致性
-  const minPointsInLap = 250; // 最少250个点（约500米一圈）
+  const minPointsInLap = Math.max(50, Math.floor(400.0 / avgSpacing)); // 至少 400 米一圈
+
+  const candidates = [];
 
   for (let i = 0; i < N - minPointsInLap; i++) {
-    // 限制 i 只在开头的 40% 区间内搜索，因为切入段（引入线）通常出现在录制前段
-    if (i > N * 0.4) break;
-
     const pI = positions[i];
     const yawI = pI.yaw || 0;
 
-    // 搜索尾部可能闭合的切点 j
     for (let j = i + minPointsInLap; j < N; j++) {
       const pJ = positions[j];
-      
-      // 快速计算 2D 物理距离
       const dx = pJ.x - pI.x;
       const dz = pJ.z - pI.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       if (dist < maxClosureDist) {
-        // 检查切向角一致性
         let yawDiff = Math.abs((pJ.yaw || 0) - yawI);
         if (yawDiff > Math.PI) yawDiff = 2 * Math.PI - yawDiff;
 
         if (yawDiff < yawDiffLimit) {
-          // 搜寻距离最近、重合度最佳的那一对闭合端点
-          if (dist < minClosureDist) {
-            minClosureDist = dist;
-            bestI = i;
-            bestJ = j;
+          // 计算该回路的 2D 对角线跨度
+          let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+          for (let k = i; k <= j; k++) {
+            const p = positions[k];
+            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+            if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
           }
+          const xSpan = maxX - minX;
+          const zSpan = maxZ - minZ;
+          const diagonalSpan = Math.sqrt(xSpan * xSpan + zSpan * zSpan);
+
+          candidates.push({ i, j, len: j - i, dist, diagonalSpan });
         }
+      }
+    }
+  }
+
+  let bestI = -1;
+  let bestJ = -1;
+  let minClosureDist = Infinity;
+  let diagonalSpan = 0;
+
+  if (candidates.length > 0) {
+    // 找出所有候选回路中的最大对角线跨度
+    let maxSpan = 0;
+    for (const c of candidates) {
+      if (c.diagonalSpan > maxSpan) maxSpan = c.diagonalSpan;
+    }
+
+    // 只保留空间跨度在最大跨度 85% 以上的回路（保证为主赛道而非内部/外部的局部小圈、支路、P房线）
+    const mainTrackCandidates = candidates.filter(c => c.diagonalSpan >= 0.85 * maxSpan);
+
+    if (mainTrackCandidates.length > 0) {
+      // 在主赛道回路中，寻找长度最短（即单圈而非多圈合并）的那个回路
+      let best = null;
+      let minLen = Infinity;
+      let bestDist = Infinity;
+      for (const c of mainTrackCandidates) {
+        if (c.len < minLen) {
+          minLen = c.len;
+          bestDist = c.dist;
+          best = c;
+        } else if (c.len === minLen && c.dist < bestDist) {
+          bestDist = c.dist;
+          best = c;
+        }
+      }
+      if (best) {
+        bestI = best.i;
+        bestJ = best.j;
+        minClosureDist = best.dist;
+        diagonalSpan = best.diagonalSpan;
       }
     }
   }
@@ -544,9 +590,39 @@ export function buildTrackFromTrajectories(trajectories) {
   let mergedCenterline = [];
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
 
-  for (const sp of skeleton) {
+  // 预先计算骨架点切向的法线向量与航向角，避免因撞墙/打转导致 sp.yaw 异常，使路面宽度投影完全平滑
+  const skeletonNormals = [];
+  const skeletonYaws = [];
+  for (let idx = 0; idx < skeleton.length; idx++) {
+    let nx = 0, nz = 1;
+    let yaw = skeleton[idx].yaw || 0;
+    if (idx < skeleton.length - 1) {
+      const dx = skeleton[idx + 1].x - skeleton[idx].x;
+      const dz = skeleton[idx + 1].z - skeleton[idx].z;
+      const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+      nx = -dz / len;
+      nz = dx / len;
+      yaw = Math.atan2(dz, dx);
+    } else if (idx > 0) {
+      const dx = skeleton[idx].x - skeleton[idx - 1].x;
+      const dz = skeleton[idx].z - skeleton[idx - 1].z;
+      const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+      nx = -dz / len;
+      nz = dx / len;
+      yaw = Math.atan2(dz, dx);
+    }
+    skeletonNormals.push({ nx, nz });
+    skeletonYaws.push(yaw);
+  }
+
+  for (let spIdx = 0; spIdx < skeleton.length; spIdx++) {
+    const sp = skeleton[spIdx];
+    const norm = skeletonNormals[spIdx];
+    const spYaw = skeletonYaws[spIdx];
+
+    // 恢复原始坐标平均法（更稳定）
     let sumX = sp.x, sumY = sp.y || 0, sumZ = sp.z;
-    let sumSin = Math.sin(sp.yaw || 0), sumCos = Math.cos(sp.yaw || 0);
+    let sumSin = Math.sin(spYaw), sumCos = Math.cos(spYaw);
     let sumDL = sp.drivingLine || 0, sumSpeed = sp.speed || 0, sumBrake = sp.brake || 0, sumGear = sp.gear || 0;
     let sumRoll = sp.roll || 0;
     let sumPitch = sp.pitch || 0;
@@ -562,7 +638,7 @@ export function buildTrackFromTrajectories(trajectories) {
       let bestDist = 10.0;
       for (const p of traj) {
         let dist = Math.sqrt((p.x - sp.x)**2 + (p.z - sp.z)**2);
-        if (dist < bestDist && Math.cos((sp.yaw || 0) - (p.yaw || 0)) > 0.5) {
+        if (dist < bestDist && Math.cos(spYaw - (p.yaw || 0)) > 0.5) {
           bestDist = dist;
           bestPoint = p;
         }
@@ -587,25 +663,29 @@ export function buildTrackFromTrajectories(trajectories) {
     minX = Math.min(minX, ax); maxX = Math.max(maxX, ax);
     minZ = Math.min(minZ, az); maxZ = Math.max(maxZ, az);
     
-    // Calculate lateral width
-    let widthLeft = 1.0; // minimum 1m half-width
-    let widthRight = 1.0;
-    
-    // Second pass to calculate variance (or we can just use the points we found)
-    // To be precise without storing all bestPoints, we could do it in one pass if we tracked min/max projections, but since we didn't, let's just do a quick re-scan for boundaries
+    // 宽度计算：MAD + P90（保留此改进）
+    const lateralOffsets = [];
     for (const traj of correctedTrajectories) {
       for (const p of traj) {
         let dx = p.x - ax;
         let dz = p.z - az;
         let distSq = dx*dx + dz*dz;
-        if (distSq < 100) { // within 10m radius
-           // Project onto normal vector. Normal vector is (-cos(yaw), sin(yaw)) assuming X is east, Z is north
-           // Depending on Forza coords, lateral projection is dot product with normal
-           let lateral = dx * Math.cos(sp.yaw || 0) - dz * Math.sin(sp.yaw || 0);
-           if (lateral > widthLeft) widthLeft = lateral;
-           if (-lateral > widthRight) widthRight = -lateral;
+        if (distSq < 100) {
+           let lateral = dx * norm.nx + dz * norm.nz;
+           lateralOffsets.push(lateral);
         }
       }
+    }
+
+    let halfWidth = 6.0;
+    if (lateralOffsets.length > 0) {
+      const sorted = [...lateralOffsets].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const devs = lateralOffsets.map(l => Math.abs(l - median)).sort((a, b) => a - b);
+      const mad = devs[Math.floor(devs.length / 2)];
+      const p90 = devs[Math.floor(devs.length * 0.9)] || 0;
+      halfWidth = Math.min(Math.max(mad * 2.5, p90), 12.0);
+      halfWidth = Math.max(halfWidth, 6.0);
     }
 
     mergedCenterline.push({
@@ -620,17 +700,25 @@ export function buildTrackFromTrajectories(trajectories) {
       suspRL: sumSuspRL / count,
       suspRR: sumSuspRR / count,
       gLat: sumGLat / count,
-      widthLeft: Math.min(widthLeft, 12.0), // cap at 12m
-      widthRight: Math.min(widthRight, 12.0),
+      widthLeft: halfWidth,
+      widthRight: halfWidth,
       confidence: Math.min(count / trajectories.length, 1)
     });
   }
 
+  // 宽度毛刺消除：中值滤波后处理
+  medianFilterWidths(mergedCenterline, 5);
+  filterKinks(mergedCenterline, 35);
+
   const centerline = smoothCenterline(mergedCenterline, 5);
   const turns = detectTurnsEnhanced(centerline);
+  
+  // 弯道几何重建：用圆弧拟合弯道，消除走线影响
+  const reconstructedCenterline = reconstructTrackGeometry(centerline, turns);
+  
   let length = 0;
-  for (let i = 1; i < centerline.length; i++) {
-    length += Math.sqrt((centerline[i].x - centerline[i-1].x)**2 + (centerline[i].z - centerline[i-1].z)**2);
+  for (let i = 1; i < reconstructedCenterline.length; i++) {
+    length += Math.sqrt((reconstructedCenterline[i].x - reconstructedCenterline[i-1].x)**2 + (reconstructedCenterline[i].z - reconstructedCenterline[i-1].z)**2);
   }
 
   // 收集校准后轨迹的所有点，传入以统计推荐数据和直道信息
@@ -640,13 +728,13 @@ export function buildTrackFromTrajectories(trajectories) {
   });
 
   return {
-    centerline,
+    centerline: reconstructedCenterline,
     turns,
     length: Math.round(length),
-    pointCount: centerline.length,
+    pointCount: reconstructedCenterline.length,
     trajectoryCount: trajectories.length,
     bounds: { minX, maxX, minZ, maxZ },
-    routeBook: buildRouteBook(centerline, turns, allPoints),
+    routeBook: buildRouteBook(reconstructedCenterline, turns, allPoints),
     dataSourceCount: trajectories.length
   };
 }
@@ -688,7 +776,12 @@ export function smoothCenterline(centerline, iterations = 5) {
       const x = p0.x * f0 + p1.x * f1 + p2.x * f2 + p3.x * f3;
       const z = p0.z * f0 + p1.z * f1 + p2.z * f2 + p3.z * f3;
       
-      const yaw = p1.yaw * (1 - t) + p2.yaw * t;
+      // ====== P1 改动：yaw 角度插值修正（处理 359°→1° wrap-around） ======
+      let yaw1 = p1.yaw || 0, yaw2 = p2.yaw || 0;
+      let yawDiff = yaw2 - yaw1;
+      while (yawDiff > Math.PI) yawDiff -= 2 * Math.PI;
+      while (yawDiff < -Math.PI) yawDiff += 2 * Math.PI;
+      const yaw = yaw1 + yawDiff * t;
       const speed = p1.speed * (1 - t) + p2.speed * t;
       const roll = (p1.roll || 0) * (1 - t) + (p2.roll || 0) * t;
       const pitch = (p1.pitch || 0) * (1 - t) + (p2.pitch || 0) * t;
@@ -708,11 +801,38 @@ export function smoothCenterline(centerline, iterations = 5) {
   pts.push(centerline[centerline.length - 2]);
   pts.push(centerline[centerline.length - 1]);
   
-  // Light Gaussian smoothing to remove micro-jitter
-  for (let iter = 0; iter < 2; iter++) {
-    for (let i = 1; i < pts.length - 1; i++) {
-      pts[i].x = pts[i-1].x * 0.25 + pts[i].x * 0.5 + pts[i+1].x * 0.25;
-      pts[i].z = pts[i-1].z * 0.25 + pts[i].z * 0.5 + pts[i+1].z * 0.25;
+  // ====== P0 改动：曲率感知高斯平滑（弯道弱平滑，直道强平滑） ======
+  // 先计算初始曲率（用于自适应平滑）
+  for (let i = 1; i < pts.length - 1; i++) {
+    const dx = (pts[i + 1].x - pts[i - 1].x) / 2.0;
+    const dz = (pts[i + 1].z - pts[i - 1].z) / 2.0;
+    const ddx = pts[i + 1].x - 2 * pts[i].x + pts[i - 1].x;
+    const ddz = pts[i + 1].z - 2 * pts[i].z + pts[i - 1].z;
+    const denom = Math.pow(dx * dx + dz * dz, 1.5);
+    const cross = dz * ddx - dx * ddz;
+    pts[i].kappa = denom > 1e-6 ? cross / denom : 0;
+  }
+  pts[0].kappa = 0; pts[pts.length - 1].kappa = 0;
+
+  // 曲率感知高斯平滑：弯道弱平滑，直道强平滑
+  for (let iter = 0; iter < 3; iter++) {
+    for (let i = 2; i < pts.length - 2; i++) {
+      const absK = Math.abs(pts[i].kappa);
+      // 曲率越大，平滑越弱（直道 κ≈0 → 强平滑，弯道 κ 大 → 弱平滑）
+      const smoothingStrength = Math.max(0.1, 1.0 - absK * 100);
+
+      // 自适应窗口：直道用5点窗口，弯道用3点窗口
+      const windowSize = absK < 0.01 ? 2 : 1;
+
+      let sumX = pts[i].x, sumZ = pts[i].z, weight = 1.0;
+      for (let j = 1; j <= windowSize; j++) {
+        const w = Math.exp(-0.5 * (j / (windowSize * 0.7)) ** 2) * smoothingStrength;
+        sumX += (pts[i - j].x + pts[i + j].x) * w * 0.5;
+        sumZ += (pts[i - j].z + pts[i + j].z) * w * 0.5;
+        weight += w;
+      }
+      pts[i].x = sumX / weight;
+      pts[i].z = sumZ / weight;
     }
   }
   
@@ -1036,25 +1156,33 @@ export function detectTurnsEnhanced(centerline) {
               }
             }
 
-            // Rally Pace Note Classification (with angleDiff weighting)
+            // 标准拉力路书分级：统一 1-6 等级（发卡=1，不再单独标记）
             let severity = "";
+            let type = "micro";
             let equivRadius = minRadius;
             if (angleDiff < 20.0) {
-              equivRadius = minRadius * 2.0; // High speed slight drift, lower severity
+              equivRadius = minRadius * 2.0;
             } else if (angleDiff < 35.0) {
-              equivRadius = minRadius * 1.4; // Minor bend, slightly lower severity
+              equivRadius = minRadius * 1.4;
             } else if (angleDiff > 120.0) {
-              equivRadius = minRadius * 0.6; // Large hairpin/hairpin-like, higher severity
+              equivRadius = minRadius * 0.6;
             }
 
-            if (equivRadius <= 25) severity = "发卡弯";
-            else if (equivRadius <= 45) severity = "2";
-            else if (equivRadius <= 75) severity = "3";
-            else if (equivRadius <= 110) severity = "4";
-            else if (equivRadius <= 150) severity = "5";
-            else severity = "6";
+            if (equivRadius <= 35) {
+              severity = "1"; type = "hairpin";
+            } else if (equivRadius <= 55) {
+              severity = "2"; type = "sharp";
+            } else if (equivRadius <= 85) {
+              severity = "3"; type = "medium";
+            } else if (equivRadius <= 125) {
+              severity = "4"; type = "gentle";
+            } else if (equivRadius <= 180) {
+              severity = "5"; type = "slight";
+            } else {
+              severity = "6"; type = "micro";
+            }
             
-            let dirStr = turnDirection > 0 ? "右" : "左";
+            let dirStr = turnDirection > 0 ? "右" : "left" === "left" ? "左" : "右"; // 保证跟原来note拼接相同
             let note = `${dirStr}${severity}`;
             
             let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
@@ -1079,7 +1207,7 @@ export function detectTurnsEnhanced(centerline) {
               radius: Math.round(minRadius),
               angle: angleDiff,
               severity: severity,
-              type: severity,
+              type: type,
               turnCategory: note,
               direction: turnDirection > 0 ? "right" : "left",
               camber: camberType,
@@ -1093,7 +1221,23 @@ export function detectTurnsEnhanced(centerline) {
     }
   }
 }
-return turns;
+
+  // S弯 (Chicane) 组合识别：相邻反向且物理间距很近的弯道标记为组合S弯
+  // 不再覆盖 severity，保持各自 1-6 等级
+  for (let i = 0; i < turns.length - 1; i++) {
+    const curr = turns[i];
+    const next = turns[i + 1];
+    
+    const gapIdx = next.startIdx - curr.endIdx;
+    const gapDist = gapIdx * 2.0;
+    
+    if (curr.direction !== next.direction && gapDist < 25.0) {
+      curr.isChicane = true;
+      next.isChicane = true;
+    }
+  }
+
+  return turns;
 }
 export function buildRouteBook(centerline, turns, allPoints) {
   if (!turns || turns.length === 0) return null;
@@ -1285,4 +1429,198 @@ export function buildRouteBook(centerline, turns, allPoints) {
   }
 
   return routeBook;
+}
+
+/**
+ * 最小二乘法圆弧拟合
+ * @param {Array} points - 点数组 [{x, z}, ...]
+ * @returns {Object|null} {cx, cz, radius} 或 null
+ */
+function fitArcToPoints(points) {
+  if (!points || points.length < 3) return null;
+  
+  const n = points.length;
+  let sumX = 0, sumZ = 0, sumX2 = 0, sumZ2 = 0, sumX3 = 0, sumZ3 = 0;
+  let sumXZ = 0, sumX2Z = 0, sumXZ2 = 0;
+  
+  for (const p of points) {
+    const x = p.x, z = p.z;
+    sumX += x; sumZ += z;
+    sumX2 += x * x; sumZ2 += z * z;
+    sumX3 += x * x * x; sumZ3 += z * z * z;
+    sumXZ += x * z;
+    sumX2Z += x * x * z;
+    sumXZ2 += x * z * z;
+  }
+  
+  const A = n * sumX2 - sumX * sumX;
+  const B = n * sumXZ - sumX * sumZ;
+  const C = n * sumX3 + n * sumXZ2 - (sumX2 + sumZ2) * sumX;
+  const D = n * sumXZ - sumX * sumZ;
+  const E = n * sumZ2 - sumZ * sumZ;
+  const F = n * sumX2Z + n * sumZ3 - (sumX2 + sumZ2) * sumZ;
+  
+  const det = A * E - B * D;
+  if (Math.abs(det) < 1e-10) return null;
+  
+  const cx = (C * E - F * B) / det;
+  const cz = (A * F - C * D) / det;
+  
+  let radius = 0;
+  for (const p of points) {
+    radius += Math.sqrt((p.x - cx) ** 2 + (p.z - cz) ** 2);
+  }
+  radius /= n;
+  
+  return { cx, cz, radius };
+}
+
+/**
+ * 弯道几何重建：用圆弧拟合弯道，直线拟合直道
+ * 解决走线导致的弯道形状失真问题
+ * @param {Array} centerline - 原始中心线
+ * @param {Array} turns - 检测到的弯道
+ * @returns {Array} 重建后的中心线
+ */
+function reconstructTrackGeometry(centerline, turns) {
+  if (!centerline || centerline.length < 10) return centerline;
+  if (!turns || turns.length === 0) return centerline;
+  
+  const result = [];
+  const turnSet = new Set();
+  
+  // 标记所有弯道段
+  for (const turn of turns) {
+    for (let i = turn.startIdx; i <= turn.endIdx; i++) {
+      turnSet.add(i);
+    }
+  }
+  
+  // 处理每个弯道段
+  for (const turn of turns) {
+    const start = turn.startIdx;
+    const end = turn.endIdx;
+    
+    // 收集弯道内的点
+    const turnPoints = [];
+    for (let i = start; i <= end; i++) {
+      turnPoints.push(centerline[i]);
+    }
+    
+    // 拟合圆弧（跳过角度 > 100° 的发卡弯，避免圆弧拟合失败导致路径交叉）
+    const arc = fitArcToPoints(turnPoints);
+    const turnAngle = turn.angle || 0;
+    
+    if (arc && arc.radius > 5 && arc.radius < 500 && turnAngle < 100) {
+      // 计算弯道的起始和结束角度
+      const startAngle = Math.atan2(turnPoints[0].z - arc.cz, turnPoints[0].x - arc.cx);
+      const endAngle = Math.atan2(turnPoints[turnPoints.length - 1].z - arc.cz, turnPoints[turnPoints.length - 1].x - arc.cx);
+      
+      // 计算角度差（考虑方向）
+      let angleDiff = endAngle - startAngle;
+      if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      
+      // 根据曲率符号确定方向
+      const direction = turn.direction || (angleDiff > 0 ? 1 : -1);
+      if (direction < 0 && angleDiff > 0) angleDiff -= 2 * Math.PI;
+      if (direction > 0 && angleDiff < 0) angleDiff += 2 * Math.PI;
+      
+      // 用圆弧重新生成点（保持原始点密度）
+      const numPoints = turnPoints.length;
+      for (let i = 0; i < numPoints; i++) {
+        const t = i / (numPoints - 1);
+        const angle = startAngle + angleDiff * t;
+        const x = arc.cx + arc.radius * Math.cos(angle);
+        const z = arc.cz + arc.radius * Math.sin(angle);
+        
+        // 保留原始点的其他属性
+        const orig = turnPoints[i];
+        result.push({
+          ...orig,
+          x, z,
+          yaw: angle + (direction > 0 ? Math.PI / 2 : -Math.PI / 2)
+        });
+      }
+    } else {
+      // 拟合失败，保留原始点
+      result.push(...turnPoints);
+    }
+  }
+  
+  // 处理直道段（弯道之间的部分）
+  if (result.length === 0) return centerline;
+  
+  // 重建完整的中心线（弯道用圆弧，直道用直线插值）
+  const finalCenterline = [];
+  let resultIdx = 0;
+  
+  for (let i = 0; i < centerline.length; i++) {
+    if (turnSet.has(i)) {
+      // 弯道点，从重建结果中取
+      if (resultIdx < result.length) {
+        finalCenterline.push(result[resultIdx++]);
+      }
+    } else {
+      // 直道点，保留原始但简化
+      finalCenterline.push(centerline[i]);
+    }
+  }
+  
+  return finalCenterline.length > 0 ? finalCenterline : centerline;
+}
+
+/**
+ * 宽度中值滤波：消除宽度序列中的毛刺/突变
+ * @param {Array} centerline - 中心线
+ * @param {number} kernelSize - 滤波窗口大小（奇数）
+ */
+function medianFilterWidths(centerline, kernelSize = 5) {
+  if (!centerline || centerline.length < kernelSize) return;
+  const half = Math.floor(kernelSize / 2);
+  
+  for (let iter = 0; iter < 2; iter++) {
+    for (let i = half; i < centerline.length - half; i++) {
+      const leftWindow = [];
+      const rightWindow = [];
+      for (let j = -half; j <= half; j++) {
+        leftWindow.push(centerline[i + j].widthLeft);
+        rightWindow.push(centerline[i + j].widthRight);
+      }
+      leftWindow.sort((a, b) => a - b);
+      rightWindow.sort((a, b) => a - b);
+      centerline[i].widthLeft = leftWindow[half];
+      centerline[i].widthRight = rightWindow[half];
+    }
+  }
+}
+
+/**
+ * 折角过滤器：检测并平滑中心线中的尖锐折角（车辆打滑/碰撞/UDP丢包导致）
+ * @param {Array} centerline - 中心线
+ * @param {number} angleThreshold - 角度阈值（度），超过则视为折角
+ */
+function filterKinks(centerline, angleThreshold = 35) {
+  if (!centerline || centerline.length < 5) return;
+
+  for (let iter = 0; iter < 3; iter++) {
+    for (let i = 2; i < centerline.length - 2; i++) {
+      const prev = centerline[i - 1];
+      const curr = centerline[i];
+      const next = centerline[i + 1];
+
+      const angle1 = Math.atan2(curr.z - prev.z, curr.x - prev.x);
+      const angle2 = Math.atan2(next.z - curr.z, next.x - curr.x);
+      let diff = Math.abs(angle2 - angle1) * 180 / Math.PI;
+      if (diff > 180) diff = 360 - diff;
+
+      if (diff > angleThreshold) {
+        // 用前后点的中点替代，平滑折角
+        const t = 0.5;
+        curr.x = prev.x * (1 - t) + next.x * t;
+        curr.z = prev.z * (1 - t) + next.z * t;
+        curr.yaw = Math.atan2(next.z - prev.z, next.x - prev.x);
+      }
+    }
+  }
 }
