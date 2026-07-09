@@ -182,12 +182,10 @@ export function TrackManagerPage({ onNavigate }) {
     setEditingTurnIndex(idx);
     
     // 换算 severity 默认值
-    let sev = turn.severity || turn.type || '';
-    if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
-    if (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(sev))) {
-      // 降级使用角度换算
+    let sev = turn.severity || '3';
+    if (!['1', '2', '3', '4', '5', '6'].includes(String(sev))) {
       const angle = turn.angle || 0;
-      if (angle > 120) sev = '发卡';
+      if (angle > 120) sev = '1';
       else if (angle > 90) sev = '2';
       else if (angle > 60) sev = '3';
       else if (angle > 40) sev = '4';
@@ -221,8 +219,8 @@ export function TrackManagerPage({ onNavigate }) {
       camber: editTurnForm.camber,
       crest: editTurnForm.crest,
       // 顺便把 turnCategory / type 更新为我们修改后的级别
-      turnCategory: editTurnForm.severity === '发卡' ? '发卡' : editTurnForm.severity + '级弯',
-      type: editTurnForm.severity === '发卡' ? 'hairpin' : 'normal'
+      turnCategory: editTurnForm.severity + '级弯',
+      type: 'normal'
     };
 
     try {
@@ -640,11 +638,36 @@ export function TrackManagerPage({ onNavigate }) {
       const wl2 = Math.max(p2.widthLeft || 0, 6.0);
       const wr2 = Math.max(p2.widthRight || 0, 6.0);
 
-      // 法线向量
-      const nx1 = -Math.cos(yaw1);
-      const nz1 = Math.sin(yaw1);
-      const nx2 = -Math.cos(yaw2);
-      const nz2 = Math.sin(yaw2);
+      // 根据赛道中心线切向计算法线方向（避免车头打转/撞墙导致边界多边形交叉和尖刺）
+      let nx1 = 0, nz1 = 0;
+      if (i < points.length - 1) {
+        const dx = points[i + 1].x - p1.x;
+        const dz = points[i + 1].z - p1.z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+        nx1 = -dz / len;
+        nz1 = dx / len;
+      } else {
+        const dx = p1.x - points[i - 1].x;
+        const dz = p1.z - points[i - 1].z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+        nx1 = -dz / len;
+        nz1 = dx / len;
+      }
+
+      let nx2 = 0, nz2 = 0;
+      if (i + 1 < points.length - 1) {
+        const dx = points[i + 2].x - p2.x;
+        const dz = points[i + 2].z - p2.z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+        nx2 = -dz / len;
+        nz2 = dx / len;
+      } else {
+        const dx = p2.x - points[i].x;
+        const dz = p2.z - points[i].z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
+        nx2 = -dz / len;
+        nz2 = dx / len;
+      }
 
       // 计算 P1 / P2 的左右边界坐标并转换为屏幕坐标
       const sL1 = toScreen({ x: p1.x + nx1 * wl1, z: p1.z + nz1 * wl1 });
@@ -714,7 +737,7 @@ export function TrackManagerPage({ onNavigate }) {
       let badgeColor = '#58a6ff'; // default blue
       const sev = turn.severity || turn.type || '';
       
-      if (sev.includes('发卡') || sev === 'critical') badgeColor = '#f85149'; // red for hairpin
+      if (sev === '1') badgeColor = '#f85149'; // red for tightest
       else if (['2', '3'].includes(String(sev))) badgeColor = '#f0883e'; // orange for sharp/medium
       else if (['4', '5', '6'].includes(String(sev))) badgeColor = '#3fb950'; // green for easy
       
@@ -740,7 +763,7 @@ export function TrackManagerPage({ onNavigate }) {
 
       // 缩放比例足够大时，或者当前选中编辑时，才在地图上画出文字标签以防过于拥挤
       if (transform.scale > 1.2 || isEditing) {
-        const text = (turn.direction === 'left' ? 'L' : 'R') + (sev.includes('发卡') ? '发卡' : sev);
+        const text = (turn.direction === 'left' ? 'L' : 'R') + sev;
         ctx.font = `bold ${Math.round(8 / transform.scale)}px monospace`;
         const textWidth = ctx.measureText(text).width;
         const paddingX = 4 / transform.scale;
@@ -1363,13 +1386,12 @@ export function TrackManagerPage({ onNavigate }) {
                           height: 24, cursor: 'pointer'
                         }}
                       >
-                        <option value="发卡">发卡弯</option>
-                        <option value="1">1级弯</option>
+                        <option value="1">1级弯（最急）</option>
                         <option value="2">2级弯</option>
                         <option value="3">3级弯</option>
                         <option value="4">4级弯</option>
                         <option value="5">5级弯</option>
-                        <option value="6">6级弯</option>
+                        <option value="6">6级弯（最缓）</option>
                       </select>
                     </div>
                   </div>
@@ -1481,10 +1503,9 @@ export function TrackManagerPage({ onNavigate }) {
                       <tbody>
                         {selectedTrackData.turns.map((turn, idx) => {
                           const isCurrentEditing = editingTurnIndex === idx;
-                          let sev = turn.severity || turn.type || '';
-                          if (sev === 'critical' || sev === 'hairpin') sev = '发卡';
+                          let sev = turn.severity || '3';
                           let severityColor = '#58a6ff';
-                          if (sev.includes('发卡')) severityColor = '#f85149';
+                          if (sev === '1') severityColor = '#f85149';
                           else if (['2', '3'].includes(String(sev))) severityColor = '#f0883e';
                           else if (['4', '5', '6'].includes(String(sev))) severityColor = '#3fb950';
 
@@ -1503,7 +1524,7 @@ export function TrackManagerPage({ onNavigate }) {
                             >
                               <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
                               <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9, fontWeight: 600 }}>
-                                {sev === '发卡' ? '发卡弯' : (sev + '级弯')}
+                                {sev + '级弯'}
                               </td>
                               <td style={{ padding: '6px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
                                 {turn.direction === 'left' ? '左' : '右'}

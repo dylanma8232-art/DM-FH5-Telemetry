@@ -1333,36 +1333,31 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
   
   if (!nextTurn) return;
   
-  // 速度自适应播报距离
+  // 速度自适应播报距离（提前播报，让车手有充足反应时间）
   const currentSpeed = nearestPoint.speed || 0;
-  let PRE_WARN_DIST, FINAL_WARN_DIST, EARLY_WARN_DIST;
+  let PRE_WARN_DIST, FINAL_WARN_DIST;
   
   if (currentSpeed > 150) {
-    // 高速模式
-    EARLY_WARN_DIST = 400;
-    PRE_WARN_DIST = 300;
-    FINAL_WARN_DIST = 120;
+    // 高速模式：提前 500m 预提醒，200m 最终提示
+    PRE_WARN_DIST = 500;
+    FINAL_WARN_DIST = 200;
   } else if (currentSpeed > 80) {
-    // 中速模式
+    // 中速模式：提前 350m 预提醒，150m 最终提示
+    PRE_WARN_DIST = 350;
+    FINAL_WARN_DIST = 150;
+  } else {
+    // 低速模式：提前 200m 预提醒，80m 最终提示
     PRE_WARN_DIST = 200;
     FINAL_WARN_DIST = 80;
-    EARLY_WARN_DIST = 0;
-  } else {
-    // 低速模式
-    PRE_WARN_DIST = 100;
-    FINAL_WARN_DIST = 40;
-    EARLY_WARN_DIST = 0;
   }
   
   const direction = nextTurn.direction === 'left' ? '左' : (nextTurn.direction === 'right' ? '右' : '');
   const angle = nextTurn.angle || 0;
   
-  let level = nextTurn.severity || nextTurn.type || '';
-  if (level === 'critical' || level === 'hairpin') level = '发卡';
-  if (String(level).includes('发卡')) level = '发卡';
+  let level = nextTurn.severity || '3';
   
-  if (!level || (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(level)))) {
-    if (angle > 120) level = '发卡';
+  if (!level || !['1', '2', '3', '4', '5', '6'].includes(String(level))) {
+    if (angle > 120) level = '1';
     else if (angle > 90) level = '2';
     else if (angle > 60) level = '3';
     else if (angle > 40) level = '4';
@@ -1408,13 +1403,11 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
 
       if (consecutiveTurn) {
         const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
-        let nextLevel = consecutiveTurn.severity || consecutiveTurn.type || '';
-        if (nextLevel === 'critical' || nextLevel === 'hairpin') nextLevel = '发卡';
-        if (String(nextLevel).includes('发卡')) nextLevel = '发卡';
+        let nextLevel = consecutiveTurn.severity || '3';
         
-        if (!nextLevel || (!['发卡', '1', '2', '3', '4', '5', '6'].includes(String(nextLevel)))) {
+        if (!nextLevel || !['1', '2', '3', '4', '5', '6'].includes(String(nextLevel))) {
           const nextAngle = consecutiveTurn.angle || 0;
-          if (nextAngle > 120) nextLevel = '发卡';
+          if (nextAngle > 120) nextLevel = '1';
           else if (nextAngle > 90) nextLevel = '2';
           else if (nextAngle > 60) nextLevel = '3';
           else if (nextAngle > 40) nextLevel = '4';

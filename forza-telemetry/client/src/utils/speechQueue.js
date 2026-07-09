@@ -47,8 +47,8 @@ class SpeechQueueManager {
     if (!window._activeUtterances) window._activeUtterances = new Set();
     window._activeUtterances.add(utterance);
 
-    // 竞速场景下语速调快一点 (默认 1.05，确保咬字极度清晰)
-    utterance.rate = options.rate || 1.05; 
+    // 竞速场景下语速适中，确保咬字清晰可辨 (默认 0.9，比正常略慢)
+    utterance.rate = options.rate || 0.9; 
     utterance.volume = options.volume || 1.0;
     utterance.pitch = options.pitch || 1.0;
 
