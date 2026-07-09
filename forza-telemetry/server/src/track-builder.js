@@ -28,9 +28,11 @@ function detectLoopAndExtractSingleLap(positions) {
     
     // 找到这一圈的开始位置（上一个变更点或起点）
     const startIdx = targetIdx > 0 ? lapChanges[targetIdx - 1].idx : 0;
-    const singleLap = positions.slice(startIdx, change.idx);
+    let singleLap = positions.slice(startIdx, change.idx);
     
     if (singleLap.length >= 50) {
+      // 环道缝合：将首尾两端平滑连接，抹平起跑线处的物理裂口
+      singleLap = stitchLoopTrajectory(singleLap);
       console.log(`[环道检测] 使用lapNum变更点: 圈${change.fromLap}→${change.toLap}在点${change.idx}, 单圈${singleLap.length}点 (从点${startIdx}到${change.idx})`);
       return {
         isLoop: true,
@@ -42,6 +44,59 @@ function detectLoopAndExtractSingleLap(positions) {
   
   // 没有lapNum变更，说明是点对点赛道（只跑了一圈或没跑完）
   return { isLoop: false, singleLap: positions, method: 'none' };
+}
+
+/**
+ * 环道缝合：将环形轨迹的首尾两端平滑连接，抹平起跑线处的物理裂口
+ * @param {Array} traj 轨迹点数组
+ * @returns {Array} 缝合后的轨迹
+ */
+function stitchLoopTrajectory(traj) {
+  if (!traj || traj.length < 50) return traj;
+  
+  const pStart = traj[0];
+  const pEnd = traj[traj.length - 1];
+  const dx = pStart.x - pEnd.x;
+  const dz = pStart.z - pEnd.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  
+  // 如果断口在 5米到 200米之间，进行渐进式平滑缝合
+  if (dist > 5 && dist < 200) {
+    // 选取最后 15% 的点（至少20个点，最多100个点）用于过渡缝合
+    const stitchCount = Math.max(20, Math.min(100, Math.floor(traj.length * 0.15)));
+    const startStitchIdx = traj.length - stitchCount;
+    
+    console.log(`[环道缝合] 缝合断口距离: ${dist.toFixed(2)}米, 过渡点数: ${stitchCount}`);
+    
+    // 对所有的坐标和属性进行线性渐进偏置
+    for (let i = 0; i < stitchCount; i++) {
+      const idx = startStitchIdx + i;
+      const ratio = (i + 1) / stitchCount; // 渐变系数：0 -> 1
+      
+      traj[idx].x += dx * ratio;
+      traj[idx].z += dz * ratio;
+      if (traj[idx].y !== undefined && pStart.y !== undefined) {
+        traj[idx].y += (pStart.y - traj[idx].y) * ratio;
+      }
+      
+      // 平滑过度 yaw 方向角
+      let startYaw = pStart.yaw || 0;
+      let currYaw = traj[idx].yaw || 0;
+      let yawDiff = startYaw - currYaw;
+      while (yawDiff > Math.PI) yawDiff -= 2 * Math.PI;
+      while (yawDiff < -Math.PI) yawDiff += 2 * Math.PI;
+      
+      traj[idx].yaw = currYaw + yawDiff * ratio;
+    }
+    
+    // 强制最后一点完全等同于起点
+    traj[traj.length - 1].x = pStart.x;
+    traj[traj.length - 1].z = pStart.z;
+    if (pStart.y !== undefined) traj[traj.length - 1].y = pStart.y;
+    traj[traj.length - 1].yaw = pStart.yaw;
+  }
+  
+  return traj;
 }
 
 /**
