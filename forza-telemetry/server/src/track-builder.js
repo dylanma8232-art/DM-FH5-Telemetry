@@ -142,13 +142,52 @@ function detectCurvaturePeriodicity(positions) {
 
 /**
  * 组合方案F+D：检测环道并提取单圈
- * 先用方案F快速找闭合点，再用方案D验证
+ * 优先使用游戏提供的lapNum分组，降级使用几何算法
  * @param {Array} positions - 轨迹点数组
  * @returns {Object} { isLoop: boolean, singleLap: Array, method: string }
  */
 function detectLoopAndExtractSingleLap(positions) {
   if (!positions || positions.length < 100) {
     return { isLoop: false, singleLap: positions, method: 'none' };
+  }
+  
+  // ★ 优先方案：使用游戏提供的lapNum分组提取单圈
+  const lapGroups = {};
+  for (const p of positions) {
+    const ln = p.lapNum || 0;
+    if (!lapGroups[ln]) lapGroups[ln] = [];
+    lapGroups[ln].push(p);
+  }
+  const lapNums = Object.keys(lapGroups).map(Number).sort((a, b) => a - b);
+  
+  // 如果有多个圈（lapNum > 0），直接用lapNum提取单圈
+  if (lapNums.length >= 2) {
+    // 选择中间的圈（避免第一圈的引入线和最后一圈的偏离段）
+    // 如果只有2圈，选第2圈；如果3圈以上，选中间的圈
+    const targetIdx = Math.min(Math.floor(lapNums.length / 2), lapNums.length - 1);
+    const targetLap = lapNums[targetIdx];
+    const singleLap = lapGroups[targetLap];
+    
+    if (singleLap && singleLap.length >= 50) {
+      console.log(`[环道检测] 使用lapNum分组: 圈${targetLap}/${lapNums.length}圈, ${singleLap.length}点`);
+      return {
+        isLoop: true,
+        singleLap: singleLap,
+        method: 'lapNum'
+      };
+    }
+  }
+  
+  // 如果只有1圈（lapNum全是0），检查是否是点对点赛道
+  if (lapNums.length === 1 && lapNums[0] === 0) {
+    // 检查起点终点距离，如果>500米，判定为点对点赛道
+    const origin = positions[0];
+    const end = positions[positions.length - 1];
+    const endDist = Math.sqrt((end.x - origin.x) ** 2 + (end.z - origin.z) ** 2);
+    if (endDist > 500) {
+      console.log(`[环道检测] 点对点赛道（起点终点距离${endDist.toFixed(0)}米），跳过环道检测`);
+      return { isLoop: false, singleLap: positions, method: 'none' };
+    }
   }
   
   // 1. 全局搜寻所有满足闭合距离与切角一致性的回路候选
