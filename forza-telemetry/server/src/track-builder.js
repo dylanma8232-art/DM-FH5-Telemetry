@@ -273,7 +273,8 @@ function computeDTWPath(ref, target, windowSize = 200) {
   return mapping;
 }
 
-export function buildTrackFromTrajectories(trajectories) {
+export function buildTrackFromTrajectories(trajectories, options = {}) {
+  const { oldTurns = [], isPaceNoteLocked = false, deletedTurns = [] } = options;
   if (!trajectories || trajectories.length === 0) return null;
 
   // ★ 环道检测：对每条轨迹检测是否为环道，如果是则只取单圈
@@ -519,9 +520,44 @@ export function buildTrackFromTrajectories(trajectories) {
   // ★ 环道闭合修复：检测起跑线区域的自交叉并截断尾巴（会改变中心线长度）
   reconstructedCenterline = fixLoopClosure(reconstructedCenterline);
 
-  // ★ 在最终中心线上重新检测弯道，确保 startIdx/endIdx/index 与 reconstructedCenterline 完全对齐
-  const turns = detectTurnsEnhanced(reconstructedCenterline);
+  // ★ 弯道重建：结合旧有的路书锚点与黑名单
+  const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
+  let turns = [];
 
+  if (isPaceNoteLocked) {
+    // 全局锁定，只映射旧弯道，不进行新弯道检测
+    turns = mapOldTurnsToNewCenterline(oldTurns, reconstructedCenterline);
+  } else {
+    // 局部锁定，先找出新弯道，然后用黑名单过滤，再用保留的旧弯道覆盖
+    let rawTurns = detectTurnsEnhanced(reconstructedCenterline);
+    
+    // 黑名单过滤
+    if (deletedTurns && deletedTurns.length > 0) {
+      rawTurns = rawTurns.filter(t => {
+        return !deletedTurns.some(delT => getDist2D(t, delT) < 30);
+      });
+    }
+    
+    // 映射被锁定的旧弯道
+    const lockedOldTurns = oldTurns.filter(t => t.isLockedByUser);
+    if (lockedOldTurns.length > 0) {
+      const mappedLockedTurns = mapOldTurnsToNewCenterline(lockedOldTurns, reconstructedCenterline);
+      
+      // 合并逻辑：如果新检测出的弯道与任何 lockedOldTurn 距离 < 30米，则剔除该新弯道
+      rawTurns = rawTurns.filter(newT => {
+        return !mappedLockedTurns.some(lockedT => getDist2D(newT, lockedT) < 30);
+      });
+      
+      turns = [...rawTurns, ...mappedLockedTurns];
+      // 重新排序
+      turns.sort((a, b) => a.index - b.index);
+    } else {
+      turns = rawTurns;
+    }
+  }
+  
+  // 重新分配 ID
+  turns.forEach((t, i) => t.id = 'T' + (i + 1));
 
   let length = 0;
   for (let i = 1; i < reconstructedCenterline.length; i++) {
@@ -886,141 +922,17 @@ export function detectTurnsEnhanced(centerline) {
         if (confirmExit) {
           let lengthPts = i - turnStartIdx;
           if (lengthPts > 4) { // Only count turns of significant length
-            let midIdx = Math.floor((turnStartIdx + i) / 2);
-            let pt = centerline[midIdx];
-          
-          let yawStart = centerline[turnStartIdx].yaw || 0;
-          let yawEnd = centerline[i].yaw || 0;
-          let angleDiff = Math.abs(yawEnd - yawStart) * 180 / Math.PI;
-          if (angleDiff > 180) angleDiff = 360 - angleDiff;
-          
-          // 过滤掉小于8度（如直道上的微调、超车避让等）的微小转角，防止路书误判
-          if (angleDiff >= 8.0) {
-            // 离心侧倾侧向力补偿计算 (camber)
-            let totalCompRoll = 0;
-            let ptsCount = 0;
-            let hasRollData = false;
-            for (let idx = turnStartIdx; idx <= i; idx++) {
-              const p = centerline[idx];
-              if (!p) continue;
-              if (p.roll !== undefined && p.roll !== null) hasRollData = true;
-              const rollVal = p.roll || 0;
-              const rollDeg = rollVal * 180 / Math.PI;
-              const latG = p.gLat || (p.acceleration ? (p.acceleration.x || 0) : 0); // 使用 p.gLat 字段
-              const compRoll = rollDeg - (1.5 * latG); // 侧向G力补偿：1.5度/G
-              totalCompRoll += compRoll;
-              ptsCount++;
+            const turnObj = calculateTurnAttributes(centerline, turnStartIdx, i, 'T' + turnCount);
+            if (turnObj) {
+              turns.push(turnObj);
+              turnCount++;
             }
-            const avgCompRoll = ptsCount > 0 ? totalCompRoll / ptsCount : 0;
-            
-            let camberType = null;
-            if (hasRollData) {
-              if (turnDirection > 0) { // 右弯
-                if (avgCompRoll > 4.5) camberType = 'banking';
-                else if (avgCompRoll < -4.5) camberType = 'off-camber';
-              } else { // 左弯
-                if (avgCompRoll < -4.5) camberType = 'banking';
-                else if (avgCompRoll > 4.5) camberType = 'off-camber';
-              }
-            }
-
-            // 盲坡与飞跳检测 (crest/jump)
-            const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
-            let maxSlopeDrop = 0;
-            let maxSlopeDropIdx = -1;
-            for (let j = Math.max(4, turnStartIdx - 15); j <= Math.min(centerline.length - 5, turnStartIdx + 5); j++) {
-              const pPrev = centerline[j-4];
-              const pCurr = centerline[j];
-              const pNext = centerline[j+4];
-              const slope1 = (pCurr.y - pPrev.y) / (getDist2D(pPrev, pCurr) || 1.0);
-              const slope2 = (pNext.y - pCurr.y) / (getDist2D(pCurr, pNext) || 1.0);
-              const slopeDrop = slope1 - slope2;
-              if (slopeDrop > maxSlopeDrop) {
-                maxSlopeDrop = slopeDrop;
-                maxSlopeDropIdx = j;
-              }
-            }
-            
-            let crestType = null;
-            if (maxSlopeDrop > 0.04) { // 坡度变化大于 4%
-              // 检测通过坡顶时的平均悬挂伸展
-              let totalSusp = 0;
-              let suspCount = 0;
-              for (let idx = Math.max(0, maxSlopeDropIdx - 2); idx <= Math.min(centerline.length - 1, maxSlopeDropIdx + 4); idx++) {
-                const p = centerline[idx];
-                if (p) {
-                  const FL = p.suspFL !== undefined ? p.suspFL : (p.suspension ? (p.suspension.frontLeft || 0.5) : 0.5);
-                  const FR = p.suspFR !== undefined ? p.suspFR : (p.suspension ? (p.suspension.frontRight || 0.5) : 0.5);
-                  const RL = p.suspRL !== undefined ? p.suspRL : (p.suspension ? (p.suspension.rearLeft || 0.5) : 0.5);
-                  const RR = p.suspRR !== undefined ? p.suspRR : (p.suspension ? (p.suspension.rearRight || 0.5) : 0.5);
-                  totalSusp += (FL + FR + RL + RR) / 4.0;
-                  suspCount++;
-                }
-              }
-              const avgSusp = suspCount > 0 ? totalSusp / suspCount : 0.5;
-              if (avgSusp > 0.85) { // 悬挂拉伸度超过85%说明严重失重/离地
-                crestType = 'jump';
-              } else {
-                crestType = 'crest';
-              }
-            }
-
-            // 标准拉力路书分级：统一 1-6 等级（基于绝对偏转角度）
-            let severity = "";
-            let type = "micro";
-            if (angleDiff >= 130.0) {
-              severity = "1"; type = "hairpin";
-            } else if (angleDiff >= 90.0) {
-              severity = "2"; type = "sharp";
-            } else if (angleDiff >= 60.0) {
-              severity = "3"; type = "medium";
-            } else if (angleDiff >= 40.0) {
-              severity = "4"; type = "gentle";
-            } else if (angleDiff >= 20.0) {
-              severity = "5"; type = "slight";
-            } else {
-              severity = "6"; type = "micro";
-            }
-            
-            let dirStr = turnDirection > 0 ? "右" : "left" === "left" ? "左" : "右"; // 保证跟原来note拼接相同
-            let note = `${dirStr}${severity}`;
-            
-            let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
-            
-            turns.push({
-              id: 'T' + turnCount,
-              name: note,
-              index: midIdx,
-              x: pt.x,
-              y: pt.y,
-              z: pt.z,
-              startX: centerline[turnStartIdx].x,
-              startZ: centerline[turnStartIdx].z,
-              endX: centerline[i].x,
-              endZ: centerline[i].z,
-              suggestedBrakePoint: brakePointIdx,
-              brakePointX: centerline[brakePointIdx].x,
-              brakePointZ: centerline[brakePointIdx].z,
-              startIdx: turnStartIdx,
-              endIdx: i,
-              apexRadius: Math.round(minRadius),
-              radius: Math.round(minRadius),
-              angle: angleDiff,
-              severity: severity,
-              type: type,
-              turnCategory: note,
-              direction: turnDirection > 0 ? "right" : "left",
-              camber: camberType,
-              crest: crestType
-            });
-            turnCount++;
           }
         }
         inTurn = false;
       }
     }
   }
-}
 
   // S弯 (Chicane) 组合识别：相邻反向且物理间距很近的弯道标记为组合S弯
   // 不再覆盖 severity，保持各自 1-6 等级
@@ -1155,6 +1067,26 @@ export function buildRouteBook(centerline, turns, allPoints) {
       ? Math.round(stats.gearDrops.reduce((a, b) => a + b, 0) / stats.gearDrops.length)
       : turn.suggestedGearDrop;
 
+    // 计算物理直道距离 (distanceToNext)
+    let distanceToNext = 0;
+    if (i < turns.length - 1) {
+      const nextTurn = turns[i+1];
+      for (let j = turn.endIdx; j < nextTurn.startIdx && j < centerline.length - 1; j++) {
+        distanceToNext += Math.sqrt((centerline[j+1].x - centerline[j].x)**2 + (centerline[j+1].z - centerline[j].z)**2);
+      }
+    }
+
+    // 检查路面材质 (弯道内)
+    let maxTurnPuddle = 0;
+    let maxTurnRumble = 0;
+    for (let j = turn.startIdx; j <= turn.endIdx && j < centerline.length; j++) {
+      if (centerline[j].puddle > maxTurnPuddle) maxTurnPuddle = centerline[j].puddle;
+      if (centerline[j].surfaceRumble > maxTurnRumble) maxTurnRumble = centerline[j].surfaceRumble;
+    }
+    let surface = 'tarmac';
+    if (maxTurnPuddle > 0.05) surface = 'water';
+    else if (maxTurnRumble > 0.5) surface = 'gravel';
+
     routeBook.turns.push({
       index: i,
       type: turn.type,
@@ -1164,10 +1096,12 @@ export function buildRouteBook(centerline, turns, allPoints) {
       severity: turn.severity,
       camber: turn.camber,
       crest: turn.crest,
+      surface: surface,
       entrySpeed: stableEntrySpeed,
       apexSpeed: stableApexSpeed,
       exitSpeed: stableExitSpeed,
       straightMaxSpeed: turn.straightMaxSpeed,
+      distanceToNext: Math.round(distanceToNext),
       brakePoint: {
         x: centerline[avgBrakeIdx] ? centerline[avgBrakeIdx].x : turn.brakePointX,
         z: centerline[avgBrakeIdx] ? centerline[avgBrakeIdx].z : turn.brakePointZ,
@@ -1216,12 +1150,25 @@ export function buildRouteBook(centerline, turns, allPoints) {
 
     // 只记录长度>50米的直道
     if (segLength > 50) {
+      // 检查路面材质
+      let maxPuddle = 0;
+      let maxRumble = 0;
+      for (let j = segmentStart; j <= segmentEnd && j < centerline.length; j++) {
+        if (centerline[j].puddle > maxPuddle) maxPuddle = centerline[j].puddle;
+        if (centerline[j].surfaceRumble > maxRumble) maxRumble = centerline[j].surfaceRumble;
+      }
+      
+      let surface = 'tarmac';
+      if (maxPuddle > 0.05) surface = 'water';
+      else if (maxRumble > 0.5) surface = 'gravel';
+
       routeBook.straights.push({
         index: i,
         startIndex: segmentStart,
         endIndex: segmentEnd,
         length: Math.round(segLength),
         maxSpeed: Math.round(segMaxSpeed),
+        surface: surface,
         afterTurn: i > 0 ? i - 1 : -1,
         beforeTurn: i < turns.length ? i : -1
       });
@@ -1423,4 +1370,187 @@ function filterKinks(centerline, angleThreshold = 35) {
       }
     }
   }
+}
+export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, idStr = 'T0') {
+  if (turnStartIdx >= turnEndIdx || !centerline[turnStartIdx] || !centerline[turnEndIdx]) return null;
+
+  let minRadius = 10000;
+  let turnDirection = 0;
+  let apexIdx = turnStartIdx;
+  
+  for (let i = turnStartIdx; i <= turnEndIdx; i++) {
+    let r = centerline[i].radius;
+    if (r < minRadius) {
+      minRadius = r;
+      turnDirection = -Math.sign(centerline[i].kappa);
+      apexIdx = i;
+    }
+  }
+  
+  let pt = centerline[apexIdx];
+  let yawStart = centerline[turnStartIdx].yaw || 0;
+  let yawEnd = centerline[turnEndIdx].yaw || 0;
+  let angleDiff = Math.abs(yawEnd - yawStart) * 180 / Math.PI;
+  if (angleDiff > 180) angleDiff = 360 - angleDiff;
+  
+  // 离心侧倾侧向力补偿计算 (camber)
+  let totalCompRoll = 0;
+  let ptsCount = 0;
+  let hasRollData = false;
+  for (let idx = turnStartIdx; idx <= turnEndIdx; idx++) {
+    const p = centerline[idx];
+    if (!p) continue;
+    if (p.roll !== undefined && p.roll !== null) hasRollData = true;
+    const rollVal = p.roll || 0;
+    const rollDeg = rollVal * 180 / Math.PI;
+    const latG = p.gLat || (p.acceleration ? (p.acceleration.x || 0) : 0);
+    const compRoll = rollDeg - (1.5 * latG); // 侧向G力补偿：1.5度/G
+    totalCompRoll += compRoll;
+    ptsCount++;
+  }
+  const avgCompRoll = ptsCount > 0 ? totalCompRoll / ptsCount : 0;
+  
+  let camberType = null;
+  if (hasRollData) {
+    if (turnDirection > 0) { // 右弯
+      if (avgCompRoll > 4.5) camberType = 'banking';
+      else if (avgCompRoll < -4.5) camberType = 'off-camber';
+    } else { // 左弯
+      if (avgCompRoll < -4.5) camberType = 'banking';
+      else if (avgCompRoll > 4.5) camberType = 'off-camber';
+    }
+  }
+
+  // 盲坡与飞跳检测 (crest/jump)
+  const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
+  let maxSlopeDrop = 0;
+  let maxSlopeDropIdx = -1;
+  for (let j = Math.max(4, turnStartIdx - 15); j <= Math.min(centerline.length - 5, turnStartIdx + 5); j++) {
+    const pPrev = centerline[j-4];
+    const pCurr = centerline[j];
+    const pNext = centerline[j+4];
+    const slope1 = (pCurr.y - pPrev.y) / (getDist2D(pPrev, pCurr) || 1.0);
+    const slope2 = (pNext.y - pCurr.y) / (getDist2D(pCurr, pNext) || 1.0);
+    const slopeDrop = slope1 - slope2;
+    if (slopeDrop > maxSlopeDrop) {
+      maxSlopeDrop = slopeDrop;
+      maxSlopeDropIdx = j;
+    }
+  }
+  
+  let crestType = null;
+  if (maxSlopeDrop > 0.04) {
+    let totalSusp = 0;
+    let suspCount = 0;
+    for (let idx = Math.max(0, maxSlopeDropIdx - 2); idx <= Math.min(centerline.length - 1, maxSlopeDropIdx + 4); idx++) {
+      const p = centerline[idx];
+      if (p) {
+        const FL = p.suspFL !== undefined ? p.suspFL : (p.suspension ? (p.suspension.frontLeft || 0.5) : 0.5);
+        const FR = p.suspFR !== undefined ? p.suspFR : (p.suspension ? (p.suspension.frontRight || 0.5) : 0.5);
+        const RL = p.suspRL !== undefined ? p.suspRL : (p.suspension ? (p.suspension.rearLeft || 0.5) : 0.5);
+        const RR = p.suspRR !== undefined ? p.suspRR : (p.suspension ? (p.suspension.rearRight || 0.5) : 0.5);
+        totalSusp += (FL + FR + RL + RR) / 4.0;
+        suspCount++;
+      }
+    }
+    const avgSusp = suspCount > 0 ? totalSusp / suspCount : 0.5;
+    if (avgSusp > 0.85) {
+      crestType = 'jump';
+    } else {
+      crestType = 'crest';
+    }
+  }
+
+  let severity = "";
+  let type = "micro";
+  if (angleDiff >= 130.0) {
+    severity = "1"; type = "hairpin";
+  } else if (angleDiff >= 90.0) {
+    severity = "2"; type = "sharp";
+  } else if (angleDiff >= 60.0) {
+    severity = "3"; type = "medium";
+  } else if (angleDiff >= 40.0) {
+    severity = "4"; type = "gentle";
+  } else if (angleDiff >= 20.0) {
+    severity = "5"; type = "slight";
+  } else {
+    severity = "6"; type = "micro";
+  }
+  
+  let dirStr = turnDirection > 0 ? "右" : "左";
+  let note = `${dirStr}${severity}`;
+  
+  let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
+  
+  return {
+    id: idStr,
+    name: note,
+    index: apexIdx,
+    x: pt.x,
+    y: pt.y,
+    z: pt.z,
+    startX: centerline[turnStartIdx].x,
+    startZ: centerline[turnStartIdx].z,
+    endX: centerline[turnEndIdx].x,
+    endZ: centerline[turnEndIdx].z,
+    suggestedBrakePoint: brakePointIdx,
+    brakePointX: centerline[brakePointIdx].x,
+    brakePointZ: centerline[brakePointIdx].z,
+    startIdx: turnStartIdx,
+    endIdx: turnEndIdx,
+    apexRadius: Math.round(minRadius),
+    radius: Math.round(minRadius),
+    angle: angleDiff,
+    severity: severity,
+    type: type,
+    turnCategory: note,
+    direction: turnDirection > 0 ? "right" : "left",
+    camber: camberType,
+    crest: crestType
+  };
+}
+function mapOldTurnsToNewCenterline(oldTurns, centerline) {
+  if (!oldTurns || oldTurns.length === 0) return [];
+  const mapped = [];
+  
+  const getDist2D = (x1, z1, x2, z2) => Math.sqrt((x1 - x2) ** 2 + (z1 - z2) ** 2);
+  
+  const findClosestIdx = (x, z) => {
+    let minD = Infinity;
+    let minIdx = -1;
+    for (let i = 0; i < centerline.length; i++) {
+      let d = getDist2D(x, z, centerline[i].x, centerline[i].z);
+      if (d < minD) {
+        minD = d;
+        minIdx = i;
+      }
+    }
+    return minIdx;
+  };
+
+  oldTurns.forEach(oldT => {
+    let startIdx = findClosestIdx(oldT.startX, oldT.startZ);
+    let endIdx = findClosestIdx(oldT.endX, oldT.endZ);
+    
+    // 如果找反了，或者距离太近（比如变成了一个点），就兜底给点宽度
+    if (startIdx >= endIdx) {
+       startIdx = Math.max(0, endIdx - 5);
+    }
+    if (endIdx - startIdx < 4) {
+       startIdx = Math.max(0, endIdx - 4);
+    }
+    
+    const newT = calculateTurnAttributes(centerline, startIdx, endIdx, oldT.id);
+    if (newT) {
+      newT.severity = oldT.severity;
+      newT.name = oldT.name;
+      newT.customNote = oldT.customNote;
+      newT.turnCategory = oldT.turnCategory;
+      newT.isLockedByUser = true;
+      if (oldT.isChicane) newT.isChicane = true;
+      mapped.push(newT);
+    }
+  });
+  
+  return mapped;
 }

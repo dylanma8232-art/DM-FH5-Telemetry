@@ -7,7 +7,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { parseTelemetryPacket } from './telemetry-parser.js';
-import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook } from './track-builder.js';
+import { buildTrackFromTrajectories, generateNavigationData, calculateTrackSimilarity, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook, calculateTurnAttributes } from './track-builder.js';
 import zlib from 'zlib';
 import { writeJsonAsync, writeBrotliAsync } from './storage/file-db.js';
 import { stateManager } from './services/state-manager.js';
@@ -1501,7 +1501,11 @@ async function saveAutoRecordedData(duration) {
     }
     
     const trimmed = trimTrajectories(existingTrajectories, 5);
-    const trackData = buildTrackFromTrajectories(trimmed);
+    const trackData = buildTrackFromTrajectories(trimmed, {
+      oldTurns: trackDetail.turns || [],
+      isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
+      deletedTurns: trackDetail.deletedTurns || []
+    });
     
     trackDetail.trajectories = trimmed;
     trackDetail.trajectoryCount = trimmed.length;
@@ -1801,6 +1805,43 @@ app.delete('/api/tracks/:id', (req, res) => {
   
   // 物理清除对应的几何详情分包
   deleteTrackDetail(id);
+
+  // 同步删除所有关联此 trackId 的 sessions 记录
+  try {
+    const sessionsDir = DATA_DIR + '/sessions';
+    if (fs.existsSync(sessionsDir)) {
+      const sessionFiles = fs.readdirSync(sessionsDir).filter(f => f.endsWith('_summary.json'));
+      let deletedCount = 0;
+      sessionFiles.forEach(file => {
+        try {
+          const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
+          if (session.trackId === id) {
+            const sessionId = session.id;
+            const summaryPath = path.join(sessionsDir, `${sessionId}_summary.json`);
+            const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+            const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
+            const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+            const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+            if (fs.existsSync(summaryPath)) fs.unlinkSync(summaryPath);
+            if (fs.existsSync(hifiPath)) fs.unlinkSync(hifiPath);
+            if (fs.existsSync(lowfiPath)) fs.unlinkSync(lowfiPath);
+            if (fs.existsSync(brPath)) fs.unlinkSync(brPath);
+            if (fs.existsSync(gzPath)) fs.unlinkSync(gzPath);
+            deletedCount++;
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+      if (deletedCount > 0) {
+        console.log(`已同步删除关联赛道 ${id} 的 ${deletedCount} 个会话记录`);
+        leaderboardCache = null; // 清除排行榜缓存
+      }
+    }
+  } catch (e) {
+    console.error('删除赛道关联会话失败:', e.message);
+  }
+
   res.json({ status: 'ok' });
 });
 
@@ -1837,7 +1878,11 @@ app.post('/api/tracks/:id/rebuild', (req, res) => {
     }
 
     // 使用修复后的 buildTrackFromTrajectories（含致密化预处理）重建中心线
-    const trackData = buildTrackFromTrajectories(availableTrajectories);
+    const trackData = buildTrackFromTrajectories(availableTrajectories, {
+      oldTurns: trackDetail.turns || [],
+      isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
+      deletedTurns: trackDetail.deletedTurns || []
+    });
     if (!trackData) {
       return res.status(400).json({ error: '轨迹数据不足，无法构建中心线' });
     }
@@ -1918,6 +1963,14 @@ app.put('/api/tracks/:id/turns', express.json(), (req, res) => {
     const newTurns = req.body.turns;
     if (!Array.isArray(newTurns)) {
       return res.status(400).json({ error: 'Invalid turns data' });
+    }
+    
+    // 接受锁定状态和黑名单
+    if (req.body.isPaceNoteLocked !== undefined) {
+      trackDetail.isPaceNoteLocked = req.body.isPaceNoteLocked;
+    }
+    if (Array.isArray(req.body.deletedTurns)) {
+      trackDetail.deletedTurns = req.body.deletedTurns;
     }
     
     // 更新弯道数组
@@ -2243,6 +2296,35 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
     };
     saveTracksDatabase(tracks);
 
+    // 4. 同步更新所有 sessions 中匹配 sourceTrackId 的 trackId 和 trackName
+    try {
+      const sessionsDir = DATA_DIR + '/sessions';
+      if (fs.existsSync(sessionsDir)) {
+        const sessionFiles = fs.readdirSync(sessionsDir).filter(f => f.endsWith('_summary.json'));
+        let updatedCount = 0;
+        const targetName = targetDetail.name || '未命名赛道';
+        sessionFiles.forEach(file => {
+          try {
+            const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
+            if (session.trackId === sourceTrackId) {
+              session.trackId = targetTrackId;
+              session.trackName = targetName;
+              saveJSON(sessionsDir + '/' + file, session);
+              updatedCount++;
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+        if (updatedCount > 0) {
+          console.log(`已将 ${updatedCount} 个会话的赛道关联从 ${sourceTrackId} 合并至 ${targetTrackId}`);
+          leaderboardCache = null; // 清除排行榜缓存
+        }
+      }
+    } catch (e) {
+      console.error('合并赛道同步更新会话失败:', e.message);
+    }
+
     res.json({ 
       status: 'ok', 
       targetTrackId: targetTrackId,
@@ -2253,6 +2335,62 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
     console.error('[Track Merge Route] Failed:', err);
     res.status(500).json({ error: 'Failed to merge tracks' });
   }
+});
+
+// 合并相邻弯道并重新计算几何属性
+app.post('/api/tracks/:id/turns/merge', express.json(), (req, res) => {
+  const { turnIndex } = req.body;
+  const id = req.params.id;
+  
+  if (turnIndex === undefined || isNaN(turnIndex)) {
+    return res.status(400).json({ error: 'turnIndex is required' });
+  }
+
+  const trackDetail = readTrackDetail(id);
+  if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
+  
+  if (!trackDetail.turns || turnIndex < 0 || turnIndex >= trackDetail.turns.length - 1) {
+    return res.status(400).json({ error: 'Invalid turnIndex for merging' });
+  }
+
+  const t1 = trackDetail.turns[turnIndex];
+  const t2 = trackDetail.turns[turnIndex + 1];
+  const centerline = trackDetail.centerline;
+  
+  if (!centerline || centerline.length === 0) {
+    return res.status(400).json({ error: 'Missing centerline data for recalculation' });
+  }
+
+  // 计算新的合并弯道属性
+  const mergedTurn = calculateTurnAttributes(centerline, t1.startIdx, t2.endIdx, t1.id);
+  if (!mergedTurn) {
+    return res.status(500).json({ error: 'Failed to calculate merged turn attributes' });
+  }
+
+  // 继承用户的特殊备注并打上局部锁定标签
+  mergedTurn.customNote = [t1.customNote, t2.customNote].filter(Boolean).join(' | ');
+  mergedTurn.isLockedByUser = true;
+  mergedTurn.id = t1.id; // 保持原有 ID 序列，后续的 ID 也会前移
+
+  // 替换原有弯道，移除 t2
+  trackDetail.turns.splice(turnIndex, 2, mergedTurn);
+  
+  // 重新分配序号
+  trackDetail.turns.forEach((t, i) => t.id = 'T' + (i + 1));
+  
+  // 重新生成 routeBook 以更新遥测（速度、刹车等）
+  const allPoints = [];
+  const trajectories = trackDetail.trajectories || (trackDetail.points ? [trackDetail.points] : []);
+  trajectories.forEach(traj => {
+    if (traj) allPoints.push(...traj);
+  });
+  
+  trackDetail.routeBook = buildRouteBook(centerline, trackDetail.turns, allPoints);
+  trackDetail.updatedAt = new Date().toISOString();
+  
+  writeTrackDetail(id, trackDetail);
+  
+  res.json({ status: 'ok', track: trackDetail });
 });
 
 // 更新赛道属性（支持赛道改名并同步 sessions 元数据）
@@ -4302,6 +4440,9 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
         };
       });
       
+      // 提取本赛道保存的推荐路书弯道数据
+      const rt = trackDetail.routeBook?.turns?.[tIdx];
+
       return {
         index: tIdx,
         name: `T${tIdx + 1}`,
@@ -4310,6 +4451,11 @@ app.get('/api/analysis/:sessionId/turns', (req, res) => {
         direction: turn.direction,
         speedHint: turn.speedHint || '',
         radius: turn.radius || 9999,
+        recommended: {
+          entrySpeed: rt?.entrySpeed || 0,
+          apexSpeed: rt?.apexSpeed || 0,
+          exitSpeed: rt?.exitSpeed || 0
+        },
         current: {
           entrySpeed,
           apexSpeed,

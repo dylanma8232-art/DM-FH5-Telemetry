@@ -153,30 +153,23 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         gap: '8px',
         padding: '8px',
         background: 'var(--bg-primary, #0d1117)',
-        height: '100%',
+        height: '290px',
         overflow: 'hidden',
         boxSizing: 'border-box'
       }}>
 
-        {/* ========== COLUMN 1 (左侧): 路书 / 车辆信息 / 驾驶HUD ========== */}
+        {/* ========== COLUMN 1 (左侧): 预警播报 / 车辆信息 / 驾驶HUD ========== */}
         <div style={{
           flex: '0 0 300px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%'
+          height: '100%',
+          minHeight: 0
         }}>
-          {/* Row 1: 路书 */}
-          <div style={{ ...cardBaseStyle, flex: '0 0 160px', padding: '10px 12px' }}>
-            <PaceNotesPanel
-              trackData={trackData}
-              position={telemetryData.position}
-              currentSpeed={telemetryData.speedKmh}
-              isRaceOn={telemetryData.isRaceOn}
-              racePosition={telemetryData.racePosition}
-              compact={true}
-              onExit={() => setTrackData(null)}
-            />
+          {/* Row 1: 预警播报 (缩得更小) */}
+          <div style={{ flex: '0 0 80px', minHeight: 0 }}>
+            <AlertAdvicePanel data={telemetryData} />
           </div>
 
           {/* Row 2: 车辆信息 — 紧凑版，只显示名称 / ID / PI / 级别 / 驱动 */}
@@ -226,7 +219,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           </div>
 
           {/* Row 3: 驾驶 HUD（档位焦点） */}
-          <div style={{ ...cardBaseStyle, flex: '0 0 150px', justifyContent: 'space-between', padding: '6px 12px' }}>
+          <div style={{ ...cardBaseStyle, flex: '1 1 auto', justifyContent: 'space-between', padding: '6px 12px', minHeight: 0 }}>
             {/* 档位 + 时速 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -273,22 +266,28 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
               </div>
             </div>
           </div>
-
-          {/* Row 4: 剩余空间自适应（占位） */}
-          <div style={{ flex: 1, minHeight: 0 }} />
         </div>
 
-        {/* ========== COLUMN 2 (中间): 统一预警建议 + 底盘动态 ========== */}
+        {/* ========== COLUMN 2 (中间): 路书 + 底盘动态 ========== */}
         <div style={{
           flex: '1 1 auto',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%'
+          height: '100%',
+          minHeight: 0
         }}>
-          {/* Row 1: 统一预警 & 驾驶建议 */}
-          <div style={{ flex: '0 0 160px', minHeight: 0 }}>
-            <AlertAdvicePanel data={telemetryData} />
+          {/* Row 1: 路书 (放在中间，看板放大) */}
+          <div style={{ ...cardBaseStyle, flex: '0 0 150px', padding: '10px 12px', minHeight: 0 }}>
+            <PaceNotesPanel
+              trackData={trackData}
+              position={telemetryData.position}
+              currentSpeed={telemetryData.speedKmh}
+              isRaceOn={telemetryData.isRaceOn}
+              racePosition={telemetryData.racePosition}
+              compact={true}
+              onExit={() => setTrackData(null)}
+            />
           </div>
 
           {/* Row 2: 底盘动态与抓地力 */}
@@ -303,7 +302,8 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%'
+          height: '100%',
+          minHeight: 0
         }}>
           <div style={{ flex: 1, minHeight: 0 }}>
             <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} isRaceOn={telemetryData.isRaceOn} />

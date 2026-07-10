@@ -120,7 +120,7 @@ export function AlertAdvicePanel({ data }) {
       background: '#161b22',
       borderRadius: 8,
       border: '1px solid #21262d',
-      padding: '8px 12px',
+      padding: '5px 8px',
       height: '100%',
       boxSizing: 'border-box',
       display: 'flex',
@@ -128,17 +128,17 @@ export function AlertAdvicePanel({ data }) {
       minHeight: 0,
     }}>
       {/* 标题行 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: noAlerts ? '#3fb950' : '#f0883e', letterSpacing: 0.5 }}>
-          {noAlerts ? '● 状态正常' : `预警与建议`}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: noAlerts ? '#3fb950' : '#f0883e', letterSpacing: 0.5 }}>
+          {noAlerts ? '● 状态正常' : `系统预警`}
         </span>
-        <span style={{ fontSize: 9, color: '#484f58' }}>
+        <span style={{ fontSize: 8, color: '#484f58' }}>
           {noAlerts ? '系统监控中' : `${alerts.length} 条`}
         </span>
       </div>
 
       {/* 警报列表 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {noAlerts ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#484f58', fontSize: 10, fontStyle: 'italic' }}>
             各项参数正常
@@ -152,18 +152,18 @@ export function AlertAdvicePanel({ data }) {
                 key={i}
                 style={{
                   background: s.bg,
-                  borderLeft: `3px solid ${s.border}`,
+                  borderLeft: `2px solid ${s.border}`,
                   borderRadius: '0 4px 4px 0',
-                  padding: '5px 8px',
+                  padding: '3px 6px',
                   animation: isDanger ? 'alertPulse 0.8s infinite' : 'none',
                   flexShrink: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ fontSize: 12 }}>{item.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: s.textColor }}>{item.text}</span>
+                  <span style={{ fontSize: 11 }}>{item.icon}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: s.textColor }}>{item.text}</span>
+                  <span style={{ fontSize: 8.5, color: '#8b949e', marginLeft: 4 }}>{item.detail}</span>
                 </div>
-                <div style={{ fontSize: 9, color: '#8b949e', marginTop: 1, marginLeft: 17 }}>{item.detail}</div>
               </div>
             );
           })

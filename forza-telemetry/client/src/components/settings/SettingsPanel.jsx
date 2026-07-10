@@ -437,14 +437,14 @@ export function SettingsPanel({ onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11, lineHeight: 1.5 }}>
               
               <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--border)' }}>
-                <strong style={{ color: '#ff7b72', display: 'block', marginBottom: 4 }}>1. 滑移率 (Tire Slip Ratio)</strong>
+                <strong style={{ color: '#ff7b72', display: 'block', marginBottom: 4 }}>1. 滑移率</strong>
                 <span>• <b>概念</b>：车轮转动的线速度与车身实际移动速度的相对比例。
                 <br />• <b>正数（如 +0.5）</b>：表示轮胎比车子跑得快，通常在大脚油门导致轮胎“挠地打滑”（烧胎空转）时触发，TCS（循迹控制系统）会在此状态下介入。
                 <br />• <b>负数（如 -0.5）</b>：表示轮胎比车子跑得慢，表示重踩刹车时轮胎被“抱死拖行”（当达到 -1.0 时代表轮胎百分之百不转，纯粹滑行），ABS（防抱死系统）通常会被此数据触发。</span>
               </div>
 
               <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--border)' }}>
-                <strong style={{ color: '#56d364', display: 'block', marginBottom: 4 }}>2. 抓地力 (Combined Grip)</strong>
+                <strong style={{ color: '#56d364', display: 'block', marginBottom: 4 }}>2. 抓地力</strong>
                 <span>• <b>概念</b>：基于横向打滑（侧滑/漂移角）与纵向打滑（加速/刹车）合成出的综合地面附着力百分比。
                 <br />• <b>完美抓地 (100%)</b>：车轮没有发生任何滑移，物理极限富余充足。
                 <br />• <b>滑移阶段 (50%~80%)</b>：车辆开始出现微小的打滑，在弯道或重刹制动中非常多见，处于循迹极限边缘。
@@ -452,7 +452,7 @@ export function SettingsPanel({ onClose }) {
               </div>
 
               <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--border)' }}>
-                <strong style={{ color: '#e3b341', display: 'block', marginBottom: 4 }}>3. 轮速差 (Wheel Speed Delta)</strong>
+                <strong style={{ color: '#e3b341', display: 'block', marginBottom: 4 }}>3. 轮速差</strong>
                 <span>• <b>显示格式</b>：例如「42.3 km/h (+2.1)」。
                 <br />• <b>基础数值 (42.3)</b>：指该轮胎当前根据旋转圈数换算出来的实时相对轮速。
                 <br />• <b>括号数值 (+2.1)</b>：当前轮速减去车身实际车速的差值。
@@ -460,7 +460,7 @@ export function SettingsPanel({ onClose }) {
               </div>
 
               <div style={{ background: 'var(--bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--border)' }}>
-                <strong style={{ color: '#79c0ff', display: 'block', marginBottom: 4 }}>4. 避震行程 (Suspension Travel)</strong>
+                <strong style={{ color: '#79c0ff', display: 'block', marginBottom: 4 }}>4. 避震行程</strong>
                 <span>• <b>概念</b>：弹簧阻尼器的压缩程度（100% 为拉长悬空，0% 为压实压满）。
                 <br />• <b>过度压缩 ({"<"}25%)</b>：车辆重心转移或高速下压力将弹簧彻底压死。底盘此时极其贴地，若压上高路肩或发生重力着陆，极易拖底。
                 <br />• <b>过度伸展 ({">"}75%)</b>：车轮载荷丧失。车辆在飞坡或激烈弯道中内侧轮翘起时，避震被拉伸，车轮离地，无法继续传递驱动力。</span>

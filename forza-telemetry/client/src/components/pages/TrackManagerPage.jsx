@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
+import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
 
 // === 移动平均平滑算法：用于地图几何标准化渲染 ===
 // 原理：每个点的坐标替换为其周围 windowSize 个点的均值。
@@ -54,6 +55,7 @@ export function TrackManagerPage({ onNavigate }) {
   const [editingTrack, setEditingTrack] = useState(null);
   const [editingTurnIndex, setEditingTurnIndex] = useState(null); // 当前正在编辑的弯道索引 (0, 1, 2...)
   const [editTurnForm, setEditTurnForm] = useState(null); // 当前编辑弯道的表单参数
+  const [showGlossary, setShowGlossary] = useState(false);
   // Round 8: 录制模式状态
   const [isRecording, setIsRecording] = useState(false);
   const [recordStartTime, setRecordStartTime] = useState(null);
@@ -68,6 +70,7 @@ export function TrackManagerPage({ onNavigate }) {
   const [sortDir, setSortDir] = useState('desc');
   // Round 7: 验证结果状态
   const [validationResult, setValidationResult] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
 
   useEffect(() => {
     loadTracks();
@@ -262,14 +265,19 @@ export function TrackManagerPage({ onNavigate }) {
       crest: editTurnForm.crest,
       // 顺便把 turnCategory / type 更新为我们修改后的级别
       turnCategory: editTurnForm.severity + '级弯',
-      type: 'normal'
+      type: 'normal',
+      isLockedByUser: true // 人工编辑后默认局部锁定
     };
 
     try {
       const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turns: updatedTurns })
+        body: JSON.stringify({ 
+          turns: updatedTurns,
+          isPaceNoteLocked: track.isPaceNoteLocked,
+          deletedTurns: track.deletedTurns
+        })
       });
       
       if (res.ok) {
@@ -315,13 +323,19 @@ export function TrackManagerPage({ onNavigate }) {
     
     if (!window.confirm(`确认从路书中删除 弯道 T${idxToDelete + 1} 吗？`)) return;
 
+    const turnToDelete = track.turns[idxToDelete];
     const updatedTurns = (track.turns || []).filter((_, idx) => idx !== idxToDelete);
+    const updatedDeletedTurns = [...(track.deletedTurns || []), turnToDelete];
 
     try {
       const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turns: updatedTurns })
+        body: JSON.stringify({ 
+          turns: updatedTurns,
+          deletedTurns: updatedDeletedTurns,
+          isPaceNoteLocked: track.isPaceNoteLocked
+        })
       });
       
       if (res.ok) {
@@ -358,6 +372,119 @@ export function TrackManagerPage({ onNavigate }) {
       toast('删除弯道请求出错: ' + e.message, 'error');
     }
   };
+
+  const mergeTurnDown = async (idxToMerge) => {
+    const track = tracks[selectedTrack];
+    if (!track || idxToMerge === null || idxToMerge >= track.turns.length - 1) return;
+    
+    if (!window.confirm(`确认将 弯道 T${idxToMerge + 1} 和下一个弯道合并吗？`)) return;
+
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrack}/turns/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turnIndex: idxToMerge })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setTracks(prev => ({
+          ...prev,
+          [selectedTrack]: {
+            ...prev[selectedTrack],
+            turns: data.track.turns,
+            routeBook: data.track.routeBook,
+            turnCount: data.track.turnCount
+          }
+        }));
+        
+        toast('弯道合并成功！', 'success');
+        
+        // 自动重新拉取质量分数
+        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+        if (qRes.ok) {
+          const qResult = await qRes.json();
+          setValidationResult(prev => ({
+            ...prev,
+            [selectedTrack]: qResult
+          }));
+        }
+      } else {
+        toast('合并弯道失败', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      toast('合并弯道请求出错: ' + e.message, 'error');
+    }
+  };
+
+  const toggleTrackPaceNoteLock = async () => {
+    const track = tracks[selectedTrack];
+    if (!track) return;
+    const newStatus = !track.isPaceNoteLocked;
+    
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          turns: track.turns || [],
+          isPaceNoteLocked: newStatus,
+          deletedTurns: track.deletedTurns || []
+        })
+      });
+      
+      if (res.ok) {
+        setTracks(prev => ({
+          ...prev,
+          [selectedTrack]: {
+            ...prev[selectedTrack],
+            isPaceNoteLocked: newStatus
+          }
+        }));
+        toast(newStatus ? '已开启路书全局骨架锁定' : '已关闭路书全局骨架锁定', 'success');
+      }
+    } catch (e) {
+      toast('切换锁定状态失败: ' + e.message, 'error');
+    }
+  };
+
+  const toggleTurnLock = async (idxToToggle) => {
+    const track = tracks[selectedTrack];
+    if (!track || !track.turns || !track.turns[idxToToggle]) return;
+
+    const originalTurn = track.turns[idxToToggle];
+    const newLockStatus = !originalTurn.isLockedByUser;
+    const updatedTurns = [...track.turns];
+    updatedTurns[idxToToggle] = { ...originalTurn, isLockedByUser: newLockStatus };
+
+    try {
+      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          turns: updatedTurns,
+          isPaceNoteLocked: track.isPaceNoteLocked,
+          deletedTurns: track.deletedTurns
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTracks(prev => ({
+          ...prev,
+          [selectedTrack]: {
+            ...prev[selectedTrack],
+            turns: data.turns
+          }
+        }));
+        toast(`弯道 T${idxToToggle + 1} 已${newLockStatus ? '锁定' : '解锁'}`, 'success');
+      }
+    } catch (e) {
+      toast('切换锁定失败: ' + e.message, 'error');
+    }
+  };
+
 
   const mergeTracks = async () => {
     if (!mergeSource || !mergeTarget || mergeSource === mergeTarget) {
@@ -1366,7 +1493,7 @@ export function TrackManagerPage({ onNavigate }) {
                             fontWeight: editTurnForm.direction === 'left' ? 600 : 400
                           }}
                         >
-                          ← 左 (L)
+                          ← 左
                         </button>
                         <button
                           onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'right' }))}
@@ -1378,7 +1505,7 @@ export function TrackManagerPage({ onNavigate }) {
                             fontWeight: editTurnForm.direction === 'right' ? 600 : 400
                           }}
                         >
-                          右 (R) →
+                          右 →
                         </button>
                       </div>
                     </div>
@@ -1408,7 +1535,7 @@ export function TrackManagerPage({ onNavigate }) {
                   {/* 倾角与盲坡 */}
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>路面倾角 (Camber)</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>路面倾角</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
                           <input
@@ -1416,7 +1543,7 @@ export function TrackManagerPage({ onNavigate }) {
                             checked={editTurnForm.camber === 'banking'}
                             onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'banking' : null }))}
                           />
-                          带倾角 (Banking)
+                          带倾角
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
                           <input
@@ -1424,13 +1551,13 @@ export function TrackManagerPage({ onNavigate }) {
                             checked={editTurnForm.camber === 'off-camber'}
                             onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'off-camber' : null }))}
                           />
-                          反倾角 (Off-camber)
+                          反倾角
                         </label>
                       </div>
                     </div>
 
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>坡度起伏 (Crest)</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>坡度起伏</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
                           <input
@@ -1438,7 +1565,7 @@ export function TrackManagerPage({ onNavigate }) {
                             checked={editTurnForm.crest === 'crest'}
                             onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'crest' : null }))}
                           />
-                          盲坡/过坡 (Crest)
+                          盲坡/过坡
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
                           <input
@@ -1446,7 +1573,7 @@ export function TrackManagerPage({ onNavigate }) {
                             checked={editTurnForm.crest === 'jump'}
                             onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'jump' : null }))}
                           />
-                          飞跳 (Jump)
+                          飞跳
                         </label>
                       </div>
                     </div>
@@ -1454,7 +1581,7 @@ export function TrackManagerPage({ onNavigate }) {
 
                   {/* 自定义备注 */}
                   <div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>自定义语音备注 (TTS Speech)</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>自定义语音备注</div>
                     <input
                       type="text"
                       placeholder="例如：压路肩 / 靠内侧 / 出弯有积水"
@@ -1494,8 +1621,54 @@ export function TrackManagerPage({ onNavigate }) {
 
               {/* 弯道列表 */}
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  弯道列表 (点击行进行地图定位与编辑)
+                <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    弯道列表 (点击行定位与编辑)
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowGlossary(true);
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        color: '#8b949e',
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                        padding: '0 4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.08)',
+                        width: 14,
+                        height: 14
+                      }}
+                      title="路书术语释义"
+                    >
+                      ?
+                    </span>
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTrackPaceNoteLock();
+                    }}
+                    style={{
+                      background: selectedTrackData.isPaceNoteLocked ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                      color: selectedTrackData.isPaceNoteLocked ? '#3fb950' : 'var(--text-secondary)',
+                      border: `1px solid ${selectedTrackData.isPaceNoteLocked ? '#3fb950' : 'var(--border)'}`,
+                      borderRadius: 4,
+                      padding: '2px 6px',
+                      fontSize: 9,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    title={selectedTrackData.isPaceNoteLocked ? '已开启全局锁定，自动重建将严格保留所有旧弯道坐标' : '开启全局锁定'}
+                  >
+                    {selectedTrackData.isPaceNoteLocked ? '骨架已锁定' : '骨架未锁定'}
+                  </button>
                 </div>
                 <div style={{ flex: 1, overflow: 'auto' }}>
                   {selectedTrackData.turns && selectedTrackData.turns.length > 0 ? (
@@ -1542,23 +1715,67 @@ export function TrackManagerPage({ onNavigate }) {
                                 {turn.angle != null ? turn.angle.toFixed(0) + '°' : '-'}
                               </td>
                               <td style={{ padding: '6px 4px', textAlign: 'center' }}>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteTurn(idx);
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#f85149',
-                                    cursor: 'pointer',
-                                    fontSize: 11,
-                                    padding: '2px 4px'
-                                  }}
-                                  title="从路书中删除此弯道"
-                                >
-                                  ✕
-                                </button>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleTurnLock(idx);
+                                    }}
+                                    style={{
+                                      background: turn.isLockedByUser ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                      border: turn.isLockedByUser ? '1px solid #3fb950' : '1px solid var(--border)',
+                                      borderRadius: 4,
+                                      color: turn.isLockedByUser ? '#3fb950' : 'var(--text-secondary)',
+                                      cursor: 'pointer',
+                                      fontSize: 10,
+                                      padding: '2px 6px',
+                                      fontWeight: 600
+                                    }}
+                                    title={turn.isLockedByUser ? "解除局部锁定" : "锁定此弯道 (下次合并时保留它)"}
+                                  >
+                                    {turn.isLockedByUser ? '解锁' : '锁定'}
+                                  </button>
+                                  {idx < selectedTrackData.turns.length - 1 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        mergeTurnDown(idx);
+                                      }}
+                                      style={{
+                                        background: 'rgba(88, 166, 255, 0.1)',
+                                        border: '1px solid #58a6ff',
+                                        borderRadius: 4,
+                                        color: '#58a6ff',
+                                        cursor: 'pointer',
+                                        fontSize: 10,
+                                        padding: '2px 6px',
+                                        fontWeight: 600
+                                      }}
+                                      title="向下合并"
+                                    >
+                                      合并
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteTurn(idx);
+                                    }}
+                                    style={{
+                                      background: 'rgba(248, 81, 73, 0.1)',
+                                      border: '1px solid #f85149',
+                                      borderRadius: 4,
+                                      color: '#f85149',
+                                      cursor: 'pointer',
+                                      fontSize: 10,
+                                      padding: '2px 6px',
+                                      fontWeight: 600
+                                    }}
+                                    title="从路书中删除此弯道 (不再生成)"
+                                  >
+                                    删除
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1690,6 +1907,8 @@ export function TrackManagerPage({ onNavigate }) {
           录制中 - 请在游戏中驾驶以采集赛道轨迹
         </div>
       )}
+
+      {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
     </div>
   );
 }

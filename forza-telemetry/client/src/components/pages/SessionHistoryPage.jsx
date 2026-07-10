@@ -23,6 +23,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [turnsData, setTurnsData] = useState(null);
   const [turnsLoading, setTurnsLoading] = useState(false);
   const [activeTurnIdx, setActiveTurnIdx] = useState(0);
+  const [zoomOnSelect, setZoomOnSelect] = useState(false);
   const [trackTurnsData, setTrackTurnsData] = useState(null);
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
   const [trackFilter, setTrackFilter] = useState('');
@@ -1289,25 +1290,38 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
 
 
 
-                {/* 赛道地图与弯道性能诊断看板（双栏布局） */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                  <div style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>赛道诊断热力图</h3>
-                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>红色虚线=失分最多的弯道，黄色=当前选中弯道。点击右侧表格行可联动高亮，优先改进红色弯道。</div>
-                    {(!turnsData?.turns || turnsData.turns.length === 0) ? (
-                      <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, fontStyle: 'italic' }}>
-                        暂无弯道数据——请先在赛道管理中对该赛道完成建图。
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
-                        红色虚线=失分最多的3个弯道，黄色=当前选中弯道。点击右侧表格行可联动高亮。优先处理红色弯道。
-                      </div>
-                    )}
+                {/* 赛道地图与弯道性能诊断看板（双栏布局 - 400px左侧，1fr右侧） */}
+                <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, marginBottom: 16 }}>
+                  <div style={{ ...sectionStyle, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                      <h3 style={{ ...sectionTitleStyle, margin: 0, borderBottom: 'none', paddingBottom: 0 }}>赛道诊断热力图</h3>
+                      <button
+                        onClick={() => setZoomOnSelect(!zoomOnSelect)}
+                        style={{
+                          background: zoomOnSelect ? 'rgba(88, 166, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                          color: zoomOnSelect ? '#58a6ff' : '#8b949e',
+                          border: `1px solid ${zoomOnSelect ? '#58a6ff' : '#30363d'}`,
+                          borderRadius: 4,
+                          padding: '2px 8px',
+                          fontSize: 9,
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          transition: 'all 0.2s'
+                        }}
+                        title={zoomOnSelect ? '切换为完整赛道全貌' : '自动局部放大当前选中的弯道细节'}
+                      >
+                        {zoomOnSelect ? '🔍 切换全图' : '🔍 弯道放大'}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12, lineHeight: 1.4, alignSelf: 'flex-start' }}>
+                      {zoomOnSelect ? '当前已开启局部放大模式，聚焦于选中弯道的 Apex 顶点细节。' : '当前显示赛道全图。点击右侧行并开启“弯道放大”可查看局部过弯细节。'}
+                    </div>
                     <InteractiveTrackMap
                       trackId={analysis.trackId}
                       fallbackPositions={sessionDetail?.positions || []}
-                      width={480}
-                      height={320}
+                      width={376}
+                      height={276}
+                      zoomOnSelect={zoomOnSelect}
                       highlightedPoints={
                         turnsData?.turns
                           ? turnsData.turns.map((t, idx) => ({
@@ -1331,27 +1345,26 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                     />
                   </div>
 
-                  <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ ...sectionStyle, padding: 12, display: 'flex', flexDirection: 'column' }}>
                     <h3 style={sectionTitleStyle}>弯道性能参数表</h3>
-                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>点击任意行可在左侧地图高亮该弯道。弯心速度越高越好，横向G过低说明走线保守。</div>
-                    <div style={{ fontSize: 11, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
-                      点击任意行可在左侧地图高亮该弯道。重点关注弯心速度（越高越好）和横向G（过低说明走线保守，不敢靠近极限）。
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12, lineHeight: 1.4 }}>
+                      重点关注弯心速度（越高越好）与横向G力。若实际车速显著低于推荐车速，系统会标记差值，说明该弯道有进一步推向极限的空间。
                     </div>
                     {(!turnsData?.turns || turnsData.turns.length === 0) ? (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
                         暂无弯道分析数据
                       </div>
                     ) : (
-                      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 330 }}>
+                      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 310 }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, textAlign: 'left' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', position: 'sticky', top: 0, background: '#161b22', zIndex: 1 }}>
                               <th style={{ padding: '8px 6px' }}>弯道</th>
                               <th style={{ padding: '8px 6px' }}>类型</th>
-                              <th style={{ padding: '8px 6px' }}>入弯速度</th>
-                              <th style={{ padding: '8px 6px' }}>弯心速度</th>
-                              <th style={{ padding: '8px 6px' }}>出弯速度</th>
-                              <th style={{ padding: '8px 6px' }}>档位</th>
+                              <th style={{ padding: '8px 6px' }}>入弯 (实际/推荐)</th>
+                              <th style={{ padding: '8px 6px' }}>弯心 (实际/推荐)</th>
+                              <th style={{ padding: '8px 6px' }}>出弯 (实际/推荐)</th>
+                              <th style={{ padding: '8px 6px' }}>档位 (实际/推荐)</th>
                               <th style={{ padding: '8px 6px' }}>横向G</th>
                               <th style={{ padding: '8px 6px' }}>制动G</th>
                             </tr>
@@ -1363,6 +1376,53 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                               const longBrakeG = t.current?.longBrakeG ?? 0;
                               const gColor = peakLatG > 2.5 ? '#3fb950' : peakLatG > 1.5 ? '#d29922' : 'var(--text-secondary)';
                               const isSelected = activeTurnIdx === idx;
+                              
+                              const recEntry = t.recommended?.entrySpeed || '-';
+                              const recApex = t.recommended?.apexSpeed || '-';
+                              const recExit = t.recommended?.exitSpeed || '-';
+                              const recGear = t.recommended?.apexSpeed ? (
+                                t.recommended.apexSpeed < 30 ? 1 :
+                                t.recommended.apexSpeed < 60 ? 2 :
+                                t.recommended.apexSpeed < 100 ? 3 :
+                                t.recommended.apexSpeed < 140 ? 4 :
+                                t.recommended.apexSpeed < 180 ? 5 :
+                                t.recommended.apexSpeed < 220 ? 6 : 7
+                              ) : '-';
+
+                              const speedDiff = typeof recApex === 'number' && recApex > 0 ? apexSpeed - recApex : 0;
+                              let diffBadge = null;
+                              if (recApex > 0 && typeof recApex === 'number') {
+                                if (speedDiff < -5) {
+                                  diffBadge = (
+                                    <span style={{
+                                      fontSize: 8.5,
+                                      background: 'rgba(248,81,73,0.12)',
+                                      color: '#ff7b72',
+                                      padding: '1px 3px',
+                                      borderRadius: 3,
+                                      marginLeft: 4,
+                                      fontWeight: 600
+                                    }}>
+                                      ↓{Math.abs(speedDiff)}
+                                    </span>
+                                  );
+                                } else if (speedDiff >= 2) {
+                                  diffBadge = (
+                                    <span style={{
+                                      fontSize: 8.5,
+                                      background: 'rgba(63,185,80,0.12)',
+                                      color: '#56d364',
+                                      padding: '1px 3px',
+                                      borderRadius: 3,
+                                      marginLeft: 4,
+                                      fontWeight: 600
+                                    }}>
+                                      ↑{speedDiff}
+                                    </span>
+                                  );
+                                }
+                              }
+
                               return (
                                 <tr
                                   key={t.index ?? idx}
@@ -1371,15 +1431,25 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                                     borderBottom: '1px solid rgba(48, 54, 61, 0.3)',
                                     background: isSelected ? 'rgba(88,166,255,0.08)' : 'transparent',
                                     cursor: 'pointer',
-                                    transition: 'background 0.2s'
+                                    transition: 'background 0.2s',
+                                    borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent'
                                   }}
                                 >
                                   <td style={{ padding: '8px 6px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'inherit' }}>{t.name}</td>
-                                  <td style={{ padding: '8px 6px' }}>{t.direction === 'left' ? '左' : '右'}</td>
-                                  <td style={{ padding: '8px 6px' }}>{t.current?.entrySpeed || 0}</td>
-                                  <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--accent)' }}>{apexSpeed}</td>
-                                  <td style={{ padding: '8px 6px' }}>{t.current?.exitSpeed || 0}</td>
-                                  <td style={{ padding: '8px 6px' }}>{t.current?.gear ?? '-'}</td>
+                                  <td style={{ padding: '8px 6px', fontWeight: 600 }}>{t.turnCategory || (t.direction === 'left' ? '左' : '右')}</td>
+                                  <td style={{ padding: '8px 6px' }}>
+                                    {t.current?.entrySpeed || 0} <span style={{ color: '#8b949e', fontSize: 9 }}>/ {recEntry}</span>
+                                  </td>
+                                  <td style={{ padding: '8px 6px', fontWeight: 700, color: isSelected ? 'var(--accent)' : '#c9d1d9' }}>
+                                    {apexSpeed} <span style={{ color: '#8b949e', fontSize: 9, fontWeight: 'normal' }}>/ {recApex}</span>
+                                    {diffBadge}
+                                  </td>
+                                  <td style={{ padding: '8px 6px' }}>
+                                    {t.current?.exitSpeed || 0} <span style={{ color: '#8b949e', fontSize: 9 }}>/ {recExit}</span>
+                                  </td>
+                                  <td style={{ padding: '8px 6px' }}>
+                                    {t.current?.gear ?? '-'} <span style={{ color: '#8b949e', fontSize: 9 }}>/ {recGear}</span>
+                                  </td>
                                   <td style={{ padding: '8px 6px', color: gColor }}>{peakLatG.toFixed(1)}</td>
                                   <td style={{ padding: '8px 6px' }}>{longBrakeG.toFixed(1)}</td>
                                 </tr>
@@ -2337,7 +2407,7 @@ function TrackThumbnail({ trackId }) {
 }
 
 // 交互式 Canvas 赛道图组件
-function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [] }) {
+function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [], zoomOnSelect = false }) {
   const canvasRef = useRef(null);
   const [positions, setPositions] = useState([]);
   
@@ -2372,17 +2442,30 @@ function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoint
     const h = canvas.height;
     
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    drawPositions.forEach(p => {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.z < minZ) minZ = p.z;
-      if (p.z > maxZ) maxZ = p.z;
-    });
+    
+    const activePt = highlightedPoints.find(p => p.isActive);
+    const hasActiveZoom = zoomOnSelect && activePt && typeof activePt.x === 'number' && typeof activePt.z === 'number';
+    
+    if (hasActiveZoom) {
+      // 放大该弯道顶点，显示附近 150 米范围的弯道细节
+      const zoomRange = 150;
+      minX = activePt.x - zoomRange;
+      maxX = activePt.x + zoomRange;
+      minZ = activePt.z - zoomRange;
+      maxZ = activePt.z + zoomRange;
+    } else {
+      drawPositions.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      });
+    }
     
     if (maxX - minX < 0.01 && maxZ - minZ < 0.01) return;
 
-    // 与赛道管理一致：pad=40
-    const pad = 40;
+    // 缩放边距：放大时用紧凑边距，完整赛道用宽边距
+    const pad = hasActiveZoom ? 20 : 40;
     const sx = (w - pad * 2) / (maxX - minX || 1);
     const sz = (h - pad * 2) / (maxZ - minZ || 1);
     const sc = Math.min(sx, sz);
@@ -2489,6 +2572,18 @@ function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoint
         ctx.arc(tx, ty, isActive ? 24 : 18, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+      }
+
+      if (isActive) {
+        // 绘制十字定位靶线
+        ctx.strokeStyle = 'rgba(88, 166, 255, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tx - 35, ty);
+        ctx.lineTo(tx + 35, ty);
+        ctx.moveTo(tx, ty - 35);
+        ctx.lineTo(tx, ty + 35);
+        ctx.stroke();
       }
       
       ctx.fillStyle = color;
