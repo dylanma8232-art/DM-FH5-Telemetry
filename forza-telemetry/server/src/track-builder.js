@@ -1,4 +1,57 @@
 /**
+ * 环道闭合修复：检测首尾重叠并截断尾巴
+ * 问题：中心线在起跑线区域来回折叠，产生自交叉
+ * 修复：找到中心线第一次回到起点的位置，截断之后的尾巴
+ * @param {Array} centerline - 中心线
+ * @returns {Array} 修复后的中心线
+ */
+function fixLoopClosure(centerline) {
+  if (!centerline || centerline.length < 50) return centerline;
+  
+  const first = centerline[0];
+  const last = centerline[centerline.length - 1];
+  const endGap = Math.sqrt((first.x - last.x) ** 2 + (first.z - last.z) ** 2);
+  
+  // 只处理环道（首尾距离<50米）
+  if (endGap >= 50) return centerline;
+  
+  // 从第10%位置开始找中心线第一次回到起点附近的位置
+  // （跳过起点附近的噪声）
+  const minSearchIdx = Math.floor(centerline.length * 0.1);
+  let returnIdx = -1;
+  
+  for (let i = minSearchIdx; i < centerline.length - 1; i++) {
+    const dist = Math.sqrt((centerline[i].x - first.x) ** 2 + (centerline[i].z - first.z) ** 2);
+    if (dist < 15) {
+      returnIdx = i;
+      break;
+    }
+  }
+  
+  // 如果没有找到回到起点的位置，不需要修复
+  if (returnIdx === -1) return centerline;
+  
+  // 如果截断点太靠近起点（<30%），不需要修复
+  if (returnIdx < centerline.length * 0.3) return centerline;
+  
+  // 截断尾巴，保留干净的中心线
+  const tailSize = centerline.length - returnIdx;
+  console.log(`[环道闭合修复] 中心线在点${returnIdx}回到起点，截断尾部${tailSize}个点`);
+  
+  const result = centerline.slice(0, returnIdx + 1);
+  
+  // 强制首尾闭合
+  result.push({
+    ...first,
+    x: first.x,
+    z: first.z,
+    y: first.y,
+  });
+  
+  return result;
+}
+
+/**
  * 使用游戏提供的lapNum变更点作为闭合点提取单圈
  * 当lapNum从N变成N+1时，那个点就是闭合点（一圈结束）
  * @param {Array} positions - 轨迹点数组
@@ -459,7 +512,10 @@ export function buildTrackFromTrajectories(trajectories) {
   const turns = detectTurnsEnhanced(centerline);
   
   // 弯道几何重建：用圆弧拟合弯道，消除走线影响
-  const reconstructedCenterline = reconstructTrackGeometry(centerline, turns);
+  let reconstructedCenterline = reconstructTrackGeometry(centerline, turns);
+  
+  // ★ 环道闭合修复：检测起跑线区域的自交叉并平滑
+  reconstructedCenterline = fixLoopClosure(reconstructedCenterline);
   
   let length = 0;
   for (let i = 1; i < reconstructedCenterline.length; i++) {
