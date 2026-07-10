@@ -723,6 +723,13 @@ export function TrackManagerPage({ onNavigate }) {
     for (let i = 1; i < points.length; i++) {
       ctx.lineTo((points[i].x - minX) * sc + ox, (points[i].z - minZ) * sc + oz);
     }
+    // 环道闭合：如果首尾距离<50米，连接回起点
+    const firstPt = points[0];
+    const lastPt = points[points.length - 1];
+    const endGap = Math.sqrt((firstPt.x - lastPt.x) ** 2 + (firstPt.z - lastPt.z) ** 2);
+    if (endGap < 50) {
+      ctx.lineTo((firstPt.x - minX) * sc + ox, (firstPt.z - minZ) * sc + oz);
+    }
     ctx.stroke();
 
     // 4. 绘制 WRC 弯角标签（Tactical HUD Overlay）
