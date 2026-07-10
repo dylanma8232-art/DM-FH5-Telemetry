@@ -131,6 +131,10 @@ export const defaultSettings = {
     dataRefreshRate: 'realtime',
     showFullDataPanel: true
   },
+  tts: {
+    rate: 0.9,
+    voiceName: ''
+  },
   layout: {
     columns: 3,
     columnWidths: [200, '1fr', 220],

@@ -31,31 +31,50 @@ function getPointToSegmentDistance(p, a, b) {
 }
 
 /**
- * Ramer-Douglas-Peucker (RDP) 曲线简化算法
- * 在保留原轨迹形态骨架的前提下，清除同一直线上的冗余几何点
+ * Ramer-Douglas-Peucker (RDP) 曲线简化算法（迭代非递归版本）
+ * 在保留原轨迹形态骨架的前提下，清除同一直线上的冗余几何点，避免递归引发栈溢出
  * @param {Array} points 坐标点集 [{x, y, z, ...}]
  * @param {number} epsilon 距离容差阈值 (单位: 米，推荐 0.15 ~ 0.3 米)
  */
 export function simplifyRDP(points, epsilon = 0.2) {
   if (!points || points.length <= 2) return points || [];
 
-  let maxDistance = 0;
-  let index = 0;
-  const end = points.length - 1;
+  const len = points.length;
+  const keep = new Array(len).fill(true);
+  const stack = [[0, len - 1]];
 
-  for (let i = 1; i < end; i++) {
-    const distance = getPointToSegmentDistance(points[i], points[0], points[end]);
-    if (distance > maxDistance) {
-      maxDistance = distance;
-      index = i;
+  while (stack.length > 0) {
+    const [start, end] = stack.pop();
+    if (end - start <= 1) continue;
+
+    let maxDistance = 0;
+    let index = start;
+
+    for (let i = start + 1; i < end; i++) {
+      const distance = getPointToSegmentDistance(points[i], points[start], points[end]);
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        index = i;
+      }
+    }
+
+    if (maxDistance > epsilon) {
+      // 压入子区间继续处理
+      stack.push([start, index]);
+      stack.push([index, end]);
+    } else {
+      // 当前区间所有中间点与端点连线距离小于阈值，全部舍弃
+      for (let i = start + 1; i < end; i++) {
+        keep[i] = false;
+      }
     }
   }
 
-  if (maxDistance > epsilon) {
-    const results1 = simplifyRDP(points.slice(0, index + 1), epsilon);
-    const results2 = simplifyRDP(points.slice(index), epsilon);
-    return results1.slice(0, results1.length - 1).concat(results2);
-  } else {
-    return [points[0], points[end]];
+  const result = [];
+  for (let i = 0; i < len; i++) {
+    if (keep[i]) {
+      result.push(points[i]);
+    }
   }
+  return result;
 }

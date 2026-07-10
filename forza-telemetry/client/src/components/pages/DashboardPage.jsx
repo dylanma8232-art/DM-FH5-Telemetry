@@ -153,8 +153,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         gap: '8px',
         padding: '8px',
         background: 'var(--bg-primary, #0d1117)',
-        height: '290px',
-        overflow: 'hidden',
+        minHeight: '220px',
         boxSizing: 'border-box'
       }}>
 
@@ -164,7 +163,6 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%',
           minHeight: 0
         }}>
           {/* Row 1: 预警播报 (缩得更小) */}
@@ -274,7 +272,6 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%',
           minHeight: 0
         }}>
           {/* Row 1: 路书 (放在中间，看板放大) */}
@@ -302,7 +299,6 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
-          height: '100%',
           minHeight: 0
         }}>
           <div style={{ flex: 1, minHeight: 0 }}>

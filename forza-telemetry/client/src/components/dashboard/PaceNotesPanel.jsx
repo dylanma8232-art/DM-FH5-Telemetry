@@ -681,23 +681,44 @@ export function PaceNotesPanel({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+          boxSizing: 'border-box',
         }}
       >
-        <div
-          style={{
-            fontSize: 20,
-            color: '#484f58',
-            fontWeight: 300,
-            marginBottom: 4,
-          }}
-        >
-          NOTE
+        {/* 顶部标题行：路书 + ? 按钮 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1 }}>路书</span>
+          <span
+            onClick={() => setShowGlossary(true)}
+            style={{
+              cursor: 'pointer',
+              color: '#8b949e',
+              fontSize: 10,
+              fontWeight: 'bold',
+              padding: '0 4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+              width: 14,
+              height: 14,
+              flexShrink: 0,
+            }}
+            title="路书术语释义"
+          >
+            ?
+          </span>
         </div>
-        <div style={{ fontSize: 10, color: '#484f58' }}>
-          需要赛道数据才能生成路书
+        {/* 空状态提示 */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontSize: 20, color: '#484f58', fontWeight: 300, marginBottom: 4 }}>
+            NOTE
+          </div>
+          <div style={{ fontSize: 10, color: '#484f58' }}>
+            需要赛道数据才能生成路书
+          </div>
         </div>
+        {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
       </div>
     );
   }

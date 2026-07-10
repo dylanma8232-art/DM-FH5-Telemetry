@@ -14,6 +14,7 @@ import { stateManager } from './services/state-manager.js';
 import { simplifyRDP } from './utils/rdp.js';
 import { migrateMonolithicDatabase } from './storage/migration.js';
 import { runSessionRetentionCleanup } from './services/retention.js';
+import { Worker } from 'worker_threads';
 
 
 const UDP_PORT = process.env.UDP_PORT ? parseInt(process.env.UDP_PORT, 10) : 9996;
@@ -179,6 +180,50 @@ function writeTrackDetail(trackId, trackDetail) {
   }
 }
 
+// 异步版本的 writeTrackDetail，避免阻塞事件循环
+async function writeTrackDetailAsync(trackId, trackDetail) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
+  const jsonPath = path.join(tracksDir, `${trackId}.json`);
+  const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
+
+  try {
+    await fs.promises.mkdir(tracksDir, { recursive: true });
+    
+    // 使用紧凑的一行 JSON 字符串
+    const jsonStr = JSON.stringify(trackDetail);
+    const buffer = Buffer.from(jsonStr, 'utf8');
+    
+    // 异步 Brotli 压缩 (Quality Level = 9)
+    const compressed = await new Promise((resolve, reject) => {
+      zlib.brotliCompress(buffer, {
+        params: {
+          [zlib.constants.BROTLI_PARAM_QUALITY]: 9
+        }
+      }, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+    
+    // 原子写入：先写临时文件再重命名
+    const tmpPath = `${brPath}.tmp`;
+    await fs.promises.writeFile(tmpPath, compressed);
+    await fs.promises.rename(tmpPath, brPath);
+
+    // 清理旧的不压缩/Gzip格式文件，释放磁盘空间
+    try {
+      await fs.promises.unlink(jsonPath).catch(() => {});
+      await fs.promises.unlink(gzPath).catch(() => {});
+    } catch {}
+    
+    return true;
+  } catch (err) {
+    console.error(`[writeTrackDetailAsync] 压缩写入赛道 ${trackId} 失败:`, err.message);
+    return false;
+  }
+}
+
 // 删除赛道文件 (删除所有可能的文件格式)
 function deleteTrackDetail(trackId) {
   const tracksDir = path.join(DATA_DIR, 'tracks');
@@ -336,6 +381,67 @@ function saveSession(sessionId, sessionData) {
       fs.promises.unlink(oldGzPath).catch(() => {});
     }).catch(err => {
       console.error(`[saveSession] 低清骨架详情写入失败 ${lowfiPath}:`, err.message);
+    });
+  }
+
+  autoCleanupSessionDetails(10);
+  return true;
+}
+
+// 异步版本的 saveSession，完全使用 await 等待所有写入完成
+async function saveSessionAsync(sessionId, sessionData) {
+  const sessionsDir = path.join(DATA_DIR, 'sessions');
+
+  const summaryData = {
+    id: sessionData.id || sessionId,
+    trackName: sessionData.trackName || '未知赛道',
+    trackId: sessionData.trackId || null,
+    savedAt: sessionData.savedAt || new Date().toISOString(),
+    autoRecorded: sessionData.autoRecorded ?? true,
+    trackMode: sessionData.trackMode ?? false,
+    tuneId: sessionData.tuneId || null,
+    summary: sessionData.summary || {
+      dataCount: sessionData.data ? sessionData.data.length : 0,
+      positionCount: sessionData.positions ? sessionData.positions.length : 0,
+      duration: sessionData.summary?.duration || 0
+    },
+    vehicle: sessionData.vehicle || null,
+    laps: sessionData.laps || {},
+    hasDetail: !!(sessionData.data && sessionData.data.length > 0)
+  };
+
+  const summaryPath = path.join(sessionsDir, `${sessionId}_summary.json`);
+  await writeJsonAsync(summaryPath, summaryData).catch(err => {
+    console.error(`[saveSessionAsync] 概要写入失败 ${summaryPath}:`, err.message);
+  });
+
+  if (sessionData.data && sessionData.data.length > 0) {
+    // 1. 写入高清完整的 Hifi 详情
+    const hifiData = {
+      id: sessionData.id || sessionId,
+      data: sessionData.data,
+      positions: sessionData.positions || []
+    };
+    const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+    await writeBrotliAsync(hifiPath, hifiData).catch(err => {
+      console.error(`[saveSessionAsync] 高清详情写入失败 ${hifiPath}:`, err.message);
+    });
+
+    // 2. 写入精简事件的 Lowfi 详情
+    const { data: lowfiData, positions: lowfiPositions } = generateLowfiTelemetry(sessionData.data, sessionData.positions);
+    const lowfiPayload = {
+      id: sessionData.id || sessionId,
+      data: lowfiData,
+      positions: lowfiPositions
+    };
+    const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
+    await writeBrotliAsync(lowfiPath, lowfiPayload).then(() => {
+      const oldBrPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+      const oldGzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+      fs.promises.unlink(oldBrPath).catch(() => {});
+      fs.promises.unlink(oldGzPath).catch(() => {});
+    }).catch(err => {
+      console.error(`[saveSessionAsync] 低清骨架详情写入失败 ${lowfiPath}:`, err.message);
     });
   }
 
@@ -663,10 +769,21 @@ const EMIT_INTERVAL_MS = 33; // ~30fps (原来60fps)
 let lastEmitTime = 0;
 
 // 手动录制 - 用户主动控制，不影响自动录制
-let isManualRecording = false, manualRecordedData = [], manualRacePositions = [];
+let isManualRecording = false;
+let manualRacePositions = [];
+let manualRecordTempPath = null;
+let manualRecordWriteStream = null;
+let manualRecordDataCount = 0;
+let lastManualRecordSaveTime = 0;
+let lastManualPositionSaveTime = 0;
 
 // 自动录制 - 专用于赛道录制
-let autoRecordedData = [], autoRacePositions = [];
+let autoRacePositions = [];
+let autoRecordTempPath = null;
+let autoRecordWriteStream = null;
+let autoRecordDataCount = 0;
+let lastAutoRecordSaveTime = 0;
+let lastAutoPositionSaveTime = 0;
 
 // 赛道模式 - 选择特定赛道进行比赛
 let trackMode = null; // { trackId: string, trackName: string }
@@ -770,9 +887,21 @@ function processTelemetryPacket(telemetry, msgLength) {
   
   // 手动录制
   if (isManualRecording) {
-    manualRecordedData.push({ ...telemetry, _recordedAt: new Date().toISOString() });
+    const nowTime = Date.now();
+    // 遥测数据：20Hz (50ms) 采样实时流式写入
+    if (nowTime - lastManualRecordSaveTime >= 50) {
+      if (manualRecordWriteStream) {
+        manualRecordWriteStream.write(JSON.stringify({ ...telemetry, _recordedAt: new Date().toISOString() }) + '\n');
+        manualRecordDataCount++;
+      }
+      lastManualRecordSaveTime = nowTime;
+    }
+    // 轨迹数据：10Hz (100ms) 采样内存收集
     if (telemetry.position && (telemetry.position.x !== 0 || telemetry.position.z !== 0)) {
-      manualRacePositions.push(extractTrackPoint(telemetry));
+      if (nowTime - lastManualPositionSaveTime >= 100) {
+        manualRacePositions.push(extractTrackPoint(telemetry));
+        lastManualPositionSaveTime = nowTime;
+      }
     }
   }
 }
@@ -961,9 +1090,22 @@ function handleAutoRecord(telemetry) {
     
     // 自动录制数据
     if (autoRecordState === 'RECORDING') {
-      autoRecordedData.push({ ...telemetry, _recordedAt: new Date().toISOString() });
+      const nowTime = Date.now();
+      // 20Hz 降采样：实时流式写入临时遥测文件
+      if (nowTime - lastAutoRecordSaveTime >= 50) {
+        if (autoRecordWriteStream) {
+          autoRecordWriteStream.write(JSON.stringify({ ...telemetry, _recordedAt: new Date().toISOString() }) + '\n');
+          autoRecordDataCount++;
+        }
+        lastAutoRecordSaveTime = nowTime;
+      }
+
       if (isPositionValid) {
-        autoRacePositions.push(extractTrackPoint(telemetry));
+        // 10Hz 降采样：收集内存中的轻量级轨迹点
+        if (nowTime - lastAutoPositionSaveTime >= 100) {
+          autoRacePositions.push(extractTrackPoint(telemetry));
+          lastAutoPositionSaveTime = nowTime;
+        }
         
         // 赛道模式：检测弯道并进行语音播报（只在比赛中）
         if (isActuallyRacing && trackMode && tracks[trackMode.trackId]) {
@@ -987,7 +1129,7 @@ function handleAutoRecord(telemetry) {
       if (packetCount % 30 === 0) {
         io.emit('recordStats', {
           state: 'RECORDING',
-          pointCount: autoRecordedData.length,
+          pointCount: autoRecordDataCount,
           positionCount: autoRacePositions.length,
           speed: Math.round(speed),
           duration: autoRecordStartTime ? now - autoRecordStartTime : 0
@@ -1374,57 +1516,72 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
 function startAutoRecording() {
   autoRecordState = 'RECORDING';
   autoRecordStartTime = Date.now();
-  // 每次新比赛清空自动录制数组（手动录制不受影响）
-  autoRecordedData.length = 0;
   autoRacePositions.length = 0;
-  console.log('[自动录制] 比赛开始，录制中...');
+  autoRecordDataCount = 0;
+  lastAutoRecordSaveTime = 0;
+  lastAutoPositionSaveTime = 0;
+  
+  // 创建临时追加写入流
+  const tempDir = path.join(DATA_DIR, 'sessions');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+  autoRecordTempPath = path.join(tempDir, `temp_auto_record_${Date.now()}.jsonl`);
+  autoRecordWriteStream = fs.createWriteStream(autoRecordTempPath, { flags: 'a' });
+
+  console.log(`[自动录制] 比赛开始，实时流式写入: ${autoRecordTempPath}`);
   io.emit('autoRecordStatus', { state: 'RECORDING', message: '比赛开始，自动录制中' });
 }
 
 function stopAutoRecording() {
   const duration = Date.now() - autoRecordStartTime;
   
+  // 关闭可写流
+  if (autoRecordWriteStream) {
+    autoRecordWriteStream.end();
+    autoRecordWriteStream = null;
+  }
+  
   // 最小时长过滤
   if (duration < MIN_RACE_DURATION_MS) {
     console.log(`[自动录制] 比赛太短 (${duration}ms)，丢弃数据`);
     autoRecordState = 'IDLE';
-    autoRecordedData.length = 0;
     autoRacePositions.length = 0;
+    if (autoRecordTempPath && fs.existsSync(autoRecordTempPath)) {
+      try { fs.unlinkSync(autoRecordTempPath); } catch {}
+    }
     io.emit('autoRecordStatus', { state: 'IDLE', message: '比赛太短，数据已丢弃' });
     return;
   }
   
   autoRecordState = 'IDLE';
   
-  console.log(`[自动录制] 比赛结束，${autoRecordedData.length} 条数据，${autoRacePositions.length} 个轨迹点`);
+  console.log(`[自动录制] 比赛结束，准备后台异步保存 ${autoRecordDataCount} 条数据，${autoRacePositions.length} 个轨迹点`);
   
-  // 自动保存
-  saveAutoRecordedData(duration);
+  // 复制位置数据供 Worker 使用
+  const capturedPositions = [...autoRacePositions];
+  const tempPath = autoRecordTempPath;
   
-  // 【修复】重置缓存和录制状态，防止连着比赛的数据发生叠加
-  autoRecordedData.length = 0;
+  // 立即重置缓存和录制状态
   autoRacePositions.length = 0;
+  autoRecordDataCount = 0;
   speedSustainStart = null;
   lastValidPosition = null;
   lastLapNumber = 0;
   staticPositionCount = 0;
   lastSignificantPosition = null;
+  
+  // 启动工作线程处理重度序列化、计算与压缩保存
+  saveAutoRecordedDataWithWorker(duration, tempPath, capturedPositions);
 }
 
-async function saveAutoRecordedData(duration) {
-  const ts = Date.now();
-  const filename = 'session_' + ts + '.json';
-  
-  // 确定赛道信息
+function saveAutoRecordedDataWithWorker(duration, tempFilePath, positions) {
+  // 确定赛道模式及基本信息
   let trackId = null;
   let trackName = null;
   
-  // 赛道模式：合并到指定赛道
   if (trackMode) {
     trackId = trackMode.trackId;
     trackName = trackMode.trackName;
   } else {
-    // 普通模式：生成新赛道名称
     const now = new Date();
     const dateStr = now.getFullYear() + 
       String(now.getMonth() + 1).padStart(2, '0') + 
@@ -1434,206 +1591,107 @@ async function saveAutoRecordedData(duration) {
       String(now.getSeconds()).padStart(2, '0');
     trackName = '赛道_' + dateStr + '_' + timeStr;
   }
-  
-  const validBestLaps = autoRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
-  const validLastLaps = autoRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
-  const validRaceTimes = autoRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
-  
-  let bestLap = 0;
-  if (validBestLaps.length > 0) {
-    bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
-  } else if (validRaceTimes.length > 0) {
-    bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
-  }
 
-  let lastLap = 0;
-  if (validLastLaps.length > 0) {
-    lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
-  } else if (validRaceTimes.length > 0) {
-    lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
-  }
-
-  let maxLap = autoRecordedData.length > 0 ? Math.max(...autoRecordedData.map(d => d.lapNumber || 0)) : 0;
-  
-  const sessionData = {
+  const ts = Date.now();
+  const sessionDataMeta = {
     id: 'session_' + ts,
     trackName: trackName,
     trackId: trackId,
     savedAt: new Date().toISOString(),
     autoRecorded: true,
-    trackMode: !!trackMode, // 标记是否为赛道模式
+    trackMode: !!trackMode,
     tuneId: currentTuneId,
-    summary: {
-      dataCount: autoRecordedData.length,
-      positionCount: autoRacePositions.length,
-      duration: duration,
-    },
-    vehicle: autoRecordedData.length > 0 ? autoRecordedData[0].car : null,
-    laps: {
-      best: bestLap,
-      last: lastLap,
-      count: maxLap,
-    },
-    data: autoRecordedData,
-    positions: autoRacePositions,
+    duration: duration,
+    vehicle: currentData ? currentData.car : null
   };
-  
-  saveSession(sessionData.id, sessionData);
-  
-  // 赛道模式：直接合并到指定赛道
-  if (trackMode && trackId && tracks[trackId]) {
-    let trackDetail = readTrackDetail(trackId);
-    if (!trackDetail) {
-      trackDetail = { ...tracks[trackId] }; // 降级回退
+
+  // 创建 Worker
+  const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), './storage/save-worker.js');
+  const worker = new Worker(workerPath, {
+    workerData: {
+      tempFilePath,
+      positions,
+      sessionDataMeta,
+      DATA_DIR,
+      tracks,
+      trackMode
     }
-
-    // 对新轨迹运行 RDP 简化以大幅瘦身
-    const simplifiedNewTraj = simplifyRDP(autoRacePositions, 0.25);
-    
-    const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
-    existingTrajectories.push(simplifiedNewTraj);
-    
-    // 【Bug Fix】原代码先 downsampleTrajectory（步长10）再 simplifyRDP，
-    //           导致历史轨迹直道间距可达100m+，远超致密化能有效处理的范围。
-    //           修复：只保留 RDP 抽稀，放弃步长降采样，由 track-builder 的致密化处理密度问题。
-    for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
-    }
-    
-    const trimmed = trimTrajectories(existingTrajectories, 5);
-    const trackData = buildTrackFromTrajectories(trimmed, {
-      oldTurns: trackDetail.turns || [],
-      isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
-      deletedTurns: trackDetail.deletedTurns || []
-    });
-    
-    trackDetail.trajectories = trimmed;
-    trackDetail.trajectoryCount = trimmed.length;
-    trackDetail.updatedAt = new Date().toISOString();
-    
-    if (trackData) {
-      trackDetail.points = trackData.centerline;
-      trackDetail.centerline = trackData.centerline;
-      trackDetail.turns = trackData.turns;
-      trackDetail.length = trackData.length;
-      trackDetail.isLoop = trackData.isLoop || false;
-      trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-      trackDetail.navigation = generateNavigationData(trackData);
-    }
-    
-    // 1. 写入小分包
-    writeTrackDetail(trackId, trackDetail);
-
-    tracks[trackId] = {
-      id: trackId,
-      name: trackDetail.name || trackName,
-      length: trackDetail.length || 0,
-      pointCount: trackDetail.points ? trackDetail.points.length : 0,
-      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-      trajectoryCount: trimmed.length,
-      createdAt: trackDetail.createdAt || (tracks[trackId] ? tracks[trackId].createdAt : null) || new Date().toISOString(),
-      updatedAt: trackDetail.updatedAt
-    };
-    saveTracksDatabase(tracks);
-    
-    console.log(`[赛道模式] 合并到赛道: ${trackName}，轨迹数: ${trimmed.length} (已完成 RDP 抽稀)`);
-    io.emit('autoRecordStatus', { 
-      state: 'COMPLETED', 
-      message: `比赛结束，已合并到赛道: ${trackName}`,
-      sessionId: sessionData.id,
-      trackId: trackId,
-      trackName: trackName
-    });
-    
-    // 重置赛道模式
-    trackMode = null;
-    lastTurnIndex = -1;
-
-    // 更新车辆统计（赛道模式分支）
-    const trackModeVehicleOrdinal = sessionData.vehicle ? sessionData.vehicle.ordinal : null;
-    if (trackModeVehicleOrdinal && vehicles[trackModeVehicleOrdinal]) {
-      vehicles[trackModeVehicleOrdinal].raceCount = (vehicles[trackModeVehicleOrdinal].raceCount || 0) + 1;
-      if (trackName && !vehicles[trackModeVehicleOrdinal].tracks.includes(trackName)) {
-        vehicles[trackModeVehicleOrdinal].tracks.push(trackName);
-      }
-      if (!vehicles[trackModeVehicleOrdinal].bestLap || (sessionData.laps && sessionData.laps.best && sessionData.laps.best < vehicles[trackModeVehicleOrdinal].bestLap)) {
-        vehicles[trackModeVehicleOrdinal].bestLap = sessionData.laps?.best;
-      }
-      saveJSON(DATA_DIR + '/vehicles.json', vehicles);
-    }
-
-    return;
-  }
-  
-  // 普通模式：不再进行自动相似度匹配合并，一律直接自动创建新赛道并立即生成中线与弯道（合并交由用户手动在赛道管理中进行）
-  const newTrackId = 'track_' + ts;
-  
-  // 对新自动录制的轨迹进行 RDP 精细化抽稀以极大减小空间占用
-  const simplifiedTraj = simplifyRDP(autoRacePositions, 0.25);
-  
-  const trackLength = calculateTrackLength(simplifiedTraj);
-  const trackData = buildTrackFromTrajectories([simplifiedTraj]);
-  
-  const trackDetail = {
-    id: newTrackId,
-    name: trackName,
-    points: simplifiedTraj,
-    pointCount: simplifiedTraj.length,
-    length: trackLength,
-    trajectories: [simplifiedTraj],
-    trajectoryCount: 1,
-    centerline: trackData ? trackData.centerline : null,
-    turns: trackData ? trackData.turns : null,
-    isLoop: trackData ? (trackData.isLoop || false) : false,
-    sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
-    navigation: trackData ? generateNavigationData(trackData) : null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  // 1. 写入详细几何分包并自动进行 Brotli 压缩瘦身
-  writeTrackDetail(newTrackId, trackDetail);
-
-  // 2. 写入轻量元数据索引
-  tracks[newTrackId] = {
-    id: newTrackId,
-    name: trackName,
-    length: trackLength,
-    pointCount: simplifiedTraj.length,
-    turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-    trajectoryCount: 1,
-    isLoop: trackDetail.isLoop || false,
-    createdAt: trackDetail.createdAt,
-    updatedAt: trackDetail.updatedAt
-  };
-  
-  // 更新session的trackId
-  sessionData.trackId = newTrackId;
-  saveSession(sessionData.id, sessionData);
-  saveTracksDatabase(tracks);
-  
-  console.log(`[自动录制] 创建新赛道: ${trackName}，原始点数: ${autoRacePositions.length} -> RDP 瘦身点数: ${simplifiedTraj.length}，长度: ${trackLength}米`);
-  io.emit('autoRecordStatus', { 
-    state: 'COMPLETED', 
-    message: `比赛结束，已创建新赛道: ${trackName}`,
-    sessionId: sessionData.id,
-    trackId: newTrackId,
-    trackName: trackName
   });
 
-  // 更新车辆统计
-  const vehicleOrdinal = sessionData.vehicle ? sessionData.vehicle.ordinal : null;
-  if (vehicleOrdinal && vehicles[vehicleOrdinal]) {
-    vehicles[vehicleOrdinal].raceCount = (vehicles[vehicleOrdinal].raceCount || 0) + 1;
-    if (trackName && !vehicles[vehicleOrdinal].tracks.includes(trackName)) {
-      vehicles[vehicleOrdinal].tracks.push(trackName);
+  worker.on('message', (msg) => {
+    if (msg.status === 'success') {
+      console.log(`[自动录制] 后台保存成功，会话 ID: ${msg.sessionId}`);
+      
+      // 更新内存中的 tracks 缓存
+      if (msg.tracksUpdate) {
+        const trUpdate = msg.tracksUpdate;
+        tracks[trUpdate.id] = trUpdate;
+        saveTracksDatabase(tracks);
+      }
+
+      // 更新车辆统计
+      const sessionSummary = msg.sessionSummary;
+      const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
+      if (vehicleOrdinal && vehicles[vehicleOrdinal]) {
+        vehicles[vehicleOrdinal].raceCount = (vehicles[vehicleOrdinal].raceCount || 0) + 1;
+        if (trackName && !vehicles[vehicleOrdinal].tracks.includes(trackName)) {
+          vehicles[vehicleOrdinal].tracks.push(trackName);
+        }
+        if (!vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < vehicles[vehicleOrdinal].bestLap)) {
+          vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
+        }
+        saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+      }
+
+      io.emit('autoRecordStatus', { 
+        state: 'COMPLETED', 
+        message: `比赛结束，数据保存成功`,
+        sessionId: msg.sessionId,
+        trackId: msg.tracksUpdate ? msg.tracksUpdate.id : null,
+        trackName: trackName
+      });
+    } else {
+      console.error(`[自动录制] 后台保存失败: ${msg.error}`);
+      io.emit('autoRecordStatus', { 
+        state: 'ERROR', 
+        message: `保存失败: ${msg.error}` 
+      });
     }
-    if (!vehicles[vehicleOrdinal].bestLap || (sessionData.laps && sessionData.laps.best && sessionData.laps.best < vehicles[vehicleOrdinal].bestLap)) {
-      vehicles[vehicleOrdinal].bestLap = sessionData.laps?.best;
+
+    // 后置清理：删除临时文件，释放空间
+    try {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+        console.log(`[自动录制] 临时文件已清理: ${tempFilePath}`);
+      }
+    } catch (e) {
+      console.error(`[自动录制] 清理临时文件失败:`, e.message);
     }
-    saveJSON(DATA_DIR + '/vehicles.json', vehicles);
-  }
+    
+    // 重置赛道状态
+    trackMode = null;
+    lastTurnIndex = -1;
+    worker.terminate();
+  });
+
+  worker.on('error', (err) => {
+    console.error(`[自动录制] 后台保存工作线程出现错误:`, err);
+    io.emit('autoRecordStatus', { 
+      state: 'ERROR', 
+      message: `工作线程错误: ${err.message}` 
+    });
+    
+    try {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    } catch {}
+    
+    trackMode = null;
+    lastTurnIndex = -1;
+    worker.terminate();
+  });
 }
+
+// 自动录制数据保存由后台工作线程 save-worker.js 接管，此处已废弃 saveAutoRecordedDataAsync
 
 app.get('/api/status', (req, res) => res.json({ udpPort: UDP_PORT, ips: getLocalIPs(), packetCount, lastPacketTime, isReceiving: lastPacketTime && (Date.now() - new Date(lastPacketTime).getTime() < 2000), isManualRecording, autoRecordState }));
 app.get('/api/current', (req, res) => res.json(currentData || {}));
@@ -2528,15 +2586,30 @@ app.post('/api/tracks/import-sessions', express.json(), (req, res) => {
 });
 
 app.post('/api/record/start', (req, res) => { 
-  manualRecordedData.length = 0; 
   manualRacePositions.length = 0; 
+  manualRecordDataCount = 0;
+  lastManualRecordSaveTime = 0;
+  lastManualPositionSaveTime = 0;
   isManualRecording = true; 
+  
+  // 创建临时追加写入流
+  const tempDir = path.join(DATA_DIR, 'sessions');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+  manualRecordTempPath = path.join(tempDir, `temp_manual_record_${Date.now()}.jsonl`);
+  manualRecordWriteStream = fs.createWriteStream(manualRecordTempPath, { flags: 'a' });
+
+  console.log(`[手动录制] 录制开始，流式写入临时文件: ${manualRecordTempPath}`);
   res.json({ status: 'ok' }); 
 });
 
 app.post('/api/record/stop', (req, res) => { 
   isManualRecording = false; 
-  res.json({ status: 'ok', count: manualRecordedData.length, positions: manualRacePositions.length }); 
+  if (manualRecordWriteStream) {
+    manualRecordWriteStream.end();
+    manualRecordWriteStream = null;
+  }
+  console.log(`[手动录制] 录制停止，已录制 ${manualRecordDataCount} 条数据，内存收集 ${manualRacePositions.length} 个轨迹点`);
+  res.json({ status: 'ok', count: manualRecordDataCount, positions: manualRacePositions.length }); 
 });
 
 app.post('/api/record/save', express.json(), (req, res) => {
@@ -2544,164 +2617,103 @@ app.post('/api/record/save', express.json(), (req, res) => {
   const trackName = req.body.trackName || '未命名赛道';
   const isNewTrack = req.body.isNewTrack;
   const trackId = req.body.trackId;
-  const filename = 'session_' + ts + '.json';
   
-  // 保存全量数据
-  const validBestLaps = manualRecordedData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
-  const validLastLaps = manualRecordedData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
-  const validRaceTimes = manualRecordedData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
-  
-  let bestLap = 0;
-  if (validBestLaps.length > 0) {
-    bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
-  } else if (validRaceTimes.length > 0) {
-    bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  if (!manualRecordTempPath || !fs.existsSync(manualRecordTempPath)) {
+    return res.status(400).json({ error: '没有录制数据或临时文件已丢失' });
   }
 
-  let lastLap = 0;
-  if (validLastLaps.length > 0) {
-    lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
-  } else if (validRaceTimes.length > 0) {
-    lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
-  }
-
-  let maxLap = manualRecordedData.length > 0 ? Math.max(...manualRecordedData.map(d => d.lapNumber || 0)) : 0;
-  
-  const sessionData = {
+  const sessionDataMeta = {
     id: 'session_' + ts,
     trackName: trackName,
     trackId: trackId || null,
     savedAt: new Date().toISOString(),
     autoRecorded: false,
     tuneId: currentTuneId,
-    summary: {
-      dataCount: manualRecordedData.length,
-      positionCount: manualRacePositions.length,
-      duration: manualRecordedData.length > 0 ? (manualRecordedData[manualRecordedData.length-1].timestampMS - manualRecordedData[0].timestampMS) : 0,
-    },
-    vehicle: manualRecordedData.length > 0 ? manualRecordedData[0].car : null,
-    laps: {
-      best: bestLap,
-      last: lastLap,
-      count: maxLap,
-    },
-    data: manualRecordedData,
-    positions: manualRacePositions,
+    duration: 0, // 传给 Worker 计算
+    vehicle: currentData ? currentData.car : null
   };
-  
-  saveSession(sessionData.id, sessionData);
-  
-  // 处理赛道数据
-  if (trackId && tracks[trackId]) {
-    // 历史赛道：合并轨迹并重新生成中心线
-    let trackDetail = readTrackDetail(trackId);
-    if (!trackDetail) {
-      trackDetail = { ...tracks[trackId] };
+
+  const tempFilePath = manualRecordTempPath;
+  const positions = [...manualRacePositions];
+
+  // 立即清除主线程引用和录制状态，防止被重复保存
+  manualRecordTempPath = null;
+  manualRacePositions = [];
+  manualRecordDataCount = 0;
+
+  // 启动后台工作线程异步处理保存
+  const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), './storage/save-worker.js');
+  const worker = new Worker(workerPath, {
+    workerData: {
+      tempFilePath,
+      positions,
+      sessionDataMeta,
+      DATA_DIR,
+      tracks,
+      trackMode: trackId ? { trackId, trackName } : null
     }
-    const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
-    existingTrajectories.push(manualRacePositions);
-    
-    // 【Bug Fix】移除历史轨迹步长10降采样，避免与 RDP 叠加造成间距过大（>100m）。
-    //           track-builder 中的 densifyTrajectory 会在建网格前统一处理密度问题。
-    for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
+  });
+
+  worker.on('message', (msg) => {
+    if (msg.status === 'success') {
+      console.log(`[手动录制] 后台保存成功，会话 ID: ${msg.sessionId}`);
+      
+      // 更新内存中的 tracks 缓存
+      if (msg.tracksUpdate) {
+        const trUpdate = msg.tracksUpdate;
+        tracks[trUpdate.id] = trUpdate;
+        saveTracksDatabase(tracks);
+      }
+
+      // 更新车辆统计
+      const sessionSummary = msg.sessionSummary;
+      const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
+      if (vehicleOrdinal && vehicles[vehicleOrdinal]) {
+        vehicles[vehicleOrdinal].raceCount = (vehicles[vehicleOrdinal].raceCount || 0) + 1;
+        if (trackName && !vehicles[vehicleOrdinal].tracks.includes(trackName)) {
+          vehicles[vehicleOrdinal].tracks.push(trackName);
+        }
+        if (!vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < vehicles[vehicleOrdinal].bestLap)) {
+          vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
+        }
+        saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+      }
+
+      res.json({
+        status: 'ok',
+        filename: 'session_' + ts + '.json',
+        count: sessionSummary.summary.dataCount,
+        positions: sessionSummary.summary.positionCount,
+        trackId: msg.tracksUpdate ? msg.tracksUpdate.id : null,
+        merged: !!trackId,
+        trajectoryCount: msg.tracksUpdate ? msg.tracksUpdate.trajectoryCount : 1,
+        trackLength: msg.tracksUpdate ? msg.tracksUpdate.length : 0
+      });
+    } else {
+      console.error(`[手动录制] 后台保存失败: ${msg.error}`);
+      res.status(500).json({ error: `保存失败: ${msg.error}` });
     }
-    // 限制最多5条轨迹
-    const trimmed = trimTrajectories(existingTrajectories, 5);
-    
-    // 使用轨迹聚合算法生成中心线
-    const trackData = buildTrackFromTrajectories(trimmed);
-    
-    trackDetail.points = manualRacePositions; // 保留最新轨迹（完整精度）
-    trackDetail.pointCount = manualRacePositions.length;
-    trackDetail.trajectories = trimmed;
-    trackDetail.trajectoryCount = trimmed.length;
-    trackDetail.updatedAt = new Date().toISOString();
-    
-    if (trackData) {
-      trackDetail.centerline = trackData.centerline;
-      trackDetail.turns = trackData.turns;
-      trackDetail.length = trackData.length;
-      trackDetail.isLoop = trackData.isLoop || false;
-      trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-      trackDetail.navigation = generateNavigationData(trackData);
+
+    // 后置清理：删除临时文件，释放磁盘空间
+    try {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+        console.log(`[手动录制] 临时文件已清理: ${tempFilePath}`);
+      }
+    } catch (e) {
+      console.error(`[手动录制] 清理临时文件失败:`, e.message);
     }
-    
-    writeTrackDetail(trackId, trackDetail);
-    
-    tracks[trackId] = {
-      id: trackId,
-      name: trackDetail.name || trackName,
-      length: trackDetail.length || 0,
-      pointCount: trackDetail.pointCount || 0,
-      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-      trajectoryCount: trackDetail.trajectoryCount || 1,
-      isLoop: trackDetail.isLoop || false,
-      createdAt: trackDetail.createdAt,
-      updatedAt: trackDetail.updatedAt
-    };
-    saveTracksDatabase(tracks);
-    
-    res.json({ 
-      status: 'ok', 
-      filename, 
-      count: manualRecordedData.length, 
-      positions: manualRacePositions.length, 
-      trackId: trackId, 
-      merged: true,
-      trajectoryCount: trimmed.length,
-      trackLength: trackDetail.length || 0
-    });
-  } else {
-    // 默认直接创建新赛道并立即生成中线与弯道数据（包括手动录制结束保存）
-    const newTrackId = 'track_' + ts;
-    const trackLength = calculateTrackLength(manualRacePositions);
-    const trackData = buildTrackFromTrajectories([manualRacePositions]);
-    
-    const trackDetail = {
-      id: newTrackId,
-      name: trackName,
-      points: manualRacePositions,
-      pointCount: manualRacePositions.length,
-      length: trackLength,
-      trajectories: [manualRacePositions], // 保存所有轨迹用于聚合
-      trajectoryCount: 1,
-      centerline: trackData ? trackData.centerline : null,
-      turns: trackData ? trackData.turns : null,
-      isLoop: trackData ? (trackData.isLoop || false) : false,
-      sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
-      navigation: trackData ? generateNavigationData(trackData) : null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    writeTrackDetail(newTrackId, trackDetail);
-    
-    tracks[newTrackId] = {
-      id: newTrackId,
-      name: trackName,
-      length: trackLength,
-      pointCount: manualRacePositions.length,
-      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-      trajectoryCount: 1,
-      isLoop: trackDetail.isLoop || false,
-      createdAt: trackDetail.createdAt,
-      updatedAt: trackDetail.updatedAt
-    };
-    saveTracksDatabase(tracks);
-    
-    // 同步更新session关联的trackId
-    sessionData.trackId = newTrackId;
-    saveSession(sessionData.id, sessionData);
-    
-    res.json({ 
-      status: 'ok', 
-      filename, 
-      count: manualRecordedData.length, 
-      positions: manualRacePositions.length, 
-      trackId: newTrackId 
-    });
-  }
+    worker.terminate();
+  });
+
+  worker.on('error', (err) => {
+    console.error(`[手动录制] 保存工作线程发生错误:`, err);
+    res.status(500).json({ error: `保存工作线程崩溃: ${err.message}` });
+    try {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    } catch {}
+    worker.terminate();
+  });
 });
 
 app.get('/api/record/positions', (req, res) => res.json(manualRacePositions));
