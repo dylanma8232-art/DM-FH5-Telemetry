@@ -153,24 +153,22 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         gap: '8px',
         padding: '8px',
         background: 'var(--bg-primary, #0d1117)',
-        flex: 1,
-        minHeight: 0,
+        height: '290px',
         overflow: 'hidden',
         boxSizing: 'border-box'
       }}>
 
         {/* ========== COLUMN 1 (左侧): 预警播报 / 车辆信息 / 驾驶HUD ========== */}
         <div style={{
-          flex: '1 1 0',
-          minWidth: 0,
+          flex: '0 0 300px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
           height: '100%',
           minHeight: 0
         }}>
-          {/* Row 1: 预警播报 */}
-          <div style={{ flex: '0 0 80px', minHeight: 56 }}>
+          {/* Row 1: 预警播报 (缩得更小) */}
+          <div style={{ flex: '0 0 80px', minHeight: 0 }}>
             <AlertAdvicePanel data={telemetryData} />
           </div>
 
@@ -272,16 +270,15 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
 
         {/* ========== COLUMN 2 (中间): 路书 + 底盘动态 ========== */}
         <div style={{
-          flex: '2 1 0',
-          minWidth: 0,
+          flex: '1 1 auto',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
           height: '100%',
           minHeight: 0
         }}>
-          {/* Row 1: 路书 */}
-          <div style={{ ...cardBaseStyle, flex: '0 1 40%', minHeight: 80, padding: '10px 12px' }}>
+          {/* Row 1: 路书 (放在中间，看板放大) */}
+          <div style={{ ...cardBaseStyle, flex: '0 0 150px', padding: '10px 12px', minHeight: 0 }}>
             <PaceNotesPanel
               trackData={trackData}
               position={telemetryData.position}
@@ -294,15 +291,14 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           </div>
 
           {/* Row 2: 底盘动态与抓地力 */}
-          <div style={{ flex: '1 1 0', minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0 }}>
             <BrakingGripDynamicsPanel data={telemetryData} />
           </div>
         </div>
 
         {/* ========== COLUMN 3 (右侧): 圈速 & 计时 ========== */}
         <div style={{
-          flex: '1.2 1 0',
-          minWidth: 0,
+          flex: '0 0 320px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
