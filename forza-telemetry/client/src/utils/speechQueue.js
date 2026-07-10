@@ -47,16 +47,33 @@ class SpeechQueueManager {
     if (!window._activeUtterances) window._activeUtterances = new Set();
     window._activeUtterances.add(utterance);
 
-    // 竞速场景下语速适中，确保咬字清晰可辨 (默认 0.9，比正常略慢)
-    utterance.rate = options.rate || 0.9; 
+    // 读取用户 TTS 设置（语速、选择的语音名称）
+    let userRate = 0.9;
+    let userVoiceName = '';
+    try {
+      const saved = localStorage.getItem('fh5-telemetry-settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.tts?.rate) userRate = parsed.tts.rate;
+        if (parsed?.tts?.voiceName) userVoiceName = parsed.tts.voiceName;
+      }
+    } catch {}
+
+    utterance.rate = options.rate || userRate;
     utterance.volume = options.volume || 1.0;
     utterance.pitch = options.pitch || 1.0;
 
-    // 绑定中文语音库
+    // 按用户选择的语音名称精确匹配，找不到则降级到第一个中文语音
     const voices = window.speechSynthesis.getVoices();
-    const zhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CHN'));
-    if (zhVoice) {
-      utterance.voice = zhVoice;
+    let selectedVoice = null;
+    if (userVoiceName) {
+      selectedVoice = voices.find(v => v.name === userVoiceName);
+    }
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CHN'));
+    }
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
     }
 
     const cleanUp = () => {

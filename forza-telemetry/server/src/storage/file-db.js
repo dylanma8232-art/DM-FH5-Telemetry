@@ -27,7 +27,7 @@ export async function writeBrotliAsync(filepath, data) {
     const jsonStr = typeof data === 'string' ? data : JSON.stringify(data);
     const compressed = await brotliCompress(Buffer.from(jsonStr), {
       params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: 9
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 4
       }
     });
     

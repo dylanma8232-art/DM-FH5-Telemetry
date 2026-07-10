@@ -75,11 +75,30 @@ export function SettingsPanel({ onClose }) {
   const tabs = [
     { id: 'theme', label: '主题' },
     { id: 'preferences', label: '偏好' },
+    { id: 'speech', label: '语音播报' },
     { id: 'network', label: '网络' },
     { id: 'data', label: '数据' },
     { id: 'ai', label: 'AI 配置' },
     { id: 'help', label: '指标说明' }
   ];
+
+  // 语音播报设置
+  const ttsRate = settings.tts?.rate ?? 0.9;
+  const ttsVoiceName = settings.tts?.voiceName ?? '';
+
+  // 获取系统可用中文语音列表
+  const [availableVoices, setAvailableVoices] = React.useState([]);
+  React.useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis?.getVoices() || [];
+      // 优先列出中文语音，如果没有则显示所有语音
+      const zhVoices = voices.filter(v => v.lang.includes('zh') || v.lang.includes('CHN'));
+      setAvailableVoices(zhVoices.length > 0 ? zhVoices : voices);
+    };
+    loadVoices();
+    window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
+  }, []);
 
   return (
     <div style={{
@@ -565,6 +584,135 @@ export function SettingsPanel({ onClose }) {
                 </button>
               </form>
             )}
+          </div>
+        )}
+
+        {activeTab === 'speech' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              选择语音并调节语速，设置立即生效，下次播报时采用新配置。
+            </div>
+
+            {/* 语音选择 */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>选择语音</div>
+              {availableVoices.length === 0 ? (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '12px 0' }}>
+                  未检测到可用语音，播报将使用系统默认语音
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* 系统默认选项 */}
+                  <button
+                    onClick={() => updateSetting('tts.voiceName', '')}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: ttsVoiceName === '' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: ttsVoiceName === '' ? 'rgba(88,166,255,0.15)' : 'var(--bg-tertiary)',
+                      color: ttsVoiceName === '' ? 'var(--accent)' : 'var(--text-secondary)',
+                      fontSize: 12,
+                      fontWeight: ttsVoiceName === '' ? 700 : 400,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    系统默认
+                  </button>
+                  {/* 列出具体语音 */}
+                  {availableVoices.map(v => (
+                    <button
+                      key={v.name}
+                      onClick={() => updateSetting('tts.voiceName', v.name)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: 6,
+                        border: ttsVoiceName === v.name ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        background: ttsVoiceName === v.name ? 'rgba(88,166,255,0.15)' : 'var(--bg-tertiary)',
+                        color: ttsVoiceName === v.name ? 'var(--accent)' : 'var(--text-secondary)',
+                        fontSize: 12,
+                        fontWeight: ttsVoiceName === v.name ? 700 : 400,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span>{v.name}</span>
+                      <span style={{ fontSize: 10, opacity: 0.6 }}>{v.lang}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 语速 */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>语速</div>
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: 'var(--accent)',
+                  background: 'rgba(88,166,255,0.1)',
+                  padding: '2px 10px',
+                  borderRadius: 4,
+                  minWidth: 40,
+                  textAlign: 'center'
+                }}>
+                  {ttsRate.toFixed(1)}x
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.1"
+                value={ttsRate}
+                onChange={e => updateSetting('tts.rate', parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>
+                <span>慢 0.5x</span>
+                <span>正常 1.0x</span>
+                <span>快 2.0x</span>
+              </div>
+            </div>
+
+            {/* 试听按钮 */}
+            <button
+              onClick={() => {
+                if (!window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance('左三，接右二，注意！');
+                u.rate = ttsRate;
+                const voices = window.speechSynthesis.getVoices();
+                let voice = null;
+                if (ttsVoiceName) {
+                  voice = voices.find(v => v.name === ttsVoiceName);
+                }
+                if (!voice) {
+                  voice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CHN'));
+                }
+                if (voice) u.voice = voice;
+                window.speechSynthesis.speak(u);
+              }}
+              style={{
+                padding: '9px 0',
+                background: 'rgba(63,185,80,0.12)',
+                border: '1px solid rgba(63,185,80,0.35)',
+                borderRadius: 6,
+                color: '#3fb950',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              试听效果
+            </button>
           </div>
         )}
 

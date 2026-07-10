@@ -105,6 +105,7 @@
       - 📄 [atomic-writer.js](file:///forza-telemetry/server/src/storage/atomic-writer.js)   *(常量/方法: `atomicWriter`)*
       - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`, 函数/组件: `readBrotliAsync`)*
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
+      - 📄 [save-worker.js](file:///forza-telemetry/server/src/storage/save-worker.js) 
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`, 函数/组件: `calculateTurnAttributes`)*
     - 📄 [update_index_pacenote.cjs](file:///forza-telemetry/server/src/update_index_pacenote.cjs) 

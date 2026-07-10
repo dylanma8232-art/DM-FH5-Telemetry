@@ -1317,6 +1317,48 @@ export function TrackManagerPage({ onNavigate }) {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
               />
+              {/* 悬浮缩放按钮组 */}
+              <div style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                zIndex: 10,
+              }}>
+                {[
+                  { label: '+', title: '放大', onClick: () => setTransform(prev => ({ ...prev, scale: Math.min(5, prev.scale * 1.25) })) },
+                  { label: '−', title: '缩小', onClick: () => setTransform(prev => ({ ...prev, scale: Math.max(0.5, prev.scale * 0.8) })) },
+                  { label: '⊙', title: '还原全景', onClick: resetView },
+                ].map(btn => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.onClick}
+                    title={btn.title}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 5,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(22,27,34,0.85)',
+                      color: '#c9d1d9',
+                      fontSize: btn.label === '⊙' ? 14 : 18,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backdropFilter: 'blur(4px)',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(48,54,61,0.95)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(22,27,34,0.85)'}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
               {!selectedTrack && (
                 <div style={{
                   position: 'absolute',
