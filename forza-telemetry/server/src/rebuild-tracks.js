@@ -132,6 +132,7 @@ function rebuildTrack(trackId, trackDetail) {
     length: trackData.length,
     pointCount: trackData.centerline.length,
     routeBook: trackData.routeBook,
+    isLoop: trackData.isLoop || false,
     updatedAt: new Date().toISOString()
   };
   
@@ -253,8 +254,10 @@ async function run() {
     detail.centerline = trackData.centerline;
     detail.turns = trackData.turns;
     detail.length = trackData.length;
+    detail.isLoop = trackData.isLoop || false;
     detail.updatedAt = new Date().toISOString();
     detail.sectors = generateSectors(trackData.centerline, trackData.turns);
+    detail.routeBook = trackData.routeBook;
     detail.navigation = generateNavigationData(trackData);
     
     // 保存详情
@@ -264,6 +267,7 @@ async function run() {
     meta.length = trackData.length;
     meta.pointCount = trackData.centerline.length;
     meta.turnCount = newTurnCount;
+    meta.isLoop = trackData.isLoop || false;
     meta.updatedAt = detail.updatedAt;
     
     updatedCount++;

@@ -107,10 +107,13 @@
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`)*
+    - 📄 [update_index_pacenote.cjs](file:///forza-telemetry/server/src/update_index_pacenote.cjs) 
+    - 📄 [update_pacenote.cjs](file:///forza-telemetry/server/src/update_pacenote.cjs) 
     - 📂 **utils/**
       - 📄 [get-current-api.js](file:///forza-telemetry/server/src/utils/get-current-api.js) 
       - 📄 [listen-and-classify.js](file:///forza-telemetry/server/src/utils/listen-and-classify.js) 
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
+  - 📄 [test_dots.cjs](file:///forza-telemetry/server/test_dots.cjs) 
 
 ---
 

@@ -2,6 +2,48 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 
+// === 移动平均平滑算法：用于地图几何标准化渲染 ===
+// 原理：每个点的坐标替换为其周围 windowSize 个点的均值。
+// 优势：输出永远在输入范围内（数学保证），不产生任何振荡/过冲/扭折。
+// 三次叠加后效果接近高斯平滑，直道抖动被抹平，弯道保持自然弧线。
+// origIdx 保留原始索引，路书（turns startIdx/endIdx）完全不受影响。
+function movingAverageSmooth(points, isLoop, windowSize = 30, passes = 3) {
+  if (points.length < 3) return points.map((p, i) => ({ ...p, origIdx: i }));
+  const n = points.length;
+  const half = Math.floor(windowSize / 2);
+
+  let current = points.map((p, i) => ({ ...p, origIdx: i }));
+
+  for (let pass = 0; pass < passes; pass++) {
+    const next = [];
+    for (let i = 0; i < n; i++) {
+      let sumX = 0, sumZ = 0;
+      let count = 0;
+      for (let j = -half; j <= half; j++) {
+        let idx;
+        if (isLoop) {
+          idx = ((i + j) % n + n) % n;
+        } else {
+          idx = Math.max(0, Math.min(n - 1, i + j));
+        }
+        sumX += current[idx].x;
+        sumZ += current[idx].z;
+        count++;
+      }
+      next.push({
+        ...current[i],
+        x: sumX / count,
+        z: sumZ / count,
+        // origIdx 始终保持原始位置，不随平滑移动
+        origIdx: current[i].origIdx
+      });
+    }
+    current = next;
+  }
+
+  return current;
+}
+
 export function TrackManagerPage({ onNavigate }) {
   const [tracks, setTracks] = useState({});
   const [selectedTrack, setSelectedTrack] = useState(null);
@@ -578,8 +620,9 @@ export function TrackManagerPage({ onNavigate }) {
     ctx.fillStyle = '#0d1117';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const bboxPoints = resolvedPoints;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    resolvedPoints.forEach(p => {
+    bboxPoints.forEach(p => {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.z < minZ) minZ = p.z;
@@ -595,296 +638,190 @@ export function TrackManagerPage({ onNavigate }) {
     const ox = (canvas.width - (maxX - minX) * sc) / 2;
     const oz = (canvas.height - (maxZ - minZ) * sc) / 2;
 
-    // 坐标转换辅助
     const toScreen = (p) => ({
       sx: (p.x - minX) * sc + ox,
-      sy: (p.z - minZ) * sc + oz
+      sy: (maxZ - p.z) * sc + oz
     });
+
+    const points = movingAverageSmooth(resolvedPoints, track.isLoop === true, 50, 5);
+    const isLoop = track.isLoop === true;
 
     ctx.save();
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.scale, transform.scale);
 
-    let points = resolvedPoints;
-
-    // 辅助函数：判断点 i 属于哪个弯道
-    const getTurnInfo = (idx) => {
-      const turns = track.turns || [];
-      for (let tIdx = 0; tIdx < turns.length; tIdx++) {
-        const turn = turns[tIdx];
-        if (idx >= turn.startIdx && idx <= turn.endIdx) {
-          return {
-            turn,
-            isEditing: editingTurnIndex === tIdx
-          };
-        }
-      }
-      return null;
-    };
-
-    // 2. 绘制赛道路面多边形与边缘线（相邻两点之间填充四边形梯形）
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    for (let i = 0; i < points.length - 1; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const yaw1 = p1.yaw || 0;
-      const yaw2 = p2.yaw || 0;
-      
-      // 保底半宽 6m，最大 12m
-      const wl1 = Math.max(p1.widthLeft || 0, 6.0);
-      const wr1 = Math.max(p1.widthRight || 0, 6.0);
-      const wl2 = Math.max(p2.widthLeft || 0, 6.0);
-      const wr2 = Math.max(p2.widthRight || 0, 6.0);
-
-      // 根据赛道中心线切向计算法线方向（避免车头打转/撞墙导致边界多边形交叉和尖刺）
-      let nx1 = 0, nz1 = 0;
-      if (i < points.length - 1) {
-        const dx = points[i + 1].x - p1.x;
-        const dz = points[i + 1].z - p1.z;
-        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
-        nx1 = -dz / len;
-        nz1 = dx / len;
-      } else {
-        const dx = p1.x - points[i - 1].x;
-        const dz = p1.z - points[i - 1].z;
-        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
-        nx1 = -dz / len;
-        nz1 = dx / len;
-      }
-
-      let nx2 = 0, nz2 = 0;
-      if (i + 1 < points.length - 1) {
-        const dx = points[i + 2].x - p2.x;
-        const dz = points[i + 2].z - p2.z;
-        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
-        nx2 = -dz / len;
-        nz2 = dx / len;
-      } else {
-        const dx = p2.x - points[i].x;
-        const dz = p2.z - points[i].z;
-        const len = Math.sqrt(dx * dx + dz * dz) || 1.0;
-        nx2 = -dz / len;
-        nz2 = dx / len;
-      }
-
-      // 计算 P1 / P2 的左右边界坐标并转换为屏幕坐标
-      const sL1 = toScreen({ x: p1.x + nx1 * wl1, z: p1.z + nz1 * wl1 });
-      const sR1 = toScreen({ x: p1.x - nx1 * wr1, z: p1.z - nz1 * wr1 });
-      const sL2 = toScreen({ x: p2.x + nx2 * wl2, z: p2.z + nz2 * wl2 });
-      const sR2 = toScreen({ x: p2.x - nx2 * wr2, z: p2.z - nz2 * wr2 });
-
-      // 判断分段颜色
-      const turnInfo = getTurnInfo(i);
-      if (turnInfo) {
-        if (turnInfo.isEditing) {
-          ctx.fillStyle = 'rgba(255, 211, 61, 0.85)'; // 当前编辑弯道：极高亮发光黄色
-        } else {
-          ctx.fillStyle = 'rgba(240, 136, 62, 0.45)'; // 普通弯道：亮橙黄色
-        }
-      } else {
-        ctx.fillStyle = 'rgba(56, 139, 253, 0.12)'; // 直道：深灰蓝色
-      }
-
-      // 绘制路面梯形并填充
-      ctx.beginPath();
-      ctx.moveTo(sL1.sx, sL1.sy);
-      ctx.lineTo(sL2.sx, sL2.sy);
-      ctx.lineTo(sR2.sx, sR2.sy);
-      ctx.lineTo(sR1.sx, sR1.sy);
-      ctx.closePath();
-      ctx.fill();
-
-      // 绘制两侧白色边缘线
-      ctx.strokeStyle = turnInfo ? (turnInfo.isEditing ? '#ffd33d' : 'rgba(240, 136, 62, 0.7)') : 'rgba(88, 166, 255, 0.35)';
-      ctx.lineWidth = 1 / transform.scale;
-      
-      // 左边缘线
-      ctx.beginPath();
-      ctx.moveTo(sL1.sx, sL1.sy);
-      ctx.lineTo(sL2.sx, sL2.sy);
-      ctx.stroke();
-
-      // 右边缘线
-      ctx.beginPath();
-      ctx.moveTo(sR1.sx, sR1.sy);
-      ctx.lineTo(sR2.sx, sR2.sy);
-      ctx.stroke();
-    }
-
-    // 3. 绘制主行车线 (中心线)
-    ctx.lineWidth = 1.5 / transform.scale;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#58a6ff';
+    // 1. 绘制整体赛道底色（直道颜色）
+    ctx.lineWidth = 12 * sc; // 基础路宽 12 米
+    ctx.strokeStyle = 'rgba(56, 139, 253, 0.12)';
     ctx.beginPath();
-    ctx.moveTo((points[0].x - minX) * sc + ox, (points[0].z - minZ) * sc + oz);
+    let s0 = toScreen(points[0]);
+    ctx.moveTo(s0.sx, s0.sy);
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo((points[i].x - minX) * sc + ox, (points[i].z - minZ) * sc + oz);
+      const sPt = toScreen(points[i]);
+      ctx.lineTo(sPt.sx, sPt.sy);
     }
-    // 环道闭合：如果首尾距离<50米，连接回起点
-    const firstPt = points[0];
-    const lastPt = points[points.length - 1];
-    const endGap = Math.sqrt((firstPt.x - lastPt.x) ** 2 + (firstPt.z - lastPt.z) ** 2);
-    if (endGap < 50) {
-      ctx.lineTo((firstPt.x - minX) * sc + ox, (firstPt.z - minZ) * sc + oz);
+    if (isLoop) {
+      const sLast = toScreen(points[0]);
+      ctx.lineTo(sLast.sx, sLast.sy);
     }
     ctx.stroke();
 
-    // 4. 绘制 WRC 弯角标签（Tactical HUD Overlay）
+    // 2. 绘制每个弯道的高亮色
     const turns = track.turns || [];
     turns.forEach((turn, tIdx) => {
-      const apexPt = resolvedPoints[turn.index];
-      if (!apexPt) return;
-      const sApex = toScreen(apexPt);
-      
-      // 决定标签徽章的颜色
       const isEditing = editingTurnIndex === tIdx;
-      let badgeColor = '#58a6ff'; // default blue
-      const sev = turn.severity || turn.type || '';
+      ctx.strokeStyle = isEditing ? 'rgba(255, 211, 61, 0.85)' : 'rgba(240, 136, 62, 0.45)';
+      ctx.beginPath();
       
-      if (sev === '1') badgeColor = '#f85149'; // red for tightest
-      else if (['2', '3'].includes(String(sev))) badgeColor = '#f0883e'; // orange for sharp/medium
-      else if (['4', '5', '6'].includes(String(sev))) badgeColor = '#3fb950'; // green for easy
-      
-      // 绘制定位发光环 (如果是选中编辑的弯道)
-      if (isEditing) {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.5 / transform.scale;
-        ctx.beginPath();
-        ctx.arc(sApex.sx, sApex.sy, 14 / transform.scale, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.beginPath();
-        ctx.arc(sApex.sx, sApex.sy, 6 / transform.scale, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // 普通弯心标个小点
-        ctx.fillStyle = badgeColor;
-        ctx.beginPath();
-        ctx.arc(sApex.sx, sApex.sy, 3 / transform.scale, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 缩放比例足够大时，或者当前选中编辑时，才在地图上画出文字标签以防过于拥挤
-      if (transform.scale > 1.2 || isEditing) {
-        const text = (turn.direction === 'left' ? 'L' : 'R') + sev;
-        ctx.font = `bold ${Math.round(8 / transform.scale)}px monospace`;
-        const textWidth = ctx.measureText(text).width;
-        const paddingX = 4 / transform.scale;
-        const paddingY = 2 / transform.scale;
-        const rectW = textWidth + paddingX * 2;
-        const rectH = 10 / transform.scale + paddingY * 2;
-
-        const rx = sApex.sx - rectW / 2;
-        const ry = sApex.sy - 15 / transform.scale - rectH;
-
-        // 绘制标签背景框
-        ctx.fillStyle = isEditing ? '#ffffff' : 'rgba(13, 17, 23, 0.85)';
-        ctx.strokeStyle = isEditing ? '#ffd33d' : badgeColor;
-        ctx.lineWidth = 1 / transform.scale;
-        
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(rx, ry, rectW, rectH, 3 / transform.scale);
-        } else {
-          ctx.rect(rx, ry, rectW, rectH);
+      // 找到弯道在平滑点阵中的对应点
+      let startPt = null;
+      for(let i=0; i<points.length; i++) {
+        const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
+        if (origIdx >= turn.startIdx && !startPt) {
+          const s = toScreen(points[i]);
+          ctx.moveTo(s.sx, s.sy);
+          startPt = true;
+        } else if (startPt && origIdx <= turn.endIdx) {
+          const s = toScreen(points[i]);
+          ctx.lineTo(s.sx, s.sy);
+        } else if (startPt && origIdx > turn.endIdx) {
+          break;
         }
-        ctx.fill();
-        ctx.stroke();
-
-        // 绘制文本
-        ctx.fillStyle = isEditing ? '#0d1117' : '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, sApex.sx, ry + rectH / 2);
       }
+      ctx.stroke();
     });
+
+    // 3. 绘制两侧白色边缘线 (细线，保持1个像素粗细)
+    ctx.lineWidth = 1 / transform.scale;
+    
+    // 平滑边缘线法线计算，避免锯齿与尖刺
+    const drawEdge = (isLeft) => {
+      ctx.beginPath();
+      for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        let nx = 0, nz = 0;
+        
+        // 使用更宽的采样窗口来计算法线，过滤局部噪点
+        const lookAhead = Math.min(i + 3, points.length - 1);
+        const lookBehind = Math.max(i - 3, 0);
+        
+        if (lookAhead > lookBehind) {
+          const dx = points[lookAhead].x - points[lookBehind].x;
+          const dz = points[lookAhead].z - points[lookBehind].z;
+          const len = Math.sqrt(dx*dx + dz*dz) || 1;
+          nx = -dz/len; nz = dx/len;
+        }
+        
+        const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
+        const ex = p1.x + (isLeft ? nx : -nx) * w;
+        const ez = p1.z + (isLeft ? nz : -nz) * w;
+        const s = toScreen({x: ex, z: ez});
+        
+        if (i === 0) ctx.moveTo(s.sx, s.sy);
+        else ctx.lineTo(s.sx, s.sy);
+      }
+      if (isLoop) {
+        const lookAhead = Math.min(3, points.length - 1);
+        const lookBehind = Math.max(points.length - 4, 0);
+        const dx = points[lookAhead].x - points[lookBehind].x;
+        const dz = points[lookAhead].z - points[lookBehind].z;
+        const len = Math.sqrt(dx*dx + dz*dz) || 1;
+        const nx = -dz/len, nz = dx/len;
+        const p1 = points[0];
+        const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
+        const ex = p1.x + (isLeft ? nx : -nx) * w;
+        const ez = p1.z + (isLeft ? nz : -nz) * w;
+        const s = toScreen({x: ex, z: ez});
+        ctx.lineTo(s.sx, s.sy);
+      }
+      ctx.stroke();
+    };
+
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.35)';
+    drawEdge(true);
+    drawEdge(false);
+
+    // 4. 绘制主行车线 (中心线)
+    ctx.lineWidth = 1.5 / transform.scale;
+    ctx.strokeStyle = '#58a6ff';
+    ctx.beginPath();
+    const sStart = toScreen(points[0]);
+    ctx.moveTo(sStart.sx, sStart.sy);
+    for (let i = 1; i < points.length; i++) {
+      const sPt = toScreen(points[i]);
+      ctx.lineTo(sPt.sx, sPt.sy);
+    }
+    if (isLoop) {
+      const sFirst = toScreen(points[0]);
+      ctx.lineTo(sFirst.sx, sFirst.sy);
+    }
     ctx.stroke();
 
-    // Round 5: 方向箭头 - 每隔一段距离绘制行驶方向箭头
-    const arrowInterval = transform.scale > 2 ? 80 : transform.scale > 1.5 ? 150 : 250;
-    let arrowDist = 0;
-    for (let i = 1; i < points.length; i++) {
-      const dx = points[i].x - points[i-1].x;
-      const dz = points[i].z - points[i-1].z;
-      const segLen = Math.sqrt(dx * dx + dz * dz);
-      arrowDist += segLen;
+    // 5. 绘制起点/终点标记
+    const sF = toScreen(points[0]);
+    ctx.beginPath();
+    ctx.arc(sF.sx, sF.sy, 6 / transform.scale, 0, Math.PI * 2);
+    ctx.fillStyle = '#f85149';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `${7 / transform.scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isLoop ? 'S/F' : 'S', sF.sx, sF.sy);
 
-      if (arrowDist >= arrowInterval) {
-        arrowDist = 0;
-        const midIdx = Math.floor(i / 2);
-        const p = toScreen(points[i]);
-        const heading = Math.atan2(dz, dx);
-        // 箭头指向行驶方向（屏幕坐标z轴朝下，需要取负）
-        const arrowLen = 6 / transform.scale;
-        const aX = p.sx - Math.cos(heading) * arrowLen;
-        const aY = p.sy - Math.sin(heading) * arrowLen;
-
-        ctx.fillStyle = 'rgba(88,166,255,0.7)';
-        ctx.beginPath();
-        ctx.moveTo(p.sx, p.sy);
-        ctx.lineTo(aX - Math.cos(heading - 2.5) * arrowLen * 0.6, aY - Math.sin(heading - 2.5) * arrowLen * 0.6);
-        ctx.lineTo(aX - Math.cos(heading + 2.5) * arrowLen * 0.6, aY - Math.sin(heading + 2.5) * arrowLen * 0.6);
-        ctx.closePath();
-        ctx.fill();
-      }
+    if (!isLoop && points.length > 10) {
+      const sE = toScreen(points[points.length - 1]);
+      ctx.beginPath();
+      ctx.arc(sE.sx, sE.sy, 6 / transform.scale, 0, Math.PI * 2);
+      ctx.fillStyle = '#3fb950';
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText('F', sE.sx, sE.sy);
     }
 
-    // 起点
-    const p0 = resolvedPoints[0];
-    const sx0 = (p0.x - minX) * sc + ox;
-    const sy0 = (p0.z - minZ) * sc + oz;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(sx0, sy0, 6 / transform.scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5 / transform.scale;
-    ctx.stroke();
+    // 6. 绘制弯道数字标记 (Turn Numbers)
+    turns.forEach((turn, tIdx) => {
+      // 寻找弯道的中点
+      const centerOrigIdx = Math.floor((turn.startIdx + turn.endIdx) / 2);
+      let centerPt = null;
+      for (let i = 0; i < points.length; i++) {
+        const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
+        if (origIdx >= centerOrigIdx) {
+          centerPt = points[i];
+          break;
+        }
+      }
+      if (centerPt) {
+        const sC = toScreen(centerPt);
+        
+        // 如果是当前编辑的弯道，画一个明显的光环
+        if (editingTurnIndex === tIdx) {
+          ctx.beginPath();
+          ctx.arc(sC.sx, sC.sy, 16 / transform.scale, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 211, 61, 0.3)';
+          ctx.fill();
+        }
 
-    // "S" 标记
-    ctx.fillStyle = '#0d1117';
-    ctx.font = `bold ${Math.round(8 / transform.scale)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('S', sx0, sy0);
-
-    // 终点
-    const pN = resolvedPoints[resolvedPoints.length - 1];
-    const sxN = (pN.x - minX) * sc + ox;
-    const syN = (pN.z - minZ) * sc + oz;
-    ctx.fillStyle = '#f85149';
-    ctx.beginPath();
-    ctx.arc(sxN, syN, 6 / transform.scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5 / transform.scale;
-    ctx.stroke();
-
-    // "F" 标记
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${Math.round(8 / transform.scale)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('F', sxN, syN);
+        const dotRadius = 7 / transform.scale;
+        ctx.beginPath();
+        ctx.arc(sC.sx, sC.sy, dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = editingTurnIndex === tIdx ? '#ffd33d' : '#f0883e';
+        ctx.fill();
+        ctx.lineWidth = 1.5 / transform.scale;
+        ctx.strokeStyle = '#161b22';
+        ctx.stroke();
+        
+        ctx.fillStyle = '#161b22';
+        ctx.font = `bold ${8 / transform.scale}px sans-serif`;
+        ctx.fillText((tIdx + 1).toString(), sC.sx, sC.sy + (0.5 / transform.scale));
+      }
+    });
 
     ctx.restore();
-  }, [turnColorMap]);
-
-  const drawCanvas = useCallback(() => {
-    if (!selectedTrack) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const track = tracks[selectedTrack];
-    if (!track) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    drawTrack(ctx, canvas, track, transform);
-  }, [selectedTrack, tracks, transform, drawTrack]);
+  }, [editingTurnIndex]);
 
   const previewTrack = async (id) => {
     setSelectedTrack(id);
@@ -919,6 +856,71 @@ export function TrackManagerPage({ onNavigate }) {
       drawTrack(ctx, canvas, track, { x: 0, y: 0, scale: 1 });
     }, 100);
   };
+
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !selectedTrack) return;
+    const ctx = canvas.getContext('2d');
+    const track = tracks[selectedTrack];
+    if (!track) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight || 300;
+    drawTrack(ctx, canvas, track, transform);
+  }, [selectedTrack, tracks, transform, drawTrack]);
+
+
+  useEffect(() => {
+    if (editingTurnIndex === null || !selectedTrack) return;
+    const track = tracks[selectedTrack];
+    if (!track || !track.turns || !track.turns[editingTurnIndex]) return;
+    
+    const turn = track.turns[editingTurnIndex];
+    const resolvedPoints = track.centerline || track.points || (track.trajectories && track.trajectories[0]);
+    if (!resolvedPoints || resolvedPoints.length < 2) return;
+    
+    const bboxPoints = resolvedPoints;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    bboxPoints.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    });
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const pad = 40;
+    const sx = (canvas.width - pad * 2) / (maxX - minX || 1);
+    const sz = (canvas.height - pad * 2) / (maxZ - minZ || 1);
+    const sc = Math.min(sx, sz);
+    const ox = (canvas.width - (maxX - minX) * sc) / 2;
+    const oz = (canvas.height - (maxZ - minZ) * sc) / 2;
+    
+    const toScreen = (p) => ({
+      sx: (p.x - minX) * sc + ox,
+      sy: (maxZ - p.z) * sc + oz
+    });
+    
+    const centerOrigIdx = Math.floor((turn.startIdx + turn.endIdx) / 2);
+    let centerPt = null;
+    for (let i = 0; i < resolvedPoints.length; i++) {
+      const origIdx = (resolvedPoints[i].origIdx !== undefined) ? resolvedPoints[i].origIdx : i;
+      if (origIdx >= centerOrigIdx) {
+        centerPt = resolvedPoints[i];
+        break;
+      }
+    }
+    
+    if (centerPt) {
+      const sC = toScreen(centerPt);
+      // Zoom 目标设为 3x
+      const targetScale = 3;
+      // 使目标点位于 Canvas 中心
+      const tx = canvas.width / 2 - sC.sx * targetScale;
+      const ty = canvas.height / 2 - sC.sy * targetScale;
+      setTransform({ x: tx, y: ty, scale: targetScale });
+    }
+  }, [editingTurnIndex, selectedTrack, tracks]);
 
   useEffect(() => {
     drawCanvas();
@@ -1508,7 +1510,7 @@ export function TrackManagerPage({ onNavigate }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedTrackData.turns.map((turn, idx) => {
+                        {(selectedTrackData.turns || []).map((turn, idx) => {
                           const isCurrentEditing = editingTurnIndex === idx;
                           let sev = turn.severity || '3';
                           let severityColor = '#58a6ff';
@@ -1747,24 +1749,33 @@ function MergePreviewCanvas({ trackA, trackB }) {
     const ox = (canvas.width - (maxX - minX) * sc) / 2;
     const oz = (canvas.height - (maxZ - minZ) * sc) / 2;
 
+    const toScreen = (p) => ({
+      sx: (p.x - minX) * sc + ox,
+      sy: (maxZ - p.z) * sc + oz
+    });
+
     // 目标赛道（蓝色）
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#58a6ff';
     ctx.beginPath();
-    ctx.moveTo((pointsB[0].x - minX) * sc + ox, (pointsB[0].z - minZ) * sc + oz);
+    const sStartB = toScreen(pointsB[0]);
+    ctx.moveTo(sStartB.sx, sStartB.sy);
     for (let i = 1; i < pointsB.length; i++) {
-      ctx.lineTo((pointsB[i].x - minX) * sc + ox, (pointsB[i].z - minZ) * sc + oz);
+      const sPt = toScreen(pointsB[i]);
+      ctx.lineTo(sPt.sx, sPt.sy);
     }
     ctx.stroke();
 
     // 源赛道（红色）
     ctx.strokeStyle = '#f85149';
     ctx.beginPath();
-    ctx.moveTo((pointsA[0].x - minX) * sc + ox, (pointsA[0].z - minZ) * sc + oz);
+    const sStartA = toScreen(pointsA[0]);
+    ctx.moveTo(sStartA.sx, sStartA.sy);
     for (let i = 1; i < pointsA.length; i++) {
-      ctx.lineTo((pointsA[i].x - minX) * sc + ox, (pointsA[i].z - minZ) * sc + oz);
+      const sPt = toScreen(pointsA[i]);
+      ctx.lineTo(sPt.sx, sPt.sy);
     }
     ctx.stroke();
 

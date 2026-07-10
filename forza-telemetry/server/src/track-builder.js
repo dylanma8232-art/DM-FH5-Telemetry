@@ -113,8 +113,8 @@ function stitchLoopTrajectory(traj) {
   const dz = pStart.z - pEnd.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
   
-  // 如果断口在 5米到 200米之间，进行渐进式平滑缝合
-  if (dist > 5 && dist < 200) {
+  // 如果断口在 5米到 300米之间，进行渐进式平滑缝合
+  if (dist > 5 && dist < 300) {
     // 选取最后 15% 的点（至少20个点，最多100个点）用于过渡缝合
     const stitchCount = Math.max(20, Math.min(100, Math.floor(traj.length * 0.15)));
     const startStitchIdx = traj.length - stitchCount;
@@ -278,6 +278,7 @@ export function buildTrackFromTrajectories(trajectories) {
 
   // ★ 环道检测：对每条轨迹检测是否为环道，如果是则只取单圈
   const processedTrajectories = [];
+  let detectedIsLoop = false; // 记录是否检测到环道
   for (const traj of trajectories) {
     if (!traj || traj.length < 100) {
       processedTrajectories.push(traj);
@@ -290,6 +291,7 @@ export function buildTrackFromTrajectories(trajectories) {
     if (result.isLoop) {
       console.log(`[环道检测] 检测到环道，方法: ${result.method}，原始点数: ${traj.length} -> 单圈点数: ${result.singleLap.length}`);
       processedTrajectories.push(result.singleLap);
+      detectedIsLoop = true;
     } else {
       processedTrajectories.push(traj);
     }
@@ -509,14 +511,18 @@ export function buildTrackFromTrajectories(trajectories) {
   filterKinks(mergedCenterline, 35);
 
   const centerline = smoothCenterline(mergedCenterline, 5);
-  const turns = detectTurnsEnhanced(centerline);
-  
-  // 弯道几何重建：用圆弧拟合弯道，消除走线影响
-  let reconstructedCenterline = reconstructTrackGeometry(centerline, turns);
-  
-  // ★ 环道闭合修复：检测起跑线区域的自交叉并平滑
+
+  // 弯道几何重建：用圆弧拟合弯道，消除走线影响（先用临时 turns 做圆弧拟合）
+  const turnsForReconstruct = detectTurnsEnhanced(centerline);
+  let reconstructedCenterline = reconstructTrackGeometry(centerline, turnsForReconstruct);
+
+  // ★ 环道闭合修复：检测起跑线区域的自交叉并截断尾巴（会改变中心线长度）
   reconstructedCenterline = fixLoopClosure(reconstructedCenterline);
-  
+
+  // ★ 在最终中心线上重新检测弯道，确保 startIdx/endIdx/index 与 reconstructedCenterline 完全对齐
+  const turns = detectTurnsEnhanced(reconstructedCenterline);
+
+
   let length = 0;
   for (let i = 1; i < reconstructedCenterline.length; i++) {
     length += Math.sqrt((reconstructedCenterline[i].x - reconstructedCenterline[i-1].x)**2 + (reconstructedCenterline[i].z - reconstructedCenterline[i-1].z)**2);
@@ -528,6 +534,7 @@ export function buildTrackFromTrajectories(trajectories) {
     if (traj) allPoints.push(...traj);
   });
 
+  // 几何兜底：如果 lapNum 未触发但中心线首尾距离 < 30m，也标记为环道
   return {
     centerline: reconstructedCenterline,
     turns,
@@ -536,7 +543,8 @@ export function buildTrackFromTrajectories(trajectories) {
     trajectoryCount: trajectories.length,
     bounds: { minX, maxX, minZ, maxZ },
     routeBook: buildRouteBook(reconstructedCenterline, turns, allPoints),
-    dataSourceCount: trajectories.length
+    dataSourceCount: trajectories.length,
+    isLoop: detectedIsLoop  // 只信 lapNum，不猜几何
   };
 }
 export function resampleCenterline(traj, interval = 2.0) {
@@ -855,11 +863,11 @@ export function detectTurnsEnhanced(centerline) {
       inTurn = true;
       turnStartIdx = i;
       minRadius = r;
-      turnDirection = Math.sign(k);
+      turnDirection = -Math.sign(k);
     } else if (inTurn) {
       if (r < minRadius) {
         minRadius = r;
-        turnDirection = Math.sign(k); // update direction at apex
+        turnDirection = -Math.sign(k); // update direction at apex
       }
       
       // Threshold to exit a turn (Radius > 300m confirmed by look-ahead debounce)
@@ -957,27 +965,18 @@ export function detectTurnsEnhanced(centerline) {
               }
             }
 
-            // 标准拉力路书分级：统一 1-6 等级（发卡=1，不再单独标记）
+            // 标准拉力路书分级：统一 1-6 等级（基于绝对偏转角度）
             let severity = "";
             let type = "micro";
-            let equivRadius = minRadius;
-            if (angleDiff < 20.0) {
-              equivRadius = minRadius * 2.0;
-            } else if (angleDiff < 35.0) {
-              equivRadius = minRadius * 1.4;
-            } else if (angleDiff > 120.0) {
-              equivRadius = minRadius * 0.6;
-            }
-
-            if (equivRadius <= 35) {
+            if (angleDiff >= 130.0) {
               severity = "1"; type = "hairpin";
-            } else if (equivRadius <= 55) {
+            } else if (angleDiff >= 90.0) {
               severity = "2"; type = "sharp";
-            } else if (equivRadius <= 85) {
+            } else if (angleDiff >= 60.0) {
               severity = "3"; type = "medium";
-            } else if (equivRadius <= 125) {
+            } else if (angleDiff >= 40.0) {
               severity = "4"; type = "gentle";
-            } else if (equivRadius <= 180) {
+            } else if (angleDiff >= 20.0) {
               severity = "5"; type = "slight";
             } else {
               severity = "6"; type = "micro";

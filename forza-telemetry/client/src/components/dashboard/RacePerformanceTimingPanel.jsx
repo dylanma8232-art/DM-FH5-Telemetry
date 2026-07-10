@@ -200,7 +200,7 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
 
   // 估算实时圈速差距
   const getDeltaDisplay = () => {
-    if (currentLap <= 0 || bestLap <= 0) return { text: '+0.00s', color: '#8b949e' };
+    if (currentLap <= 0 || bestLap <= 0) return { text: '--', color: '#8b949e' };
     const diff = currentLap - bestLap;
     const sign = diff >= 0 ? '+' : '';
     const color = diff <= 0 ? '#3fb950' : diff > 0.5 ? '#f85149' : '#d29922';
@@ -211,34 +211,6 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   };
 
   const deltaDisplay = getDeltaDisplay();
-
-  // 非比赛状态显示等待界面
-  if (!raceActive) {
-    return (
-      <div style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '12px 16px',
-        background: 'rgba(22, 27, 34, 0.65)',
-        border: '1px solid var(--border, #21262d)',
-        borderRadius: 8,
-        boxSizing: 'border-box'
-      }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: 1, marginBottom: 10 }}>
-          圈速与分段计时
-        </div>
-        <div style={{ fontSize: 14, color: '#8b949e', fontWeight: 500 }}>
-          等待比赛开始...
-        </div>
-        <div style={{ fontSize: 10, color: '#484f58', marginTop: 6 }}>
-          进入比赛后自动开始计时
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{
@@ -335,21 +307,27 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
             overflowY: 'auto',
             minHeight: 0
           }}>
-            {state.sectors.length === 0 ? (
-              <div style={{ fontSize: 10, color: '#484f58', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>
-                等待载入赛道分段数据...
-              </div>
-            ) : (
-              state.sectors.map((sector, index) => {
-                const isActive = index === state.currentSector;
-                const time = isActive ? currentSectorTime : (state.sectorTimes[index] || 0);
-                const best = state.bestSectorTimes[index] || 0;
-                const isWeak = index === state.weakSector;
+            {(() => {
+              const displaySectors = state.sectors.length > 0 ? state.sectors : [
+                { index: 0, dummy: true },
+                { index: 1, dummy: true },
+                { index: 2, dummy: true }
+              ];
+              
+              return displaySectors.map((sector, index) => {
+                const isActive = !sector.dummy && index === state.currentSector;
+                const time = sector.dummy ? 0 : (isActive ? currentSectorTime : (state.sectorTimes[index] || 0));
+                const best = sector.dummy ? 0 : (state.bestSectorTimes[index] || 0);
+                const isWeak = !sector.dummy && index === state.weakSector;
 
                 // 分段差值计算与颜色
                 let secDelta = '';
                 let secColor = '#c9d1d9';
-                if (!isActive && time > 0 && best > 0) {
+                
+                if (sector.dummy) {
+                  secDelta = '--';
+                  secColor = '#484f58';
+                } else if (!isActive && time > 0 && best > 0) {
                   const diff = time - best;
                   if (diff === 0) {
                     secDelta = '最佳';
@@ -364,11 +342,14 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
                 } else if (isActive) {
                   secDelta = '进行中';
                   secColor = '#58a6ff';
+                } else {
+                  secDelta = '--';
+                  secColor = '#484f58';
                 }
 
                 return (
                   <div
-                    key={sector.index}
+                    key={index}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -402,8 +383,8 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 16, fontFamily: 'monospace', fontSize: 11 }}>
-                      <span style={{ color: isActive ? '#58a6ff' : '#c9d1d9', fontWeight: 700 }}>
-                        {formatSecTime(time)}
+                      <span style={{ color: sector.dummy ? '#484f58' : (isActive ? '#58a6ff' : '#c9d1d9'), fontWeight: 700 }}>
+                        {sector.dummy ? '--:--.---' : formatSecTime(time)}
                       </span>
                       <span style={{ color: secColor, fontWeight: 800, width: 50, textAlign: 'right' }}>
                         {secDelta}
@@ -411,8 +392,8 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
                     </div>
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         </div>
       )}
