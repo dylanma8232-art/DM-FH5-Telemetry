@@ -877,6 +877,13 @@ function handleAutoRecord(telemetry) {
       autoRecordStartTimer = null;
     }
     
+    // 自动退出路书模式：如果刚才处于路书模式，且比赛已结束或退出，自动卸载
+    if (trackMode) {
+      console.log(`[赛道模式] 检测到比赛已结束或退出，自动退出路书模式。`);
+      trackMode = null;
+      io.emit('trackModeChanged', { active: false, trackId: null, trackName: null });
+    }
+    
     if (autoRecordState === 'RECORDING') {
       autoRecordState = 'POST_RACE';
       autoRecordStopTimer = setTimeout(() => {
@@ -1217,247 +1224,134 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
   }
   
   if (!nearestPoint) return;
-  
-  // 路况播报（水坑、路肩、坡度、沙地）
-  let conditionText = '';
-  let conditionTTS = '';
-  
-  // 水坑检测
-  if (nearestPoint.puddle > 0.5) {
-    conditionText = '💧 积水';
-    conditionTTS = '注意积水';
-  }
-  // 路肩检测
-  else if (nearestPoint.onRumble) {
-    conditionText = '⚠️ 路肩';
-    conditionTTS = '压到路肩';
-  }
-  // 沙地/碎石检测
-  else if (nearestPoint.surfaceRumble > 0.3) {
-    conditionText = '🏜️ 碎石';
-    conditionTTS = '碎石路面';
-  }
-  
-  // 坡度检测（分级坡度）
+
   const nearestIdx = trackPoints.indexOf(nearestPoint);
-  if (nearestIdx >= 0) {
-    // 检测多个前瞻距离
-    const lookAheadOptions = [20, 40, 60];
-    let maxSlope = 0;
-    let slopeType = '';
-    
-    for (const lookAhead of lookAheadOptions) {
-      if (nearestIdx + lookAhead < trackPoints.length) {
-        const currentY = nearestPoint.y || 0;
-        const aheadY = trackPoints[nearestIdx + lookAhead].y || 0;
-        const heightDiff = aheadY - currentY;
-        
-        if (Math.abs(heightDiff) > Math.abs(maxSlope)) {
-          maxSlope = heightDiff;
-          if (heightDiff > 15) {
-            slopeType = heightDiff > 0 ? '急上坡' : '急下坡';
-          } else if (heightDiff > 8) {
-            slopeType = heightDiff > 0 ? '陡坡' : '陡下坡';
-          } else if (heightDiff > 3) {
-            slopeType = heightDiff > 0 ? '上坡' : '下坡';
-          }
-        }
-      }
-    }
-    
-    if (slopeType && !conditionTTS) {
-      conditionTTS = slopeType;
-    }
-  }
-  
-  // 路况播报（如果有急弯，延迟路况播报）
-  let shouldAnnounceCondition = false;
-  if (conditionTTS && now - lastAnnounceTime > 2000) {
-    // 检查前方是否有急弯
-    let hasUrgentTurn = false;
-    for (let i = 0; i < turns.length; i++) {
-      const turn = turns[i];
-      if (!turn.x || !turn.z) continue;
-      
-      const dx = position.x - turn.x;
-      const dz = position.z - turn.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      
-      if (dist < 100 && turn.angle > 30) {
-        hasUrgentTurn = true;
-        break;
-      }
-    }
-    
-    // 如果有急弯且距离很近，延迟路况播报
-    if (!hasUrgentTurn) {
-      shouldAnnounceCondition = true;
-    }
-  }
-  
-  if (shouldAnnounceCondition) {
-    lastAnnounceTime = now;
-    const audioUrl = await generateTTS(conditionTTS);
-    io.emit('turnAnnounce', { 
-      text: conditionText, 
-      ttsText: conditionTTS,
-      audioUrl: audioUrl,
-      direction: 'center', 
-      level: 0,
-      angle: 0,
-      distance: 0,
-      announceType: 'condition'
-    });
-    return;
-  }
-  
-  // 找到最近的弯道（用坐标距离，不限制index方向）
+  if (nearestIdx === -1) return;
+
+  // 1. 基于行驶轨迹顺序寻址：寻找当前车辆前方的下一个未通过弯道
   let nextTurn = null;
-  let nextTurnDist = Infinity;
-  
+  let nextTurnIndex = -1;
+
   for (let i = 0; i < turns.length; i++) {
     const turn = turns[i];
-    if (!turn.x || !turn.z) continue;
-    
-    const dx = position.x - turn.x;
-    const dz = position.z - turn.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    
-    // 只选距离在5-300米范围内的弯道（排除太远和已经过了的）
-    if (dist > 5 && dist < 300 && dist < nextTurnDist) {
-      nextTurnDist = dist;
+    // 寻找第一个起点在当前车辆位置之后的弯道
+    if (turn.startIdx > nearestIdx) {
       nextTurn = turn;
       nextTurnIndex = i;
+      break;
     }
   }
-  
-  if (!nextTurn) return;
-  
-  // 速度自适应播报距离（提前播报，让车手有充足反应时间）
-  const currentSpeed = nearestPoint.speed || 0;
-  let PRE_WARN_DIST, FINAL_WARN_DIST;
-  
-  if (currentSpeed > 150) {
-    // 高速模式：提前 500m 预提醒，200m 最终提示
-    PRE_WARN_DIST = 500;
-    FINAL_WARN_DIST = 200;
-  } else if (currentSpeed > 80) {
-    // 中速模式：提前 350m 预提醒，150m 最终提示
-    PRE_WARN_DIST = 350;
-    FINAL_WARN_DIST = 150;
-  } else {
-    // 低速模式：提前 200m 预提醒，80m 最终提示
-    PRE_WARN_DIST = 200;
-    FINAL_WARN_DIST = 80;
-  }
-  
-  const direction = nextTurn.direction === 'left' ? '左' : (nextTurn.direction === 'right' ? '右' : '');
-  const angle = nextTurn.angle || 0;
-  
-  let level = nextTurn.severity || '3';
-  
-  if (!level || !['1', '2', '3', '4', '5', '6'].includes(String(level))) {
-    if (angle > 120) level = '1';
-    else if (angle > 90) level = '2';
-    else if (angle > 60) level = '3';
-    else if (angle > 40) level = '4';
-    else if (angle > 25) level = '5';
-    else level = '6';
-  }
-  
-  let announceText = '';
-  let ttsText = '';
-  let shouldAnnounce = false;
-  let announcePhase = '';
-  
-  // 检查下一弯道是否连续（距离小于150米视为连续）
-  let consecutiveTurn = null;
-  let consecutiveDist = Infinity;
-  for (let i = 0; i < turns.length; i++) {
-    if (i === nextTurnIndex) continue;
-    const turn = turns[i];
-    if (!turn.x || !turn.z) continue;
-    const dx = nextTurn.x - turn.x;
-    const dz = nextTurn.z - turn.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist < 150 && dist < consecutiveDist) {
-      consecutiveDist = dist;
-      consecutiveTurn = turn;
-    }
-  }
-  
-  // WRC标准路书播报：连续弯道报"接"，不连续报距离
-  // 预提醒阶段（距离较远时）
-  if (nextTurnDist < PRE_WARN_DIST && nextTurnDist >= FINAL_WARN_DIST) {
-    if (lastAnnouncedTurnIndex !== nextTurnIndex || now - lastAnnounceTime > ANNOUNCE_COOLDOWN_MS) {
-      const distText = Math.round(nextTurnDist / 10) * 10;
-      
-      let geoText = '';
-      if (nextTurn.crest === 'jump') geoText += '飞跳';
-      else if (nextTurn.crest === 'crest') geoText += '过坡';
-      if (nextTurn.camber === 'off-camber') geoText += '外倾';
-      else if (nextTurn.camber === 'banking') geoText += '斜坡';
-      
-      const geoTextWithComma = geoText ? '，' + geoText : '';
-      const geoTextCompact = geoText ? ' ' + geoText : '';
 
-      if (consecutiveTurn) {
-        const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
-        let nextLevel = consecutiveTurn.severity || '3';
-        
-        if (!nextLevel || !['1', '2', '3', '4', '5', '6'].includes(String(nextLevel))) {
-          const nextAngle = consecutiveTurn.angle || 0;
-          if (nextAngle > 120) nextLevel = '1';
-          else if (nextAngle > 90) nextLevel = '2';
-          else if (nextAngle > 60) nextLevel = '3';
-          else if (nextAngle > 40) nextLevel = '4';
-          else if (nextAngle > 25) nextLevel = '5';
-          else nextLevel = '6';
+  // 兜底：如果当前正好身处某个弯道中（且未播报过该弯），将其紧急选为当前播报目标
+  if (!nextTurn) {
+    for (let i = 0; i < turns.length; i++) {
+      const turn = turns[i];
+      if (nearestIdx >= turn.startIdx && nearestIdx <= turn.endIdx) {
+        if (lastAnnouncedTurnIndex < i) {
+          nextTurn = turn;
+          nextTurnIndex = i;
+          break;
         }
-        announceText = direction + level + geoTextCompact + '接' + nextDir + nextLevel;
-        ttsText = direction + level + geoTextWithComma + '，接' + nextDir + nextLevel;
-      } else {
-        announceText = direction + level + geoTextCompact + ' ' + distText;
-        ttsText = direction + level + geoTextWithComma + '，' + distText + '米';
       }
-      
-      if (nextTurn.customNote) {
-        announceText += ' ' + nextTurn.customNote;
-        ttsText += '，' + nextTurn.customNote;
-      }
-      
-      shouldAnnounce = true;
-      announcePhase = 'pre';
     }
   }
-  // 最终提示阶段（距离近时）
-  else if (nextTurnDist < FINAL_WARN_DIST && nextTurnDist >= 30) {
-    if (lastAnnouncedTurnIndex !== nextTurnIndex) {
-      let geoText = '';
-      if (nextTurn.crest === 'jump') geoText += '飞跳';
-      else if (nextTurn.crest === 'crest') geoText += '过坡';
-      if (nextTurn.camber === 'off-camber') geoText += '外倾';
 
-      const geoTextWithComma = geoText ? '，' + geoText : '';
-      const geoTextCompact = geoText ? ' ' + geoText : '';
+  if (!nextTurn) return;
 
-      announceText = direction + level + geoTextCompact;
-      ttsText = direction + level + geoTextWithComma;
-      if (nextTurn.customNote) {
-        announceText += ' ' + nextTurn.customNote;
-        ttsText += '，' + nextTurn.customNote;
-      }
-      shouldAnnounce = true;
-      announcePhase = 'final';
-    }
+  // 计算当前到前方弯道起点的物理直线距离
+  const turnStartPoint = trackPoints[nextTurn.startIdx];
+  if (!turnStartPoint) return;
+  const dx = position.x - turnStartPoint.x;
+  const dz = position.z - turnStartPoint.z;
+  const distToStart = Math.sqrt(dx * dx + dz * dz);
+
+  // 2. 车速自适应前瞻计算：确保任何速段均有 4.0 ~ 5.0 秒的完美反应时间
+  // 低速保底提前 100 米，高速自动拓宽到 450 米
+  const currentSpeedKmh = nearestPoint.speed || 0;
+  const currentSpeedMs = currentSpeedKmh / 3.6;
+  const preWarnDist = Math.max(100, Math.min(450, currentSpeedMs * 4.5));
+
+  // 4. 环道自动越线检测：如果下一个弯道索引小于上一个已播报的弯道索引，说明已越过起跑线进入下一圈，重置播报锁
+  if (lastAnnouncedTurnIndex !== -1 && nextTurnIndex < lastAnnouncedTurnIndex) {
+    console.log(`[越线检测] 检测到跨越起跑线进入下一圈 (弯道索引回绕: ${lastAnnouncedTurnIndex} -> ${nextTurnIndex})，重置播报状态锁。`);
+    lastAnnouncedTurnIndex = -1;
   }
-  
-  if (shouldAnnounce) {
+
+  // 3. 触发播报判定：在触发范围内，且该弯道在之前从未播报过（单调递增锁）
+  if (distToStart < preWarnDist && lastAnnouncedTurnIndex < nextTurnIndex) {
+    
+    // 智能接弯/S弯检测：检测 T+1 弯的起点与当前弯的终点距离是否小于 180 米
+    let consecutiveTurn = null;
+    if (nextTurnIndex + 1 < turns.length) {
+      const nextNextTurn = turns[nextTurnIndex + 1];
+      const t1EndPt = trackPoints[nextTurn.endIdx];
+      const t2StartPt = trackPoints[nextNextTurn.startIdx];
+      if (t1EndPt && t2StartPt) {
+        const dNextX = t2StartPt.x - t1EndPt.x;
+        const dNextZ = t2StartPt.z - t1EndPt.z;
+        const distBetweenTurns = Math.sqrt(dNextX * dNextX + dNextZ * dNextZ);
+        if (distBetweenTurns < 180) {
+          consecutiveTurn = nextNextTurn;
+        }
+      }
+    }
+
+    const direction = nextTurn.direction === 'left' ? '左' : (nextTurn.direction === 'right' ? '右' : '');
+    const angle = nextTurn.angle || 0;
+    
+    let level = nextTurn.severity || '3';
+    if (!level || !['1', '2', '3', '4', '5', '6'].includes(String(level))) {
+      if (angle >= 130) level = '1';
+      else if (angle >= 90) level = '2';
+      else if (angle >= 60) level = '3';
+      else if (angle >= 40) level = '4';
+      else if (angle >= 20) level = '5';
+      else level = '6';
+    }
+
+    let geoText = '';
+    if (nextTurn.crest === 'jump') geoText += '飞跳';
+    else if (nextTurn.crest === 'crest') geoText += '过坡';
+    if (nextTurn.camber === 'off-camber') geoText += '外倾';
+    else if (nextTurn.camber === 'banking') geoText += '斜坡';
+    
+    const geoTextWithComma = geoText ? '，' + geoText : '';
+    const geoTextCompact = geoText ? ' ' + geoText : '';
+
+    let announceText = '';
+    let ttsText = '';
+
+    if (consecutiveTurn) {
+      const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
+      let nextLevel = consecutiveTurn.severity || '3';
+      if (!nextLevel || !['1', '2', '3', '4', '5', '6'].includes(String(nextLevel))) {
+        const nextAngle = consecutiveTurn.angle || 0;
+        if (nextAngle >= 130) nextLevel = '1';
+        else if (nextAngle >= 90) nextLevel = '2';
+        else if (nextAngle >= 60) nextLevel = '3';
+        else if (nextAngle >= 40) nextLevel = '4';
+        else if (nextAngle >= 20) nextLevel = '5';
+        else nextLevel = '6';
+      }
+      announceText = direction + level + geoTextCompact + '接' + nextDir + nextLevel;
+      ttsText = direction + level + geoTextWithComma + '，接' + nextDir + nextLevel;
+    } else {
+      const distText = Math.round(distToStart / 10) * 10;
+      announceText = direction + level + geoTextCompact + ' ' + distText;
+      ttsText = direction + level + geoTextWithComma + '，' + distText + '米';
+    }
+
+    if (nextTurn.customNote) {
+      announceText += ' ' + nextTurn.customNote;
+      ttsText += '，' + nextTurn.customNote;
+    }
+
+    // 状态原子更新：标记当前已完成播报的弯道索引，防抖冷却
     lastAnnouncedTurnIndex = nextTurnIndex;
     lastAnnounceTime = now;
-    
+
+    // 音频合成与广播推送
     const audioUrl = await generateTTS(ttsText);
-    
     io.emit('turnAnnounce', { 
       text: announceText, 
       ttsText: ttsText,
@@ -1465,15 +1359,15 @@ async function checkAndAnnounceTurn(position, turns, trackPoints) {
       direction: nextTurn.direction, 
       level: level,
       angle: angle,
-      distance: Math.round(nextTurnDist),
+      distance: Math.round(distToStart),
       turnType: nextTurn.type,
-      announceType: announcePhase === 'early' ? 'early_warn' : (announcePhase === 'pre' ? 'pre_warn' : 'final_warn'),
+      announceType: 'pre_warn',
       radius: nextTurn.radius || 0,
       camber: nextTurn.camber,
       crest: nextTurn.crest
     });
     
-    console.log('[领航播报] ' + announceText + ' (' + Math.round(nextTurnDist) + 'm)');
+    console.log(`[领航播报] ${announceText} (车速: ${Math.round(currentSpeedKmh)}km/h, 提前量: ${Math.round(distToStart)}米)`);
   }
 }
 
@@ -1618,6 +1512,7 @@ async function saveAutoRecordedData(duration) {
       trackDetail.centerline = trackData.centerline;
       trackDetail.turns = trackData.turns;
       trackDetail.length = trackData.length;
+      trackDetail.isLoop = trackData.isLoop || false;
       trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
       trackDetail.navigation = generateNavigationData(trackData);
     }
@@ -1685,6 +1580,7 @@ async function saveAutoRecordedData(duration) {
     trajectoryCount: 1,
     centerline: trackData ? trackData.centerline : null,
     turns: trackData ? trackData.turns : null,
+    isLoop: trackData ? (trackData.isLoop || false) : false,
     sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
     navigation: trackData ? generateNavigationData(trackData) : null,
     createdAt: new Date().toISOString(),
@@ -1702,6 +1598,7 @@ async function saveAutoRecordedData(duration) {
     pointCount: simplifiedTraj.length,
     turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
     trajectoryCount: 1,
+    isLoop: trackDetail.isLoop || false,
     createdAt: trackDetail.createdAt,
     updatedAt: trackDetail.updatedAt
   };
@@ -1951,6 +1848,7 @@ app.post('/api/tracks/:id/rebuild', (req, res) => {
     trackDetail.centerline = trackData.centerline;
     trackDetail.turns = trackData.turns;
     trackDetail.length = trackData.length;
+    trackDetail.isLoop = trackData.isLoop || false;
     trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
     trackDetail.navigation = generateNavigationData(trackData);
     trackDetail.routeBook = trackData.routeBook;
@@ -1965,6 +1863,7 @@ app.post('/api/tracks/:id/rebuild', (req, res) => {
       tracks[id].length = trackDetail.length;
       tracks[id].pointCount = trackDetail.centerline.length;
       tracks[id].turnCount = trackDetail.turns ? trackDetail.turns.length : 0;
+      tracks[id].isLoop = trackDetail.isLoop || false;
       tracks[id].updatedAt = trackDetail.updatedAt;
       saveTracksDatabase(tracks);
     }
@@ -2318,6 +2217,7 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
       targetDetail.centerline = trackData.centerline;
       targetDetail.turns = trackData.turns;
       targetDetail.length = trackData.length;
+      targetDetail.isLoop = trackData.isLoop || false;
       targetDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
       targetDetail.navigation = generateNavigationData(trackData);
     }
@@ -2337,6 +2237,7 @@ app.post('/api/tracks/merge', express.json(), async (req, res) => {
       pointCount: targetDetail.points ? targetDetail.points.length : 0,
       turnCount: targetDetail.turns ? targetDetail.turns.length : 0,
       trajectoryCount: mergedTrajectories.length,
+      isLoop: targetDetail.isLoop || false,
       createdAt: targetDetail.createdAt || (tracks[targetTrackId] ? tracks[targetTrackId].createdAt : null) || new Date().toISOString(),
       updatedAt: targetDetail.updatedAt
     };
@@ -2583,6 +2484,7 @@ app.post('/api/record/save', express.json(), (req, res) => {
       trackDetail.centerline = trackData.centerline;
       trackDetail.turns = trackData.turns;
       trackDetail.length = trackData.length;
+      trackDetail.isLoop = trackData.isLoop || false;
       trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
       trackDetail.navigation = generateNavigationData(trackData);
     }
@@ -2593,6 +2495,10 @@ app.post('/api/record/save', express.json(), (req, res) => {
       id: trackId,
       name: trackDetail.name || trackName,
       length: trackDetail.length || 0,
+      pointCount: trackDetail.pointCount || 0,
+      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
+      trajectoryCount: trackDetail.trajectoryCount || 1,
+      isLoop: trackDetail.isLoop || false,
       createdAt: trackDetail.createdAt,
       updatedAt: trackDetail.updatedAt
     };
@@ -2624,6 +2530,7 @@ app.post('/api/record/save', express.json(), (req, res) => {
       trajectoryCount: 1,
       centerline: trackData ? trackData.centerline : null,
       turns: trackData ? trackData.turns : null,
+      isLoop: trackData ? (trackData.isLoop || false) : false,
       sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
       navigation: trackData ? generateNavigationData(trackData) : null,
       createdAt: new Date().toISOString(),
@@ -2636,6 +2543,10 @@ app.post('/api/record/save', express.json(), (req, res) => {
       id: newTrackId,
       name: trackName,
       length: trackLength,
+      pointCount: manualRacePositions.length,
+      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
+      trajectoryCount: 1,
+      isLoop: trackDetail.isLoop || false,
       createdAt: trackDetail.createdAt,
       updatedAt: trackDetail.updatedAt
     };
