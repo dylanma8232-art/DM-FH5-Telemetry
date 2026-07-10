@@ -30,7 +30,7 @@
         - 📄 [BrakingGripDynamicsPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/BrakingGripDynamicsPanel.jsx)   *(函数/组件: `BrakingGripDynamicsPanel`)*
         - 📄 [LapComparison.jsx](file:///forza-telemetry/client/src/components/dashboard/LapComparison.jsx)   *(函数/组件: `LapComparison`)*
         - 📄 [PaceNoteExport.jsx](file:///forza-telemetry/client/src/components/dashboard/PaceNoteExport.jsx)   *(函数/组件: `PaceNoteExport`)*
-        - 📄 [PaceNotesPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/PaceNotesPanel.jsx)   *(函数/组件: `PaceNotesPanel`, 默认导出: `PaceNotesPanel`)*
+        - 📄 [PaceNotesPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/PaceNotesPanel.jsx)   *(函数/组件: `PaceNotesPanel`, 函数/组件: `PaceNoteGlossaryModal`, 默认导出: `PaceNotesPanel`)*
         - 📄 [PartsConfigurator.jsx](file:///forza-telemetry/client/src/components/dashboard/PartsConfigurator.jsx)   *(函数/组件: `PartsConfigurator`)*
         - 📄 [RacePerformanceTimingPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/RacePerformanceTimingPanel.jsx)   *(函数/组件: `RacePerformanceTimingPanel`)*
         - 📄 [ReplayPlayer.jsx](file:///forza-telemetry/client/src/components/dashboard/ReplayPlayer.jsx)   *(函数/组件: `ReplayPlayer`)*
@@ -106,7 +106,7 @@
       - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`, 函数/组件: `readBrotliAsync`)*
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
-    - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`)*
+    - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`, 函数/组件: `calculateTurnAttributes`)*
     - 📄 [update_index_pacenote.cjs](file:///forza-telemetry/server/src/update_index_pacenote.cjs) 
     - 📄 [update_pacenote.cjs](file:///forza-telemetry/server/src/update_pacenote.cjs) 
     - 📂 **utils/**

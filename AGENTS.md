@@ -40,3 +40,11 @@
 - **[CLAUDE.md](forza-telemetry/CLAUDE.md)**：详细的项目知识图谱和架构说明
 - **[CODEMAP.md](CODEMAP.md)**：代码模块结构树和导出分析
 - **[README.md](forza-telemetry/README.md)**：项目概述和使用说明
+
+---
+
+## 界面语言与排版规范
+
+- **界面 UI 文字必须使用纯中文，严禁在中文词汇后附加括号英文备注**（如禁止出现 `路面倾角 (Camber)`、`语速 (Speech Rate)` 等格式，应当直接写为 `路面倾角`、`语速`）。
+- 仅保留全行业或技术领域内公认且无合适中文翻译的缩写（如 WRC、PI、ABS、FWD、AWD 等）。
+- 任何后续 Agent 编写前端界面时必须严格遵守此规范，避免中英夹杂的杂乱视觉。

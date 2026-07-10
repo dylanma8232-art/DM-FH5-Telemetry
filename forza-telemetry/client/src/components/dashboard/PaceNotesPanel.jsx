@@ -341,9 +341,48 @@ function getWrcLabel(note) {
 
 // ==================== 路书条目子组件 ====================
 
+/** 动态 SVG 弯道图形 */
+function TurnIcon({ direction, severity }) {
+  const isLeft = direction === 'left';
+  const sevNum = parseInt(severity, 10) || 3; // 1 to 6
+  
+  // 颜色根据严重度区分：1-2红，3-4橙，5-6绿
+  let strokeColor = '#3fb950'; // 5, 6
+  if (sevNum <= 2) strokeColor = '#f85149'; // 1, 2
+  else if (sevNum <= 4) strokeColor = '#f0883e'; // 3, 4
+
+  let pathD = '';
+  if (sevNum === 1) {
+    // 发卡弯 (U-turn)
+    pathD = isLeft 
+      ? "M 16,20 L 16,10 A 4,4 0 0,0 8,10 L 8,20" 
+      : "M 8,20 L 8,10 A 4,4 0 0,1 16,10 L 16,20";
+  } else if (sevNum === 2) {
+    // 急弯 (90-deg angle)
+    pathD = isLeft
+      ? "M 18,20 L 18,10 L 6,10 M 10,6 L 6,10 L 10,14"
+      : "M 6,20 L 6,10 L 18,10 M 14,6 L 18,10 L 14,14";
+  } else {
+    // 3-6 弧弯：严重度越低，弯度越小，越直
+    const curveAmount = 24 - (sevNum * 2.5); // severity 3 => 16.5, severity 6 => 9
+    if (isLeft) {
+      pathD = `M 17,20 Q 17,11 ${17 - curveAmount},9 M ${21 - curveAmount},12 L ${17 - curveAmount},9 L ${20 - curveAmount},6`;
+    } else {
+      pathD = `M 7,20 Q 7,11 ${7 + curveAmount},9 M ${3 + curveAmount},12 L ${7 + curveAmount},9 L ${4 + curveAmount},6`;
+    }
+  }
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ color: strokeColor, flexShrink: 0 }} stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d={pathD} />
+    </svg>
+  );
+}
+
 /** 弯道路书条目 - WRC简化版 */
 function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
   const dirArrow = getDirectionArrow(note.direction);
+  const severityVal = note.severity || (note.wrcLabel ? note.wrcLabel.match(/\d/)?.[0] : null) || '3';
 
   const bgStyle = isActive
     ? {
@@ -386,6 +425,11 @@ function TurnNoteItem({ note, isActive, isNext, currentSpeed }) {
       >
         {note.turnIndex + 1}
       </span>
+
+      {/* 动态弯道图片图示 */}
+      {note.direction && (
+        <TurnIcon direction={note.direction} severity={severityVal} />
+      )}
 
       {/* WRC编号（核心） */}
       <span
@@ -487,6 +531,7 @@ export function PaceNotesPanel({
   const [showExport, setShowExport] = useState(false);
   const [scrollToActive, setScrollToActive] = useState(false);
   const [hasRaceStarted, setHasRaceStarted] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
   const listRef = useRef(null);
   const activeItemRef = useRef(null);
 
@@ -694,9 +739,32 @@ export function PaceNotesPanel({
               fontWeight: 700,
               color: 'var(--accent)',
               letterSpacing: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
             }}
           >
             路书
+            <span
+              onClick={() => setShowGlossary(true)}
+              style={{
+                cursor: 'pointer',
+                color: '#8b949e',
+                fontSize: 10,
+                fontWeight: 'bold',
+                padding: '0 4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.08)',
+                width: 14,
+                height: 14
+              }}
+              title="路书术语释义"
+            >
+              ?
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {/* 退出按钮 */}
@@ -812,6 +880,7 @@ export function PaceNotesPanel({
             {turnNotes.length > 0 ? '已通过所有弯道' : '无弯道数据'}
           </div>
         )}
+        {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
       </div>
     );
   }
@@ -845,9 +914,32 @@ export function PaceNotesPanel({
             fontWeight: 700,
             color: 'var(--accent)',
             letterSpacing: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4
           }}
         >
-          路书 / Pace Notes
+          路书
+          <span
+            onClick={() => setShowGlossary(true)}
+            style={{
+              cursor: 'pointer',
+              color: '#8b949e',
+              fontSize: 10,
+              fontWeight: 'bold',
+              padding: '0 4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+              width: 14,
+              height: 14
+            }}
+            title="路书术语释义"
+          >
+            ?
+          </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 9, color: '#484f58' }}>
@@ -1002,6 +1094,110 @@ export function PaceNotesPanel({
           )}
         </div>
       )}
+      {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
+    </div>
+  );
+}
+
+export function PaceNoteGlossaryModal({ onClose }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: 20
+    }} onClick={onClose}>
+      <div style={{
+        background: '#161b22',
+        border: '1px solid #30363d',
+        borderRadius: 12,
+        width: '100%',
+        maxWidth: 500,
+        maxHeight: '80vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        overflow: 'hidden'
+      }} onClick={e => e.stopPropagation()}>
+        {/* 头部 */}
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid #30363d',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: '#0d1117'
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#e6edf3' }}>路书术语与评级释义</span>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#8b949e',
+              fontSize: 16,
+              cursor: 'pointer',
+              padding: 4,
+              lineHeight: 1
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* 内容 */}
+        <div style={{ padding: 16, overflowY: 'auto', fontSize: 11, color: '#c9d1d9', display: 'flex', flexDirection: 'column', gap: 12, lineHeight: 1.5 }}>
+          {/* 弯道等级 */}
+          <div>
+            <div style={{ fontWeight: 700, color: '#58a6ff', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>●</span> 弯道严重度评级 (1 - 6)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', background: '#0d1117', padding: 8, borderRadius: 6, border: '1px solid #21262d' }}>
+              <div><strong style={{ color: '#f85149' }}>1档 (发卡弯)</strong>: 极锐角，低速 (通常&lt;30km/h)</div>
+              <div><strong style={{ color: '#f85149' }}>2档 (急弯)</strong>: 近似直角，低速 (通常30-60km/h)</div>
+              <div><strong style={{ color: '#f0883e' }}>3档 (中等弯)</strong>: 中等弧度，中速 (通常60-100km/h)</div>
+              <div><strong style={{ color: '#f0883e' }}>4档 (缓弯)</strong>: 较缓弧度，中高速 (通常100-140km/h)</div>
+              <div><strong style={{ color: '#3fb950' }}>5档 (轻弯)</strong>: 很缓，高速 (通常140-180km/h)</div>
+              <div><strong style={{ color: '#3fb950' }}>6档 (微弯)</strong>: 极轻微弯度，近乎直道 (通常&gt;180km/h)</div>
+            </div>
+          </div>
+
+          {/* 几何特征 */}
+          <div>
+            <div style={{ fontWeight: 700, color: '#58a6ff', marginBottom: 4 }}>
+              <span>●</span> 几何与路况特征
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0d1117', padding: 8, borderRadius: 6, border: '1px solid #21262d' }}>
+              <div><strong>过坡 (Crest)</strong>: 赛车越过起伏坡顶，视线受阻，需提前校准行进线。</div>
+              <div><strong>飞跳 (Jump)</strong>: 重起伏路段，赛车会腾空，起跳前需摆正车身。</div>
+              <div><strong>路面倾角 (Camber)</strong>:</div>
+              <div style={{ paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div>• <strong style={{ color: '#3fb950' }}>向心倾角 (Banking)</strong>: 弯道向内侧倾斜，增加过弯贴合度与抓地极限。</div>
+                <div>• <strong style={{ color: '#f85149' }}>离心反坡 (Off-camber)</strong>: 弯道向外侧倾斜，向心抓地力极易突破，需提前减速。</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 锁定与合并 */}
+          <div>
+            <div style={{ fontWeight: 700, color: '#58a6ff', marginBottom: 4 }}>
+              <span>●</span> 骨架锁定与弯道合并
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0d1117', padding: 8, borderRadius: 6, border: '1px solid #21262d' }}>
+              <div><strong>锁定 (Lock)</strong>: 手动编辑过的弯道锁定后，未来再次跑圈做合并时，系统将以此弯道为参考基准进行叠加优化，不修改其核心骨架。</div>
+              <div><strong>合并 (Merge)</strong>: 将当前弯道与下一个弯道融合为一个弯道，系统重新合并它们的物理特征及推荐速度。</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
