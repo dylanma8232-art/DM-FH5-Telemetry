@@ -191,61 +191,74 @@ async function main() {
   let finalTrackId = sessionDataMeta.trackId;
   let resultTracksUpdate = null;
 
-  if (trackMode && trackMode.trackId && tracks[trackMode.trackId]) {
+  if (trackMode && trackMode.trackId) {
     const trackId = trackMode.trackId;
-    finalTrackId = trackId;
-    let trackDetail = readTrackDetail(DATA_DIR, trackId);
-    if (!trackDetail) {
+    const trackFilePath = path.join(DATA_DIR, 'tracks', `${trackId}.json.br`);
+    // 优先读文件系统，不依赖 workerData 里可能已过时的 tracks 快照
+    let trackDetail = null;
+    if (existsSync(trackFilePath)) {
+      trackDetail = readTrackDetail(DATA_DIR, trackId);
+    }
+    if (!trackDetail && tracks[trackId]) {
       trackDetail = { ...tracks[trackId] }; // 降级回退
     }
 
-    // 精细简化新轨迹
-    const simplifiedNewTraj = simplifyRDP(positions, 0.25);
-    const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
-    existingTrajectories.push(simplifiedNewTraj);
+    if (trackDetail) {
+      finalTrackId = trackId;
 
-    // 对历史轨迹进行简化，最多保留 5 条
-    for (let i = 0; i < existingTrajectories.length - 1; i++) {
-      existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
+      // 精细简化新轨迹
+      const simplifiedNewTraj = simplifyRDP(positions, 0.25);
+      const existingTrajectories = trackDetail.trajectories || [trackDetail.points || []];
+      existingTrajectories.push(simplifiedNewTraj);
+
+      // 对历史轨迹进行简化，最多保留 5 条
+      for (let i = 0; i < existingTrajectories.length - 1; i++) {
+        existingTrajectories[i] = simplifyRDP(existingTrajectories[i], 0.25);
+      }
+      const trimmed = trimTrajectories(existingTrajectories, 5);
+
+      // 运行几何重构，重建赛道中心线 and 弯道属性
+      const trackData = buildTrackFromTrajectories(trimmed, {
+        oldTurns: trackDetail.turns || [],
+        isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
+        deletedTurns: trackDetail.deletedTurns || []
+      });
+
+      trackDetail.trajectories = trimmed;
+      trackDetail.trajectoryCount = trimmed.length;
+      trackDetail.updatedAt = new Date().toISOString();
+
+      if (trackData) {
+        trackDetail.points = trackData.centerline;
+        trackDetail.centerline = trackData.centerline;
+        trackDetail.turns = trackData.turns;
+        trackDetail.length = trackData.length;
+        trackDetail.isLoop = trackData.isLoop || false;
+        trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
+        trackDetail.navigation = generateNavigationData(trackData);
+      }
+
+      // 写入赛道详细几何包
+      const brTrackPath = path.join(tracksDir, `${trackId}.json.br`);
+      await writeBrotliAsync(brTrackPath, trackDetail, 4);
+
+      resultTracksUpdate = {
+        id: trackId,
+        name: trackDetail.name || sessionDataMeta.trackName,
+        length: trackDetail.length || 0,
+        pointCount: trackDetail.points ? trackDetail.points.length : 0,
+        turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
+        trajectoryCount: trimmed.length,
+        createdAt: trackDetail.createdAt || (tracks[trackId] && tracks[trackId].createdAt) || new Date().toISOString(),
+        updatedAt: trackDetail.updatedAt
+      };
+    } else {
+      // 文件和快照都找不到，降级为普通模式（异常情况）
+      console.warn(`[Worker] trackMode 赛道 ${trackId} 文件不存在，降级为新建赛道`);
     }
-    const trimmed = trimTrajectories(existingTrajectories, 5);
+  }
 
-    // 运行几何重构，重建赛道中心线 and 弯道属性
-    const trackData = buildTrackFromTrajectories(trimmed, {
-      oldTurns: trackDetail.turns || [],
-      isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
-      deletedTurns: trackDetail.deletedTurns || []
-    });
-
-    trackDetail.trajectories = trimmed;
-    trackDetail.trajectoryCount = trimmed.length;
-    trackDetail.updatedAt = new Date().toISOString();
-
-    if (trackData) {
-      trackDetail.points = trackData.centerline;
-      trackDetail.centerline = trackData.centerline;
-      trackDetail.turns = trackData.turns;
-      trackDetail.length = trackData.length;
-      trackDetail.isLoop = trackData.isLoop || false;
-      trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-      trackDetail.navigation = generateNavigationData(trackData);
-    }
-
-    // 写入赛道详细几何包
-    const brTrackPath = path.join(tracksDir, `${trackId}.json.br`);
-    await writeBrotliAsync(brTrackPath, trackDetail, 4);
-
-    resultTracksUpdate = {
-      id: trackId,
-      name: trackDetail.name || sessionDataMeta.trackName,
-      length: trackDetail.length || 0,
-      pointCount: trackDetail.points ? trackDetail.points.length : 0,
-      turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-      trajectoryCount: trimmed.length,
-      createdAt: trackDetail.createdAt || tracks[trackId].createdAt || new Date().toISOString(),
-      updatedAt: trackDetail.updatedAt
-    };
-  } else {
+  if (!resultTracksUpdate) {
     // 普通模式：生成新赛道
     const newTrackId = 'track_' + Date.now();
     finalTrackId = newTrackId;
@@ -287,6 +300,7 @@ async function main() {
     };
   }
 
+
   // 4. 构建完整的 session 详情和摘要
   let finalDuration = sessionDataMeta.duration;
   if (!finalDuration && hifiData.length > 0) {
@@ -295,6 +309,27 @@ async function main() {
     finalDuration = lastTs - firstTs;
   }
 
+  // 恢复丢失的圈速与最快圈计算逻辑
+  const validBestLaps = hifiData.filter(d => d.bestLap !== undefined && d.bestLap > 0);
+  const validLastLaps = hifiData.filter(d => d.lastLap !== undefined && d.lastLap > 0);
+  const validRaceTimes = hifiData.filter(d => d.currentRaceTime !== undefined && d.currentRaceTime > 0);
+
+  let bestLap = 0;
+  if (validBestLaps.length > 0) {
+    bestLap = validBestLaps[validBestLaps.length - 1].bestLap;
+  } else if (validRaceTimes.length > 0) {
+    bestLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
+  let lastLap = 0;
+  if (validLastLaps.length > 0) {
+    lastLap = validLastLaps[validLastLaps.length - 1].lastLap;
+  } else if (validRaceTimes.length > 0) {
+    lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
+  }
+
+  let maxLap = hifiData.length > 0 ? Math.max(...hifiData.map(d => d.lapNumber || d.lapNum || 0)) : 0;
+
   const summaryData = {
     ...sessionDataMeta,
     trackId: finalTrackId, // 确保 trackId 正确关联
@@ -302,6 +337,11 @@ async function main() {
       dataCount: hifiData.length,
       positionCount: positions.length,
       duration: finalDuration
+    },
+    laps: {
+      best: bestLap,
+      last: lastLap,
+      count: maxLap
     },
     hasDetail: hifiData.length > 0
   };

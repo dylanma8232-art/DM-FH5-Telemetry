@@ -2126,7 +2126,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
                               <th style={{ padding: '8px 6px' }}>出赛日期</th>
                               <th style={{ padding: '8px 6px' }}>出赛车辆</th>
-                              <th style={{ padding: '8px 6px' }}>最快圈速</th>
+                              <th style={{ padding: '8px 6px' }}>圈速/总用时</th>
                               <th style={{ padding: '8px 6px' }}>总跑圈数</th>
                               <th style={{ padding: '8px 6px', textAlign: 'right' }}>操作</th>
                             </tr>
@@ -2137,7 +2137,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                                 <td style={{ padding: '8px 6px' }}>{formatDate(session.savedAt)}</td>
                                 <td style={{ padding: '8px 6px' }}>{session.vehicle?.name || `Car #${session.vehicle?.ordinal}`}</td>
                                 <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>
-                                  {session.laps?.best > 0 ? formatTime(session.laps.best) : '-'}
+                                  {session.laps?.best > 0 ? formatTime(session.laps.best) : (session.summary?.duration > 0 ? formatTime(session.summary.duration / 1000) : '-')}
                                 </td>
                                 <td style={{ padding: '8px 6px' }}>{session.laps?.count || (session.laps?.best > 0 ? 1 : 0)}圈</td>
                                 <td style={{ padding: '8px 6px', textAlign: 'right' }}>

@@ -80,7 +80,8 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
     lastLap = 0,
     currentLap = 0,
     bestLap = 0,
-    position = {}
+    position = {},
+    isRecording = false
   } = telemetryData;
 
   const currentRaceTimeMs = telemetryData.timestampMS ? telemetryData.timestampMS / 1000 : 0;
@@ -98,12 +99,12 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   // 比赛状态检测
   const [raceActive, setRaceActive] = useState(false);
   useEffect(() => {
-    if (isRaceOn && currentRaceTime > 0) {
+    if ((isRaceOn && currentRaceTime > 0) || isRecording) {
       setRaceActive(true);
-    } else if (!isRaceOn) {
+    } else if (!isRaceOn && !isRecording) {
       setRaceActive(false);
     }
-  }, [isRaceOn, currentRaceTime]);
+  }, [isRaceOn, currentRaceTime, isRecording]);
 
   // 根据当前位置与赛道分段对比
   const sectorsList = trackData?.sectors || [];
@@ -125,7 +126,7 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   }, [lapNumber, lastLap, sectorsList.length, currentRaceTimeFallback]);
   const currentSectorTime = useMemo(() => {
     if (sectorsList.length === 0 || state.currentSector >= sectorsList.length) return 0;
-    if (lapNumber <= 0 || currentRaceTime <= 0) return 0;
+    if (lapNumber <= 0 && currentRaceTime <= 0 && !isRecording) return 0;
     const startT = sectorStartTimesRef.current[state.currentSector] || 0;
     if (startT === 0) return 0;
     return Math.max(0, currentRaceTimeFallback - startT);
@@ -143,8 +144,9 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   useEffect(() => {
     if (sectorsList.length === 0 || !position?.x) return;
 
-    // 动态初始化第 0 分段的起始时间：必须在比赛中且有圈数据
-    if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0 && lapNumber > 0 && currentRaceTime > 0) {
+    // 动态初始化第 0 分段的起始时间：在比赛中或正在录制时触发
+    const canStartTiming = (lapNumber > 0 && currentRaceTime > 0) || isRecording;
+    if (state.currentSector === 0 && sectorStartTimesRef.current[0] === 0 && canStartTiming) {
       sectorStartTimesRef.current[0] = currentRaceTimeFallback;
     }
     
