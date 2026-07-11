@@ -609,3 +609,102 @@ npm run rebuild:tracks
 7. **TTS 语音播报**: 集成小米 TTS API，播报弯道导航信息（刹车/入弯/弯心/出弯），带缓存机制。
 8. **自动录制**: 状态机驱动（IDLE → RECORDING → POST_RACE → IDLE），自动检测比赛开始/结束，识别赛道并生成数据。
 9. **AI 教练**: 集成 DashScope API，基于比赛数据生成驾驶分析报告。
+
+---
+
+## 11. 已知问题与修复记录（Bug Log）
+
+### 11.1 routerContext 上下文注册规范
+
+所有路由模块（`routes/` 目录）均通过 `const { ... } = context` 解构获取工具函数。  
+**必须确保** 每个路由模块解构所需的函数/对象都已在 `server/src/index.js` 的 `routerContext` 对象上注册。
+
+已注册的关键项（含 2026-07-11 补充）：
+- `simplifyRDP`（从 `utils/rdp.js` 导入）——**之前遗漏，导致赛道合并接口 500 错误**
+
+> [!WARNING]
+> `routes/tracks.js` 解构使用了 `simplifyRDP`，但 routerContext 一直未注册，
+> 导致 `POST /api/tracks/merge` 每次都抛 TypeError 500。
+> 前端因未检查 `res.ok` 而静默显示"合并成功"，赛道实际未删除。
+> **已于 2026-07-11 修复：在 index.js 中 import 并注册 simplifyRDP。**
+
+---
+
+### 11.2 赛道模式（trackMode）状态管理陷阱
+
+**核心状态：** `trackMode`（`index.js` 中，通过 `getTrackMode()`/`setTrackMode()` 访问）
+
+#### 正确生命周期
+
+```
+点击"开始比赛" → POST /api/trackMode/start → setTrackMode({ trackId, trackName })
+       ↓
+比赛进行中 → handleAutoRecord 实时读 getTrackMode() 用于路书播报
+       ↓
+比赛结束 → stopAutoRecording() 执行：
+   1. const capturedMode = getTrackMode()          ← 先捕获
+   2. setTrackMode(null)                            ← 再清除
+   3. saveAutoRecordedDataWithWorker(..., capturedMode) ← 传捕获值
+       ↓
+Worker 异步保存完成 → worker.terminate()
+   ⚠️ Worker 回调里【绝对不能】再次 setTrackMode(null)！
+```
+
+#### Bug A：Worker 回调无条件清除 trackMode（2026-07-11 修复）
+
+`record.js` 的 `worker.on('message')` 回调里曾有 `setTrackMode(null)`，导致：
+1. 上一局 Worker 还在异步处理（可能数十秒）
+2. 用户点"开始比赛" → `setTrackMode({ trackId })`
+3. 上一局 Worker 完成 → `setTrackMode(null)` → **杀死当前局 trackMode！**
+4. 当前局结束 → `stopAutoRecording` 捕获 `null` → 创建新赛道而非归档
+
+**修复：** 删除 Worker 回调里的所有 `setTrackMode(null)` 调用。
+
+#### Bug B：Worker 判断依赖过时 tracks 快照（2026-07-11 修复）
+
+Worker 通过 `workerData` 接收的 `tracks` 是**结构化克隆的深拷贝**，可能不含刚创建的赛道。
+旧逻辑 `tracks[trackMode.trackId]` 为假时直接降级创建新赛道。
+
+**修复：** 改为优先查文件系统（`existsSync(.json.br)`），不依赖内存快照：
+```javascript
+const trackFilePath = path.join(DATA_DIR, 'tracks', `${trackId}.json.br`);
+let trackDetail = existsSync(trackFilePath) ? readTrackDetail(DATA_DIR, trackId) : null;
+if (!trackDetail && tracks[trackId]) trackDetail = { ...tracks[trackId] };
+```
+
+---
+
+### 11.3 前端 fetch 错误处理规范
+
+> [!IMPORTANT]
+> 所有 fetch 调用**必须**检查 `res.ok`，否则后端 4xx/5xx 会被静默忽略，
+> 用户看到"成功"提示但操作实际失败。
+
+```javascript
+// ✅ 正确
+const res = await fetch('/api/tracks/merge', { method: 'POST', ... });
+const data = await res.json();
+if (!res.ok) { toast('失败: ' + (data.error || '服务器错误'), 'error'); return; }
+toast('成功', 'success');
+
+// ❌ 错误（前端假成功）
+await fetch('/api/tracks/merge', { ... });
+toast('合并成功', 'success');
+```
+
+---
+
+### 11.4 比赛摘要圈速写入规范
+
+`save-worker.js` 计算并写入 `_summary.json` 中的圈速信息，依赖 `hifiData` JSONL 遥测流。
+
+| 字段 | 来源 |
+|------|------|
+| `laps.best` | hifiData 中最后一个 `bestLap > 0` 的帧 |
+| `laps.last` | hifiData 中最后一个 `lastLap > 0` 的帧 |
+| `laps.count` | hifiData 中最大 `lapNumber` |
+| `summary.duration` | 优先 `sessionDataMeta.duration`，其次首尾帧时间差 |
+
+> [!NOTE]
+> 2026-07-11 前 save-worker.js 改造时漏掉了圈速计算逻辑，
+> 一批历史比赛记录缺失 `laps` 字段，已用修复脚本补救。

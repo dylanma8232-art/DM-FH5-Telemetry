@@ -66,7 +66,7 @@ export function AlertAdvicePanel({ data }) {
       });
     }
 
-    // ── 1. 制动锁死 (ABS 抱死) ──────────────────
+    // ── 1. 制动锁死 (车轮锁死) ──────────────────
     if ((controls.brake || 0) > 0 && smoothSpeed > 20) {
       const wheelRotationSpeed = data.wheelRotationSpeed || {};
       const minWheelSpeed = Math.min(
@@ -74,7 +74,7 @@ export function AlertAdvicePanel({ data }) {
         wheelRotationSpeed.rearLeft  ?? 100, wheelRotationSpeed.rearRight  ?? 100
       );
       if (minWheelSpeed < 5) {
-        items.push({ priority: 1, type: 'danger', icon: '🔒', text: 'ABS锁死！', detail: '' });
+        items.push({ priority: 1, type: 'danger', icon: '🔒', text: '车轮锁死！', detail: '' });
       }
     }
 

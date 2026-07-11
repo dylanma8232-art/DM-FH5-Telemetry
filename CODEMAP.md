@@ -98,20 +98,36 @@
     - 📄 [data-listener.js](file:///forza-telemetry/server/src/data-listener.js) 
     - 📄 [index.js](file:///forza-telemetry/server/src/index.js) 
     - 📄 [rebuild-tracks.js](file:///forza-telemetry/server/src/rebuild-tracks.js) 
+    - 📂 **routes/**
+      - 📄 [analysis.js](file:///forza-telemetry/server/src/routes/analysis.js)   *(默认导出: `function`)*
+      - 📄 [leaderboard.js](file:///forza-telemetry/server/src/routes/leaderboard.js)   *(默认导出: `function`)*
+      - 📄 [navigation.js](file:///forza-telemetry/server/src/routes/navigation.js)   *(默认导出: `function`)*
+      - 📄 [record.js](file:///forza-telemetry/server/src/routes/record.js)   *(默认导出: `function`)*
+      - 📄 [sessions.js](file:///forza-telemetry/server/src/routes/sessions.js)   *(默认导出: `function`)*
+      - 📄 [system.js](file:///forza-telemetry/server/src/routes/system.js)   *(默认导出: `function`)*
+      - 📄 [tracks.js](file:///forza-telemetry/server/src/routes/tracks.js)   *(默认导出: `function`)*
+      - 📄 [tunes.js](file:///forza-telemetry/server/src/routes/tunes.js)   *(默认导出: `function`)*
+      - 📄 [vehicles.js](file:///forza-telemetry/server/src/routes/vehicles.js)   *(默认导出: `function`)*
     - 📂 **services/**
+      - 📄 [navigator.js](file:///forza-telemetry/server/src/services/navigator.js)   *(函数/组件: `resetAnnouncedTurnIndex`, 函数/组件: `setAnnounceTime`, 函数/组件: `checkAndAnnounceTurn`)*
+      - 📄 [physics-analyzer.js](file:///forza-telemetry/server/src/services/physics-analyzer.js)   *(函数/组件: `calculateDrivingLineAnalysis`, 函数/组件: `calculateDrivingStyle`, 函数/组件: `calculateDetailedStats`, 函数/组件: `calculateDrivingScore`, 函数/组件: `calculateTireAnalysis`, 函数/组件: `calculateBrakingAnalysis`, 函数/组件: `calculateAccelerationAnalysis`, 函数/组件: `calculateShiftAnalysis`, 函数/组件: `calculateSectorAnalysis`, 函数/组件: `analyzeSectors`, 函数/组件: `generateDrivingAdvice`, 函数/组件: `generateTuneDiagnosis`, 函数/组件: `getBestLapNum`, 函数/组件: `findClosestPoint`)*
       - 📄 [retention.js](file:///forza-telemetry/server/src/services/retention.js)   *(函数/组件: `runSessionRetentionCleanup`)*
       - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)   *(常量/方法: `stateManager`)*
+      - 📄 [track-recognizer.js](file:///forza-telemetry/server/src/services/track-recognizer.js)   *(函数/组件: `recognizeTrack`, 常量/方法: `trackCoordinatesCache`)*
+      - 📄 [tts.js](file:///forza-telemetry/server/src/services/tts.js)   *(函数/组件: `generateTTS`)*
     - 📂 **storage/**
       - 📄 [atomic-writer.js](file:///forza-telemetry/server/src/storage/atomic-writer.js)   *(常量/方法: `atomicWriter`)*
       - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`, 函数/组件: `readBrotliAsync`)*
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
       - 📄 [save-worker.js](file:///forza-telemetry/server/src/storage/save-worker.js) 
+      - 📄 [session-db.js](file:///forza-telemetry/server/src/storage/session-db.js)   *(函数/组件: `loadTracksDatabase`, 函数/组件: `saveTracksDatabase`, 函数/组件: `readTrackDetail`, 函数/组件: `writeTrackDetail`, 函数/组件: `writeTrackDetailAsync`, 函数/组件: `deleteTrackDetail`, 函数/组件: `generateLowfiTelemetry`, 函数/组件: `saveSession`, 函数/组件: `saveSessionAsync`, 函数/组件: `loadSession`, 函数/组件: `autoCleanupSessionDetails`, 函数/组件: `migrateOldSessions`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`, 常量/方法: `CAR_CLASSES`, 常量/方法: `DRIVETRAIN_TYPES`, 默认导出: `默认导出`)*
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js)   *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`, 函数/组件: `generateNavigationData`, 函数/组件: `calculateTrackSimilarity`, 函数/组件: `generateSectors`, 函数/组件: `recognizeTrack`, 函数/组件: `validateTrackQuality`, 函数/组件: `detectTurnsEnhanced`, 函数/组件: `buildRouteBook`, 函数/组件: `calculateTurnAttributes`)*
     - 📄 [update_index_pacenote.cjs](file:///forza-telemetry/server/src/update_index_pacenote.cjs) 
     - 📄 [update_pacenote.cjs](file:///forza-telemetry/server/src/update_pacenote.cjs) 
     - 📂 **utils/**
       - 📄 [get-current-api.js](file:///forza-telemetry/server/src/utils/get-current-api.js) 
+      - 📄 [helpers.js](file:///forza-telemetry/server/src/utils/helpers.js)   *(函数/组件: `getLocalIPs`, 函数/组件: `loadJSON`, 函数/组件: `saveJSON`, 函数/组件: `trimTrajectories`)*
       - 📄 [listen-and-classify.js](file:///forza-telemetry/server/src/utils/listen-and-classify.js) 
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
   - 📄 [test_dots.cjs](file:///forza-telemetry/server/test_dots.cjs) 

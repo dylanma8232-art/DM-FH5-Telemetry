@@ -1,6 +1,36 @@
 import { useState, useEffect } from 'react';
 import { toast } from './shared/Toast';
 
+let globalAudioCtx = null;
+
+function playTone(frequency, duration, type = 'sine', volume = 0.4) {
+  try {
+    if (!globalAudioCtx) {
+      globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = globalAudioCtx;
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {
+    console.warn('[Audio] 播放音频失败:', e);
+  }
+}
+
 export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lapNumber, racePosition, currentRaceTime, onSettingsClick, socket }) {
   const [autoRecordStatus, setAutoRecordStatus] = useState('IDLE');
   const [manualRecording, setManualRecording] = useState(false);
@@ -30,6 +60,24 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
       .catch(err => console.error('[Header] 获取状态失败:', err));
   }, []);
 
+  // 用户交互预热 AudioContext，解决浏览器安全限制导致的静音问题
+  useEffect(() => {
+    const initAudio = () => {
+      if (!globalAudioCtx) {
+        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+    };
+    window.addEventListener('click', initAudio);
+    window.addEventListener('keydown', initAudio);
+    return () => {
+      window.removeEventListener('click', initAudio);
+      window.removeEventListener('keydown', initAudio);
+    };
+  }, []);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -37,11 +85,15 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
       setAutoRecordStatus(data.state);
       if (data.state === 'RECORDING') {
         setRecordStartTime(Date.now());
+        // 播放开始录制的“滴”提示音 (988Hz 亮 sine 音)
+        playTone(987.77, 0.15, 'sine', 0.4);
       } else if (data.state === 'COMPLETED') {
         toast(`自动录制已保存: ${data.trackName || '未知赛道'}`, 'success', 5000);
         setLastSaved({ trackName: data.trackName, sessionId: data.sessionId, time: Date.now() });
         setRecordStartTime(null);
         setRecordDuration(0);
+        // 播放保存成功的“嘟”提示音 (523Hz 暖 triangle 音)
+        playTone(523.25, 0.35, 'triangle', 0.5);
       } else {
         setRecordStartTime(null);
         setRecordDuration(0);

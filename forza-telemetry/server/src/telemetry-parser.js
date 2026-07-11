@@ -106,52 +106,34 @@ export function parseTelemetryPacket(buffer) {
   const view = buffer instanceof DataView ? buffer : new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
   const readFloat = (offset) => {
-    try {
-      return view.getFloat32(offset, true); // little-endian
-    } catch {
-      return 0;
-    }
+    if (offset + 4 > buffer.length) return 0;
+    return view.getFloat32(offset, true); // little-endian
   };
 
   const readInt32 = (offset) => {
-    try {
-      return view.getInt32(offset, true);
-    } catch {
-      return 0;
-    }
+    if (offset + 4 > buffer.length) return 0;
+    return view.getInt32(offset, true);
   };
 
   const readUint32 = (offset) => {
-    try {
-      return view.getUint32(offset, true);
-    } catch {
-      return 0;
-    }
+    if (offset + 4 > buffer.length) return 0;
+    return view.getUint32(offset, true);
   };
 
   const readUint16 = (offset) => {
-    try {
-      return view.getUint16(offset, true);
-    } catch {
-      return 0;
-    }
+    if (offset + 2 > buffer.length) return 0;
+    return view.getUint16(offset, true);
   };
 
   const readUint8 = (offset) => {
-    try {
-      return view.getUint8(offset);
-    } catch {
-      return 0;
-    }
+    if (offset + 1 > buffer.length) return 0;
+    return view.getUint8(offset);
   };
 
   const readInt8 = (offset) => {
-    try {
-      const val = view.getUint8(offset);
-      return val > 127 ? val - 256 : val;
-    } catch {
-      return 0;
-    }
+    if (offset + 1 > buffer.length) return 0;
+    const val = view.getUint8(offset);
+    return val > 127 ? val - 256 : val;
   };
 
   // Parse SLED data

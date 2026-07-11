@@ -34,6 +34,14 @@ class AtomicWriter {
       
       await fs.writeFile(tmpPath, jsonStr, 'utf8');
       await fs.rename(tmpPath, filepath);
+      
+      // 备份机制：在原子写入成功后，异步备份一份为 .bak 文件，提供灾备防护
+      try {
+        await fs.copyFile(filepath, `${filepath}.bak`);
+      } catch (bakErr) {
+        // 仅仅是备份失败，不影响本次原子写的成功返回
+      }
+      
       resolve(true);
     } catch (err) {
       console.error(`[AtomicWriter] Atomic write failed for ${filepath}:`, err.message);

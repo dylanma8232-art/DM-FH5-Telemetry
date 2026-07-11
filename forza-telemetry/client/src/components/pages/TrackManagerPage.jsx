@@ -492,16 +492,21 @@ export function TrackManagerPage({ onNavigate }) {
       return;
     }
     try {
-      await fetch('/api/tracks/merge', {
+      const res = await fetch('/api/tracks/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceTrackId: mergeSource, targetTrackId: mergeTarget })
       });
+      const data = await res.json();
+      if (!res.ok) {
+        toast('合并失败: ' + (data.error || '服务器错误'), 'error');
+        return;
+      }
       loadTracks();
       setShowMergeModal(false);
       toast('赛道合并成功', 'success');
     } catch (e) {
-      toast('合并失败', 'error');
+      toast('合并失败: ' + e.message, 'error');
     }
   };
 
