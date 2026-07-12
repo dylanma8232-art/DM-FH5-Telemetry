@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { brotliDecompressSync } from 'zlib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -93,6 +94,30 @@ async function main() {
     }
 
     // 2. 车辆数据清洗补全
+    if (!session.vehicle || !session.vehicle.ordinal) {
+      let detailFile = filePath.replace('_summary.json', '_detail_lowfi.json.br');
+      if (!existsSync(detailFile)) detailFile = filePath.replace('_summary.json', '_detail_hifi.json.br');
+      if (existsSync(detailFile)) {
+        try {
+          const d = JSON.parse(brotliDecompressSync(readFileSync(detailFile)));
+          let recoveredOrdinal = null;
+          if (d.data && d.data.length > 0) {
+            for (const pt of d.data) {
+              if (pt.carOrdinal !== undefined && pt.carOrdinal !== 0) { recoveredOrdinal = pt.carOrdinal; break; }
+              if (pt.car && pt.car.ordinal !== undefined && pt.car.ordinal !== 0) { recoveredOrdinal = pt.car.ordinal; break; }
+            }
+          }
+          if (recoveredOrdinal !== null) {
+            session.vehicle = { ordinal: recoveredOrdinal };
+            console.log(`[会话 ${session.id}] 深入 detail 数据成功找回丢失的 ordinal: ${recoveredOrdinal}`);
+            modified = true;
+          }
+        } catch(e) {
+          console.error(`读取 detail 失败: ${e.message}`);
+        }
+      }
+    }
+
     if (session.vehicle) {
       const ordinal = session.vehicle.ordinal;
       if (ordinal && vehiclesData[ordinal]) {
@@ -107,7 +132,6 @@ async function main() {
         }
       }
     } else {
-      // 早期可能没有存 vehicle 但可能在其他地方能找到，目前保持 null 但记录日志
       // console.log(`[会话 ${session.id}] 无车辆信息 (null)`);
     }
 
