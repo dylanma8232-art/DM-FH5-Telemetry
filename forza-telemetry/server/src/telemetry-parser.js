@@ -140,6 +140,3 @@ export function parseTelemetryPacket(buffer) {
   return data;
 }
 
-export const CAR_CLASSES = { 0: 'D', 1: 'C', 2: 'B', 3: 'A', 4: 'S1', 5: 'S2', 6: 'X' };
-export const DRIVETRAIN_TYPES = { 0: 'FWD', 1: 'RWD', 2: 'AWD' };
-export default { parseTelemetryPacket, CAR_CLASSES, DRIVETRAIN_TYPES };

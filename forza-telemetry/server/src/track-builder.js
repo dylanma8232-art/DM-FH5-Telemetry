@@ -1,6 +1,4 @@
 export { buildTrackFromTrajectories } from './services/track/builder-facade.js';
-export { resampleCenterline } from './services/track/centerline-processor.js';
-export { smoothCenterline } from './services/track/centerline-processor.js';
 export { generateSectors } from './services/track/builder-facade.js';
 export { validateTrackQuality } from './services/track/builder-facade.js';
 export { detectTurnsEnhanced } from './services/track/track-turns.js';

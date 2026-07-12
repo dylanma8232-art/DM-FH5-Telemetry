@@ -1,13 +1,13 @@
 import { generateTTS } from './tts.js';
 
-export let lastAnnouncedTurnIndex = -1;
-export let lastAnnounceTime = 0;
+let lastAnnouncedTurnIndex = -1;
+let lastAnnounceTime = 0;
 
 export function resetAnnouncedTurnIndex(index = -1) {
   lastAnnouncedTurnIndex = index;
 }
 
-export function setAnnounceTime(time) {
+function setAnnounceTime(time) {
   lastAnnounceTime = time;
 }
 
