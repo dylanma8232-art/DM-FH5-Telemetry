@@ -969,7 +969,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                 </span>
                 <span>&gt;</span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {sessions.find(s => s.trackId === trackFilter)?.trackName || trackFilter} 轨迹概览
+                  {tracksMetadata[trackFilter]?.name || sessions.find(s => s.trackId === trackFilter)?.trackName || trackFilter} 轨迹概览
                 </span>
               </div>
               <button onClick={() => setTrackFilter('')} style={{
