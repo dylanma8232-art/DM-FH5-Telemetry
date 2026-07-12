@@ -1,5 +1,4 @@
 import { checkAndAnnounceTurn, resetAnnouncedTurnIndex } from '../services/navigator.js';
-import { checkAndAnnounceTurn, resetAnnouncedTurnIndex } from '../services/navigator.js';
 import { stateManager } from '../services/state-manager.js';
 import { readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
 import express from 'express';

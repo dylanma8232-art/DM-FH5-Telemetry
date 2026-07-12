@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { create } from 'zustand';
 import { defaultSettings } from '../themes';
-
-const SettingsContext = createContext(null);
+import React, { createContext } from 'react';
 
 const STORAGE_KEY = 'fh5-telemetry-settings';
 
@@ -28,92 +27,93 @@ function saveSettings(settings) {
   }
 }
 
-export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(loadSettings);
+const useSettingsStore = create((set, get) => ({
+  settings: loadSettings(),
+  
+  updateSetting: (key, value) => set(state => {
+    const keys = key.split('.');
+    if (keys.length === 1) {
+      const newSettings = { ...state.settings, [key]: value };
+      saveSettings(newSettings);
+      return { settings: newSettings };
+    }
+    const result = { ...state.settings };
+    let current = result;
+    for (let i = 0; i < keys.length - 1; i++) {
+      current[keys[i]] = { ...current[keys[i]] };
+      current = current[keys[i]];
+    }
+    current[keys[keys.length - 1]] = value;
+    saveSettings(result);
+    return { settings: result };
+  }),
 
-  useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
+  updatePreferences: (key, value) => {
+    get().updateSetting('preferences.' + key, value);
+  },
 
-  const updateSetting = useCallback((key, value) => {
-    setSettings(prev => {
-      const keys = key.split('.');
-      if (keys.length === 1) {
-        return { ...prev, [key]: value };
+  updateLayout: (key, value) => {
+    get().updateSetting('layout.' + key, value);
+  },
+
+  togglePanelVisibility: (panelId) => set(state => {
+    const hidden = state.settings.layout.hiddenPanels || [];
+    const isHidden = hidden.includes(panelId);
+    const newSettings = {
+      ...state.settings,
+      layout: {
+        ...state.settings.layout,
+        hiddenPanels: isHidden 
+          ? hidden.filter(id => id !== panelId)
+          : [...hidden, panelId]
       }
-      const result = { ...prev };
-      let current = result;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current[keys[i]] = { ...current[keys[i]] };
-        current = current[keys[i]];
+    };
+    saveSettings(newSettings);
+    return { settings: newSettings };
+  }),
+
+  togglePanelCollapse: (panelId) => set(state => {
+    const collapsed = state.settings.layout.collapsedPanels || [];
+    const isCollapsed = collapsed.includes(panelId);
+    const newSettings = {
+      ...state.settings,
+      layout: {
+        ...state.settings.layout,
+        collapsedPanels: isCollapsed
+          ? collapsed.filter(id => id !== panelId)
+          : [...collapsed, panelId]
       }
-      current[keys[keys.length - 1]] = value;
-      return result;
-    });
-  }, []);
+    };
+    saveSettings(newSettings);
+    return { settings: newSettings };
+  }),
 
-  const updatePreferences = useCallback((key, value) => {
-    updateSetting('preferences.' + key, value);
-  }, [updateSetting]);
+  resetSettings: () => {
+    const newSettings = { ...defaultSettings };
+    saveSettings(newSettings);
+    set({ settings: newSettings });
+  },
 
-  const updateLayout = useCallback((key, value) => {
-    updateSetting('layout.' + key, value);
-  }, [updateSetting]);
-
-  const togglePanelVisibility = useCallback((panelId) => {
-    setSettings(prev => {
-      const hidden = prev.layout.hiddenPanels || [];
-      const isHidden = hidden.includes(panelId);
-      return {
-        ...prev,
-        layout: {
-          ...prev.layout,
-          hiddenPanels: isHidden 
-            ? hidden.filter(id => id !== panelId)
-            : [...hidden, panelId]
-        }
-      };
-    });
-  }, []);
-
-  const togglePanelCollapse = useCallback((panelId) => {
-    setSettings(prev => {
-      const collapsed = prev.layout.collapsedPanels || [];
-      const isCollapsed = collapsed.includes(panelId);
-      return {
-        ...prev,
-        layout: {
-          ...prev.layout,
-          collapsedPanels: isCollapsed
-            ? collapsed.filter(id => id !== panelId)
-            : [...collapsed, panelId]
-        }
-      };
-    });
-  }, []);
-
-  const resetSettings = useCallback(() => {
-    setSettings({ ...defaultSettings });
-  }, []);
-
-  const exportSettings = useCallback(() => {
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+  exportSettings: () => {
+    const blob = new Blob([JSON.stringify(get().settings, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'fh5-telemetry-settings.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [settings]);
+  },
 
-  const importSettings = useCallback((file) => {
+  importSettings: (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const imported = JSON.parse(e.target.result);
           if (imported.version === defaultSettings.version) {
-            setSettings({ ...defaultSettings, ...imported });
+            const newSettings = { ...defaultSettings, ...imported };
+            saveSettings(newSettings);
+            set({ settings: newSettings });
             resolve(true);
           } else {
             reject(new Error('Settings version mismatch'));
@@ -125,34 +125,22 @@ export function SettingsProvider({ children }) {
       reader.onerror = reject;
       reader.readAsText(file);
     });
-  }, []);
-
-  const contextValue = useMemo(() => ({
-    settings,
-    updateSetting,
-    updatePreferences,
-    updateLayout,
-    togglePanelVisibility,
-    togglePanelCollapse,
-    resetSettings,
-    exportSettings,
-    importSettings,
-    themeId: settings.theme
-  }), [settings, updateSetting, updatePreferences, updateLayout, togglePanelVisibility, togglePanelCollapse, resetSettings, exportSettings, importSettings]);
-
-  return (
-    <SettingsContext.Provider value={contextValue}>
-      {children}
-    </SettingsContext.Provider>
-  );
-}
-
-export function useSettings() {
-  const context = useContext(SettingsContext);
-  if (!context) {
-    throw new Error('useSettings must be used within a SettingsProvider');
   }
-  return context;
+}));
+
+// Export a dummy provider to avoid breaking existing imports in App.jsx
+export function SettingsProvider({ children }) {
+  return <>{children}</>;
 }
 
+// Export the hook that returns exactly the same shape as the old context
+export function useSettings() {
+  const store = useSettingsStore();
+  return {
+    ...store,
+    themeId: store.settings.theme
+  };
+}
+
+const SettingsContext = createContext(null);
 export default SettingsContext;
