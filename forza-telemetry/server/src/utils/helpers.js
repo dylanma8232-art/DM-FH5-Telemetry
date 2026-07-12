@@ -28,7 +28,3 @@ export function saveJSON(file, data) {
   return true;
 }
 
-export function trimTrajectories(trajectories, maxCount = 5) {
-  if (!trajectories || trajectories.length <= maxCount) return trajectories;
-  return trajectories.slice(-maxCount);
-}

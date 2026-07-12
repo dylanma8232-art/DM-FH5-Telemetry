@@ -143,4 +143,3 @@ export function useSettings() {
 }
 
 const SettingsContext = createContext(null);
-export default SettingsContext;

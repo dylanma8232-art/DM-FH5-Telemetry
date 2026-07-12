@@ -41,14 +41,3 @@ export async function writeBrotliAsync(filepath, data) {
   }
 }
 
-export async function readBrotliAsync(filepath, defaultValue = {}) {
-  try {
-    if (!existsSync(filepath)) return defaultValue;
-    const compressed = await fs.readFile(filepath);
-    const decompressed = await brotliDecompress(compressed);
-    return JSON.parse(decompressed.toString('utf8'));
-  } catch (err) {
-    console.error(`[FileDB] Failed to read compressed ${filepath}:`, err.message);
-    return defaultValue;
-  }
-}
