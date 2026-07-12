@@ -1,16 +1,33 @@
+import { analyzeSectors } from '../services/physics-analyzer.js';
+import { stateManager } from '../services/state-manager.js';
+import { loadSession } from '../storage/session-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { analyzeSectors } from '../services/physics-analyzer.js';
 
 const router = express.Router();
 
-export default function(context) {
-  const { DATA_DIR, tunes, tracks, vehicles, leaderboardCache, setLeaderboardCache, LEADERBOARD_CACHE_TTL = 30000, loadSession } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   function buildLeaderboard() {
-    const cached = context.getLeaderboardCache ? context.getLeaderboardCache() : leaderboardCache;
-    const cacheTime = context.getLeaderboardCacheTime ? context.getLeaderboardCacheTime() : 0;
+    const cached = stateManager.getLeaderboardCache ? stateManager.getLeaderboardCache() : null;
+    const cacheTime = stateManager.getLeaderboardCacheTime ? stateManager.getLeaderboardCacheTime() : 0;
     if (cached && (Date.now() - cacheTime) < LEADERBOARD_CACHE_TTL) {
       return cached;
     }
@@ -55,7 +72,7 @@ export default function(context) {
           lastLap,
           lapCount,
           tuneId: s.tuneId || null,
-          tuneName: s.tuneId && tunes[s.tuneId] ? tunes[s.tuneId].name : null,
+          tuneName: s.tuneId && stateManager.tunes[s.tuneId] ? stateManager.tunes[s.tuneId].name : null,
           duration: s.summary?.duration || 0
         });
         if (bestLap > 0 && bestLap < g.bestLap) g.bestLap = bestLap;
@@ -63,7 +80,7 @@ export default function(context) {
         g.sessionCount += 1;
 
         if (s.tuneId) {
-          const t = g.tunesUsed.get(s.tuneId) || { tuneId: s.tuneId, name: tunes[s.tuneId]?.name || '未知调校', count: 0, bestLap: Infinity };
+          const t = g.tunesUsed.get(s.tuneId) || { tuneId: s.tuneId, name: stateManager.tunes[s.tuneId]?.name || '未知调校', count: 0, bestLap: Infinity };
           t.count += 1;
           if (bestLap > 0 && bestLap < t.bestLap) t.bestLap = bestLap;
           g.tunesUsed.set(s.tuneId, t);
@@ -84,8 +101,8 @@ export default function(context) {
         improvement = firstBest.bestLap - lastBest.bestLap;
       }
 
-      const latestTrackName = tracks[g.trackId]?.name || g.trackName || '未知赛道';
-      const vehicleDetail = vehicles[String(g.vehicleOrdinal)];
+      const latestTrackName = stateManager.tracks[g.trackId]?.name || g.trackName || '未知赛道';
+      const vehicleDetail = stateManager.vehicles[String(g.vehicleOrdinal)];
       const vehicleName = vehicleDetail?.name || `Car #${g.vehicleOrdinal}`;
 
       const firstValidSession = g.sessions.find(s => s.bestLap > 0);
@@ -124,8 +141,8 @@ export default function(context) {
     });
 
     result.sort((a, b) => new Date(b.lastSessionAt) - new Date(a.lastSessionAt));
-    if (context.setLeaderboardCache) {
-      context.setLeaderboardCache(result);
+    if (stateManager.setLeaderboardCache) {
+      stateManager.setLeaderboardCache(result);
     }
     return result;
   }
@@ -141,7 +158,7 @@ export default function(context) {
       res.json(data);
     } catch (e) {
       console.error('[Leaderboard] Error:', e);
-      res.status(500).json({ error: 'Failed to build leaderboard' });
+      res.status(500).json({ error: 'Failed to build leaderboard', details: e.message, stack: e.stack });
     }
   });
 
@@ -179,7 +196,7 @@ export default function(context) {
             lastLap: s.laps?.last || 0,
             lapCount: s.laps?.count || 0,
             tuneId: s.tuneId || null,
-            tuneName: s.tuneId && tunes[s.tuneId] ? tunes[s.tuneId].name : null,
+            tuneName: s.tuneId && stateManager.tunes[s.tuneId] ? stateManager.tunes[s.tuneId].name : null,
             sectors: isValid ? sectorResult.sectors.map(se => se.sectorTime) : []
           });
           if (isValid) {
@@ -238,5 +255,6 @@ export default function(context) {
     }
   });
 
-  return router;
-}
+  
+
+export default router;

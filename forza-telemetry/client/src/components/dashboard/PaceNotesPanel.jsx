@@ -655,9 +655,7 @@ export function PaceNotesPanel({
       if (note.crest === 'jump') text += '，飞跳';
       else if (note.crest === 'crest') text += '，过坡';
       
-      if (note.camber === 'off-camber') text += '，外倾';
-      else if (note.camber === 'banking') text += '，斜坡';
-      
+
       // 自定义语音备注
       if (note.customNote) {
         text += `，${note.customNote}`;

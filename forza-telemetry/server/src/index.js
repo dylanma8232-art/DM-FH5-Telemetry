@@ -77,85 +77,25 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: '*' } });
 
-// 全局上下文
-const routerContext = {
-  get tracks() { return tracks; },
-  set tracks(val) { tracks = val; },
-  get vehicles() { return vehicles; },
-  set vehicles(val) { vehicles = val; },
-  get tunes() { return tunes; },
-  set tunes(val) { tunes = val; },
-  DATA_DIR,
-  get currentTuneId() { return currentTuneId; },
-  setCurrentTuneId: (id) => { currentTuneId = id; },
-  getCurrentTuneId: () => currentTuneId,
-  saveJSON,
-  loadSession: (id) => loadSession(id, tracks),
-  saveTracksDatabase,
-  readTrackDetail,
-  writeTrackDetail,
-  deleteTrackDetail,
-  detectTurnsEnhanced, 
-  generateSectors, 
-  buildRouteBook, 
-  validateTrackQuality, 
-  buildTrackFromTrajectories,
-  remapLockedTurns,
-  calculateTrackLength: (pts) => {
-    if (!pts || pts.length < 2) return 0;
-    let len = 0;
-    for (let i = 1; i < pts.length; i++) {
-      const dx = pts[i].x - pts[i-1].x;
-      const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
-      const dz = pts[i].z - pts[i-1].z;
-      len += Math.sqrt(dx*dx + dy*dy + dz*dz);
-    }
-    return Math.round(len);
-  },
-  calculateTurnAttributes,
-  simplifyRDP,
-  stateManager,
-  io,
-  getCurrentData: () => currentData,
-  getTrackMode: () => trackMode,
-  setTrackMode: (mode) => { trackMode = mode; },
-  getLastRecognitionResult: () => lastRecognitionResult,
-  setLastRecognitionResult: (res) => { lastRecognitionResult = res; },
-  getRecognitionHistory: () => recognitionHistory,
-  pushToRecognitionHistory: (res) => {
-    recognitionHistory.push(res);
-    if (recognitionHistory.length > 20) recognitionHistory = recognitionHistory.slice(-20);
-  },
-  getPacketCount: () => packetCount,
-  setPacketCount: (cnt) => { packetCount = cnt; },
-  getLeaderboardCache: () => leaderboardCache,
-  setLeaderboardCache: (val) => {
-    leaderboardCache = val;
-    leaderboardCacheTime = Date.now();
-  },
-  getLeaderboardCacheTime: () => leaderboardCacheTime,
-  onRestore: (nextTracks, nextVehicles, nextTunes) => {
-    Object.keys(tracks).forEach(k => delete tracks[k]);
-    Object.assign(tracks, nextTracks);
-    Object.keys(vehicles).forEach(k => delete vehicles[k]);
-    Object.assign(vehicles, nextVehicles);
-    Object.keys(tunes).forEach(k => delete tunes[k]);
-    Object.assign(tunes, nextTunes);
-  }
-};
+
+stateManager.tracks = tracks;
+stateManager.vehicles = vehicles;
+stateManager.tunes = tunes;
+console.log("--> setIO called!"); stateManager.setIO(io);
+stateManager.DATA_DIR = DATA_DIR;
 
 // 挂载核心模块化路由
-const recordModule = recordRouterModule(routerContext);
+const recordModule = recordRouterModule;
 
-app.use('/api/analysis', analysisRouter(routerContext));
-app.use('/api/tracks', tracksRouter(routerContext));
-app.use('/api/tunes', tunesRouter(routerContext));
-app.use('/api/vehicles', vehiclesRouter(routerContext));
-app.use('/api/leaderboard', leaderboardRouter(routerContext));
-app.use('/api', navigationRouter(routerContext));
-app.use('/api/system', systemRouter(routerContext));
+app.use('/api/analysis', analysisRouter);
+app.use('/api/tracks', tracksRouter);
+app.use('/api/tunes', tunesRouter);
+app.use('/api/vehicles', vehiclesRouter);
+app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api', navigationRouter);
+app.use('/api/system', systemRouter);
 app.use('/api', recordModule.router);
-app.use('/', sessionsRouter(routerContext));
+app.use('/', sessionsRouter);
 
 // Socket.io 监听
 io.on('connection', (socket) => {

@@ -1,29 +1,40 @@
+import { stateManager } from '../services/state-manager.js';
+import { saveTracksDatabase, readTrackDetail, writeTrackDetail as _writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
+import { detectTurnsEnhanced, generateSectors, buildRouteBook, validateTrackQuality, buildTrackFromTrajectories, calculateTurnAttributes, remapLockedTurns } from '../track-builder.js';
+import { simplifyRDP } from '../utils/rdp.js';
+import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
 
 const router = express.Router();
 
-export default function(context) {
-  const { 
-    tracks, 
-    saveTracksDatabase, 
-    readTrackDetail, 
-    writeTrackDetail, 
-    deleteTrackDetail,
-    detectTurnsEnhanced, 
-    generateSectors, 
-    buildRouteBook, 
-     
-    validateTrackQuality, 
-    buildTrackFromTrajectories,
-    calculateTrackLength, calculateTurnAttributes,
-    simplifyRDP,
-    saveJSON,
-    DATA_DIR, 
-    stateManager, 
-    io 
-  } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
+function writeTrackDetail(id, trackDetail) {
+  _writeTrackDetail(id, trackDetail);
+  const currentMode = stateManager.getTrackMode();
+  if (currentMode && currentMode.trackId === id) {
+    currentMode.detail = trackDetail;
+    stateManager.setTrackMode(currentMode);
+    console.log(`[同步] 赛道 ${id} 的最新路书数据已热更新到播报内存`);
+  }
+}
 
   // 自动愈合老旧赛道的弯道和路书数据（如果弯道缺失，触发重算并存盘）
   function healTrackIfNeeded(trackDetail, id) {
@@ -49,11 +60,11 @@ export default function(context) {
         writeTrackDetail(id, trackDetail);
         console.log(`[自愈合] 成功更新并存盘赛道 ${id} 的弯道和路书数据！`);
         
-        if (tracks[id]) {
-          tracks[id].turns = turns;
-          tracks[id].sectors = trackDetail.sectors;
-          tracks[id].routeBook = trackDetail.routeBook;
-          tracks[id].quality = trackDetail.quality;
+        if (stateManager.tracks[id]) {
+          stateManager.tracks[id].turns = turns;
+          stateManager.tracks[id].sectors = trackDetail.sectors;
+          stateManager.tracks[id].routeBook = trackDetail.routeBook;
+          stateManager.tracks[id].quality = trackDetail.quality;
           saveTracksDatabase();
         }
       } catch (err) {
@@ -66,7 +77,7 @@ export default function(context) {
   // 赛道列表增强 - 从 stateManager 内存快速缓存返回，避免 I/O 带来的严重延迟
   router.get('/', (req, res) => {
     const enriched = {};
-    for (const [id, track] of Object.entries(tracks)) {
+    for (const [id, track] of Object.entries(stateManager.tracks)) {
       enriched[id] = {
         ...track,
         sessionCount: stateManager.sessionCounts[id] || 0,
@@ -85,7 +96,7 @@ export default function(context) {
         trackDetail = healTrackIfNeeded(trackDetail, id);
         res.json(trackDetail);
       } else {
-        let track = tracks[id];
+        let track = stateManager.tracks[id];
         if (!track) return res.status(404).json({ error: 'Track not found' });
         track = healTrackIfNeeded(track, id);
         res.json(track);
@@ -103,7 +114,7 @@ export default function(context) {
       if (trackDetail) {
         trackDetail = healTrackIfNeeded(trackDetail, id);
       } else {
-        trackDetail = tracks[id];
+        trackDetail = stateManager.tracks[id];
         if (trackDetail) {
           trackDetail = healTrackIfNeeded(trackDetail, id);
         }
@@ -152,7 +163,7 @@ export default function(context) {
 
     writeTrackDetail(id, trackDetail);
 
-    tracks[id] = {
+    stateManager.tracks[id] = {
       id,
       name: trackDetail.name,
       length: trackDetail.length,
@@ -162,7 +173,7 @@ export default function(context) {
       createdAt,
       updatedAt: createdAt
     };
-    saveTracksDatabase(tracks);
+    saveTracksDatabase(stateManager.tracks);
 
     res.json({ status: 'ok', id });
   });
@@ -170,8 +181,8 @@ export default function(context) {
   // 删除特定赛道
   router.delete('/:id', (req, res) => {
     const id = req.params.id;
-    delete tracks[id];
-    saveTracksDatabase(tracks);
+    delete stateManager.tracks[id];
+    saveTracksDatabase(stateManager.tracks);
     
     deleteTrackDetail(id);
 
@@ -203,9 +214,6 @@ export default function(context) {
         });
         if (deletedCount > 0) {
           console.log(`已同步删除关联赛道 ${id} 的 ${deletedCount} 个会话记录`);
-          if (context.clearLeaderboardCache) {
-            context.clearLeaderboardCache();
-          }
         }
       }
     } catch (e) {
@@ -219,7 +227,7 @@ export default function(context) {
   router.get('/:id/validate', (req, res) => {
     const id = req.params.id;
     try {
-      const trackDetail = readTrackDetail(id) || tracks[id];
+      const trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
       const result = validateTrackQuality(trackDetail);
       res.json(result);
@@ -234,7 +242,7 @@ export default function(context) {
     try {
       let trackDetail = readTrackDetail(id);
       if (!trackDetail) {
-        trackDetail = tracks[id] ? { ...tracks[id] } : null;
+        trackDetail = stateManager.tracks[id] ? { ...tracks[id] } : null;
       }
       if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
 
@@ -269,13 +277,13 @@ export default function(context) {
 
       writeTrackDetail(id, trackDetail);
 
-      if (tracks[id]) {
-        tracks[id].length = trackDetail.length;
-        tracks[id].pointCount = trackDetail.centerline.length;
-        tracks[id].turnCount = trackDetail.turns ? trackDetail.turns.length : 0;
-        tracks[id].isLoop = trackDetail.isLoop || false;
-        tracks[id].updatedAt = trackDetail.updatedAt;
-        saveTracksDatabase(tracks);
+      if (stateManager.tracks[id]) {
+        stateManager.tracks[id].length = trackDetail.length;
+        stateManager.tracks[id].pointCount = trackDetail.centerline.length;
+        stateManager.tracks[id].turnCount = trackDetail.turns ? trackDetail.turns.length : 0;
+        stateManager.tracks[id].isLoop = trackDetail.isLoop || false;
+        stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+        saveTracksDatabase(stateManager.tracks);
       }
 
       console.log(`[重建] 赛道 ${id} 重建完成：中心线 ${oldCenterlineLen} → ${trackData.centerline.length} 点，弯道 ${oldTurnCount} → ${trackData.turns.length} 个`);
@@ -295,7 +303,7 @@ export default function(context) {
   router.put('/:id/turns/:index/speedHint', express.json(), (req, res) => {
     const id = req.params.id;
     try {
-      let trackDetail = readTrackDetail(id) || tracks[id];
+      let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
       if (!trackDetail.turns || !Array.isArray(trackDetail.turns)) return res.status(400).json({ error: 'Track has no turns' });
       
@@ -307,8 +315,8 @@ export default function(context) {
       
       writeTrackDetail(id, trackDetail);
 
-      tracks[id].updatedAt = trackDetail.updatedAt;
-      saveTracksDatabase(tracks);
+      stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+      saveTracksDatabase(stateManager.tracks);
 
       res.json({ status: 'ok', turnIndex: idx, speedHint: trackDetail.turns[idx].speedHint });
     } catch (err) {
@@ -320,7 +328,7 @@ export default function(context) {
   router.put('/:id/turns', express.json(), (req, res) => {
     const id = req.params.id;
     try {
-      let trackDetail = readTrackDetail(id) || tracks[id];
+      let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
       
       const newTurns = req.body.turns;
@@ -344,10 +352,10 @@ export default function(context) {
       
       writeTrackDetail(id, trackDetail);
       
-      if (tracks[id]) {
-        tracks[id].turnCount = newTurns.length;
-        tracks[id].updatedAt = trackDetail.updatedAt;
-        saveTracksDatabase(tracks);
+      if (stateManager.tracks[id]) {
+        stateManager.tracks[id].turnCount = newTurns.length;
+        stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+        saveTracksDatabase(stateManager.tracks);
       }
       
       res.json({ 
@@ -367,7 +375,7 @@ export default function(context) {
   router.post('/:id/turns/merge', express.json(), (req, res) => {
     const id = req.params.id;
     try {
-      let trackDetail = readTrackDetail(id) || tracks[id];
+      let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
       
       const { index1, index2 } = req.body;
@@ -395,15 +403,15 @@ export default function(context) {
       
       writeTrackDetail(id, trackDetail);
       
-      if (tracks[id]) {
-        tracks[id].turnCount = trackDetail.turns.length;
-        tracks[id].updatedAt = trackDetail.updatedAt;
-        tracks[id].turns = trackDetail.turns;
-        tracks[id].routeBook = trackDetail.routeBook;
-        saveTracksDatabase(tracks);
+      if (stateManager.tracks[id]) {
+        stateManager.tracks[id].turnCount = trackDetail.turns.length;
+        stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+        stateManager.tracks[id].turns = trackDetail.turns;
+        stateManager.tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(stateManager.tracks);
       }
       
-      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
       res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
     } catch (err) {
       res.status(500).json({ error: 'Failed to merge turns: ' + err.message });
@@ -414,7 +422,7 @@ export default function(context) {
   router.post('/:id/turns/split', express.json(), (req, res) => {
     const id = req.params.id;
     try {
-      let trackDetail = readTrackDetail(id) || tracks[id];
+      let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
       
       const index = parseInt(req.body.turnIndex, 10);
@@ -440,15 +448,15 @@ export default function(context) {
       
       writeTrackDetail(id, trackDetail);
       
-      if (tracks[id]) {
-        tracks[id].turnCount = trackDetail.turns.length;
-        tracks[id].updatedAt = trackDetail.updatedAt;
-        tracks[id].turns = trackDetail.turns;
-        tracks[id].routeBook = trackDetail.routeBook;
-        saveTracksDatabase(tracks);
+      if (stateManager.tracks[id]) {
+        stateManager.tracks[id].turnCount = trackDetail.turns.length;
+        stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+        stateManager.tracks[id].turns = trackDetail.turns;
+        stateManager.tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(stateManager.tracks);
       }
       
-      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
       res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
     } catch (err) {
       res.status(500).json({ error: 'Failed to split turn: ' + err.message });
@@ -459,7 +467,7 @@ export default function(context) {
   router.put('/:id/turns/:index/bounds', express.json(), (req, res) => {
     const id = req.params.id;
     try {
-      let trackDetail = readTrackDetail(id) || tracks[id];
+      let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
       if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
       
       const index = parseInt(req.params.index, 10);
@@ -494,15 +502,15 @@ export default function(context) {
       
       writeTrackDetail(id, trackDetail);
       
-      if (tracks[id]) {
-        tracks[id].turnCount = trackDetail.turns.length;
-        tracks[id].updatedAt = trackDetail.updatedAt;
-        tracks[id].turns = trackDetail.turns;
-        tracks[id].routeBook = trackDetail.routeBook;
-        saveTracksDatabase(tracks);
+      if (stateManager.tracks[id]) {
+        stateManager.tracks[id].turnCount = trackDetail.turns.length;
+        stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+        stateManager.tracks[id].turns = trackDetail.turns;
+        stateManager.tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(stateManager.tracks);
       }
       
-      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
       res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
     } catch (err) {
       res.status(500).json({ error: 'Failed to adjust bounds: ' + err.message });
@@ -517,7 +525,7 @@ export default function(context) {
       return res.status(400).json({ error: 'sourceTrackId and targetTrackId are required' });
     }
     
-    if (!tracks[sourceTrackId] || !tracks[targetTrackId]) {
+    if (!stateManager.tracks[sourceTrackId] || !stateManager.tracks[targetTrackId]) {
       return res.status(404).json({ error: 'Track not found' });
     }
 
@@ -557,8 +565,8 @@ export default function(context) {
 
       writeTrackDetail(targetTrackId, targetDetail);
 
-      delete tracks[sourceTrackId];
-      tracks[targetTrackId] = {
+      delete stateManager.tracks[sourceTrackId];
+      stateManager.tracks[targetTrackId] = {
         id: targetTrackId,
         name: targetDetail.name || '未命名赛道',
         length: targetDetail.length || 0,
@@ -566,10 +574,10 @@ export default function(context) {
         turnCount: targetDetail.turns ? targetDetail.turns.length : 0,
         trajectoryCount: mergedTrajectories.length,
         isLoop: targetDetail.isLoop || false,
-        createdAt: targetDetail.createdAt || (tracks[targetTrackId] ? tracks[targetTrackId].createdAt : null) || new Date().toISOString(),
+        createdAt: targetDetail.createdAt || (stateManager.tracks[targetTrackId] ? stateManager.tracks[targetTrackId].createdAt : null) || new Date().toISOString(),
         updatedAt: targetDetail.updatedAt
       };
-      saveTracksDatabase(tracks);
+      saveTracksDatabase(stateManager.tracks);
 
       try {
         const sessionsDir = DATA_DIR + '/sessions';
@@ -594,9 +602,6 @@ export default function(context) {
           });
           if (updatedCount > 0) {
             console.log(`已将 ${updatedCount} 个会话的赛道关联从 ${sourceTrackId} 合并至 ${targetTrackId}`);
-            if (context.clearLeaderboardCache) {
-              context.clearLeaderboardCache();
-            }
           }
         }
       } catch (e) {
@@ -611,7 +616,7 @@ export default function(context) {
       });
     } catch (err) {
       console.error('[Track Merge Route] Failed:', err);
-      res.status(500).json({ error: 'Failed to merge tracks' });
+      res.status(500).json({ error: 'Failed to merge stateManager.tracks' });
     }
   });
 
@@ -662,14 +667,14 @@ export default function(context) {
     
     writeTrackDetail(id, trackDetail);
     
-    if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: trackDetail.name || tracks[id]?.name });
+    if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: trackDetail.name || stateManager.tracks[id]?.name });
     res.json({ status: 'ok', track: trackDetail });
   });
 
   // 更新赛道属性并同步会话
   router.put('/:id', express.json(), (req, res) => {
     const id = req.params.id;
-    if (!tracks[id]) {
+    if (!stateManager.tracks[id]) {
       return res.status(404).json({ error: 'Track not found' });
     }
 
@@ -716,7 +721,7 @@ export default function(context) {
       
       writeTrackDetail(id, updatedDetail);
 
-      tracks[id] = {
+      stateManager.tracks[id] = {
         id,
         name: updatedDetail.name || '未命名赛道',
         length: updatedDetail.length || 0,
@@ -726,9 +731,9 @@ export default function(context) {
         createdAt: updatedDetail.createdAt || trackDetail.createdAt || new Date().toISOString(),
         updatedAt: updatedDetail.updatedAt
       };
-      saveTracksDatabase(tracks);
+      saveTracksDatabase(stateManager.tracks);
 
-      io.emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      stateManager.io.emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
       
       res.json({ status: 'ok', track: updatedDetail });
     } catch (err) {
@@ -754,7 +759,7 @@ export default function(context) {
             const trackName = session.trackName || '未命名赛道_' + importedCount;
             const trackLength = calculateTrackLength(session.positions);
             
-            tracks[trackId] = {
+            stateManager.tracks[trackId] = {
               id: trackId,
               name: trackName,
               points: session.positions,
@@ -780,7 +785,7 @@ export default function(context) {
         }
       });
       
-      saveTracksDatabase(tracks);
+      saveTracksDatabase(stateManager.tracks);
       
       res.json({ 
         status: 'ok', 
@@ -792,5 +797,6 @@ export default function(context) {
     }
   });
 
-  return router;
-}
+  
+
+export default router;

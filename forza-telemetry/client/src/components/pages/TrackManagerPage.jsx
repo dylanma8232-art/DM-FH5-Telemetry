@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
@@ -20,7 +21,10 @@ const modalOverlayStyle = {
   right: 0,
   bottom: 0,
   background: 'rgba(0,0,0,0.7)',
-  zIndex: 1000
+  zIndex: 1000,
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center'
 };
 
 const modalContentStyle = {
@@ -355,101 +359,107 @@ export function TrackManagerPage({ onNavigate }) {
     const track = tracks[selectedTrack];
     if (!track || idxToDelete === null) return;
     
-    if (!window.confirm(`确认从路书中删除 弯道 T${idxToDelete + 1} 吗？`)) return;
+    setConfirmDialog({
+      message: `确认从路书中删除 弯道 T${idxToDelete + 1} 吗？`,
+      onConfirm: async () => {
+        const turnToDelete = track.turns[idxToDelete];
+        const updatedTurns = (track.turns || []).filter((_, idx) => idx !== idxToDelete);
+        const updatedDeletedTurns = [...(track.deletedTurns || []), turnToDelete];
 
-    const turnToDelete = track.turns[idxToDelete];
-    const updatedTurns = (track.turns || []).filter((_, idx) => idx !== idxToDelete);
-    const updatedDeletedTurns = [...(track.deletedTurns || []), turnToDelete];
-
-    try {
-      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          turns: updatedTurns,
-          deletedTurns: updatedDeletedTurns,
-          isPaceNoteLocked: track.isPaceNoteLocked
-        })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setTracks(prev => ({
-          ...prev,
-          [selectedTrack]: {
-            ...prev[selectedTrack],
-            turns: data.turns,
-            routeBook: data.routeBook,
-            turnCount: data.turnCount
+        try {
+          const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              turns: updatedTurns,
+              deletedTurns: updatedDeletedTurns,
+              isPaceNoteLocked: track.isPaceNoteLocked
+            })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            setTracks(prev => ({
+              ...prev,
+              [selectedTrack]: {
+                ...prev[selectedTrack],
+                turns: data.turns,
+                routeBook: data.routeBook,
+                turnCount: data.turnCount
+              }
+            }));
+            
+            // 重置编辑状态
+            setEditingTurnIndex(null);
+            setEditTurnForm(null);
+            toast('弯道删除成功！', 'success');
+            
+            // 自动重新拉取质量分数
+            const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+            if (qRes.ok) {
+              const qResult = await qRes.json();
+              setValidationResult(prev => ({
+                ...prev,
+                [selectedTrack]: qResult
+              }));
+            }
+          } else {
+            toast('删除弯道失败', 'error');
           }
-        }));
-        
-        // 重置编辑状态
-        setEditingTurnIndex(null);
-        setEditTurnForm(null);
-        toast('弯道删除成功！', 'success');
-        
-        // 自动重新拉取质量分数
-        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
-        if (qRes.ok) {
-          const qResult = await qRes.json();
-          setValidationResult(prev => ({
-            ...prev,
-            [selectedTrack]: qResult
-          }));
+        } catch (e) {
+          console.error(e);
+          toast('删除弯道请求出错: ' + e.message, 'error');
         }
-      } else {
-        toast('删除弯道失败', 'error');
       }
-    } catch (e) {
-      console.error(e);
-      toast('删除弯道请求出错: ' + e.message, 'error');
-    }
+    });
   };
 
   const mergeTurnDown = async (idxToMerge) => {
     const track = tracks[selectedTrack];
     if (!track || idxToMerge === null || idxToMerge >= track.turns.length - 1) return;
     
-    if (!window.confirm(`确认将 弯道 T${idxToMerge + 1} 和下一个弯道合并吗？`)) return;
-
-    try {
-      const res = await fetch(`/api/tracks/${selectedTrack}/turns/merge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ turnIndex: idxToMerge })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setTracks(prev => ({
-          ...prev,
-          [selectedTrack]: {
-            ...prev[selectedTrack],
-            turns: data.track.turns,
-            routeBook: data.track.routeBook,
-            turnCount: data.track.turnCount
+    setConfirmDialog({
+      message: `确认将 弯道 T${idxToMerge + 1} 和下一个弯道合并吗？`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/tracks/${selectedTrack}/turns/merge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ turnIndex: idxToMerge })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            setTracks(prev => ({
+              ...prev,
+              [selectedTrack]: {
+                ...prev[selectedTrack],
+                turns: data.track.turns,
+                routeBook: data.track.routeBook,
+                turnCount: data.track.turnCount
+              }
+            }));
+            
+            toast('弯道合并成功！', 'success');
+            
+            // 自动重新拉取质量分数
+            const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+            if (qRes.ok) {
+              const qResult = await qRes.json();
+              setValidationResult(prev => ({
+                ...prev,
+                [selectedTrack]: qResult
+              }));
+            }
+          } else {
+            toast('合并弯道失败', 'error');
           }
-        }));
-        
-        toast('弯道合并成功！', 'success');
-        
-        // 自动重新拉取质量分数
-        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
-        if (qRes.ok) {
-          const qResult = await qRes.json();
-          setValidationResult(prev => ({
-            ...prev,
-            [selectedTrack]: qResult
-          }));
+        } catch (e) {
+          console.error(e);
+          toast('合并弯道请求出错: ' + e.message, 'error');
         }
-      } else {
-        toast('合并弯道失败', 'error');
       }
-    } catch (e) {
-      console.error(e);
-      toast('合并弯道请求出错: ' + e.message, 'error');
-    }
+    });
   };
 
   const toggleTrackPaceNoteLock = async () => {
@@ -1412,6 +1422,7 @@ export function TrackManagerPage({ onNavigate }) {
           ) : (
             <button onClick={startRecording} style={btnPrimaryStyle}>录制赛道</button>
           )}
+          <button onClick={() => setShowMergeModal(true)} style={btnSecondaryStyle}>合并赛道</button>
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
@@ -1439,7 +1450,7 @@ export function TrackManagerPage({ onNavigate }) {
             ))}
           </div>
           {trackList.length === 0 ? (
-            <EmptyState icon="&#x1F6E4;&#xFE0F;" title="暂无赛道数据" description="在游戏中完成比赛后会自动识别赛道。" />
+            <EmptyState icon="&#x1F6E4;&#xFE0F;" title="暂无赛道数据" description="在游戏中记录并保存赛道后可在此查看和管理。" />
           ) : (
             trackList.map(([id, track]) => (
               <div
@@ -1884,6 +1895,17 @@ export function TrackManagerPage({ onNavigate }) {
                     >
                       💾 保存修改
                     </button>
+                    {selectedTrackData && selectedTrackData.turns && editingTurnIndex < selectedTrackData.turns.length - 1 && (
+                      <button
+                        onClick={() => mergeTurnDown(editingTurnIndex)}
+                        style={{
+                          flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
+                          background: '#1f6feb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                        }}
+                      >
+                        🔗 向下合并
+                      </button>
+                    )}
                     <button
                       onClick={() => deleteTurn(editingTurnIndex)}
                       style={{
@@ -2054,7 +2076,7 @@ export function TrackManagerPage({ onNavigate }) {
       </div>
 
       {/* 确认操作弹窗 */}
-      {confirmDialog && (
+      {confirmDialog && createPortal(
         <div style={modalOverlayStyle} onClick={() => setConfirmDialog(null)}>
           <div style={{...modalContentStyle, maxWidth: 320, padding: 24, textAlign: 'center'}} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 20, fontWeight: 500 }}>
@@ -2075,10 +2097,10 @@ export function TrackManagerPage({ onNavigate }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* 合并弹窗 */}
-      {showMergeModal && (
+      {showMergeModal && createPortal(
         <div style={modalOverlayStyle} onClick={() => setShowMergeModal(false)}>
           <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -2161,7 +2183,7 @@ export function TrackManagerPage({ onNavigate }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Round 8: 录制中提示横幅 */}
       {isRecording && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { formatGear } from '../../utils/formatters';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 
 // Lazy load dashboard components
 const BrakingGripDynamicsPanel = lazy(() => import('../dashboard/BrakingGripDynamicsPanel').then(m => ({ default: m.BrakingGripDynamicsPanel })));
@@ -52,21 +52,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
     return () => socket.off('trackModeChanged', handleTrackModeChanged);
   }, [socket]);
 
-  // 监听赛道识别确认事件
-  useEffect(() => {
-    if (!socket) return;
-    const onConfirmed = async (payload) => {
-      try {
-        const res = await fetch(`/api/tracks/${payload.trackId}`);
-        if (res.ok) {
-          const t = await res.json();
-          setTrackData(t);
-        }
-      } catch {}
-    };
-    socket.on('trackRecognitionConfirmed', onConfirmed);
-    return () => socket.off('trackRecognitionConfirmed', onConfirmed);
-  }, [socket]);
+
 
   // 监听赛道重命名事件
   useEffect(() => {
@@ -133,6 +119,11 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
 
   // 档位 / 转速
   const gear = controls.gear || 0;
+  const formatGear = (g) => {
+    if (g === 0) return 'R';
+    if (g === 11 || g === 255) return 'N';
+    return String(g);
+  };
   const gearDisplay = formatGear(gear);
   const engineRpm = telemetryData.currentEngineRpm || 0;
   const maxRpm = telemetryData.engineMaxRpm || 8000;
@@ -173,7 +164,9 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         }}>
           {/* Row 1: 预警播报 (缩得更小) */}
           <div style={{ flex: '0 0 80px', minHeight: 0 }}>
-            <AlertAdvicePanel data={telemetryData} />
+            <ErrorBoundary name="预警播报">
+              <AlertAdvicePanel data={telemetryData} />
+            </ErrorBoundary>
           </div>
 
           {/* Row 2: 车辆信息 — 紧凑版，只显示名称 / ID / PI / 级别 / 驱动 */}
@@ -282,20 +275,24 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         }}>
           {/* Row 1: 路书 (放在中间，看板放大) */}
           <div style={{ ...cardBaseStyle, flex: '0 0 150px', padding: '10px 12px', minHeight: 0 }}>
-            <PaceNotesPanel
-              trackData={trackData}
-              position={telemetryData.position}
-              currentSpeed={telemetryData.speedKmh}
-              isRaceOn={telemetryData.isRaceOn}
-              racePosition={telemetryData.racePosition}
-              compact={true}
-              onExit={() => setTrackData(null)}
-            />
+            <ErrorBoundary name="路书看板">
+              <PaceNotesPanel
+                trackData={trackData}
+                position={telemetryData.position}
+                currentSpeed={telemetryData.speedKmh}
+                isRaceOn={telemetryData.isRaceOn}
+                racePosition={telemetryData.racePosition}
+                compact={true}
+                onExit={() => setTrackData(null)}
+              />
+            </ErrorBoundary>
           </div>
 
           {/* Row 2: 底盘动态与抓地力 */}
           <div style={{ flex: 1, minHeight: 0 }}>
-            <BrakingGripDynamicsPanel data={telemetryData} />
+            <ErrorBoundary name="底盘动态与抓地力">
+              <BrakingGripDynamicsPanel data={telemetryData} />
+            </ErrorBoundary>
           </div>
         </div>
 
@@ -308,7 +305,9 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           minHeight: 0
         }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} isRaceOn={telemetryData.isRaceOn} />
+            <ErrorBoundary name="圈速与计时">
+              <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} isRaceOn={telemetryData.isRaceOn} />
+            </ErrorBoundary>
           </div>
         </div>
 
