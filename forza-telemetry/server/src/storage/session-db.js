@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { writeJsonAsync, writeBrotliAsync } from './file-db.js';
-import { detectTurnsEnhanced, generateSectors, buildRouteBook, generateNavigationData, validateTrackQuality } from '../track-builder.js';
+import { detectTurnsEnhanced, generateSectors, buildRouteBook, validateTrackQuality } from '../track-builder.js';
 
 // 获取数据根目录 (相对于此文件)
 const DATA_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../data');

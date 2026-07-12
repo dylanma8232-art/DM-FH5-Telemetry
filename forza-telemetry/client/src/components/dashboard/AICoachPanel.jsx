@@ -2,6 +2,31 @@ import { useState, useEffect, useRef } from 'react';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { toast } from '../shared/Toast';
 
+const inputStyle = {
+  width: '100%',
+  padding: '6px 10px',
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  color: 'var(--text-primary)',
+  fontSize: 11,
+  outline: 'none',
+  marginTop: 4
+};
+
+const selectStyle = {
+  width: '100%',
+  padding: '6px 10px',
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  color: 'var(--text-primary)',
+  fontSize: 11,
+  outline: 'none',
+  marginTop: 4,
+  cursor: 'pointer'
+};
+
 export function AICoachPanel({ sessionId }) {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -193,7 +218,7 @@ export function AICoachPanel({ sessionId }) {
         flushList(idx);
         elements.push(<h4 key={idx} style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', margin: '14px 0 8px' }}>{parseInline(trimmed.substring(4))}</h4>);
       }
-      // 2. 检查单解析 (TODO Checklist)
+      // 2. 检查单解析
       else if (trimmed.startsWith('- [ ] ') || trimmed.startsWith('- [x] ')) {
         insideList = true;
         const checked = trimmed.startsWith('- [x] ');
@@ -385,28 +410,3 @@ export function AICoachPanel({ sessionId }) {
   );
 }
 
-// 统一复用的样式定义
-const inputStyle = {
-  width: '100%',
-  padding: '6px 10px',
-  background: 'var(--bg-primary)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: 'var(--text-primary)',
-  fontSize: 11,
-  outline: 'none',
-  marginTop: 4
-};
-
-const selectStyle = {
-  width: '100%',
-  padding: '6px 10px',
-  background: 'var(--bg-primary)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: 'var(--text-primary)',
-  fontSize: 11,
-  outline: 'none',
-  marginTop: 4,
-  cursor: 'pointer'
-};

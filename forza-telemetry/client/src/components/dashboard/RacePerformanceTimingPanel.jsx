@@ -44,6 +44,16 @@ function sectorReducer(state, action) {
     }
     case 'SET_WEAK_SECTOR':
       return { ...state, weakSector: action.index };
+    case 'LAP_COMPLETED': {
+      return {
+        ...state,
+        lapSectorTimes: action.times,
+        lapComplete: true,
+        bestSectorTimes: action.bestTimes,
+        weakSector: action.weakIdx,
+        currentSector: action.nextSectorIndex
+      };
+    }
     case 'RESET_LAP':
       return { ...state, currentSector: 0, lapComplete: false };
     default:
@@ -174,26 +184,30 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
           dispatch({ type: 'SET_CURRENT_SECTOR', index: nextSec });
           sectorStartTimesRef.current[nextSec] = currentRaceTimeFallback;
         } else {
-          // 本圈全部分段跑完，触发最弱分段判定
-          dispatch({ type: 'SET_LAP_SECTOR_TIMES', times: [...lapSectorBufferRef.current] });
-          dispatch({ type: 'UPDATE_BEST_SECTOR_TIMES', times: [...lapSectorBufferRef.current] });
-          
-          // 寻找差值最大（弱点）的分段
+          // 本圈全部分段跑完，合并派发，防止多次重绘
+          const newBestTimes = [...state.bestSectorTimes];
           let maxDiff = -1;
           let weakIdx = -1;
+          
           lapSectorBufferRef.current.forEach((t, i) => {
-            const best = state.bestSectorTimes[i] || t;
+            if (t > 0 && (newBestTimes[i] === 0 || t < newBestTimes[i])) {
+              newBestTimes[i] = t;
+            }
+            const best = newBestTimes[i] || t;
             const diff = t - best;
             if (diff > maxDiff) {
               maxDiff = diff;
               weakIdx = i;
             }
           });
-          if (weakIdx >= 0) {
-            dispatch({ type: 'SET_WEAK_SECTOR', index: weakIdx });
-          }
-          // 【修复】跑完最后一分段后，将索引设置为越界，避免在当前圈过线前被高频重复触发
-          dispatch({ type: 'SET_CURRENT_SECTOR', index: sectorsList.length });
+
+          dispatch({ 
+            type: 'LAP_COMPLETED', 
+            times: [...lapSectorBufferRef.current],
+            bestTimes: newBestTimes,
+            weakIdx: weakIdx,
+            nextSectorIndex: sectorsList.length 
+          });
         }
       }
     }

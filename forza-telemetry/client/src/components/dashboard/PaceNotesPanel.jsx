@@ -1197,11 +1197,11 @@ export function PaceNoteGlossaryModal({ onClose }) {
               <span>●</span> 几何与路况特征
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0d1117', padding: 8, borderRadius: 6, border: '1px solid #21262d' }}>
-              <div><strong>过坡 (Crest)</strong>: 赛车越过起伏坡顶，视线受阻，需提前校准行进线。</div>
-              <div><strong>飞跳 (Jump)</strong>: 重起伏路段，赛车会腾空，起跳前需摆正车身。</div>
-              <div><strong>路面倾角 (Camber)</strong>:</div>
+              <div><strong>过坡</strong>: 赛车越过起伏坡顶，视线受阻，需提前校准行进线。</div>
+              <div><strong>飞跳</strong>: 重起伏路段，赛车会腾空，起跳前需摆正车身。</div>
+              <div><strong>路面倾角</strong>:</div>
               <div style={{ paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div>• <strong style={{ color: '#3fb950' }}>向心倾角 (Banking)</strong>: 弯道向内侧倾斜，增加过弯贴合度与抓地极限。</div>
+                <div>• <strong style={{ color: '#3fb950' }}>向心倾角</strong>: 弯道向内侧倾斜，增加过弯贴合度与抓地极限。</div>
                 <div>• <strong style={{ color: '#f85149' }}>离心反坡 (Off-camber)</strong>: 弯道向外侧倾斜，向心抓地力极易突破，需提前减速。</div>
               </div>
             </div>
@@ -1213,8 +1213,8 @@ export function PaceNoteGlossaryModal({ onClose }) {
               <span>●</span> 骨架锁定与弯道合并
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0d1117', padding: 8, borderRadius: 6, border: '1px solid #21262d' }}>
-              <div><strong>锁定 (Lock)</strong>: 手动编辑过的弯道锁定后，未来再次跑圈做合并时，系统将以此弯道为参考基准进行叠加优化，不修改其核心骨架。</div>
-              <div><strong>合并 (Merge)</strong>: 将当前弯道与下一个弯道融合为一个弯道，系统重新合并它们的物理特征及推荐速度。</div>
+              <div><strong>锁定</strong>: 手动编辑过的弯道锁定后，未来再次跑圈做合并时，系统将以此弯道为参考基准进行叠加优化，不修改其核心骨架。</div>
+              <div><strong>合并</strong>: 将当前弯道与下一个弯道融合为一个弯道，系统重新合并它们的物理特征及推荐速度。</div>
             </div>
           </div>
         </div>

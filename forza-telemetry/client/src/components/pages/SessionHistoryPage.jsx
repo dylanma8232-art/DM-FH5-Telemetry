@@ -4,17 +4,31 @@ import { ReplayPlayer } from '../dashboard/ReplayPlayer';
 import { AICoachPanel } from '../dashboard/AICoachPanel';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { EmptyState } from '../shared/EmptyState';
+import { GearingAnalysisPanel } from '../dashboard/GearingAnalysisPanel';
+import { SuspensionAnalysisPanel } from '../dashboard/SuspensionAnalysisPanel';
+import { DifferentialAnalysisPanel } from '../dashboard/DifferentialAnalysisPanel';
 import { toast } from '../shared/Toast';
+
+const inputStyle = {
+  width: '100%',
+  padding: 8,
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  color: 'var(--text-primary)',
+  fontSize: 11
+};
 
 export function SessionHistoryPage({ onNavigate, navIntent }) {
 
   // 比赛记录状态
   const [sessions, setSessions] = useState([]);
+  const [vehiclesList, setVehiclesList] = useState({});
   const [selectedSession, setSelectedSession] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [sessionDetail, setSessionDetail] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeChart, setActiveChart] = useState('overview');
+  const [activeTab, setActiveTab] = useState('overview'); // Changed from activeChart
   const [diagnosis, setDiagnosis] = useState(null);
   const [channelsData, setChannelsData] = useState(null);
   const [channelsLoading, setChannelsLoading] = useState(false);
@@ -35,6 +49,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [lbLoading, setLbLoading] = useState(false);
   const [lbExpandedKeys, setLbExpandedKeys] = useState(new Set());
   const [lbTrendData, setLbTrendData] = useState(null);
+  const [selectedLbTrackId, setSelectedLbTrackId] = useState(null);
   const [lbTrendLoading, setLbTrendLoading] = useState(false);
   const [lbLoaded, setLbLoaded] = useState(false);
   // Round 6: 排行榜趋势缓存 - 使用Map缓存已加载的趋势数据
@@ -89,7 +104,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       // 记录车辆最佳圈速信息
       item.vehicles.push({
         vehicleOrdinal: entry.vehicleOrdinal,
-        vehicleName: entry.vehicleName,
+        vehicleName: (vehiclesList[entry.vehicleOrdinal]?.name || entry.vehicleName),
         vehicleClass: entry.vehicleClass,
         vehiclePI: entry.vehiclePI,
         bestLap: entry.bestLap,
@@ -105,7 +120,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       if (entry.bestLap > 0 && (item.bestLap === 0 || entry.bestLap < item.bestLap)) {
         item.bestLap = entry.bestLap;
         item.vehicleOrdinal = entry.vehicleOrdinal;
-        item.vehicleName = entry.vehicleName;
+        item.vehicleName = (vehiclesList[entry.vehicleOrdinal]?.name || entry.vehicleName);
         item.vehicleClass = entry.vehicleClass;
         item.vehiclePI = entry.vehiclePI;
       }
@@ -204,6 +219,14 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     return matchSearch && matchTrack
   });
 
+  
+  useEffect(() => {
+    fetch('/api/vehicles')
+      .then(r => r.json())
+      .then(data => setVehiclesList(data))
+      .catch(console.error);
+  }, []);
+
   useEffect(() => {
     loadSessions();
     loadTunes();
@@ -228,18 +251,18 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         // 上下箭头切换Tab
         e.preventDefault();
-        const allSubTabs = ['overview', 'dynamics', 'workbench', 'replay'];
-        const curIdx = allSubTabs.indexOf(activeChart);
+        const allSubTabs = ['overview', 'corners', 'replay'];
+        const curIdx = allSubTabs.indexOf(activeTab);
         if (e.key === 'ArrowUp' && curIdx > 0) {
-          setActiveChart(allSubTabs[curIdx - 1]);
+          setActiveTab(allSubTabs[curIdx - 1]);
         } else if (e.key === 'ArrowDown' && curIdx < allSubTabs.length - 1) {
-          setActiveChart(allSubTabs[curIdx + 1]);
+          setActiveTab(allSubTabs[curIdx + 1]);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [myFilteredSessions, selectedSession, activeChart, detailLoaded]);
+  }, [myFilteredSessions, selectedSession, activeTab, detailLoaded]);
 
   // Round 5: 批量删除
   const batchDelete = async () => {
@@ -252,7 +275,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
         setAnalysis(null);
         setSessionDetail(null);
         setDiagnosis(null);
-        setActiveChart('overview');
+        setActiveTab('overview');
         setDetailLoaded(false);
         loadedTabsRef.current = new Set(['overview']);
         setChannelsData(null);
@@ -356,7 +379,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
         setAnalysis(null);
         setSessionDetail(null);
         setDiagnosis(null);
-        setActiveChart('overview');
+        setActiveTab('overview');
         setDetailLoaded(false);
         loadedTabsRef.current = new Set(['overview']);
       }
@@ -459,17 +482,16 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
   useEffect(() => {
     if (!selectedSession) return;
-    if (activeChart === 'overview') {
+    if (activeTab === 'overview') {
+      loadTelemetryChannels();
+      loadAdvancedAnalysis();
+    } else if (activeTab === 'corners') {
       loadTurnsData();
-      loadTelemetryChannels();
-      loadAdvancedAnalysis();
-    } else if (['dynamics', 'workbench'].includes(activeChart)) {
-      loadTelemetryChannels();
-      loadAdvancedAnalysis();
-    } else if (activeChart === 'replay') {
+      loadTelemetryChannels(); // Corner analysis needs channelsData
+    } else if (activeTab === 'replay') {
       loadSessionDetail(selectedSession);
     }
-  }, [activeChart, selectedSession]);
+  }, [activeTab, selectedSession]);
 
   // 赛道详情页：加载趋势数据（分段演进）
   useEffect(() => {
@@ -975,7 +997,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 )}
                 <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {/* Round 6: PDF报告 */}
-                  <button onClick={(e) => { e.stopPropagation(); exportPDFReport(session.id); }} style={{ ...btnSmallStyle, background: 'rgba(188,140,255,0.1)', color: '#bc8cff', borderColor: 'rgba(188,140,255,0.3)' }}>PDF报告</button>
+                  
                   <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(session.id); }} style={{ ...btnSmallStyle, background: 'rgba(218,54,51,0.1)', color: '#f85149', borderColor: 'rgba(248,81,73,0.3)' }}>删除</button>
 
                   {/* Round 5: 批量选择复选框 */}
@@ -1039,35 +1061,30 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                 单场遥测分析 ({selectedSession.substring(0, 8)})
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+
+            <div style={{ display: 'flex', gap: 12, marginBottom: 16, borderBottom: '1px solid #30363d', paddingBottom: 12, position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 10 }}>
               {[
-                { id: 'overview', label: '总览' },
-                { id: 'dynamics', label: '动力学' },
-                { id: 'workbench', label: '驾驶分析' },
-                { id: 'replay', label: '回放 & 教练' }
+                { id: 'overview', label: '总览与遥测' },
+                { id: 'corners', label: '弯道诊断' },
+                { id: 'replay', label: '影子与教练' }
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setActiveChart(tab.id);
-                    if ((tab.id === 'dynamics' || tab.id === 'workbench') && selectedSession) {
-                      loadTelemetryChannels();
-                      loadAdvancedAnalysis();
-                    }
-                    if ((tab.id === 'replay') && selectedSession && !detailLoaded) {
-                      loadSessionDetail(selectedSession);
-                    }
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveTab(tab.id);
                   }}
                   style={{
-                    padding: '4px 12px',
-                    background: activeChart === tab.id ? '#58a6ff' : '#161b22',
-                    color: activeChart === tab.id ? '#fff' : '#8b949e',
-                    border: activeChart === tab.id ? 'none' : '1px solid #21262d',
+                    padding: '6px 14px',
+                    background: activeTab === tab.id ? '#58a6ff' : 'transparent',
+                    color: activeTab === tab.id ? '#fff' : '#58a6ff',
+                    border: '1px solid #30363d',
                     borderRadius: 4,
                     cursor: 'pointer',
-                    fontSize: 10,
-                    fontWeight: activeChart === tab.id ? 600 : 400,
-                    transition: 'all 0.2s'
+                    fontSize: 12,
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {tab.label}
@@ -1075,8 +1092,12 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
               ))}
             </div>
 
-            {activeChart === 'overview' && (
-              <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* ===== Tab 1: 总览与遥测 ===== */}
+            {activeTab === 'overview' && analysis && (
+              <div>
+                <>
                 {/* 驾驶综合评分 */}
                 {analysis.驾驶评分 && (
                   <div style={{
@@ -1288,13 +1309,18 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   );
                 })()}
 
+              </>
+            </div>
+          )}
 
-
-                {/* 赛道地图与弯道性能诊断看板（双栏布局 - 400px左侧，1fr右侧） */}
-                <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, marginBottom: 16 }}>
-                  <div style={{ ...sectionStyle, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
-                      <h3 style={{ ...sectionTitleStyle, margin: 0, borderBottom: 'none', paddingBottom: 0 }}>赛道诊断热力图</h3>
+          {/* ===== Tab 2: 弯道诊断 ===== */}
+          {activeTab === 'corners' && analysis && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* 赛道地图与弯道性能诊断看板（双栏布局 - 400px左侧，1fr右侧） */}
+              <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16 }}>
+                <div style={{ ...sectionStyle, padding: 12, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+                    <h3 style={{ ...sectionTitleStyle, margin: 0, borderBottom: 'none', paddingBottom: 0 }}>赛道诊断热力图</h3>
                       <button
                         onClick={() => setZoomOnSelect(!zoomOnSelect)}
                         style={{
@@ -1322,6 +1348,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                       width={376}
                       height={276}
                       zoomOnSelect={zoomOnSelect}
+                      channelsData={channelsData}
                       highlightedPoints={
                         turnsData?.turns
                           ? turnsData.turns.map((t, idx) => ({
@@ -1459,16 +1486,16 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         </table>
                       </div>
                     )}
-                  </div>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
+          )}
 
-            {activeChart === 'dynamics' && channelsData && (
+          {/* ===== Tab 1 动力学 & 驾驶分析 ===== */}
+          {activeTab === 'overview' && channelsData && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>动力学分析</h3>
-                </div>
+                <h3 style={{ ...sectionTitleStyle, margin: 0, marginBottom: 14, fontSize: 14 }}>动力学分析</h3>
 
                 {/* 面板1: G-G 摩擦圆 */}
                 <div style={{ marginBottom: 16 }}>
@@ -1484,7 +1511,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                           <XAxis type="number" dataKey="gLat" name="横向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
                           <YAxis type="number" dataKey="gLong" name="纵向G" domain={[-1.8, 1.8]} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} tickFormatter={(v) => v.toFixed(1)} tickCount={7} />
-                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name) => [value.toFixed(2) + ' G', name === 'gLat' ? '横向G' : '纵向G']} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(value, name) => [(value != null ? value.toFixed(2) : '0.00') + ' G', name === 'gLat' ? '横向G' : '纵向G']} />
                           <Scatter name="遥测G值" data={ggData.sampled} fill="rgba(88, 166, 255, 0.45)" shape="circle" />
                           <ReferenceLine x={0} stroke="#484f58" />
                           <ReferenceLine y={0} stroke="#484f58" />
@@ -1535,7 +1562,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                           <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                           <XAxis type="number" dataKey="slipAvg" domain={['auto', 'auto']} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '纵向滑移率', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
                           <YAxis type="number" dataKey="angleAvg" domain={['auto', 'auto']} stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '侧偏角(rad)', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
-                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [v.toFixed(3), n === 'slipAvg' ? '滑移率' : '侧偏角']} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }} formatter={(v,n) => [(v != null ? v.toFixed(3) : '0.000'), n === 'slipAvg' ? '滑移率' : '侧偏角']} />
                           <Scatter name="滑移" data={(channelsData.channels || []).filter((_, i) => i % 4 === 0).map(c => ({
                             slipAvg: (Math.abs(c.slipFL||0) + Math.abs(c.slipFR||0) + Math.abs(c.slipRL||0) + Math.abs(c.slipRR||0)) / 4,
                             angleAvg: (Math.abs(c.angleFL||0) + Math.abs(c.angleFR||0) + Math.abs(c.angleRL||0) + Math.abs(c.angleRR||0)) / 4
@@ -1548,15 +1575,10 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                   </div>
                 </div>
               </div>
-            )}
-
-            {activeChart === 'workbench' && channelsData && (
               <div>
-                <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>驾驶分析</h3>
-                  <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4, lineHeight: 1.5 }}>
-                    鼠标悬停任意图表可同步查看所有通道在同一位置的数据。从上到下对照：车速波谷→刹车深度→方向盘角度→档位变化。
-                  </div>
+                <h3 style={{ ...sectionTitleStyle, margin: 0, marginBottom: 14, fontSize: 14 }}>驾驶分析</h3>
+                <div style={{ fontSize: 11, color: '#8b949e', marginTop: 4, lineHeight: 1.5, marginBottom: 12 }}>
+                  鼠标悬停任意图表可同步查看所有通道在同一位置的数据。从上到下对照：车速波谷→刹车深度→方向盘角度→档位变化。
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1599,7 +1621,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={['auto', 'auto']} unit="km/h" />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                          formatter={(value) => [value.toFixed(1) + ' km/h', '车速']}
+                          formatter={(value) => [(value != null ? value.toFixed(1) : '0.0') + ' km/h', '车速']}
                           labelFormatter={(label) => '距离: ' + label + 'm'}
                         />
                         <Line type="monotone" dataKey="speed" stroke="#58a6ff" strokeWidth={1.5} dot={false} />
@@ -1619,186 +1641,53 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                         <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[0, 100]} unit="%" />
                         <Tooltip
                           contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                          formatter={(value, name) => [value.toFixed(1) + '%', name === 'throttle' ? '油门' : '刹车']}
+                          formatter={(value, name) => [(value != null ? value.toFixed(1) : '0.0') + '%', name === 'throttle' ? '油门' : name === 'brake' ? '刹车' : name === 'clutch' ? '离合' : '手刹']}
                           labelFormatter={(label) => '距离: ' + label + 'm'}
                         />
                         <Line type="monotone" dataKey="throttle" stroke="#3fb950" strokeWidth={1.5} dot={false} />
                         <Line type="monotone" dataKey="brake" stroke="#f85149" strokeWidth={1.5} dot={false} />
+                        <Line type="monotone" dataKey="handBrake" stroke="#ff7b72" strokeDasharray="3 3" strokeWidth={1.5} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-
-                  <div style={{ ...sectionStyle, height: 130, padding: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>方向盘转角</span>
-                    </div>
-                    <div style={{ fontSize: 9, color: '#484f58', marginBottom: 4 }}>正值=右转 负值=左转。弯中曲线应平滑，频繁抖动说明修正过多</div>
-                    <ResponsiveContainer width="100%" height="80%">
-                      <LineChart data={channelsData.channels} syncId="overlaySync">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" hide={true} />
-                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[-127, 127]} />
-                        <Tooltip
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                          formatter={(value) => [value, '方向盘转角']}
-                          labelFormatter={(label) => '距离: ' + label + 'm'}
-                        />
-                        <Line type="monotone" dataKey="steer" stroke="#d29922" strokeWidth={1.5} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div style={{ ...sectionStyle, height: 130, padding: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                      <span style={{ fontWeight: 600 }}>档位</span>
-                    </div>
-                    <div style={{ fontSize: 9, color: '#484f58', marginBottom: 4 }}>阶梯变化=换挡点。降档过早会丢转速，过晚会错过最佳加速区间</div>
-                    <ResponsiveContainer width="100%" height="80%">
-                      <LineChart data={channelsData.channels} syncId="overlaySync">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                        <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} label={{ value: '距离(m)', position: 'insideBottomRight', style: { fontSize: 10, fill: '#8b949e' } }} />
-                        <YAxis stroke="#8b949e" tick={{ fontSize: 10, fill: '#8b949e' }} domain={[0, 8]} tickCount={9} label={{ value: '档位', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#8b949e' } }} />
-                        <Tooltip
-                          contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 10 }}
-                          formatter={(value) => [value + ' 档', '档位']}
-                          labelFormatter={(label) => '距离: ' + label + 'm'}
-                        />
-                        <Line type="step" dataKey="gear" stroke="#bc8cff" strokeWidth={1.5} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* 分段分析：多圈显示每圈损失时间，单圈显示分段用时 */}
-                  {sectorTimingData && advancedData && advancedData.sessionId === selectedSession && (() => {
-                    const { isMultiLap } = sectorTimingData;
-                    const laps = advancedData.lapSectorDetails;
-                    if (!laps || laps.length === 0) return null;
-                    
-                    const sectorCount = laps[0]?.sectors?.length || 0;
-                    
-                    return (
-                      <div style={{ ...sectionStyle, marginTop: 12 }}>
-                        <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>
-                          {isMultiLap ? '分段损失时间' : '分段用时'}
-                        </h4>
-                        <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 8, lineHeight: 1.5 }}>
-                          {isMultiLap
-                            ? '每圈各赛段相比理论最佳的损失时间。'
-                            : '当前比赛不同分段的用时。'}
-                        </div>
-                        
-                        {/* 单圈模式：横向表格 */}
-                        {!isMultiLap && (
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
-                              <thead>
-                                <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
-                                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#8b949e', fontWeight: 700 }}>分段</th>
-                                  {laps[0]?.sectors.map(s => {
-                                    const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
-                                    const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
-                                    return (
-                                      <th key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', color: isBest ? '#3fb950' : isWorst ? '#f85149' : '#8b949e', fontWeight: 700 }}>S{s.sector}</th>
-                                    );
-                                  })}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr style={{ borderBottom: '1px solid #21262d' }}>
-                                  <td style={{ padding: '8px 12px', color: '#8b949e', fontWeight: 500 }}>用时</td>
-                                  {laps[0]?.sectors.map(s => {
-                                    const isBest = s.time === Math.min(...laps[0].sectors.map(x => x.time));
-                                    const isWorst = s.time === Math.max(...laps[0].sectors.map(x => x.time));
-                                    const timeColor = isBest ? '#3fb950' : isWorst ? '#f85149' : '#e6edf3';
-                                    return (
-                                      <td key={s.sector} style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace', color: timeColor, fontWeight: 700 }}>
-                                        {s.time.toFixed(2)}s
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                        
-                        {/* 多圈模式：紧凑表格 */}
-                        {isMultiLap && (
-                          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, background: '#0d1117', borderRadius: 6, overflow: 'hidden' }}>
-                              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-                                <tr style={{ background: '#161b22', borderBottom: '2px solid #30363d' }}>
-                                  <th style={{ padding: '8px 8px', textAlign: 'left', color: '#8b949e', fontWeight: 700, position: 'sticky', left: 0, background: '#161b22', zIndex: 3 }}>圈</th>
-                                  <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>总用时</th>
-                                  {Array.from({ length: sectorCount }, (_, i) => (
-                                    <th key={i} style={{ padding: '8px 6px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>S{i + 1}</th>
-                                  ))}
-                                  <th style={{ padding: '8px 8px', textAlign: 'right', color: '#8b949e', fontWeight: 700 }}>损失</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {laps.map((lap, lapIdx) => {
-                                  const totalLoss = lap.sectors.reduce((sum, s) => sum + s.loss, 0);
-                                  return (
-                                    <tr key={lap.lap} style={{ borderBottom: '1px solid #21262d', background: lapIdx % 2 === 0 ? 'transparent' : 'rgba(22, 27, 34, 0.5)' }}>
-                                      <td style={{ padding: '6px 8px', color: '#e6edf3', fontWeight: 600, position: 'sticky', left: 0, background: lapIdx % 2 === 0 ? '#0d1117' : '#161b22', zIndex: 1 }}>第{lap.lap}圈</td>
-                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: '#e6edf3', fontWeight: 600 }}>{lap.totalTime.toFixed(2)}s</td>
-                                      {lap.sectors.map(s => {
-                                        const isBest = s.loss === 0;
-                                        const isWorst = s.loss === Math.max(...lap.sectors.map(x => x.loss));
-                                        const lossColor = isBest ? '#3fb950' : isWorst ? '#f85149' : s.loss > 50 ? '#d29922' : '#8b949e';
-                                        return (
-                                          <td key={s.sector} style={{ padding: '6px 6px', textAlign: 'right', fontFamily: 'monospace', color: lossColor, fontWeight: isBest || isWorst ? 700 : 400 }}>
-{s.loss > 0 ? '+' : ''}{s.loss.toFixed(2)}s
-                                          </td>
-                                        );
-                                      })}
-                                      <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: totalLoss > 0 ? '#f85149' : '#3fb950', fontWeight: 700 }}>
-{totalLoss > 0 ? '+' : ''}{totalLoss.toFixed(2)}s
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
                 </div>
               </div>
-            )}
-
-            {activeChart === 'replay' && (
-              <div>
-                <div style={{ marginBottom: 12 }}>
-                  <h3 style={{ ...sectionTitleStyle, margin: 0 }}>回放 & AI教练</h3>
-                </div>
-                
-                {/* 影子车回放 */}
-                <div style={sectionStyle}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>影子车回放</h4>
-                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>在赛道俯视图上回放你的行驶轨迹，观察走线是否合理。</div>
-                  {sessionDetail ? (
-                    <ReplayPlayer positions={sessionDetail.positions || []} data={sessionDetail.data || []} />
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: 30, color: '#8b949e', fontSize: 11 }}>
-                      {detailLoaded ? '无回放数据' : '加载中...'}
-                    </div>
-                  )}
-                </div>
-                
-                {/* AI驾驶教练 */}
-                <div style={{ ...sectionStyle, marginTop: 16 }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: 12 }}>AI 驾驶教练</h4>
-                  <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5 }}>基于遥测数据的智能分析，给出具体的驾驶改进建议。</div>
-                  <AICoachPanel sessionId={selectedSession} />
-                </div>
+            </div>
+          )}
+          {activeTab === 'overview' && analysis && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {analysis && <GearingAnalysisPanel data={analysis['动力齿比']} />}
+              {analysis && <SuspensionAnalysisPanel data={analysis['底盘悬挂']} channelsData={channelsData} />}
+              {analysis && <DifferentialAnalysisPanel data={analysis['差速抓地力']} />}
+            </div>
+          )} 
+          {/* ===== Tab 3: 影子与教练 ===== */}
+          {activeTab === 'replay' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* 影子车回放 */}
+              <div style={sectionStyle}>
+                <h3 style={{ ...sectionTitleStyle, margin: 0, fontSize: 14 }}>影子车回放</h3>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5, marginTop: 8 }}>在赛道䯰视图上回放你的行驶轨迹，观察走线是否合理。</div>
+                {sessionDetail ? (
+                  <ReplayPlayer positions={sessionDetail.positions || []} data={sessionDetail.data || []} />
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 30, color: '#8b949e', fontSize: 11 }}>
+                    {detailLoaded ? '无回放数据' : '加载中...'}
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* AI驾驶教练 */}
+              <div style={{ ...sectionStyle }}>
+                <h3 style={{ ...sectionTitleStyle, margin: 0, fontSize: 14 }}>AI 驾驶教练</h3>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 6, lineHeight: 1.5, marginTop: 8 }}>基于遥测数据的智能分析，给出具体的驾驶改进建议。</div>
+                <AICoachPanel sessionId={selectedSession} />
+              </div>
+            </div>
+          )}
+
           </div>
+        </div>
         ) : trackFilter ? (
           // 状态 2: 赛道成长轨迹看板
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1891,7 +1780,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                                 const item = payload?.[0]?.payload;
                                 return `第 ${label} 次出赛 · ${item?.date || ''}`;
                               }}
-                              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: 11 }}
+                              contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: 10 }}
                             />
                             <ReferenceLine y={minLap} stroke="#d29922" strokeDasharray="4 2" label={{ value: '最快', fill: '#d29922', fontSize: 9, position: 'right' }} />
                             <Line
@@ -2097,7 +1986,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border)'
                           }}>
                             <div>
-                              <div style={{ fontSize: 12, fontWeight: 600 }}>{e.vehicleName || `Car #${e.vehicleOrdinal}`}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600 }}>{(vehiclesList[e.vehicleOrdinal]?.name || e.vehicleName) || `Car #${e.vehicleOrdinal}`}</div>
                               <div style={{ fontSize: 11, color: '#8b949e', marginTop: 2 }}>
                                 #{e.vehicleOrdinal} · {getVehicleClass(e.vehicleClass)} {e.vehiclePI} PI
                               </div>
@@ -2135,7 +2024,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
                             {trackSessions.map(session => (
                               <tr key={session.id} style={{ borderBottom: '1px solid rgba(48, 54, 61, 0.3)' }}>
                                 <td style={{ padding: '8px 6px' }}>{formatDate(session.savedAt)}</td>
-                                <td style={{ padding: '8px 6px' }}>{session.vehicle?.name || `Car #${session.vehicle?.ordinal}`}</td>
+                                <td style={{ padding: '8px 6px' }}>{(vehiclesList[session.vehicle?.ordinal]?.name || session.vehicle?.name) || `Car #${session.vehicle?.ordinal}`}</td>
                                 <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>
                                   {session.laps?.best > 0 ? formatTime(session.laps.best) : (session.summary?.duration > 0 ? formatTime(session.summary.duration / 1000) : '-')}
                                 </td>
@@ -2166,133 +2055,212 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
             })()}
           </div>
         ) : (
-          // 状态 1: 我的赛道成就墙 (首屏)
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          // 状态 1: 赛道风云榜大屏
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 700 }}>
+            {/* 顶部控制栏 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>我的赛道成就墙</h2>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  共跑过 {groupedAchievements.length} 个赛道，点击卡片聚焦该赛道
+                <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, background: 'linear-gradient(90deg, #fff, #8b949e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  🏆 赛道风云榜
+                </h2>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, letterSpacing: 1 }}>
+                  GLOBAL TRACK LEADERBOARDS
                 </div>
               </div>
               <button onClick={loadLeaderboard} style={{
-                padding: '6px 12px', background: 'rgba(88,166,255,0.12)',
+                padding: '8px 16px', background: 'rgba(88,166,255,0.1)',
                 border: '1px solid rgba(88,166,255,0.3)', borderRadius: 6,
-                color: '#58a6ff', cursor: 'pointer', fontSize: 11
-              }}>
-                刷新成就
+                color: '#58a6ff', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                transition: 'all 0.2s'
+              }} onMouseOver={e => e.currentTarget.style.background='rgba(88,166,255,0.2)'} onMouseOut={e => e.currentTarget.style.background='rgba(88,166,255,0.1)'}>
+                刷新榜单
               </button>
             </div>
 
-            {/* 卡片网格 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-              {(() => {
-                const filteredAchievements = groupedAchievements.filter(entry => {
-                  return !sessionSearchQuery.trim() || entry.trackName.toLowerCase().includes(sessionSearchQuery.toLowerCase());
-                });
+            <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0 }}>
+              {/* 左侧：赛道导航栏 */}
+              <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 12, top: 10, opacity: 0.5 }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="搜索赛道..."
+                    value={sessionSearchQuery}
+                    onChange={e => setSessionSearchQuery(e.target.value)}
+                    style={{ ...inputStyle, width: '100%', paddingLeft: 36, background: 'rgba(0,0,0,0.2)' }}
+                  />
+                </div>
+                
+                <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(() => {
+                    const tracks = groupedAchievements.filter(t => 
+                      !sessionSearchQuery.trim() || t.trackName.toLowerCase().includes(sessionSearchQuery.toLowerCase())
+                    );
+                    
+                    if (tracks.length > 0 && !selectedLbTrackId) {
+                      setTimeout(() => setSelectedLbTrackId(tracks[0].trackId), 0);
+                    }
 
-                if (filteredAchievements.length === 0) {
-                  return <div style={{ gridColumn: '1/-1' }}><EmptyState icon="🏆" title="暂无成就卡片" description="在不同赛道跑圈并保存记录后将自动生成成就卡片" /></div>;
-                }
+                    if (tracks.length === 0) return <div style={{ padding: 20, textAlign: 'center', color: '#8b949e', fontSize: 12 }}>暂无赛道数据</div>;
 
-                return filteredAchievements.map(entry => {
-                  const badges = [];
-                  if (entry.recentBreakthrough) badges.push({ icon: '🔥', label: '突破', color: '#ff9500' });
-                  if (entry.daysSinceLastSession > 30) badges.push({ icon: '❄️', label: '冷落', color: '#58a6ff' });
+                    return tracks.map(track => {
+                      const isActive = selectedLbTrackId === track.trackId;
+                      const activeStyle = isActive ? {
+                        background: 'linear-gradient(90deg, rgba(37,99,235,0.2) 0%, rgba(37,99,235,0.05) 100%)',
+                        borderLeft: '4px solid #2563eb',
+                        borderColor: 'rgba(37,99,235,0.5)',
+                        boxShadow: 'inset 0 0 20px rgba(37,99,235,0.1)'
+                      } : {
+                        background: 'rgba(255,255,255,0.02)',
+                        borderLeft: '4px solid transparent',
+                        borderColor: 'transparent'
+                      };
 
-                  const vehicleText = entry.bestLap > 0
-                    ? `最快车辆: ${entry.vehicleName || `Car #${entry.vehicleOrdinal}`} (${getVehicleClass(entry.vehicleClass)} ${entry.vehiclePI} PI)`
-                    : '暂无有效纪录';
-
-                  return (
-                    <div
-                      key={entry.trackId}
-                      onClick={() => {
-                        setTrackFilter(entry.trackName);
-                      }}
-                      style={{
-                        background: 'var(--bg-secondary)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 8,
-                        padding: 12,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: 10,
-                        transition: 'all 0.2s',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--accent)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      <div>
-                        {/* 赛道名称与标签 */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 170 }}>
-                            {entry.trackName}
-                          </span>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            {badges.map(b => (
-                              <span key={b.label} style={{
-                                fontSize: 8, padding: '1px 4px',
-                                background: `${b.color}22`, border: `1px solid ${b.color}55`,
-                                borderRadius: 8, color: b.color
-                              }}>
-                                {b.icon} {b.label}
-                              </span>
-                            ))}
+                      return (
+                        <div key={track.trackId} onClick={() => setSelectedLbTrackId(track.trackId)}
+                          style={{
+                            padding: '12px 16px', borderRadius: 6, cursor: 'pointer', transition: 'all 0.2s',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            border: '1px solid', ...activeStyle
+                          }}
+                          onMouseOver={e => { if(!isActive) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
+                          onMouseOut={e => { if(!isActive) e.currentTarget.style.background='rgba(255,255,255,0.02)' }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#fff' : '#c9d1d9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {track.trackName}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#8b949e' }}>
+                              {track.vehicles.filter(v => v.bestLap > 0).length} 台参赛车辆
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#3fb950' : '#8b949e', fontFamily: 'monospace' }}>
+                            {lbFormatTime(track.bestLap)}
                           </div>
                         </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
 
-                        {/* 车辆信息 */}
-                        <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                          {vehicleText}
+              {/* 右侧：风云榜主视图 */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(13, 17, 23, 0.7)', border: '1px solid rgba(48,54,61,0.5)', borderRadius: 12, overflow: 'hidden', backdropFilter: 'blur(10px)', height: '100%' }}>
+                {(() => {
+                  const track = selectedLbTrackId ? groupedAchievements.find(t => t.trackId === selectedLbTrackId) : null;
+                  if (!track) return <div style={{ margin: 'auto', color: '#8b949e' }}>请在左侧选择一个赛道</div>;
+
+                  const validVehicles = track.vehicles.filter(v => v.bestLap > 0).sort((a,b) => a.bestLap - b.bestLap);
+                  const top3 = validVehicles.slice(0, 3);
+                  const rest = validVehicles.slice(3, 50); // limit to top 50
+                  
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                      {/* 榜单头部 */}
+                      <div style={{ padding: '24px 32px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 24 }}>🏁</span> {track.trackName}
+                          </h3>
+                          <div style={{ fontSize: 12, color: '#8b949e', marginTop: 8 }}>
+                            绝对圈速记录 · 共有 {validVehicles.length} 个有效成绩
+                          </div>
                         </div>
+                        <button onClick={() => setTrackFilter(track.trackId)} style={{
+                          padding: '10px 20px', background: 'linear-gradient(180deg, #2ea043 0%, #238636 100%)',
+                          border: '1px solid rgba(240,246,252,0.1)', borderRadius: 8,
+                          color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                          boxShadow: '0 0 15px rgba(46,160,67,0.4)', transition: 'all 0.2s'
+                        }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.02)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                          进入历史走势分析库 ➔
+                        </button>
+                      </div>
 
-                        {/* 最佳圈速与微缩趋势线 */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div>
-                            <div style={{ fontSize: 16, fontWeight: 800, color: '#3fb950', fontFamily: 'monospace' }}>
-                              {entry.bestLap > 0 ? lbFormatTime(entry.bestLap) : '-'}
-                            </div>
-                            {entry.improvementSec > 0 && (
-                              <div style={{ fontSize: 9, color: '#3fb950', marginTop: 2, fontWeight: 600 }}>
-                                ▼ {entry.improvementSec.toFixed(2)}s (超越首圈)
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+                        {/* 领奖台区域 (Top 3) */}
+                        {top3.length > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 24, marginBottom: 40, height: 180 }}>
+                            {/* 第二名 */}
+                            {top3[1] && (
+                              <div style={{ width: 160, height: 130, background: 'linear-gradient(180deg, rgba(192,192,192,0.1) 0%, rgba(0,0,0,0.5) 100%)', borderTop: '2px solid #c0c0c0', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 16, position: 'relative' }}>
+                                <div style={{ position: 'absolute', top: -20, fontSize: 24, textShadow: '0 0 10px rgba(192,192,192,0.5)' }}>🥈</div>
+                                <div style={{ fontSize: 18, fontWeight: 800, color: '#c0c0c0', marginBottom: 8 }}>2nd</div>
+                                <div style={{ fontSize: 12, color: '#fff', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{(vehiclesList[top3[1].vehicleOrdinal]?.name || top3[1].vehicleName)}</div>
+                                <div style={{ fontSize: 10, color: '#8b949e', margin: '4px 0 8px 0' }}>{getVehicleClass(top3[1].vehicleClass)} {top3[1].vehiclePI}</div>
+                                <div style={{ fontSize: 16, fontFamily: 'monospace', color: '#c0c0c0', fontWeight: 700, marginTop: 'auto' }}>{lbFormatTime(top3[1].bestLap)}</div>
+                                <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#8b949e', marginTop: 2 }}>+{ (top3[1].bestLap - top3[0].bestLap).toFixed(3) }s</div>
+                              </div>
+                            )}
+                            
+                            {/* 第一名 */}
+                            {top3[0] && (
+                              <div style={{ width: 180, height: 160, background: 'linear-gradient(180deg, rgba(255,215,0,0.15) 0%, rgba(0,0,0,0.6) 100%)', borderTop: '3px solid #ffd700', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 16, position: 'relative', boxShadow: '0 -10px 30px rgba(255,215,0,0.15)' }}>
+                                <div style={{ position: 'absolute', top: -24, fontSize: 32, textShadow: '0 0 15px rgba(255,215,0,0.8)' }}>👑</div>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#ffd700', marginBottom: 8, textShadow: '0 0 10px rgba(255,215,0,0.3)' }}>1st</div>
+                                <div style={{ fontSize: 13, color: '#fff', textAlign: 'center', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{(vehiclesList[top3[0].vehicleOrdinal]?.name || top3[0].vehicleName)}</div>
+                                <div style={{ fontSize: 11, color: '#ffd700', opacity: 0.8, margin: '4px 0 8px 0' }}>{getVehicleClass(top3[0].vehicleClass)} {top3[0].vehiclePI}</div>
+                                <div style={{ fontSize: 18, fontFamily: 'monospace', color: '#ffd700', fontWeight: 800, marginTop: 'auto', letterSpacing: 1 }}>{lbFormatTime(top3[0].bestLap)}</div>
+                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>绝对霸主</div>
+                              </div>
+                            )}
+
+                            {/* 第三名 */}
+                            {top3[2] && (
+                              <div style={{ width: 160, height: 110, background: 'linear-gradient(180deg, rgba(205,127,50,0.1) 0%, rgba(0,0,0,0.5) 100%)', borderTop: '2px solid #cd7f32', borderRadius: '12px 12px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 16, position: 'relative' }}>
+                                <div style={{ position: 'absolute', top: -18, fontSize: 20, textShadow: '0 0 10px rgba(205,127,50,0.5)' }}>🥉</div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: '#cd7f32', marginBottom: 8 }}>3rd</div>
+                                <div style={{ fontSize: 12, color: '#fff', textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(vehiclesList[top3[2].vehicleOrdinal]?.name || top3[2].vehicleName)}</div>
+                                <div style={{ fontSize: 10, color: '#8b949e', margin: '4px 0 8px 0' }}>{getVehicleClass(top3[2].vehicleClass)} {top3[2].vehiclePI}</div>
+                                <div style={{ fontSize: 15, fontFamily: 'monospace', color: '#cd7f32', fontWeight: 700, marginTop: 'auto' }}>{lbFormatTime(top3[2].bestLap)}</div>
+                                <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#8b949e', marginTop: 2 }}>+{ (top3[2].bestLap - top3[0].bestLap).toFixed(3) }s</div>
                               </div>
                             )}
                           </div>
-                          {entry.recentBestLaps && entry.recentBestLaps.length > 1 && (
-                            <div style={{ width: 80, height: 24 }}>
-                              <ResponsiveContainer width="100%" height={24}>
-                                <LineChart data={entry.recentBestLaps}>
-                                  <Line
-                                    type="monotone" dataKey="bestLap"
-                                    stroke="#3fb950" strokeWidth={1}
-                                    dot={false} isAnimationActive={false}
-                                  />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        )}
 
-                      {/* 底栏数据统计 */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 6 }}>
-                        <span>出赛 {entry.sessionCount} 次</span>
-                        <span>总跑 {entry.totalLaps} 圈</span>
+                        {/* 后续排名列表 */}
+                        {rest.length > 0 && (
+                          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#8b949e', textAlign: 'left', fontSize: 12 }}>
+                                  <th style={{ padding: '12px 24px', width: 60 }}>排名</th>
+                                  <th style={{ padding: '12px 16px' }}>参赛车辆</th>
+                                  <th style={{ padding: '12px 16px', width: 80 }}>级别/PI</th>
+                                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>最佳圈速</th>
+                                  <th style={{ padding: '12px 24px', textAlign: 'right' }}>时间差</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rest.map((v, idx) => (
+                                  <tr key={v.vehicleOrdinal} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', transition: 'background 0.2s' }} onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,0.03)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                                    <td style={{ padding: '12px 24px', fontWeight: 600, color: '#8b949e' }}>{idx + 4}</td>
+                                    <td style={{ padding: '12px 16px', color: '#e6edf3' }}>{(vehiclesList[v.vehicleOrdinal]?.name || v.vehicleName)}</td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                      <span style={{ display: 'inline-block', padding: '2px 6px', background: 'rgba(255,255,255,0.1)', borderRadius: 4, fontSize: 11, color: '#c9d1d9' }}>
+                                        {getVehicleClass(v.vehicleClass)} {v.vehiclePI}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#58a6ff', fontWeight: 600 }}>{lbFormatTime(v.bestLap)}</td>
+                                    <td style={{ padding: '12px 24px', textAlign: 'right', fontFamily: 'monospace', color: '#ff7b72' }}>+{ (v.bestLap - top3[0].bestLap).toFixed(3) }s</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        
+                        {validVehicles.length === 0 && (
+                          <div style={{ textAlign: 'center', padding: 60, color: '#8b949e' }}>
+                            <div style={{ fontSize: 48, marginBottom: 16 }}>🏎️</div>
+                            <div>该赛道暂无有效跑圈数据</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
-                });
-              })()}
+                })()}
+              </div>
             </div>
           </div>
         )}
@@ -2407,7 +2375,7 @@ function TrackThumbnail({ trackId }) {
 }
 
 // 交互式 Canvas 赛道图组件
-function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [], zoomOnSelect = false }) {
+function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, showCoasting = false, coastingPoints = [], zoomOnSelect = false, channelsData = null }) {
   const canvasRef = useRef(null);
   const [positions, setPositions] = useState([]);
   
@@ -2555,6 +2523,8 @@ function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoint
       });
     }
     
+    
+
     // 4. 绘制弯道高亮与标签
     highlightedPoints.forEach((pt) => {
       if (!pt.x || !pt.z) return;

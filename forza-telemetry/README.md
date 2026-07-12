@@ -21,14 +21,14 @@
 ### 存储结构
 ```
 forza-telemetry/data/
-├── sessions/               # 比赛记录（82MB）
+├── sessions/               # 比赛记录
 │   ├── *_summary.json      # 摘要数据（无压缩）
 │   ├── *_detail_hifi.json.br   # 高精度数据（Brotli 压缩）
 │   └── *_detail_lowfi.json.br  # 低精度数据（Brotli 压缩）
-├── tracks/                 # 赛道数据（15MB）
+├── tracks/                 # 赛道数据
 ├── tracks.json.br          # 赛道数据库（6.1MB）
 ├── vehicles.json           # 车辆数据（6.1KB）
-└── tunes.json              # 调校数据（2B）
+└── tunes.json              # 调校数据
 ```
 
 ### 压缩优化

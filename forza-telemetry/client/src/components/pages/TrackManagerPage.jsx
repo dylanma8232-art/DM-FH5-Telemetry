@@ -3,6 +3,36 @@ import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
 
+const inputStyle = {
+  width: '100%',
+  padding: 8,
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  color: 'var(--text-primary)',
+  fontSize: 11
+};
+
+const modalOverlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: 'rgba(0,0,0,0.7)',
+  zIndex: 1000
+};
+
+const modalContentStyle = {
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  width: 500,
+  maxWidth: '90%',
+  padding: 24,
+  boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+};
+
 // === 移动平均平滑算法：用于地图几何标准化渲染 ===
 // 原理：每个点的坐标替换为其周围 windowSize 个点的均值。
 // 优势：输出永远在输入范围内（数学保证），不产生任何振荡/过冲/扭折。
@@ -61,6 +91,8 @@ export function TrackManagerPage({ onNavigate }) {
   const [recordStartTime, setRecordStartTime] = useState(null);
   const [editName, setEditName] = useState('');
   const canvasRef = useRef(null);
+  const mapContextRef = useRef({});
+  const [dragMode, setDragMode] = useState(null); // null, "start", "end"
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -243,7 +275,9 @@ export function TrackManagerPage({ onNavigate }) {
       severity: String(sev),
       customNote: turn.customNote || '',
       camber: turn.camber || null,
-      crest: turn.crest || null
+      crest: turn.crest || null,
+      startIdx: turn.startIdx,
+      endIdx: turn.endIdx
     });
   };
 
@@ -777,6 +811,15 @@ export function TrackManagerPage({ onNavigate }) {
 
     const points = movingAverageSmooth(resolvedPoints, track.isLoop === true, 50, 5);
     const isLoop = track.isLoop === true;
+    
+    // Save to ref for interactions
+    if (mapContextRef) {
+      mapContextRef.current = {
+        minX, minZ, maxZ, sc, ox, oz,
+        points: points,
+        toScreen
+      };
+    }
 
     ctx.save();
     ctx.translate(transform.x, transform.y);
@@ -805,21 +848,27 @@ export function TrackManagerPage({ onNavigate }) {
     const turns = track.turns || [];
     turns.forEach((turn, tIdx) => {
       const isEditing = editingTurnIndex === tIdx;
+      // 恢复所有的弯道区间高亮
+      ctx.lineWidth = (isEditing ? 16 : 8) / transform.scale;
       ctx.strokeStyle = isEditing ? 'rgba(255, 211, 61, 0.85)' : 'rgba(240, 136, 62, 0.45)';
       ctx.beginPath();
       
       // 找到弯道在平滑点阵中的对应点
       let startPt = null;
+      // 如果正在编辑，使用实时的边界，否则用原本的
+      const currentStartIdx = (isEditing && editTurnForm) ? editTurnForm.startIdx : turn.startIdx;
+      const currentEndIdx = (isEditing && editTurnForm) ? editTurnForm.endIdx : turn.endIdx;
+
       for(let i=0; i<points.length; i++) {
         const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
-        if (origIdx >= turn.startIdx && !startPt) {
+        if (origIdx >= currentStartIdx && !startPt) {
           const s = toScreen(points[i]);
           ctx.moveTo(s.sx, s.sy);
           startPt = true;
-        } else if (startPt && origIdx <= turn.endIdx) {
+        } else if (startPt && origIdx <= currentEndIdx) {
           const s = toScreen(points[i]);
           ctx.lineTo(s.sx, s.sy);
-        } else if (startPt && origIdx > turn.endIdx) {
+        } else if (startPt && origIdx > currentEndIdx) {
           break;
         }
       }
@@ -914,7 +963,7 @@ export function TrackManagerPage({ onNavigate }) {
       ctx.fillText('F', sE.sx, sE.sy);
     }
 
-    // 6. 绘制弯道数字标记 (Turn Numbers)
+    // 6. 绘制弯道数字标记
     turns.forEach((turn, tIdx) => {
       // 寻找弯道的中点
       const centerOrigIdx = Math.floor((turn.startIdx + turn.endIdx) / 2);
@@ -929,12 +978,41 @@ export function TrackManagerPage({ onNavigate }) {
       if (centerPt) {
         const sC = toScreen(centerPt);
         
-        // 如果是当前编辑的弯道，画一个明显的光环
+        // 如果是当前编辑的弯道，画出起始(入弯)和结束(出弯)的拖拽锚点，以及中心光环
         if (editingTurnIndex === tIdx) {
           ctx.beginPath();
           ctx.arc(sC.sx, sC.sy, 16 / transform.scale, 0, Math.PI * 2);
           ctx.fillStyle = 'rgba(255, 211, 61, 0.3)';
           ctx.fill();
+
+          // 画出起止点锚点供拖拽
+          const currentStartIdx = editTurnForm ? editTurnForm.startIdx : turn.startIdx;
+          const currentEndIdx = editTurnForm ? editTurnForm.endIdx : turn.endIdx;
+
+          const ptStart = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) >= currentStartIdx);
+          const ptEnd = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) >= currentEndIdx);
+          
+          if (ptStart) {
+            const sStart = toScreen(ptStart);
+            ctx.beginPath();
+            ctx.arc(sStart.sx, sStart.sy, 10 / transform.scale, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffd33d';
+            ctx.fill();
+            ctx.lineWidth = 2 / transform.scale;
+            ctx.strokeStyle = '#161b22';
+            ctx.stroke();
+          }
+
+          if (ptEnd) {
+            const sEnd = toScreen(ptEnd);
+            ctx.beginPath();
+            ctx.arc(sEnd.sx, sEnd.sy, 10 / transform.scale, 0, Math.PI * 2);
+            ctx.fillStyle = '#f85149';
+            ctx.fill();
+            ctx.lineWidth = 2 / transform.scale;
+            ctx.strokeStyle = '#161b22';
+            ctx.stroke();
+          }
         }
 
         const dotRadius = 7 / transform.scale;
@@ -952,8 +1030,29 @@ export function TrackManagerPage({ onNavigate }) {
       }
     });
 
+    // 7. 绘制正在编辑弯道的拖拽锚点（红/黄点）
+    if (editingTurnIndex !== null && editTurnForm) {
+      const sPt = points.find(p => p.origIdx === editTurnForm.startIdx) || points[editTurnForm.startIdx];
+      const ePt = points.find(p => p.origIdx === editTurnForm.endIdx) || points[editTurnForm.endIdx];
+      
+      if (sPt) {
+        const p1 = toScreen(sPt);
+        ctx.beginPath();
+        ctx.arc(p1.sx, p1.sy, 6 / transform.scale, 0, Math.PI * 2);
+        ctx.fillStyle = '#f85149'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / transform.scale; ctx.stroke();
+      }
+      if (ePt) {
+        const p2 = toScreen(ePt);
+        ctx.beginPath();
+        ctx.arc(p2.sx, p2.sy, 6 / transform.scale, 0, Math.PI * 2);
+        ctx.fillStyle = '#d29922'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 / transform.scale; ctx.stroke();
+      }
+    }
+
     ctx.restore();
-  }, [editingTurnIndex]);
+  }, [editingTurnIndex, editTurnForm]);
 
   const previewTrack = async (id) => {
     setSelectedTrack(id);
@@ -1032,6 +1131,8 @@ export function TrackManagerPage({ onNavigate }) {
       sx: (p.x - minX) * sc + ox,
       sy: (maxZ - p.z) * sc + oz
     });
+
+    mapContextRef.current = { minX, minZ, maxZ, sc, ox, oz, points: resolvedPoints, toScreen };
     
     const centerOrigIdx = Math.floor((turn.startIdx + turn.endIdx) / 2);
     let centerPt = null;
@@ -1084,14 +1185,82 @@ export function TrackManagerPage({ onNavigate }) {
     }));
   };
 
-  const handleMouseDown = (e) => {
-    if (e.button === 0) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+  
+  const getClosestPointIndex = (clientX, clientY) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !mapContextRef.current) return -1;
+    const rect = canvas.getBoundingClientRect();
+    const pixelX = clientX - rect.left;
+    const pixelY = clientY - rect.top;
+    
+    const { minX, minZ, maxZ, sc, ox, oz, points } = mapContextRef.current;
+    if (!points || points.length === 0) return -1;
+    
+    // Reverse map from pixel to world
+    const sx = (pixelX - transform.x) / transform.scale;
+    const sy = (pixelY - transform.y) / transform.scale;
+    const worldX = (sx - ox) / sc + minX;
+    const worldZ = maxZ - (sy - oz) / sc;
+    
+    let closestIdx = -1;
+    let minDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const dx = points[i].x - worldX;
+      const dz = points[i].z - worldZ;
+      const dist = dx * dx + dz * dz;
+      if (dist < minDist) {
+        minDist = dist;
+        closestIdx = i;
+      }
     }
+    return { closestIdx, sx, sy };
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    
+    if (editingTurnIndex !== null && editTurnForm && mapContextRef.current) {
+      const { toScreen, points } = mapContextRef.current;
+      const { closestIdx, sx, sy } = getClosestPointIndex(e.clientX, e.clientY);
+      
+      const sPt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.startIdx) || points[editTurnForm.startIdx];
+      const ePt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.endIdx) || points[editTurnForm.endIdx];
+      if (sPt && ePt) {
+        const sScreen = toScreen(sPt);
+        const eScreen = toScreen(ePt);
+        
+        const distToStart = Math.hypot(sScreen.sx - sx, sScreen.sy - sy);
+        const distToEnd = Math.hypot(eScreen.sx - sx, eScreen.sy - sy);
+        
+        const hitRadius = 40 / transform.scale;
+        
+        if (distToStart < hitRadius) {
+          setDragMode('start');
+          return;
+        } else if (distToEnd < hitRadius) {
+          setDragMode('end');
+          return;
+        }
+      }
+    }
+    
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
 
   const handleMouseMove = (e) => {
+    if (dragMode) {
+      const { closestIdx } = getClosestPointIndex(e.clientX, e.clientY);
+      if (closestIdx !== -1 && editTurnForm) {
+        if (dragMode === 'start' && closestIdx < editTurnForm.endIdx) {
+          setEditTurnForm(prev => ({ ...prev, startIdx: closestIdx }));
+        } else if (dragMode === 'end' && closestIdx > editTurnForm.startIdx) {
+          setEditTurnForm(prev => ({ ...prev, endIdx: closestIdx }));
+        }
+      }
+      return;
+    }
+
     if (isDragging) {
       setTransform(prev => ({
         ...prev,
@@ -1101,9 +1270,65 @@ export function TrackManagerPage({ onNavigate }) {
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = async (e) => {
+    if (dragMode) {
+      setDragMode(null);
+      
+      // Auto save bounds!
+      if (editTurnForm && selectedTrack && editingTurnIndex !== null) {
+         try {
+           const res = await fetch(`/api/tracks/${selectedTrack}/turns/${editingTurnIndex}/bounds`, {
+             method: 'PUT',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ startIdx: editTurnForm.startIdx, endIdx: editTurnForm.endIdx })
+           });
+           if (res.ok) {
+             const data = await res.json();
+             updateSelectedTrackTurns(data.turns);
+             toast('弯道边界已更新', 'success');
+           }
+         } catch (err) {
+           console.error(err);
+         }
+      }
+      return;
+    }
     setIsDragging(false);
   };
+
+  const handleDoubleClick = async (e) => {
+    if (editingTurnIndex === null || !selectedTrack) return;
+    const { closestIdx } = getClosestPointIndex(e.clientX, e.clientY);
+    if (closestIdx !== -1 && editTurnForm) {
+       // Check if click is inside the current turn
+       if (closestIdx >= editTurnForm.startIdx && closestIdx <= editTurnForm.endIdx) {
+          setConfirmDialog({
+            message: '确认在此处拆分弯道吗？',
+            onConfirm: async () => {
+              try {
+                const res = await fetch(`/api/tracks/${selectedTrack}/turns/split`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ turnIndex: editingTurnIndex, splitIdx: closestIdx })
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  updateSelectedTrackTurns(data.turns);
+                  setEditingTurnIndex(null);
+                  setEditTurnForm(null);
+                  toast('弯道拆分成功', 'success');
+                } else {
+                  toast('拆分失败: ' + (await res.json()).error, 'error');
+                }
+              } catch(err) {
+                 console.error(err);
+              }
+            }
+          });
+       }
+    }
+  };
+
 
   const resetView = () => {
     setTransform({ x: 0, y: 0, scale: 1 });
@@ -1187,7 +1412,6 @@ export function TrackManagerPage({ onNavigate }) {
           ) : (
             <button onClick={startRecording} style={btnPrimaryStyle}>录制赛道</button>
           )}
-          <button onClick={() => setShowMergeModal(true)} style={btnSecondaryStyle}>合并</button>
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
@@ -1320,6 +1544,7 @@ export function TrackManagerPage({ onNavigate }) {
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
+                onDoubleClick={handleDoubleClick}
                 onMouseLeave={handleMouseUp}
               />
               {/* 悬浮缩放按钮组 */}
@@ -1522,6 +1747,12 @@ export function TrackManagerPage({ onNavigate }) {
                     >
                       取消
                     </button>
+                  </div>
+
+                  
+                  <div style={{ marginTop: 10, padding: 8, background: 'rgba(88,166,255,0.1)', borderRadius: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
+                    <div style={{ marginBottom: 4 }}>💡 <strong>调整边界</strong>：在上方地图中按住并拖拽入弯点(黄色)或出弯点(红色)。</div>
+                    <div>✂️ <strong>拆分弯道</strong>：在地图轨迹线上双击即可在此处切开弯道。</div>
                   </div>
 
                   {/* 方向与级别 */}
@@ -1782,27 +2013,7 @@ export function TrackManagerPage({ onNavigate }) {
                                   >
                                     {turn.isLockedByUser ? '解锁' : '锁定'}
                                   </button>
-                                  {idx < selectedTrackData.turns.length - 1 && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        mergeTurnDown(idx);
-                                      }}
-                                      style={{
-                                        background: 'rgba(88, 166, 255, 0.1)',
-                                        border: '1px solid #58a6ff',
-                                        borderRadius: 4,
-                                        color: '#58a6ff',
-                                        cursor: 'pointer',
-                                        fontSize: 10,
-                                        padding: '2px 6px',
-                                        fontWeight: 600
-                                      }}
-                                      title="向下合并"
-                                    >
-                                      合并
-                                    </button>
-                                  )}
+
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1841,6 +2052,30 @@ export function TrackManagerPage({ onNavigate }) {
           )}
         </div>
       </div>
+
+      {/* 确认操作弹窗 */}
+      {confirmDialog && (
+        <div style={modalOverlayStyle} onClick={() => setConfirmDialog(null)}>
+          <div style={{...modalContentStyle, maxWidth: 320, padding: 24, textAlign: 'center'}} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 20, fontWeight: 500 }}>
+              {confirmDialog.message}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <button 
+                onClick={() => setConfirmDialog(null)}
+                style={{ ...btnSecondaryStyle, padding: '6px 20px', fontSize: 12 }}
+              >取消</button>
+              <button 
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                style={{ ...btnDangerSmallStyle, padding: '6px 20px', fontSize: 12 }}
+              >确认</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 合并弹窗 */}
       {showMergeModal && (
@@ -2225,34 +2460,4 @@ const btnDangerIconStyle = {
   lineHeight: 1
 };
 
-const inputStyle = {
-  width: '100%',
-  padding: 8,
-  background: 'var(--bg-primary)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: 'var(--text-primary)',
-  fontSize: 11
-};
 
-const modalOverlayStyle = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: 'rgba(0,0,0,0.8)',
-  zIndex: 1000,
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center'
-};
-
-const modalContentStyle = {
-  background: 'var(--bg-secondary)',
-  borderRadius: 10,
-  padding: 20,
-  maxWidth: 500,
-  width: '90%',
-  border: '1px solid var(--border)'
-};

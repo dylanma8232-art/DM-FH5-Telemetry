@@ -71,9 +71,15 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
   // 监听赛道重命名事件
   useEffect(() => {
     if (!socket) return;
-    const onTrackUpdated = (payload) => {
+    const onTrackUpdated = async (payload) => {
       setTrackData(prev => {
         if (prev && prev.id === payload.trackId) {
+          // If just renaming, we update name synchronously.
+          // But to be fully synced with turns/routeBook, we fetch the track data async.
+          fetch(`/api/tracks/${payload.trackId}`)
+            .then(res => res.json())
+            .then(t => setTrackData(t))
+            .catch(console.error);
           return { ...prev, name: payload.name };
         }
         return prev;

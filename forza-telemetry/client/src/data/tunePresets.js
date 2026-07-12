@@ -590,7 +590,7 @@ export function applyProblemFix(problemId, currentTune, paramConstraints) {
  * 分析遥测帧数据，检测问题并返回调校建议
  *
  * @param {Array} frames - 遥测帧数据数组，每帧包含:
- *   - timestamp: 时间戳(ms)
+ *   - timestamp: 时间戳
  *   - speed: 当前速度(km/h)
  *   - throttle: 油门开度(0-1)
  *   - brake: 刹车力度(0-1)

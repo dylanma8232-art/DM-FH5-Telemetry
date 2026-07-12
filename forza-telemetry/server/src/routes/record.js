@@ -291,6 +291,11 @@ export default function(context) {
           setLastRecognitionResult(result);
           pushToRecognitionHistory(result);
           
+          // 自动挂载识别到的历史赛道，使得当前的自动录制可以保存并归属到这条赛道下
+          setTrackMode({ trackId: bestMatch.trackId, trackName: bestMatch.trackName });
+          resetAnnouncedTurnIndex(-1);
+          io.emit('trackModeChanged', { active: true, trackId: bestMatch.trackId, trackName: bestMatch.trackName });
+          
           io.emit('trackRecognized', {
             trackId: bestMatch.trackId,
             trackName: bestMatch.trackName,
@@ -332,12 +337,12 @@ export default function(context) {
       }
     }
     
-    // 启动判定（strict）：必须在比赛中 且 有名次 且 比赛时间流动
+    // 启动判定：必须在比赛中 且 有名次 且 比赛时间流动
     const isStartConditionMet = telemetry.isRaceOn && 
       telemetry.racePosition > 0 && 
       (telemetry.currentRaceTime && telemetry.currentRaceTime > 0);
 
-    // 维持判定（loose）：只要 isRaceOn 是 true 就可以继续录制（防止倒车/暂停/瞬移/多人游戏名次为0导致的录制中断）
+    // 维持判定：只要 isRaceOn 是 true 就可以继续录制（防止倒车/暂停/瞬移/多人游戏名次为0导致的录制中断）
     const isRaceActive = telemetry.isRaceOn;
 
     // 检测是否为重新开始比赛 (当已经在录制中，但比赛时间突然归零/重置，说明玩家在菜单里点了“重新开始”)
