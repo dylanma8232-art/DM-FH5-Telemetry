@@ -1,4 +1,4 @@
-import { checkAndAnnounceTurn, resetAnnouncedTurnIndex } from '../services/navigator.js';
+
 import { stateManager } from '../services/state-manager.js';
 import { readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
 import express from 'express';
@@ -23,22 +23,7 @@ const calculateTrackLength = (pts) => {
 };
 
 
-  // 测试播报API
-  router.post('/test/announce', express.json(), async (req, res) => {
-    const { x, z } = req.body;
-    const trackMode = stateManager.getTrackMode();
-    if (!trackMode || !trackMode.detail) {
-      return res.json({ error: '未进入赛道模式或未加载路书详情' });
-    }
-    const track = trackMode.detail;
-    if (!track.turns || track.turns.length === 0) {
-      return res.json({ error: '赛道无弯道数据' });
-    }
-    const position = { x: x || 0, y: 100, z: z || 0 };
-    console.log(`[测试播报] 模拟位置: (${position.x}, ${position.z})`);
-    await checkAndAnnounceTurn(position, track.turns, track.centerline || track.points, { io: stateManager.io });
-    res.json({ status: 'ok', position, turnCount: track.turns.length });
-  });
+
 
   // 赛道模式启动
   router.post('/trackMode/start', express.json(), (req, res) => {
@@ -48,7 +33,7 @@ const calculateTrackLength = (pts) => {
     const trackDetail = readTrackDetail(trackId);
     const newMode = { trackId: trackId, trackName: stateManager.tracks[trackId].name, detail: trackDetail };
     stateManager.setTrackMode(newMode);
-    resetAnnouncedTurnIndex(-1);
+
     
     const turns = trackDetail?.turns || [];
     
@@ -59,7 +44,7 @@ const calculateTrackLength = (pts) => {
   // 赛道模式停止
   router.post('/trackMode/stop', (req, res) => {
     stateManager.setTrackMode(null);
-    resetAnnouncedTurnIndex(-1);
+
     console.log('[赛道模式] 已退出赛道模式');
     res.json({ status: 'ok' });
   });
