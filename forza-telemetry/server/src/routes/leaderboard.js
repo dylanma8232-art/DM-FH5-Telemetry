@@ -103,7 +103,7 @@ function buildLeaderboard() {
 
     const latestTrackName = stateManager.tracks[g.trackId]?.name || g.trackName || '未知赛道';
     const vehicleDetail = stateManager.vehicles[String(g.vehicleOrdinal)];
-    const vehicleName = vehicleDetail?.name || `Car #${g.vehicleOrdinal}`;
+    const vehicleName = vehicleDetail?.name || (g.vehicleOrdinal && g.vehicleOrdinal !== 'null' && g.vehicleOrdinal !== 'undefined' ? `Car #${g.vehicleOrdinal}` : '未知车辆');
 
     const firstValidSession = g.sessions.find((s) => s.bestLap > 0);
     const firstLap = firstValidSession ? firstValidSession.bestLap : 0;
