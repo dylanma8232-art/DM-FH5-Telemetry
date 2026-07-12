@@ -969,7 +969,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                 </span>
                 <span>&gt;</span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {trackFilter} 轨迹概览
+                  {sessions.find(s => s.trackId === trackFilter)?.trackName || trackFilter} 轨迹概览
                 </span>
               </div>
               <button onClick={() => setTrackFilter('')} style={{
@@ -981,11 +981,12 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
             {/* 看板主体 */}
             {(() => {
-              const matchedSession = sessions.find(s => s.trackName === trackFilter);
-              const trackId = matchedSession?.trackId;
+              // trackFilter 是 trackId
+              const matchedSession = sessions.find(s => s.trackId === trackFilter);
+              const trackId = trackFilter; // 直接用 trackFilter 作为 trackId
 
-              // 过滤出该赛道的所有比赛记录
-              const matchedEntries = lbEntries.filter(e => e.trackName === trackFilter);
+              // 过滤出该赛道的排行榜记录
+              const matchedEntries = lbEntries.filter(e => e.trackId === trackId);
               const trackSessions = [...myFilteredSessions].reverse(); // 从老到新
               const learningData = trackSessions
                 .filter(s => s.laps?.best > 0)

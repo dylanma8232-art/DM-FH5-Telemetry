@@ -540,7 +540,6 @@ export function PaceNotesPanel({
   useEffect(() => {
     setHasRaceStarted(false);
     setActiveTurnIdx(-1);
-    setHasPassed(false);
     spokenTurnsRef.current.clear();
   }, [trackData?.id]);
 

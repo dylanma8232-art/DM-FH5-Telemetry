@@ -189,6 +189,12 @@ const calculateTrackLength = (pts) => {
 
     const ts = Date.now();
     const currentData = stateManager.getCurrentData();
+    // 从 stateManager.vehicles 获取带名称的车辆信息，避免保存空白编号
+    const carOrdinal = currentData?.car?.ordinal;
+    const vehicleFromState = carOrdinal && carOrdinal > 0 ? stateManager.vehicles[String(carOrdinal)] : null;
+    const vehicleToSave = vehicleFromState
+      ? { ordinal: carOrdinal, name: vehicleFromState.name, class: vehicleFromState.class, performanceIndex: vehicleFromState.pi }
+      : (carOrdinal > 0 ? currentData.car : null);
     const sessionDataMeta = {
       id: 'session_' + ts,
       trackName: trackName,
@@ -198,7 +204,7 @@ const calculateTrackLength = (pts) => {
       trackMode: !!trackMode,
       tuneId: stateManager.getCurrentTuneId(),
       duration: duration,
-      vehicle: currentData ? currentData.car : null
+      vehicle: vehicleToSave
     };
 
     const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/save-worker.js');
@@ -468,6 +474,11 @@ const calculateTrackLength = (pts) => {
     }
 
     const currentData = stateManager.getCurrentData();
+    const manCarOrdinal = currentData?.car?.ordinal;
+    const manVehicleFromState = manCarOrdinal && manCarOrdinal > 0 ? stateManager.vehicles[String(manCarOrdinal)] : null;
+    const manVehicleToSave = manVehicleFromState
+      ? { ordinal: manCarOrdinal, name: manVehicleFromState.name, class: manVehicleFromState.class, performanceIndex: manVehicleFromState.pi }
+      : (manCarOrdinal > 0 ? currentData.car : null);
     const sessionDataMeta = {
       id: 'session_' + ts,
       trackName: trackName,
@@ -476,7 +487,7 @@ const calculateTrackLength = (pts) => {
       autoRecorded: false,
       tuneId: stateManager.getCurrentTuneId(),
       duration: 0,
-      vehicle: currentData ? currentData.car : null
+      vehicle: manVehicleToSave
     };
 
     const tempFilePath = manualRecordTempPath;
