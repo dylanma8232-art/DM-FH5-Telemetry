@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
-import { checkAndAnnounceTurn, resetAnnouncedTurnIndex } from '../services/navigator.js';
+
 import { stateManager } from '../services/state-manager.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import { saveTracksDatabase, readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
@@ -384,7 +384,7 @@ const calculateTrackLength = (pts) => {
           if (isStartConditionMet && trackMode && trackMode.detail) {
             const track = trackMode.detail;
             if (track.turns && track.turns.length > 0) {
-              checkAndAnnounceTurn(position, track.turns, track.centerline || track.points, { io: stateManager.io });
+
             }
           }
         }
@@ -416,7 +416,7 @@ const calculateTrackLength = (pts) => {
     if (isManualRecording && isStartConditionMet && trackMode && trackMode.detail) {
       const track = trackMode.detail;
       if (track.turns && track.turns.length > 0 && isPositionValid) {
-        checkAndAnnounceTurn(position, track.turns, track.centerline || track.points, { io: stateManager.io });
+
       }
     }
   }
