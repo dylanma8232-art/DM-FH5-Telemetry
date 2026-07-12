@@ -455,7 +455,7 @@ const PART_PRIORITY = {
 // 导出的常量
 // ============================================================
 
-export { TIERS, TIER_LABELS, PART_CATEGORIES, PI_TABLE, TUNE_REQUIREMENTS, TUNE_RANGES, PART_PRIORITY };
+export { TIER_LABELS, PART_CATEGORIES };
 
 
 // ============================================================
@@ -489,7 +489,7 @@ export function getDefaultParts() {
  * 返回所有配件类别的完整定义
  * @returns {Array} 配件类别数组
  */
-export function getPartCategories() {
+function getPartCategories() {
   return PART_CATEGORIES;
 }
 
@@ -506,7 +506,7 @@ export function getPartCategories() {
  * @returns {Array|null} 等级数组，每个元素 { tier, label, labelEn, color, piAdd(从上一级升到本级) }
  *                       或 null（选项制配件）
  */
-export function getPartTiers(categoryId) {
+function getPartTiers(categoryId) {
   const cat = PART_CATEGORIES.find(c => c.id === categoryId);
   if (!cat) return null;
   if (!cat.tierSystem) return null;
@@ -551,7 +551,7 @@ export function getPartTiers(categoryId) {
  * getPartPiAdd('tires_compound', 'street', 'race') // 15 + 20 = 35
  * getPartPiAdd('brakes', 'race', 'race')        // 0
  */
-export function getPartPiAdd(partId, fromTier, toTier) {
+function getPartPiAdd(partId, fromTier, toTier) {
   if (!partId || !fromTier || !toTier) return 0;
 
   const cat = PART_CATEGORIES.find(c => c.id === partId);

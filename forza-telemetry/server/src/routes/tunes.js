@@ -60,7 +60,7 @@ router.post('/active', express.json(), asyncHandler(async (req, res) => {
 // 获取当前活跃调校
 router.get('/active', asyncHandler(async (req, res) => {
 
-  const curId = context.getCurrentTuneId ? context.getCurrentTuneId() : stateManager.currentTuneId;
+  const curId = stateManager.getCurrentTuneId();
   if (!curId || !stateManager.tunes[curId]) {
     return res.json({ currentTuneId: null, tune: null });
   }

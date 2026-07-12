@@ -438,21 +438,21 @@ export const DRIVING_PROBLEMS = [
 // ============================================================
 // 问题分类索引 (按分类快速查找问题)
 // ============================================================
-export function getProblemsByCategory(categoryId) {
+function getProblemsByCategory(categoryId) {
   return DRIVING_PROBLEMS.filter(p => p.category === categoryId)
 }
 
 // ============================================================
 // 根据问题ID获取调校建议
 // ============================================================
-export function getProblemById(problemId) {
+function getProblemById(problemId) {
   return DRIVING_PROBLEMS.find(p => p.id === problemId) || null
 }
 
 // ============================================================
 // 检查配件是否满足调校建议的最低要求
 // ============================================================
-export function checkPartRequirements(problemId, currentParts) {
+function checkPartRequirements(problemId, currentParts) {
   const problem = getProblemById(problemId)
   if (!problem) return { met: true, missing: [] }
 
@@ -484,7 +484,7 @@ export function checkPartRequirements(problemId, currentParts) {
 // ============================================================
 // 将问题建议应用到当前调校 (生成新调校值)
 // ============================================================
-export function applyProblemFix(problemId, currentTune, paramConstraints) {
+function applyProblemFix(problemId, currentTune, paramConstraints) {
   const problem = getProblemById(problemId)
   if (!problem || !currentTune) return null
 
@@ -1044,7 +1044,7 @@ export function diagnoseFromTelemetry(frames, currentTune = {}) {
 // ============================================================
 // 批量应用遥测诊断建议到当前调校
 // ============================================================
-export function applyTelemetrySuggestions(suggestions, currentTune, paramConstraints) {
+function applyTelemetrySuggestions(suggestions, currentTune, paramConstraints) {
   if (!suggestions || suggestions.length === 0 || !currentTune) return { newTune: currentTune, summary: [] }
 
   const newTune = JSON.parse(JSON.stringify(currentTune))
@@ -1139,7 +1139,7 @@ export function applyTelemetrySuggestions(suggestions, currentTune, paramConstra
 // ============================================================
 // 问题严重程度配置
 // ============================================================
-export const SEVERITY_CONFIG = {
+const SEVERITY_CONFIG = {
   high: {
     label: '严重',
     color: '#f85149',
