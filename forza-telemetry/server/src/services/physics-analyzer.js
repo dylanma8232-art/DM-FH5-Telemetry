@@ -259,246 +259,125 @@ export function calculateDrivingScore(session) {
   };
 }
 
-// 轮胎性能分析
-export function calculateTireAnalysis(data) {
-  if (!data || data.length === 0) {
-    return { 温度分布: {}, 打滑统计: {}, 侧偏角分析: {} };
-  }
-  
-  const tireTempFL = [], tireTempFR = [], tireTempRL = [], tireTempRR = [];
-  const slipFL = [], slipFR = [], slipRL = [], slipRR = [];
-  const angleFL = [], angleFR = [], angleRL = [], angleRR = [];
-  
-  data.forEach(d => {
-    if (d.tireTemp) {
-      tireTempFL.push(d.tireTemp.frontLeft || 0);
-      tireTempFR.push(d.tireTemp.frontRight || 0);
-      tireTempRL.push(d.tireTemp.rearLeft || 0);
-      tireTempRR.push(d.tireTemp.rearRight || 0);
-    }
-    if (d.tireCombinedSlip) {
-      slipFL.push(d.tireCombinedSlip.frontLeft || 0);
-      slipFR.push(d.tireCombinedSlip.frontRight || 0);
-      slipRL.push(d.tireCombinedSlip.rearLeft || 0);
-      slipRR.push(d.tireCombinedSlip.rearRight || 0);
-    }
-    if (d.tireSlipAngle) {
-      angleFL.push(d.tireSlipAngle.frontLeft || 0);
-      angleFR.push(d.tireSlipAngle.frontRight || 0);
-      angleRL.push(d.tireSlipAngle.rearLeft || 0);
-      angleRR.push(d.tireSlipAngle.rearRight || 0);
-    }
-  });
-  
-  const avg = arr => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-  const max = arr => arr.length > 0 ? Math.max(...arr) : 0;
-  
-  const toCelsius = f => (f - 32) * 5 / 9;
-  const avgTempFL = toCelsius(avg(tireTempFL));
-  const avgTempFR = toCelsius(avg(tireTempFR));
-  const avgTempRL = toCelsius(avg(tireTempRL));
-  const avgTempRR = toCelsius(avg(tireTempRR));
-  
-  return {
-    温度分布: {
-      前左: Math.round(avgTempFL),
-      前右: Math.round(avgTempFR),
-      后左: Math.round(avgTempRL),
-      后右: Math.round(avgTempRR),
-      平均温度: Math.round((avgTempFL + avgTempFR + avgTempRL + avgTempRR) / 4),
-      最高温差: Math.round(Math.max(avgTempFL, avgTempFR, avgTempRL, avgTempRR) - Math.min(avgTempFL, avgTempFR, avgTempRL, avgTempRR))
-    },
-    打滑统计: {
-      前左平均: (avg(slipFL)).toFixed(2),
-      前右平均: (avg(slipFR)).toFixed(2),
-      后左平均: (avg(slipRL)).toFixed(2),
-      后右平均: (avg(slipRR)).toFixed(2),
-      最大打滑: (max([...slipFL, ...slipFR, ...slipRL, ...slipRR])).toFixed(2),
-      打滑时间比例: Math.round(data.filter(d => {
-        const slip = d.tireCombinedSlip || {};
-        return (slip.frontLeft || 0) > 0.8 || (slip.frontRight || 0) > 0.8 || 
-               (slip.rearLeft || 0) > 0.8 || (slip.rearRight || 0) > 0.8;
-      }).length / data.length * 100)
-    },
-    侧偏角分析: {
-      前左平均: (avg(angleFL)).toFixed(1),
-      前右平均: (avg(angleFR)).toFixed(1),
-      后左平均: (avg(angleRL)).toFixed(1),
-      后右平均: (avg(angleRR)).toFixed(1)
-    }
-  };
-}
-
-// 制动分析
-export function calculateBrakingAnalysis(data, positions) {
-  if (!data || data.length === 0) {
-    return { 刹车点: [], 刹车力度: {}, 刹车效率: 0 };
-  }
-  
-  const brakeEvents = [];
-  let isBraking = false;
-  let brakeStart = null;
-  
-  data.forEach((d, i) => {
-    const brake = d.controls?.brake || 0;
-    
-    if (brake > 50 && !isBraking) {
-      isBraking = true;
-      brakeStart = {
-        index: i,
-        speed: d.speedKmh || 0,
-        position: d.position || {},
-        time: d.timestampMS || 0
-      };
-    } else if (brake <= 50 && isBraking) {
-      isBraking = false;
-      if (brakeStart) {
-        const brakeEnd = {
-          index: i,
-          speed: d.speedKmh || 0,
-          position: d.position || {},
-          time: d.timestampMS || 0
-        };
-        
-        brakeEvents.push({
-          起始速度: Math.round(brakeStart.speed),
-          结束速度: Math.round(brakeEnd.speed),
-          速度损失: Math.round(brakeStart.speed - brakeEnd.speed),
-          持续时间: brakeEnd.time - brakeStart.time,
-          起始位置: brakeStart.position,
-          结束位置: brakeEnd.position
-        });
-      }
-    }
-  });
-  
-  const brakeValues = data.map(d => d.controls?.brake || 0).filter(b => b > 0);
-  const avgBrake = brakeValues.length > 0 ? brakeValues.reduce((a, b) => a + b, 0) / brakeValues.length : 0;
-  
-  const brakeGForces = data.map(d => Math.abs(d.acceleration?.z || 0)).filter(g => g > 0.1);
-  const avgBrakeG = brakeGForces.length > 0 ? brakeGForces.reduce((a, b) => a + b, 0) / brakeGForces.length : 0;
-  
-  return {
-    刹车事件: brakeEvents.slice(0, 20),
-    刹车事件总数: brakeEvents.length,
-    平均刹车力度: Math.round(avgBrake),
-    平均刹车G力: avgBrakeG.toFixed(2),
-    刹车效率: avgBrake > 0 ? (avgBrakeG / (avgBrake / 255) * 100).toFixed(0) : 0
-  };
-}
-
-// 加速效率分析
-export function calculateAccelerationAnalysis(data) {
-  if (!data || data.length === 0) {
-    return { 加速G力: {}, 牵引力利用率: 0, 出弯加速点: [] };
-  }
-  
-  const accelEvents = [];
-  let isAccelerating = false;
-  let accelStart = null;
-  
-  data.forEach((d, i) => {
-    const accel = d.controls?.accel || 0;
-    const brake = d.controls?.brake || 0;
-    
-    if (accel > 200 && brake < 30 && !isAccelerating) {
-      isAccelerating = true;
-      accelStart = {
-        index: i,
-        speed: d.speedKmh || 0,
-        time: d.timestampMS || 0
-      };
-    } else if ((accel < 100 || brake > 50) && isAccelerating) {
-      isAccelerating = false;
-      if (accelStart) {
-        const accelEnd = {
-          index: i,
-          speed: d.speedKmh || 0,
-          time: d.timestampMS || 0
-        };
-        
-        accelEvents.push({
-          起始速度: Math.round(accelStart.speed),
-          结束速度: Math.round(accelEnd.speed),
-          速度提升: Math.round(accelEnd.speed - accelStart.speed),
-          持续时间: accelEnd.time - accelStart.time
-        });
-      }
-    }
-  });
-  
-  const accelGForces = data.map(d => d.acceleration?.z || 0).filter(g => g > 0.1);
-  const avgAccelG = accelGForces.length > 0 ? accelGForces.reduce((a, b) => a + b, 0) / accelGForces.length : 0;
-  const maxAccelG = accelGForces.length > 0 ? Math.max(...accelGForces) : 0;
-  
-  const slipDuringAccel = data.filter(d => (d.controls?.accel || 0) > 200)
-    .map(d => {
-      const slip = d.tireCombinedSlip || {};
-      return Math.max(slip.frontLeft || 0, slip.frontRight || 0, slip.rearLeft || 0, slip.rearRight || 0);
-    });
-  const avgSlipDuringAccel = slipDuringAccel.length > 0 ? slipDuringAccel.reduce((a, b) => a + b, 0) / slipDuringAccel.length : 0;
-  
-  return {
-    加速事件: accelEvents.slice(0, 20),
-    加速事件总数: accelEvents.length,
-    平均加速G力: avgAccelG.toFixed(2),
-    最大加速G力: maxAccelG.toFixed(2),
-    牵引力利用率: ((1 - avgSlipDuringAccel) * 100).toFixed(0),
-    平均加速打滑: avgSlipDuringAccel.toFixed(2)
-  };
-}
-
-// 换挡分析
-export function calculateShiftAnalysis(data) {
-  if (!data || data.length === 0) {
-    return { 换挡点: [], 档位统计: {}, 转速利用率: 0 };
-  }
+// FH5 动力与传动透视图分析
+export function calculateGearingAnalysis(data) {
+  if (!data || data.length === 0) return { powerBand: [], shifts: [], maxRpmBangingTimeSec: 0 };
   
   const shifts = [];
-  let prevGear = 0;
-  const isForward = (g) => g >= 1 && g <= 10;
+  const powerBandMap = new Map();
   
-  data.forEach((d, i) => {
+  let prevGear = 0;
+  let rpmBangingTicks = 0;
+  
+  data.forEach(d => {
     const gear = d.controls?.gear ?? d.gear ?? 0;
     const rpm = d.currentEngineRpm || d.rpm || 0;
+    const power = d.powerWatts || d.powerHP || 0;
+    const torque = d.torque || 0;
     const maxRpm = d.engineMaxRpm || 8000;
     
-    if (gear !== prevGear && isForward(prevGear) && isForward(gear)) {
+    if (gear >= 4 && rpm > maxRpm * 0.98) {
+      rpmBangingTicks++;
+    }
+    
+    if (gear > prevGear && prevGear > 0 && gear <= 10) {
       shifts.push({
-        从档位: prevGear,
-        到档位: gear,
-        换挡转速: Math.round(rpm),
-        转速百分比: Math.round((rpm / maxRpm) * 100),
-        速度: Math.round(d.speedKmh || 0)
+        gear: `${prevGear}->${gear}`,
+        rpm: Math.round(rpm),
+        speed: Math.round(d.speedKmh || (d.speedMs ? d.speedMs * 3.6 : 0)),
+        time: d.timestampMS || 0
       });
     }
     prevGear = gear;
-  });
-  
-  const gearUsage = {};
-  data.forEach(d => {
-    const gear = d.controls?.gear ?? d.gear ?? 0;
-    if (isForward(gear)) {
-      const gearName = gear + '档';
-      gearUsage[gearName] = (gearUsage[gearName] || 0) + 1;
+    
+    if (power > 0 || torque > 0) {
+      const roundedRpm = Math.floor(rpm / 100) * 100;
+      if (!powerBandMap.has(roundedRpm)) {
+        powerBandMap.set(roundedRpm, { power: [], torque: [] });
+      }
+      powerBandMap.get(roundedRpm).power.push(power);
+      powerBandMap.get(roundedRpm).torque.push(torque);
     }
   });
   
-  const totalGearTime = Object.values(gearUsage).reduce((a, b) => a + b, 0);
-  const gearPercentages = {};
-  Object.entries(gearUsage).forEach(([gear, count]) => {
-    gearPercentages[gear] = Math.round((count / totalGearTime) * 100);
+  const powerBand = Array.from(powerBandMap.keys()).sort((a,b)=>a-b).map(rpm => {
+    const pts = powerBandMap.get(rpm);
+    return {
+      rpm,
+      power: Math.round(pts.power.reduce((a,b)=>a+b,0) / pts.power.length),
+      torque: Math.round(pts.torque.reduce((a,b)=>a+b,0) / pts.torque.length)
+    };
   });
   
-  const rpmValues = data.map(d => (d.currentEngineRpm || 0) / (d.engineMaxRpm || 8000) * 100);
-  const avgRpmPercent = rpmValues.length > 0 ? rpmValues.reduce((a, b) => a + b, 0) / rpmValues.length : 0;
+  return {
+    powerBand,
+    shifts: shifts.slice(0, 50),
+    maxRpmBangingTimeSec: (rpmBangingTicks / 60).toFixed(2)
+  };
+}
+
+// FH5 底盘与避震扫描分析
+export function calculateSuspensionAnalysis(data, positions) {
+  if (!data || data.length === 0) return { bottomingEvents: [], bottomingScore: 100 };
+  
+  const bottomingEvents = [];
+  let bottomingTicks = 0;
+  
+  data.forEach((d, i) => {
+    const susp = d.suspension || {};
+    const isBottoming = (susp.frontLeft >= 0.98 || susp.frontRight >= 0.98 || susp.rearLeft >= 0.98 || susp.rearRight >= 0.98);
+    
+    if (isBottoming) {
+      bottomingTicks++;
+      if (bottomingTicks % 10 === 1) {
+        bottomingEvents.push({
+          time: d.timestampMS || 0,
+          speed: Math.round(d.speedKmh || 0),
+          position: positions && positions[i] ? positions[i] : null
+        });
+      }
+    }
+  });
   
   return {
-    换挡事件: shifts.slice(0, 30),
-    换挡总数: shifts.length,
-    档位使用: gearPercentages,
-    平均换挡转速: shifts.length > 0 ? Math.round(shifts.reduce((a, b) => a + b.换挡转速, 0) / shifts.length) : 0,
-    平均转速利用率: Math.round(avgRpmPercent)
+    bottomingEvents: bottomingEvents.slice(0, 30),
+    bottomingScore: Math.max(0, 100 - (bottomingTicks / 10)),
+    totalBottomingTicks: bottomingTicks
+  };
+}
+
+// FH5 差速器与滑移角动态分析
+export function calculateDifferentialAnalysis(data) {
+  if (!data || data.length === 0) return { cornerExitSlip: [], oversteerEvents: [] };
+  
+  const cornerExitSlip = [];
+  const oversteerEvents = [];
+  
+  data.forEach(d => {
+    const accel = d.controls?.accel || 0;
+    const yaw = Math.abs(d.angularVelocity?.y || 0);
+    const slipRatio = d.tireSlipRatio || {};
+    
+    if (accel > 127 && yaw > 0.5) {
+      const frontSlip = ((slipRatio.frontLeft || 0) + (slipRatio.frontRight || 0)) / 2;
+      const rearSlip = ((slipRatio.rearLeft || 0) + (slipRatio.rearRight || 0)) / 2;
+      
+      cornerExitSlip.push({
+        time: d.timestampMS || 0,
+        frontSlip: frontSlip.toFixed(3),
+        rearSlip: rearSlip.toFixed(3),
+        speed: Math.round(d.speedKmh || 0)
+      });
+      
+      if (rearSlip > frontSlip + 0.5) {
+        oversteerEvents.push({ time: d.timestampMS, severity: 'High' });
+      }
+    }
+  });
+  
+  return {
+    cornerExitSlip: cornerExitSlip.filter((_, i) => i % 5 === 0).slice(0, 50),
+    oversteerEvents: oversteerEvents.slice(0, 20)
   };
 }
 
@@ -801,7 +680,7 @@ export function generateTuneDiagnosis(session, tune) {
   const leftTemp = (avgTemp.fl + avgTemp.rl) / 2;
   const rightTemp = (avgTemp.fr + avgTemp.rr) / 2;
   if (Math.abs(leftTemp - rightTemp) > 10) {
-    diagnoses.push({ 类别: '轮胎', 严重程度: 'medium', 问题: '左右轮胎温度不均', 数据: `左${leftTemp.toFixed(1)}°F vs 右${rightTemp.toFixed(1)}°F`, 建议: '检查束角(Toe)设置，温度高的一侧应增加负束角', 调整方向: {} });
+    diagnoses.push({ 类别: '轮胎', 严重程度: 'medium', 问题: '左右轮胎温度不均', 数据: `左${leftTemp.toFixed(1)}°F vs 右${rightTemp.toFixed(1)}°F`, 建议: '检查束角设置，温度高的一侧应增加负束角', 调整方向: {} });
   }
 
   if (frontSusp < 0.35) {

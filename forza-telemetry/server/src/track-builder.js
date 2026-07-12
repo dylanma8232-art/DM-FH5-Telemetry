@@ -702,8 +702,7 @@ export function smoothCenterline(centerline, iterations = 5) {
   return pts;
 }
 
-export function generateNavigationData() { return {}; }
-export function calculateTrackSimilarity() { return 1; }
+
 /**
  * 自动平均切分3个Sectors
  */
@@ -738,7 +737,7 @@ export function generateSectors(centerline) {
     }
   ];
 }
-export function recognizeTrack() { return null; }
+
 export function validateTrackQuality(trackData) {
   if (!trackData) {
     return { overallScore: 0, details: {}, warnings: ['无赛道数据'], suggestions: [] };
@@ -995,7 +994,7 @@ export function detectTurnsEnhanced(centerline) {
     }
   }
 
-  // 3. 同向折点合并算法 (Polygon Vertex Merging)
+  // 3. 同向折点合并算法 (宏观测绘法防碎裂)
   if (rdpTurns.length === 0) return [];
   
   let currentTurnStartIdx = rdpTurns[0].idx;
@@ -1005,29 +1004,42 @@ export function detectTurnsEnhanced(centerline) {
   for (let i = 1; i < rdpTurns.length; i++) {
     const curr = rdpTurns[i];
     
-    // 如果方向相同，并且物理距离不是很远 (比如 200米以内连续转向)，视为同一个大弯
     const distToLast = Math.sqrt(
       Math.pow(centerline[curr.idx].x - centerline[currentTurnEndIdx].x, 2) +
       Math.pow(centerline[curr.idx].z - centerline[currentTurnEndIdx].z, 2)
     );
     
-    if (curr.direction === currentDirection && distToLast < 200) {
-      // 合并到当前弯道
-      currentTurnEndIdx = curr.idx;
-    } else {
-      // 方向变了，或者距离太远脱节了，结算上一个弯道
-      if (currentTurnEndIdx - currentTurnStartIdx > 4) { // 需要有一定的跨度
-        const turnObj = calculateTurnAttributes(centerline, currentTurnStartIdx, currentTurnEndIdx, 'T' + turnCount);
-        if (turnObj) {
-          turns.push(turnObj);
-          turnCount++;
+    if (curr.direction === currentDirection) {
+      if (distToLast < 200) {
+        // 同向且距离近，正常延长当前弯道
+        currentTurnEndIdx = curr.idx;
+      } else {
+        // 距离太远，视为脱节，结算当前弯道
+        if (currentTurnEndIdx - currentTurnStartIdx > 4) {
+          const turnObj = calculateTurnAttributes(centerline, currentTurnStartIdx, currentTurnEndIdx, 'T' + turnCount);
+          if (turnObj) { turns.push(turnObj); turnCount++; }
         }
+        currentTurnStartIdx = curr.idx;
+        currentTurnEndIdx = curr.idx;
+        currentDirection = curr.direction;
       }
-      
-      // 开启新弯道
-      currentTurnStartIdx = curr.idx;
-      currentTurnEndIdx = curr.idx;
-      currentDirection = curr.direction;
+    } else {
+      // 遇到反向偏转！判断是轻微抖动还是真正的 S 弯
+      // 如果发生在高频密集区 (<15米) 且 偏转角度很小 (<15度)
+      if (distToLast < 25 && curr.deg < 15) {
+        // 这仅仅是车手的微操反打方向，或者地图的微小颠簸。
+        // 上帝视角：忽略它，不结算当前大弯。只是不把它当做 endIdx 更新。
+        // （相当于平滑越过）
+      } else {
+        // 真正的反向弯，或者是长直道后的反向入弯，立即阻断合并！
+        if (currentTurnEndIdx - currentTurnStartIdx > 4) {
+          const turnObj = calculateTurnAttributes(centerline, currentTurnStartIdx, currentTurnEndIdx, 'T' + turnCount);
+          if (turnObj) { turns.push(turnObj); turnCount++; }
+        }
+        currentTurnStartIdx = curr.idx;
+        currentTurnEndIdx = curr.idx;
+        currentDirection = curr.direction;
+      }
     }
   }
   
@@ -1040,7 +1052,8 @@ export function detectTurnsEnhanced(centerline) {
     }
   }
 
-  // S弯 (Chicane) 组合识别
+
+  // S弯 组合识别
   for (let i = 0; i < turns.length - 1; i++) {
     const curr = turns[i];
     const next = turns[i + 1];
@@ -1171,7 +1184,7 @@ export function buildRouteBook(centerline, turns, allPoints) {
       ? Math.round(stats.gearDrops.reduce((a, b) => a + b, 0) / stats.gearDrops.length)
       : turn.suggestedGearDrop;
 
-    // 计算物理直道距离 (distanceToNext)
+    // 计算物理直道距离
     let distanceToNext = 0;
     if (i < turns.length - 1) {
       const nextTurn = turns[i+1];
@@ -1497,7 +1510,7 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   let angleDiff = Math.abs(yawEnd - yawStart) * 180 / Math.PI;
   if (angleDiff > 180) angleDiff = 360 - angleDiff;
   
-  // 离心侧倾侧向力补偿计算 (camber)
+  // 离心侧倾侧向力补偿计算
   let totalCompRoll = 0;
   let ptsCount = 0;
   let hasRollData = false;
@@ -1583,6 +1596,15 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   
   let dirStr = turnDirection > 0 ? "右" : "左";
   let note = `${dirStr}${severity}`;
+
+  let physicalDistance = 0;
+  for (let i = turnStartIdx; i < turnEndIdx; i++) {
+    const dx = centerline[i+1].x - centerline[i].x;
+    const dz = centerline[i+1].z - centerline[i].z;
+    physicalDistance += Math.sqrt(dx*dx + dz*dz);
+  }
+  let isLong = physicalDistance > 60 && angleDiff > 60;
+  if (isLong) note += "长";
   
   let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
   
@@ -1606,7 +1628,8 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
     radius: Math.round(minRadius),
     angle: angleDiff,
     severity: severity,
-    type: type,
+    turnType: type,
+    isLong: isLong,
     turnCategory: note,
     direction: turnDirection > 0 ? "right" : "left",
     camber: camberType,
@@ -1657,4 +1680,41 @@ function mapOldTurnsToNewCenterline(oldTurns, centerline) {
   });
   
   return mapped;
+}
+
+export function remapLockedTurns(oldTurns, oldCenterline, newCenterline) {
+  if (!oldTurns || !oldTurns.length || !oldCenterline || !newCenterline || !newCenterline.length) return oldTurns;
+
+  const getDistance = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.z - p2.z)**2);
+
+  const findClosestIdx = (pt) => {
+    if (!pt) return 0;
+    let minD = Infinity;
+    let minIdx = 0;
+    for (let i = 0; i < newCenterline.length; i++) {
+      const d = getDistance(pt, newCenterline[i]);
+      if (d < minD) {
+        minD = d;
+        minIdx = i;
+      }
+    }
+    return minIdx;
+  };
+
+  return oldTurns.map(turn => {
+    const startPt = oldCenterline[turn.startIdx] || oldCenterline[0];
+    const endPt = oldCenterline[turn.endIdx] || oldCenterline[oldCenterline.length - 1];
+    const apexPt = oldCenterline[turn.apexIdx] || oldCenterline[Math.floor((turn.startIdx + turn.endIdx)/2)];
+
+    const newStart = findClosestIdx(startPt);
+    const newEnd = findClosestIdx(endPt);
+    const newApex = findClosestIdx(apexPt);
+
+    return {
+      ...turn,
+      startIdx: Math.min(newStart, newEnd),
+      endIdx: Math.max(newStart, newEnd),
+      apexIdx: newApex
+    };
+  });
 }

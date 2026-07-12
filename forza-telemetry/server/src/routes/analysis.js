@@ -6,13 +6,9 @@ import {
   calculateDrivingStyle,
   calculateDetailedStats,
   calculateDrivingScore,
-  calculateTireAnalysis,
-  calculateBrakingAnalysis,
-  calculateAccelerationAnalysis,
-  calculateShiftAnalysis,
-  calculateSectorAnalysis,
-  analyzeSectors,
-  generateDrivingAdvice,
+  calculateGearingAnalysis,
+  calculateSuspensionAnalysis,
+  calculateDifferentialAnalysis,
   generateTuneDiagnosis,
   getBestLapNum,
   findClosestPoint
@@ -48,7 +44,10 @@ export default function(context) {
         走线分析: calculateDrivingLineAnalysis(session.positions || []),
         驾驶风格: calculateDrivingStyle(session.data || []),
         详细统计: calculateDetailedStats(session.data || []),
-        驾驶评分: calculateDrivingScore(session)
+        驾驶评分: calculateDrivingScore(session),
+        动力齿比: calculateGearingAnalysis(session.data || []),
+        底盘悬挂: calculateSuspensionAnalysis(session.data || [], session.positions || []),
+        差速抓地力: calculateDifferentialAnalysis(session.data || [])
       };
       
       res.json(analysis);
@@ -58,57 +57,6 @@ export default function(context) {
     }
   });
 
-  // 轮胎性能分析
-  router.get('/:sessionId/tires', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      res.json(calculateTireAnalysis(session.data || []));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate tire analysis' });
-    }
-  });
-
-  // 制动分析
-  router.get('/:sessionId/braking', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      res.json(calculateBrakingAnalysis(session.data || [], session.positions || []));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate braking analysis' });
-    }
-  });
-
-  // 加速效率分析
-  router.get('/:sessionId/accel', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      res.json(calculateAccelerationAnalysis(session.data || []));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate acceleration analysis' });
-    }
-  });
-
-  // 换挡分析
-  router.get('/:sessionId/shifts', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      res.json(calculateShiftAnalysis(session.data || []));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate shift analysis' });
-    }
-  });
 
   // 合并通道遥测数据接口
   router.get('/:sessionId/telemetry-channels', (req, res) => {
@@ -192,7 +140,25 @@ export default function(context) {
             power: d.power || 0,
             boost: d.boost || 0,
             fuel: d.fuel || 0,
-            onRumble: d.onRumbleStrip?.frontLeft || false
+            onRumble: d.onRumbleStrip?.frontLeft || false,
+            clutch: Math.round((d.controls?.clutch || d.clutch || 0) / 2.55),
+            handBrake: Math.round((d.controls?.handBrake || d.handBrake || 0) / 2.55),
+            suspensionFL: d.suspensionTravelMeters?.frontLeft || d.suspensionTravelMetersFrontLeft || 0,
+            suspensionFR: d.suspensionTravelMeters?.frontRight || d.suspensionTravelMetersFrontRight || 0,
+            suspensionRL: d.suspensionTravelMeters?.rearLeft || d.suspensionTravelMetersRearLeft || 0,
+            suspensionRR: d.suspensionTravelMeters?.rearRight || d.suspensionTravelMetersRearRight || 0,
+            puddleDepth: Math.max(
+              d.wheelInPuddleDepth?.frontLeft || d.wheelInPuddleDepthFrontLeft || 0,
+              d.wheelInPuddleDepth?.frontRight || d.wheelInPuddleDepthFrontRight || 0,
+              d.wheelInPuddleDepth?.rearLeft || d.wheelInPuddleDepthRearLeft || 0,
+              d.wheelInPuddleDepth?.rearRight || d.wheelInPuddleDepthRearRight || 0
+            ),
+            rumble: Math.max(
+              d.surfaceRumble?.frontLeft || d.surfaceRumbleFrontLeft || 0,
+              d.surfaceRumble?.frontRight || d.surfaceRumbleFrontRight || 0,
+              d.surfaceRumble?.rearLeft || d.surfaceRumbleRearLeft || 0,
+              d.surfaceRumble?.rearRight || d.surfaceRumbleRearRight || 0
+            )
           });
         }
       }
@@ -546,39 +512,6 @@ export default function(context) {
     }
   });
 
-  // 走线分析细节接口
-  router.get('/:sessionId/sectors', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      res.json(calculateSectorAnalysis(session.data || [], session.positions || []));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate sector analysis' });
-    }
-  });
-
-  // 驾驶建议（极简诊断）
-  router.get('/:sessionId/advice', (req, res) => {
-    try {
-      const session = loadSession(req.params.sessionId);
-      if (!session) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-      
-      const analysis = {
-        走线分析: calculateDrivingLineAnalysis(session.positions || []),
-        制动分析: calculateBrakingAnalysis(session.data || [], session.positions || []),
-        加速分析: calculateAccelerationAnalysis(session.data || []),
-        换挡分析: calculateShiftAnalysis(session.data || [])
-      };
-  
-      res.json(generateDrivingAdvice(analysis));
-    } catch (e) {
-      res.status(500).json({ error: 'Failed to generate driving advice' });
-    }
-  });
 
   // 调校诊断接口
   router.get('/:sessionId/diagnosis', (req, res) => {
@@ -677,6 +610,8 @@ export default function(context) {
       const vehicleClass = vehicleDetail?.class ?? ({ 0: 'D', 1: 'C', 2: 'B', 3: 'A', 4: 'S1', 5: 'S2', 6: 'X' }[session.vehicle?.class] || '未知');
       const vehiclePi = vehicleDetail?.pi || session.vehicle?.performanceIndex || '';
   
+      const suspensionAnalysis = calculateSuspensionAnalysis(rawData, session.positions || []);
+
       const promptContent = `
 赛道名称：${session.trackName || '未知赛道'}
 车辆名称：${vehicleName} (级别: ${vehicleClass} ${vehiclePi} PI)
@@ -689,6 +624,10 @@ export default function(context) {
 - 弯中油门分：${drivingScore.维度?.油门?.分数 || 0} / 20
 - 路线走线分：${drivingScore.维度?.走线?.分数 || 0} / 20
 - 圈速一致分：${drivingScore.维度?.一致性?.分数 || 0} / 20
+
+底盘与悬挂健康度：
+- 悬挂健康得分：${suspensionAnalysis.bottomingScore || 100} / 100
+- 严重触底帧数：${suspensionAnalysis.totalBottomingTicks || 0} 帧
 
 基础诊断建议：
 ${drivingScore.建议 ? drivingScore.建议.map(s => `- ${s}`).join('\n') : '无'}

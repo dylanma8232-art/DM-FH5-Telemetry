@@ -7,13 +7,13 @@ export function useSocket() {
   const [packetCount, setPacketCount] = useState(0);
   const [packetsPerSecond, setPacketsPerSecond] = useState(0);
   const [renderData, setRenderData] = useState(null);
+  const [throttledData, setThrottledData] = useState(null);
   
   const socketRef = useRef(null);
-  const rafRef = useRef(null);
   const packetCounterRef = useRef(0);
+  const lastThrottleTimeRef = useRef(0);
 
   useEffect(() => {
-    // 支持从localStorage配置服务器地址（用于手机通过局域网访问）
     let serverUrl = '';
     try {
       const saved = localStorage.getItem('serverUrl');
@@ -47,21 +47,17 @@ export function useSocket() {
       setPacketCount(prev => prev + 1);
       packetCounterRef.current += 1;
       
-      if (packetCounterRef.current <= 3) {
-        console.log('[Socket] Received telemetry:', { 
-          isRaceOn: telemetry.isRaceOn, 
-          rpm: telemetry.currentEngineRpm?.toFixed(0),
-          carOrdinal: telemetry.car?.ordinal,
-          lapNumber: telemetry.lapNumber,
-          hasCar: !!telemetry.car,
-          performanceIndex: telemetry.car?.performanceIndex
-        });
-      }
-      
+      // Full frame rate data for physics/charts
       setRenderData(telemetry);
+
+      // Throttled data for text/UI to prevent React from stalling (approx 15 FPS)
+      const now = Date.now();
+      if (now - lastThrottleTimeRef.current >= 66) {
+        setThrottledData(telemetry);
+        lastThrottleTimeRef.current = now;
+      }
     });
 
-    // 每秒钟计算一次接收到的UDP遥测包数 (帧率)
     const timer = setInterval(() => {
       setPacketsPerSecond(packetCounterRef.current);
       packetCounterRef.current = 0;
@@ -69,9 +65,6 @@ export function useSocket() {
 
     return () => {
       clearInterval(timer);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
@@ -82,6 +75,7 @@ export function useSocket() {
 
   return { 
     data: renderData, 
+    throttledData,
     rawDataRef: dataRef,
     connected, 
     packetCount, 

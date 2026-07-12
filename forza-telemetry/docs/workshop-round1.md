@@ -79,7 +79,7 @@ useEffect(() => {
 
 ---
 
-## Bug 2: 驾驶问题建议字段名不匹配 (fixes vs suggestedChanges)
+## Bug 2: 驾驶问题建议字段名不匹配
 
 ### 问题分析
 

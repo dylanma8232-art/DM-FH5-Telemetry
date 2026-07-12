@@ -14,12 +14,11 @@ export default function(context) {
     detectTurnsEnhanced, 
     generateSectors, 
     buildRouteBook, 
-    generateNavigationData, 
+     
     validateTrackQuality, 
     buildTrackFromTrajectories,
-    calculateTrackLength,
+    calculateTrackLength, calculateTurnAttributes,
     simplifyRDP,
-    calculateTurnAttributes,
     saveJSON,
     DATA_DIR, 
     stateManager, 
@@ -45,7 +44,6 @@ export default function(context) {
           });
         }
         trackDetail.routeBook = buildRouteBook(trackDetail.centerline, turns, allPoints.length > 0 ? allPoints : trackDetail.centerline);
-        trackDetail.navigation = generateNavigationData(trackDetail);
         trackDetail.quality = validateTrackQuality(trackDetail);
         
         writeTrackDetail(id, trackDetail);
@@ -265,7 +263,6 @@ export default function(context) {
       trackDetail.length = trackData.length;
       trackDetail.isLoop = trackData.isLoop || false;
       trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-      trackDetail.navigation = generateNavigationData(trackData);
       trackDetail.routeBook = trackData.routeBook;
       trackDetail.quality = validateTrackQuality(trackDetail);
       trackDetail.updatedAt = new Date().toISOString();
@@ -365,6 +362,153 @@ export default function(context) {
     }
   });
 
+
+  // 高级编辑器：合并两个相邻的弯道
+  router.post('/:id/turns/merge', express.json(), (req, res) => {
+    const id = req.params.id;
+    try {
+      let trackDetail = readTrackDetail(id) || tracks[id];
+      if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
+      
+      const { index1, index2 } = req.body;
+      if (index1 === undefined || index2 === undefined || index1 >= index2 || index2 >= trackDetail.turns.length) {
+        return res.status(400).json({ error: 'Invalid indices' });
+      }
+
+      const t1 = trackDetail.turns[index1];
+      const t2 = trackDetail.turns[index2];
+      
+      const newStartIdx = Math.min(t1.startIdx, t2.startIdx);
+      const newEndIdx = Math.max(t1.endIdx, t2.endIdx);
+      
+      const newTurn = calculateTurnAttributes(trackDetail.centerline, newStartIdx, newEndIdx, t1.id);
+      if (!newTurn) return res.status(400).json({ error: 'Failed to calculate merged turn attributes' });
+
+      if (t1.customNote) newTurn.customNote = t1.customNote;
+      
+      trackDetail.turns.splice(index1, 2, newTurn);
+      
+       
+      const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
+      trackDetail.routeBook = rebuiltRouteBook;
+      trackDetail.updatedAt = new Date().toISOString();
+      
+      writeTrackDetail(id, trackDetail);
+      
+      if (tracks[id]) {
+        tracks[id].turnCount = trackDetail.turns.length;
+        tracks[id].updatedAt = trackDetail.updatedAt;
+        tracks[id].turns = trackDetail.turns;
+        tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(tracks);
+      }
+      
+      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to merge turns: ' + err.message });
+    }
+  });
+
+  // 高级编辑器：在顶点拆分一个弯道
+  router.post('/:id/turns/split', express.json(), (req, res) => {
+    const id = req.params.id;
+    try {
+      let trackDetail = readTrackDetail(id) || tracks[id];
+      if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
+      
+      const index = parseInt(req.body.turnIndex, 10);
+      if (isNaN(index) || index < 0 || index >= trackDetail.turns.length) return res.status(400).json({ error: 'Invalid index' });
+
+      const t = trackDetail.turns[index];
+      if (t.endIdx - t.startIdx < 4) {
+        return res.status(400).json({ error: 'Turn is too short to split' });
+      }
+
+      const apexIndex = req.body.splitIdx != null ? parseInt(req.body.splitIdx, 10) : (t.index != null ? t.index : Math.floor((t.startIdx + t.endIdx) / 2));
+      const t1 = calculateTurnAttributes(trackDetail.centerline, t.startIdx, apexIndex - 1, t.id + '_1');
+      const t2 = calculateTurnAttributes(trackDetail.centerline, apexIndex, t.endIdx, t.id + '_2');
+      
+      if (!t1 || !t2) return res.status(400).json({ error: 'Failed to split turn' });
+
+      trackDetail.turns.splice(index, 1, t1, t2);
+      
+       
+      const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
+      trackDetail.routeBook = rebuiltRouteBook;
+      trackDetail.updatedAt = new Date().toISOString();
+      
+      writeTrackDetail(id, trackDetail);
+      
+      if (tracks[id]) {
+        tracks[id].turnCount = trackDetail.turns.length;
+        tracks[id].updatedAt = trackDetail.updatedAt;
+        tracks[id].turns = trackDetail.turns;
+        tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(tracks);
+      }
+      
+      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to split turn: ' + err.message });
+    }
+  });
+
+  // 高级编辑器：修改弯道起止边界（拉扯）
+  router.put('/:id/turns/:index/bounds', express.json(), (req, res) => {
+    const id = req.params.id;
+    try {
+      let trackDetail = readTrackDetail(id) || tracks[id];
+      if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
+      
+      const index = parseInt(req.params.index, 10);
+      if (isNaN(index) || index < 0 || index >= trackDetail.turns.length) return res.status(400).json({ error: 'Invalid index' });
+
+      const { startIdx, endIdx } = req.body;
+      if (startIdx === undefined || endIdx === undefined || startIdx >= endIdx) return res.status(400).json({ error: 'Invalid bounds' });
+      
+      const t = trackDetail.turns[index];
+      
+      if (index > 0 && startIdx <= trackDetail.turns[index - 1].endIdx) {
+         trackDetail.turns[index - 1].endIdx = Math.max(0, startIdx - 1);
+         const updatedPrev = calculateTurnAttributes(trackDetail.centerline, trackDetail.turns[index - 1].startIdx, trackDetail.turns[index - 1].endIdx, trackDetail.turns[index - 1].id);
+         if (updatedPrev) trackDetail.turns[index - 1] = updatedPrev;
+      }
+      if (index < trackDetail.turns.length - 1 && endIdx >= trackDetail.turns[index + 1].startIdx) {
+         trackDetail.turns[index + 1].startIdx = Math.min(trackDetail.centerline.length - 1, endIdx + 1);
+         const updatedNext = calculateTurnAttributes(trackDetail.centerline, trackDetail.turns[index + 1].startIdx, trackDetail.turns[index + 1].endIdx, trackDetail.turns[index + 1].id);
+         if (updatedNext) trackDetail.turns[index + 1] = updatedNext;
+      }
+
+      const updatedT = calculateTurnAttributes(trackDetail.centerline, startIdx, endIdx, t.id);
+      if (!updatedT) return res.status(400).json({ error: 'Failed to recalculate bounds' });
+      if (t.customNote) updatedT.customNote = t.customNote;
+
+      trackDetail.turns[index] = updatedT;
+      
+       
+      const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
+      trackDetail.routeBook = rebuiltRouteBook;
+      trackDetail.updatedAt = new Date().toISOString();
+      
+      writeTrackDetail(id, trackDetail);
+      
+      if (tracks[id]) {
+        tracks[id].turnCount = trackDetail.turns.length;
+        tracks[id].updatedAt = trackDetail.updatedAt;
+        tracks[id].turns = trackDetail.turns;
+        tracks[id].routeBook = trackDetail.routeBook;
+        saveTracksDatabase(tracks);
+      }
+      
+      if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: tracks[id].name });
+      res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to adjust bounds: ' + err.message });
+    }
+  });
+
   // 合并赛道：将源赛道的轨迹合并到目标赛道
   router.post('/merge', express.json(), async (req, res) => {
     const { sourceTrackId, targetTrackId } = req.body;
@@ -407,7 +551,6 @@ export default function(context) {
         targetDetail.length = trackData.length;
         targetDetail.isLoop = trackData.isLoop || false;
         targetDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-        targetDetail.navigation = generateNavigationData(trackData);
       }
 
       deleteTrackDetail(sourceTrackId);
@@ -519,6 +662,7 @@ export default function(context) {
     
     writeTrackDetail(id, trackDetail);
     
+    if (req.app.get('io')) req.app.get('io').emit('trackUpdated', { trackId: id, name: trackDetail.name || tracks[id]?.name });
     res.json({ status: 'ok', track: trackDetail });
   });
 

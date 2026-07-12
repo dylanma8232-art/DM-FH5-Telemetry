@@ -30,10 +30,12 @@ function PageLoader() {
 }
 
 export default function App() {
-  const { data, connected, packetCount, packetsPerSecond, socket } = useSocket();
+  const { data, throttledData, connected, packetCount, packetsPerSecond, socket } = useSocket();
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [navIntent, setNavIntent] = useState(null);
+  
+  const displayData = throttledData || data;
 
   const tabs = [
     { id: 'dashboard', label: '仪表盘' },
@@ -87,10 +89,10 @@ export default function App() {
         connected={connected}
         packetCount={packetCount}
         packetsPerSecond={packetsPerSecond}
-        isRaceOn={data?.isRaceOn}
-        lapNumber={data?.lapNumber}
-        racePosition={data?.racePosition}
-        currentRaceTime={data?.currentRaceTime}
+        isRaceOn={displayData?.isRaceOn}
+        lapNumber={displayData?.lapNumber}
+        racePosition={displayData?.racePosition}
+        currentRaceTime={displayData?.currentRaceTime}
         onSettingsClick={() => setShowSettings(true)}
         socket={socket}
       />
@@ -151,7 +153,7 @@ export default function App() {
         <ErrorBoundary key={activeTab} name={tabs.find(t => t.id === activeTab)?.label || activeTab}>
           <Suspense fallback={<PageLoader />}>
             {activeTab === 'dashboard' && (
-              <DashboardPage data={data} socket={socket} connected={connected} packetCount={packetCount} />
+              <DashboardPage data={displayData} socket={socket} connected={connected} packetCount={packetCount} />
             )}
             {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
             {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}

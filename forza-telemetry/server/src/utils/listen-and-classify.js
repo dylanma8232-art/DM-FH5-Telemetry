@@ -126,7 +126,7 @@ function printClassifiedData(data) {
     console.log(`  distanceTraveled (行驶总距离): ${data.distanceTraveled?.toFixed(1)} m`);
   }
 
-  console.log('\n【 5. 悬挂系统 (Suspension) 】');
+  console.log('\n【 5. 悬挂系统 】');
   console.log(`  suspensionTravel (悬挂绝对行程-米):`);
   console.log(`    FL (前左): ${data.suspensionTravelMeters?.frontLeft?.toFixed(4)}m | FR (前右): ${data.suspensionTravelMeters?.frontRight?.toFixed(4)}m`);
   console.log(`    RL (后左): ${data.suspensionTravelMeters?.rearLeft?.toFixed(4)}m | RR (后右): ${data.suspensionTravelMeters?.rearRight?.toFixed(4)}m`);
@@ -182,9 +182,9 @@ function printStandardDictionary() {
    - timestampMS: 偏移 4 (u32) - 游戏时间戳(毫秒)
 
 2. 引擎参数:
-   - engineMaxRpm: 偏移 8 (f32) - 引擎最大转速(RPM)
-   - engineIdleRpm: 偏移 12 (f32) - 引擎怠速转速(RPM)
-   - currentEngineRpm: 偏移 16 (f32) - 当前引擎转速(RPM)
+   - engineMaxRpm: 偏移 8 (f32) - 引擎最大转速
+   - engineIdleRpm: 偏移 12 (f32) - 引擎怠速转速
+   - currentEngineRpm: 偏移 16 (f32) - 当前引擎转速
 
 3. 动力学 G力 (已乘以重力常数以G为单位，或原始m/s²):
    - accelerationX: 偏移 20 (f32) - 横向加速度 (左转为负，右转为正)
@@ -197,9 +197,9 @@ function printStandardDictionary() {
    - velocityZ: 偏移 40 (f32) - 前向速度
 
 5. 角速度 (rad/s):
-   - angularVelocityX: 偏移 44 (f32) - 俯仰率 (Pitch rate)
-   - angularVelocityY: 偏移 48 (f32) - 偏航率 (Yaw rate)
-   - angularVelocityZ: 偏移 52 (f32) - 侧倾率 (Roll rate)
+   - angularVelocityX: 偏移 44 (f32) - 俯仰率
+   - angularVelocityY: 偏移 48 (f32) - 偏航率
+   - angularVelocityZ: 偏移 52 (f32) - 侧倾率
 
 6. 车辆姿态 (弧度 rad):
    - yaw: 偏移 56 (f32) - 偏航角
@@ -276,7 +276,7 @@ function printStandardDictionary() {
 2. 动力与速度:
    - speed: 偏移 256 (f32) - 实时速度 (m/s，乘以 3.6 转换为 km/h)
    - power: 偏移 260 (f32) - 实时功率 (W瓦特，除以 745.7 转换为 匹马力HP)
-   - torque: 偏移 264 (f32) - 实时扭矩 (Nm)
+   - torque: 偏移 264 (f32) - 实时扭矩
 
 3. 轮胎温度 (华氏度 °F):
    - tireTempFrontLeft:  偏移 268 (f32)

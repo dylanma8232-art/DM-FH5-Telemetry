@@ -7,8 +7,8 @@ import { promisify } from 'util';
 import { simplifyRDP } from '../utils/rdp.js';
 import {
   buildTrackFromTrajectories,
-  generateSectors,
-  generateNavigationData
+  buildRouteBook,
+  generateSectors
 } from '../track-builder.js';
 
 const brotliCompress = promisify(zlib.brotliCompress);
@@ -23,7 +23,7 @@ function generateLowfiTelemetry(hifiData, hifiPositions) {
   const keepIndices = new Set();
   const len = hifiData.length;
 
-  // 1. 每隔 12 帧 (约 200ms) 取一帧作为基础骨架 (5Hz)
+  // 1. 每隔 12 帧 (约 200ms) 取一帧作为基础骨架
   for (let i = 0; i < len; i += 12) {
     keepIndices.add(i);
   }
@@ -235,7 +235,7 @@ async function main() {
         trackDetail.length = trackData.length;
         trackDetail.isLoop = trackData.isLoop || false;
         trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-        trackDetail.navigation = generateNavigationData(trackData);
+
       }
 
       // 写入赛道详细几何包
@@ -278,7 +278,7 @@ async function main() {
       turns: trackData ? trackData.turns : null,
       isLoop: trackData ? (trackData.isLoop || false) : false,
       sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
-      navigation: trackData ? generateNavigationData(trackData) : null,
+
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

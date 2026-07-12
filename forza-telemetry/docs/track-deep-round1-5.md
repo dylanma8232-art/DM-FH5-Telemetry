@@ -44,7 +44,7 @@ const DBSCAN_MIN_PTS = 2;  // 至少2个非空邻居
 
 **修改前：** 无平滑步骤，中心线直接由最近邻排序产生，可能有锯齿。
 
-**修改后：** 使用高斯加权移动平均（EWMA）平滑：
+**修改后：** 使用高斯加权移动平均平滑：
 
 ```js
 function smoothCenterline(points, windowSize = 5) {

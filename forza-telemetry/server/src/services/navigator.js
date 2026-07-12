@@ -27,6 +27,8 @@ function getPathDistance(trackPoints, startIdx, endIdx) {
   return dist;
 }
 
+let lastNearestIdx = -1;
+
 export async function checkAndAnnounceTurn(position, turns, trackPoints, context) {
   if (!position || !turns || turns.length === 0 || !trackPoints || trackPoints.length === 0) {
     return;
@@ -55,6 +57,13 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
   if (!nearestPoint) return;
   const nearestIdx = trackPoints.indexOf(nearestPoint);
   if (nearestIdx === -1) return;
+
+  // 时光倒流/大倒车/重生 防哑巴检测机制 (负向跳变超过 50 个点)
+  if (lastNearestIdx !== -1 && nearestIdx < lastNearestIdx - 50) {
+    console.log(`[闪回检测] 位置跳变 (${lastNearestIdx} -> ${nearestIdx})，重置播报锁`);
+    lastAnnouncedTurnIndex = -1;
+  }
+  lastNearestIdx = nearestIdx;
 
   // 2. 找到需要播报的下一个弯道
   let nextTurn = null;
@@ -87,7 +96,7 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
   const turnStartPoint = trackPoints[nextTurn.startIdx];
   if (!turnStartPoint) return;
   
-  // 使用轨迹累加距离，解决发卡弯直线距离极短的穿墙误判问题
+  // 真实轨迹距离计算
   const distToStart = getPathDistance(trackPoints, nearestIdx, nextTurn.startIdx);
 
   const currentSpeedKmh = nearestPoint.speed || 0;
@@ -95,11 +104,11 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
 
   // 圈数回绕重置逻辑
   if (lastAnnouncedTurnIndex !== -1 && nextTurnIndex < lastAnnouncedTurnIndex) {
-    console.log(`[越线检测] 检测到跨越起跑线进入下一圈 (弯道索引回绕: ${lastAnnouncedTurnIndex} -> ${nextTurnIndex})，重置播报状态锁。`);
+    console.log(`[越线检测] 检测到跨越起跑线进入下一圈 (回绕: ${lastAnnouncedTurnIndex} -> ${nextTurnIndex})`);
     lastAnnouncedTurnIndex = -1;
   }
 
-  // 3. 提取弯道危险等级 (Severity)
+  // 3. 提取弯道危险等级
   const angle = nextTurn.angle || 0;
   let level = nextTurn.severity || '3';
   if (!level || !['1', '2', '3', '4', '5', '6'].includes(String(level))) {
@@ -111,18 +120,17 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
     else level = '6';
   }
 
-  // 4. 动态反应时间算法
-  let reactionTime = 4.5;
+  // 4. 动态反应时间算法 (TTS 补偿与急弯补足)
+  const reactionTime = 3.0; // 基础人类反应时间
+  let difficultyBonus = 0;
   if (level === '1' || level === '2') {
-    reactionTime = 6.5; // 发卡弯/急弯需要更长的预警时间来重刹
+    difficultyBonus = 100; // 发卡弯/急弯需要额外的重刹车距离
   } else if (level === '3' || level === '4') {
-    reactionTime = 4.5; // 中速弯
-  } else {
-    reactionTime = 3.0; // 高速弯，不需要提早报
+    difficultyBonus = 50;  // 中速弯
   }
-  
-  // 计算预警触发距离，边界 100米 - 550米
-  const preWarnDist = Math.max(100, Math.min(550, currentSpeedMs * reactionTime));
+
+  const ttsCompensation = Math.min(150, currentSpeedMs * 1.5); // 语音合成与念稿子耗时的物理位移补偿
+  const preWarnDist = Math.max(100, Math.min(600, (currentSpeedMs * reactionTime) + difficultyBonus + ttsCompensation));
 
   // 5. 播报触发逻辑
   if (distToStart < preWarnDist && lastAnnouncedTurnIndex < nextTurnIndex) {
@@ -131,13 +139,12 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
     let linkTextAnnounce = '';
     let linkTextTTS = '';
 
-    // 判断连续弯 (接/紧接)
+    // 判断连续弯 (最大2连击)
     if (nextTurnIndex + 1 < turns.length) {
       const nextNextTurn = turns[nextTurnIndex + 1];
-      // 计算两个弯道之间的真实轨迹距离
       const distBetweenTurns = getPathDistance(trackPoints, nextTurn.endIdx, nextNextTurn.startIdx);
       
-      if (distBetweenTurns < 80) { // 从 180米直线距离 改为 80米真实赛道距离
+      if (distBetweenTurns < 80) { 
         consecutiveTurn = nextNextTurn;
         consecutiveTurnIndex = nextTurnIndex + 1;
         if (distBetweenTurns < 30) {
@@ -151,13 +158,13 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
     }
 
     const direction = nextTurn.direction === 'left' ? '左' : (nextTurn.direction === 'right' ? '右' : '');
+    const longAnnounce = nextTurn.isLong ? '长' : '';
+    const longTTS = nextTurn.isLong ? '，长' : '';
     
     // 路面状况解析
     let geoText = '';
     if (nextTurn.crest === 'jump') geoText += '飞跳';
     else if (nextTurn.crest === 'crest') geoText += '过坡';
-    if (nextTurn.camber === 'off-camber') geoText += '外倾';
-    else if (nextTurn.camber === 'banking') geoText += '斜坡';
     
     const geoTextWithComma = geoText ? '，' + geoText : '';
     const geoTextCompact = geoText ? ' ' + geoText : '';
@@ -169,7 +176,7 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
     if (consecutiveTurn) {
       const nextDir = consecutiveTurn.direction === 'left' ? '左' : '右';
       let nextLevel = consecutiveTurn.severity || '3';
-      if (!nextLevel || !['1', '2', '3', '4', '5', '6'].includes(String(nextLevel))) {
+      if (!['1', '2', '3', '4', '5', '6'].includes(String(nextLevel))) {
         const nextAngle = consecutiveTurn.angle || 0;
         if (nextAngle >= 130) nextLevel = '1';
         else if (nextAngle >= 90) nextLevel = '2';
@@ -178,21 +185,18 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
         else if (nextAngle >= 20) nextLevel = '5';
         else nextLevel = '6';
       }
-      announceText = direction + level + geoTextCompact + ' ' + linkTextAnnounce + nextDir + nextLevel;
-      ttsText = direction + level + geoTextWithComma + linkTextTTS + nextDir + nextLevel;
+      const nextLongAnnounce = consecutiveTurn.isLong ? '长' : '';
+      const nextLongTTS = consecutiveTurn.isLong ? '，长' : '';
+
+      announceText = direction + level + longAnnounce + geoTextCompact + ' ' + linkTextAnnounce + nextDir + nextLevel + nextLongAnnounce;
+      ttsText = direction + level + longTTS + geoTextWithComma + linkTextTTS + nextDir + nextLevel + nextLongTTS;
       
-      // 核心修复：直接把状态锁拨到下下个弯，防止过弯后重复播报下下个弯
+      // 直接把状态锁拨到下下个弯，截断
       lastAnnouncedTurnIndex = consecutiveTurnIndex;
     } else {
-      // 独立播报，带上更加智能的取整距离
-      let distText = 0;
-      if (distToStart > 100) {
-          distText = Math.round(distToStart / 50) * 50; // 百米以上按 50米 精度取整
-      } else {
-          distText = Math.round(distToStart / 10) * 10; // 百米以内按 10米 精度取整
-      }
-      announceText = direction + level + geoTextCompact + ' ' + distText;
-      ttsText = direction + level + geoTextWithComma + '，' + distText + '米';
+      // 独立播报
+      announceText = direction + level + longAnnounce + geoTextCompact;
+      ttsText = direction + level + longTTS + geoTextWithComma;
       
       lastAnnouncedTurnIndex = nextTurnIndex;
     }
@@ -218,9 +222,10 @@ export async function checkAndAnnounceTurn(position, turns, trackPoints, context
       announceType: 'pre_warn',
       radius: nextTurn.radius || 0,
       camber: nextTurn.camber,
-      crest: nextTurn.crest
+      crest: nextTurn.crest,
+      isLong: nextTurn.isLong
     });
     
-    console.log(`[领航播报] ${announceText} (车速: ${Math.round(currentSpeedKmh)}km/h, 提前量: ${Math.round(distToStart)}米, 反应时间: ${reactionTime}s)`);
+    console.log(`[领航播报] ${announceText} (车速: ${Math.round(currentSpeedKmh)}km/h, 触发: ${Math.round(distToStart)}米, 阈值: ${Math.round(preWarnDist)}米)`);
   }
 }

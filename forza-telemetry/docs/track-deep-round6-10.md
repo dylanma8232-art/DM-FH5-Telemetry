@@ -381,7 +381,7 @@ export default {
 |------|---------|------|
 | Round 6 | SUCCESS | usePaceNoteVoice Hook + DashboardPage 语音集成 + 状态指示器 |
 | Round 7 | SUCCESS | validateTrackQuality + API + 验证UI面板 |
-| Round 8 | SUCCESS | 稳定性速度(P75) + 平均刹车点 + 数据来源计数 |
+| Round 8 | SUCCESS | 稳定性速度 + 平均刹车点 + 数据来源计数 |
 | Round 9 | SUCCESS | JSON/TXT导出 + PNG路书叠加 |
 | Round 10 | SUCCESS | 删除5个未使用函数 + 导出更新 |
 

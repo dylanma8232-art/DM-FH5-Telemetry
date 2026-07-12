@@ -20,9 +20,9 @@
 - **环道检测**：自动检测环形赛道并提取单圈数据（方案F闭合点检测 + 方案D曲率周期性检测）
 - 比赛记录与回放、分段计时、圈速对比
 - 车辆自动检测与管理
-- 调校（Tune）管理与对比
+- 调校管理与对比
 - 驾驶建议与语音播报（小米 TTS）
-- AI 教练分析（DashScope API）
+- AI 教练分析
 
 ---
 
@@ -158,7 +158,7 @@ forza-telemetry/
 
 ## 4. 核心模块说明
 
-### 4.1 仪表盘 (Dashboard)
+### 4.1 仪表盘
 
 **页面组件**: `client/src/components/pages/DashboardPage.jsx`
 
@@ -178,7 +178,7 @@ forza-telemetry/
 | 分段分析 | `SectorAnalysis.jsx` | 分段耗时与一致性分析 |
 | 热力图 | `ThrottleBrakeHeatmap.jsx` | 油门刹车输入热力图 |
 
-### 4.2 赛道管理 (Track Manager)
+### 4.2 赛道管理
 
 **页面组件**: `client/src/components/pages/TrackManagerPage.jsx`
 
@@ -213,7 +213,7 @@ forza-telemetry/
 数据清洗工具：`server/src/rebuild-tracks.js`
 - `npm run rebuild:tracks` - 重建所有赛道数据，清洗 vehicles.json 孤儿引用
 
-### 4.3 比赛中心 (Session History)
+### 4.3 比赛中心
 
 **页面组件**: `client/src/components/pages/SessionHistoryPage.jsx`
 
@@ -236,7 +236,7 @@ forza-telemetry/
 - 比赛报告生成
 - 关联赛道和车辆
 
-### 4.4 车辆管理 (Vehicle Manager)
+### 4.4 车辆管理
 
 **页面组件**: `client/src/components/pages/VehicleManagerPage.jsx`
 
@@ -264,7 +264,7 @@ forza-telemetry/
 }
 ```
 
-### 4.5 车辆工坊/调校管理 (Tune Manager)
+### 4.5 车辆工坊/调校管理
 
 **页面组件**: `client/src/components/pages/TuneManagerPage.jsx`
 
@@ -275,12 +275,12 @@ forza-telemetry/
 - 调校模板（基于预设或现有调校创建）
 
 调校包含的部件类别（`client/src/data/parts.js`）：
-- 引动机 (Engine)、传动 (Transmission)、进气 (Intake)
-- 涡轮 (Turbo)、排气 (Exhaust)、ECU
-- 悬挂 (Suspension)、防倾杆 (Anti-Roll Bars)
-- 差速器 (Differential)、刹车 (Brakes)、轮胎 (Tires)
-- 重量 (Weight Reduction)、离合器 (Clutch)
-- 轮圈 (Wheels)、车身套件 (Body Kit)、尾翼 (Aero)
+- 引动机、传动、进气
+- 涡轮、排气、ECU
+- 悬挂、防倾杆 (Anti-Roll Bars)
+- 差速器、刹车、轮胎
+- 重量、离合器
+- 轮圈、车身套件、尾翼
 
 ---
 
@@ -317,7 +317,7 @@ DashboardPage → 各子组件渲染
 **FH6 间隙** (232-243, 12字节)：无数据
 
 **Dash 扩展** (244-322, 79字节)：比赛/驾驶数据
-- 位置(3轴), 速度(m/s), 功率(W), 扭矩(Nm)
+- 位置(3轴), 速度(m/s), 功率, 扭矩
 - 轮胎温度(4轮), 涡轮增压, 燃油(0-1)
 - 行驶距离, 最快圈/上一圈/当前圈/总比赛时间
 - 圈数, 名次, 控制输入(油门/刹车/离合/手刹/档位/转向)
@@ -347,9 +347,9 @@ DashboardPage → 各子组件渲染
 
 ```
 比赛过程中（!trackMode 且 autoRacePositions.length > 50 时，每5秒触发一次）:
-  车手当前位置轨迹 (S) ─[下采样 30 点]──┐
+  车手当前位置轨迹 ─[下采样 30 点]──┐
                                      ▼
-  已知赛道数据库 (tracksDict) ────[等间距抽取 100 点]──► 惰性加载至全局 Map 内存缓存 (trackCoordinatesCache)
+  已知赛道数据库 ────[等间距抽取 100 点]──► 惰性加载至全局 Map 内存缓存
                                                                │
                                                                ▼
                                                        空间 Euclidean 距离比对
@@ -358,16 +358,16 @@ DashboardPage → 各子组件渲染
                                                        - 计算平均偏离 avgDist, 转换距离得分 distScore = exp(-avgDist/20)
                                                                │
                                                                ▼
-                                                       时序单调性校验 (Temporal Monotonicity)
+                                                       时序单调性校验
                                                        - 检查匹配点在环形中心线上的索引序列 j_i
                                                        - 校验序列在环路中的单向推进度 seqScore
                                                                │
                                                                ▼
-                                                       综合置信度计算 (confidence)
+                                                       综合置信度计算
                                                        confidence = Match Ratio * distScore * (0.3 + 0.7 * seqScore)
                                                                │
                                                                ▼
-  最高置信度最佳匹配 (bestMatch) ────► 若 confidence > 0.6 ──────► 后台自动激活 trackMode 并推送 WebSocket 'trackRecognized' 事件
+  最高置信度最佳匹配 ────► 若 confidence > 0.6 ──────► 后台自动激活 trackMode 并推送 WebSocket 'trackRecognized' 事件
                                                                    - 领航播报自动连接，念出自定义备注
                                                                    - 完赛后数据自动作为第 N 条轨迹合并存盘！
 ```
@@ -527,7 +527,7 @@ DashboardPage → 各子组件渲染
 
 ## 7. Socket.IO 事件
 
-### 7.1 服务端 → 客户端 (Broadcast)
+### 7.1 服务端 → 客户端
 
 | 事件名 | 数据 | 说明 |
 |--------|------|------|
@@ -586,7 +586,7 @@ npm run install:all
 # 启动后端 (端口 9188, UDP 9996)
 npm run server
 
-# 启动前端 (Vite dev server)
+# 启动前端
 npm run client
 
 # 更新代码图谱/知识图谱 (在代码文件发生变动后运行)
@@ -601,7 +601,7 @@ npm run rebuild:tracks
 ## 10. 架构关键点
 
 1. **主要逻辑集中**: 核心后端逻辑在 `index.js`（~5356行），已部分模块化（config/services/storage/utils 目录）。
-2. **数据存储**: 使用 JSON 文件 + Brotli 压缩存储，无数据库。赛道详情以 `.json.br` 格式存储，Session 分为摘要（JSON）和详情（Brotli压缩）。
+2. **数据存储**: 使用 JSON 文件 + Brotli 压缩存储，无数据库。赛道详情以 `.json.br` 格式存储，Session 分为摘要和详情（Brotli压缩）。
 3. **前端 SPA**: React 单页应用，通过标签页切换5个主要视图，支持 PWA 离线访问。仪表盘组件已大幅精简（从~43个减至11个）。
 4. **实时通信**: Socket.IO 双向通信，遥测数据以约30fps广播，节流间隔33ms。
 5. **赛道识别**: 使用多维度相似度算法（Hausdorff + Fréchet + 曲率 + 方向 + 边界 + 长度），支持顺时针/逆时针双向匹配。
@@ -612,7 +612,7 @@ npm run rebuild:tracks
 
 ---
 
-## 11. 已知问题与修复记录（Bug Log）
+## 11. 已知问题与修复记录
 
 ### 11.1 routerContext 上下文注册规范
 
@@ -630,7 +630,7 @@ npm run rebuild:tracks
 
 ---
 
-### 11.2 赛道模式（trackMode）状态管理陷阱
+### 11.2 赛道模式状态管理陷阱
 
 **核心状态：** `trackMode`（`index.js` 中，通过 `getTrackMode()`/`setTrackMode()` 访问）
 

@@ -80,6 +80,26 @@
       a { color: var(--accent); }
       a:hover { text-decoration: underline; }
     </style>
+    <style>
+      @keyframes toastSlideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+      @keyframes paramHighlight {
+        0% { background-color: rgba(63, 185, 80, 0); }
+        50% { background-color: rgba(63, 185, 80, 0.3); }
+        100% { background-color: rgba(63, 185, 80, 0); }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

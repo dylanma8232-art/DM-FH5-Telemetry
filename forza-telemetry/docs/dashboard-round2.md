@@ -19,7 +19,7 @@
 ```
 car.ordinal (s32)        - 车辆唯一标识
 car.class (s32)          - 车辆等级: 0=D, 1=C, 2=B, 3=A, 4=S1, 5=S2, 6=X
-car.performanceIndex (s32) - 性能指数 (PI)
+car.performanceIndex (s32) - 性能指数
 car.drivetrainType (s32) - 驱动类型: 0=FWD, 1=RWD, 2=AWD
 car.numCylinders (s32)    - 气缸数
 ```

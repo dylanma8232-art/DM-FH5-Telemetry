@@ -792,9 +792,9 @@ export function VehicleManagerPage({ onNavigate, socket }) {
                 onChange={e => setFormData({...formData, drivetrain: e.target.value})}
                 style={inputStyle}
               >
-                <option value="FWD">前驱 (FWD)</option>
-                <option value="RWD">后驱 (RWD)</option>
-                <option value="AWD">四驱 (AWD)</option>
+                <option value="FWD">前驱</option>
+                <option value="RWD">后驱</option>
+                <option value="AWD">四驱</option>
               </select>
             </div>
 

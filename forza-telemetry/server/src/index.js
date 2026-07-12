@@ -7,7 +7,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { parseTelemetryPacket } from './telemetry-parser.js';
-import { buildTrackFromTrajectories, generateNavigationData, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook, calculateTurnAttributes } from './track-builder.js';
+import { buildTrackFromTrajectories, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook, calculateTurnAttributes, remapLockedTurns } from './track-builder.js';
 import { simplifyRDP } from './utils/rdp.js';
 import { stateManager } from './services/state-manager.js';
 import { migrateMonolithicDatabase } from './storage/migration.js';
@@ -98,9 +98,9 @@ const routerContext = {
   detectTurnsEnhanced, 
   generateSectors, 
   buildRouteBook, 
-  generateNavigationData, 
   validateTrackQuality, 
   buildTrackFromTrajectories,
+  remapLockedTurns,
   calculateTrackLength: (pts) => {
     if (!pts || pts.length < 2) return 0;
     let len = 0;
@@ -302,7 +302,7 @@ app.get('/', (req, res) => {
             const allPts = [];
             if (detail.trajectories) detail.trajectories.forEach(t => { if (t.points) allPts.push(...t.points); });
             detail.routeBook = buildRouteBook(detail.centerline, turns, allPts.length > 0 ? allPts : detail.centerline);
-            detail.navigation = generateNavigationData(detail);
+
             detail.quality = validateTrackQuality(detail);
             
             writeTrackDetail(id, detail);

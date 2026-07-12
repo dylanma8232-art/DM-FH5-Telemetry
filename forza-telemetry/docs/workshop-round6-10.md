@@ -111,7 +111,7 @@ const sortedCards = useMemo(() => {
   - `statsByOrdinal` 改为 `useMemo` 包裹，增加 `recentSessions` 字段
   - 车辆卡片名称区域增加 `onClick` 展开/收起
   - "未配置"标签增加 `onClick` 打开编辑弹窗
-  - 页面顶层增加 `loading` 状态渲染（CSS spinner）
+  - 页面顶层增加 `loading` 状态渲染
   - 新增 `@keyframes spin` 动画
 
 ---

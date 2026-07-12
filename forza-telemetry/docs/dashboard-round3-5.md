@@ -52,7 +52,7 @@ lastNearestRef.current = nearestIndex;
 
 ### R3-3: GForcePanel 残留引用确认 [P2]
 
-**结果**: GForcePanel 已从 DashboardPage 中完全移除（Round 2）。通过全局搜索确认:
+**结果**: GForcePanel 已从 DashboardPage 中完全移除。通过全局搜索确认:
 - `import.*GForcePanel` - 0 匹配
 - `from.*GForcePanel` - 0 匹配
 - 仅残留 `GForcePanelV3.jsx` 文件（未使用），可后续清理

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
-import { buildTrackFromTrajectories, generateNavigationData } from './track-builder.js';
+import { buildTrackFromTrajectories } from './track-builder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -258,7 +258,7 @@ async function run() {
     detail.updatedAt = new Date().toISOString();
     detail.sectors = generateSectors(trackData.centerline, trackData.turns);
     detail.routeBook = trackData.routeBook;
-    detail.navigation = generateNavigationData(trackData);
+    // navigation removed
     
     // 保存详情
     writeTrackDetail(trackId, detail);
