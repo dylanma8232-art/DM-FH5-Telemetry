@@ -331,7 +331,7 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
               ];
               
               return displaySectors.map((sector, index) => {
-                const isActive = !sector.dummy && index === state.currentSector;
+                const isActive = raceActive && !sector.dummy && index === state.currentSector;
                 const time = sector.dummy ? 0 : (isActive ? currentSectorTime : (state.sectorTimes[index] || 0));
                 const best = sector.dummy ? 0 : (state.bestSectorTimes[index] || 0);
                 const isWeak = !sector.dummy && index === state.weakSector;

@@ -1,23 +1,29 @@
+import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateGearingAnalysis, calculateSuspensionAnalysis, calculateDifferentialAnalysis, generateTuneDiagnosis, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
+import { stateManager } from '../services/state-manager.js';
+import { loadSession, readTrackDetail, writeTrackDetail, deleteTrackDetail } from '../storage/session-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { 
-  calculateDrivingLineAnalysis,
-  calculateDrivingStyle,
-  calculateDetailedStats,
-  calculateDrivingScore,
-  calculateGearingAnalysis,
-  calculateSuspensionAnalysis,
-  calculateDifferentialAnalysis,
-  generateTuneDiagnosis,
-  getBestLapNum,
-  findClosestPoint
-} from '../services/physics-analyzer.js';
 
 const router = express.Router();
 
-export default function(context) {
-  const { loadSession, tracks, readTrackDetail, DATA_DIR, io, vehicles, tunes, loadSessionById } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   // 赛后分析API
   router.get('/:sessionId', (req, res) => {
@@ -401,7 +407,7 @@ export default function(context) {
       }
       
       const trackId = session.trackId;
-      if (!trackId || !tracks[trackId]) {
+      if (!trackId || !stateManager.tracks[trackId]) {
         return res.json({ turns: [] });
       }
       
@@ -516,9 +522,9 @@ export default function(context) {
   // 调校诊断接口
   router.get('/:sessionId/diagnosis', (req, res) => {
     try {
-      const session = loadSessionById(req.params.sessionId);
+      const session = loadSession(req.params.sessionId, stateManager.tracks);
       if (!session) return res.status(404).json({ error: 'Session not found' });
-      const tune = session.tuneId ? tunes[session.tuneId] : null;
+      const tune = session.tuneId ? stateManager.tunes[session.tuneId] : null;
       const diagnoses = generateTuneDiagnosis(session, tune);
       res.json({ tuneId: session.tuneId, tuneName: tune?.name, diagnoses });
     } catch (e) {
@@ -567,8 +573,8 @@ export default function(context) {
   
       const trackId = session.trackId;
       let turnsSummary = [];
-      if (trackId && tracks[trackId]) {
-        const trackTurns = tracks[trackId].turns || [];
+      if (trackId && stateManager.tracks[trackId]) {
+        const trackTurns = stateManager.tracks[trackId].turns || [];
         const rawData = session.data || [];
         const bestLapNum = getBestLapNum(rawData);
         const currentLapFrames = rawData.filter(d => (d.lapNumber || d.lapNum || 0) === bestLapNum);
@@ -605,7 +611,7 @@ export default function(context) {
         return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
       })();
   
-      const vehicleDetail = session.vehicle?.ordinal ? vehicles[session.vehicle.ordinal] : null;
+      const vehicleDetail = session.vehicle?.ordinal ? stateManager.vehicles[session.vehicle.ordinal] : null;
       const vehicleName = vehicleDetail?.name || (session.vehicle?.ordinal ? 'Car #' + session.vehicle.ordinal : '未知车辆');
       const vehicleClass = vehicleDetail?.class ?? ({ 0: 'D', 1: 'C', 2: 'B', 3: 'A', 4: 'S1', 5: 'S2', 6: 'X' }[session.vehicle?.class] || '未知');
       const vehiclePi = vehicleDetail?.pi || session.vehicle?.performanceIndex || '';
@@ -674,5 +680,6 @@ ${turnsSummary.map(t => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半�
     }
   });
 
-  return router;
-}
+  
+
+export default router;

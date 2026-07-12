@@ -1,17 +1,35 @@
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import { fileURLToPath } from 'url';
 import { gzip, gunzip } from 'zlib';
 import { promisify } from 'util';
+import { stateManager } from '../services/state-manager.js';
+import { saveJSON, loadJSON } from '../utils/helpers.js';
+import { saveTracksDatabase, readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
 
 const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
 const router = express.Router();
 
-export default function(context) {
-  const { DATA_DIR, loadTracksDatabase, loadJSON, tracks, vehicles, tunes, saveTracksDatabase } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   function readDirRecursive(dir) {
     const result = {};
@@ -136,8 +154,8 @@ export default function(context) {
       writeDirRecursive(DATA_DIR, data.data);
       
       const nextTracks = loadTracksDatabase();
-      const nextVehicles = loadJSON(DATA_DIR + '/vehicles.json');
-      const nextTunes = loadJSON(DATA_DIR + '/tunes.json');
+      const nextVehicles = loadJSON(DATA_DIR + '/stateManager.vehicles.json');
+      const nextTunes = loadJSON(DATA_DIR + '/stateManager.tunes.json');
       
       if (context.onRestore) {
         context.onRestore(nextTracks, nextVehicles, nextTunes);
@@ -149,5 +167,6 @@ export default function(context) {
     }
   });
 
-  return router;
-}
+  
+
+export default router;

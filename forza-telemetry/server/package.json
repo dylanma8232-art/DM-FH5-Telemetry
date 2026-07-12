@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "zstd-wasm": "^0.0.9"
+    "socket.io": "^4.7.2"
   }
 }

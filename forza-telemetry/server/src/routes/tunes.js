@@ -1,16 +1,33 @@
+import { stateManager } from '../services/state-manager.js';
+import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
 
 const router = express.Router();
 
-export default function(context) {
-  const { tunes, saveJSON, DATA_DIR, currentTuneId, setCurrentTuneId } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   // 获取所有调校方案
   router.get('/', (req, res) => {
     try {
       const carOrdinal = req.query.carOrdinal ? parseInt(req.query.carOrdinal, 10) : null;
-      const result = Object.values(tunes).filter(t => {
+      const result = Object.values(stateManager.tunes).filter(t => {
         if (carOrdinal !== null && carOrdinal !== undefined && !isNaN(carOrdinal)) {
           return t.carOrdinal === carOrdinal;
         }
@@ -18,7 +35,7 @@ export default function(context) {
       });
       res.json(result);
     } catch (e) {
-      res.status(500).json({ error: 'Failed to load tunes' });
+      res.status(500).json({ error: 'Failed to load stateManager.tunes' });
     }
   });
 
@@ -27,14 +44,14 @@ export default function(context) {
     try {
       const { tuneId } = req.body || {};
       if (tuneId === null || tuneId === undefined) {
-        setCurrentTuneId(null);
+        stateManager.setCurrentTuneId(null);
         return res.json({ status: 'ok', currentTuneId: null });
       }
-      if (!tunes[tuneId]) {
+      if (!stateManager.tunes[tuneId]) {
         return res.status(404).json({ error: 'Tune not found' });
       }
-      setCurrentTuneId(tuneId);
-      res.json({ status: 'ok', currentTuneId: tuneId, tune: tunes[tuneId] });
+      stateManager.setCurrentTuneId(tuneId);
+      res.json({ status: 'ok', currentTuneId: tuneId, tune: stateManager.tunes[tuneId] });
     } catch (e) {
       res.status(500).json({ error: 'Failed to set active tune' });
     }
@@ -43,11 +60,11 @@ export default function(context) {
   // 获取当前活跃调校
   router.get('/active', (req, res) => {
     try {
-      const curId = context.getCurrentTuneId ? context.getCurrentTuneId() : currentTuneId;
-      if (!curId || !tunes[curId]) {
+      const curId = context.getCurrentTuneId ? context.getCurrentTuneId() : stateManager.currentTuneId;
+      if (!curId || !stateManager.tunes[curId]) {
         return res.json({ currentTuneId: null, tune: null });
       }
-      res.json({ currentTuneId: curId, tune: tunes[curId] });
+      res.json({ currentTuneId: curId, tune: stateManager.tunes[curId] });
     } catch (e) {
       res.status(500).json({ error: 'Failed to get active tune' });
     }
@@ -60,8 +77,8 @@ export default function(context) {
       if (!tuneIdA || !tuneIdB || !trackId) {
         return res.status(400).json({ error: 'tuneIdA, tuneIdB and trackId are required' });
       }
-      const tuneA = tunes[tuneIdA];
-      const tuneB = tunes[tuneIdB];
+      const tuneA = stateManager.tunes[tuneIdA];
+      const tuneB = stateManager.tunes[tuneIdB];
       if (!tuneA || !tuneB) {
         return res.status(404).json({ error: 'Tune not found' });
       }
@@ -122,7 +139,7 @@ export default function(context) {
         }
       });
     } catch (e) {
-      res.status(500).json({ error: 'Failed to compare tunes' });
+      res.status(500).json({ error: 'Failed to compare stateManager.tunes' });
     }
   });
 
@@ -153,8 +170,8 @@ export default function(context) {
         aero: body.aero || null,
         parts: body.parts || null,
       };
-      tunes[tuneId] = tune;
-      saveJSON(DATA_DIR + '/tunes.json', tunes);
+      stateManager.tunes[tuneId] = tune;
+      saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
       res.json({ status: 'ok', tuneId, tune });
     } catch (e) {
       res.status(500).json({ error: 'Failed to create tune' });
@@ -164,7 +181,7 @@ export default function(context) {
   // 获取单个调校详情
   router.get('/:tuneId', (req, res) => {
     try {
-      const tune = tunes[req.params.tuneId];
+      const tune = stateManager.tunes[req.params.tuneId];
       if (!tune) {
         return res.status(404).json({ error: 'Tune not found' });
       }
@@ -177,7 +194,7 @@ export default function(context) {
   // 更新调校
   router.put('/:tuneId', express.json(), (req, res) => {
     try {
-      const tune = tunes[req.params.tuneId];
+      const tune = stateManager.tunes[req.params.tuneId];
       if (!tune) {
         return res.status(404).json({ error: 'Tune not found' });
       }
@@ -197,8 +214,8 @@ export default function(context) {
       if (body.aero !== undefined) tune.aero = body.aero;
       if (body.parts !== undefined) tune.parts = body.parts;
       tune.updatedAt = new Date().toISOString();
-      tunes[req.params.tuneId] = tune;
-      saveJSON(DATA_DIR + '/tunes.json', tunes);
+      stateManager.tunes[req.params.tuneId] = tune;
+      saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
       res.json({ status: 'ok', tune });
     } catch (e) {
       res.status(500).json({ error: 'Failed to update tune' });
@@ -208,16 +225,17 @@ export default function(context) {
   // 删除调校
   router.delete('/:tuneId', (req, res) => {
     try {
-      if (!tunes[req.params.tuneId]) {
+      if (!stateManager.tunes[req.params.tuneId]) {
         return res.status(404).json({ error: 'Tune not found' });
       }
-      delete tunes[req.params.tuneId];
-      saveJSON(DATA_DIR + '/tunes.json', tunes);
+      delete stateManager.tunes[req.params.tuneId];
+      saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
       res.json({ status: 'ok' });
     } catch (e) {
       res.status(500).json({ error: 'Failed to delete tune' });
     }
   });
 
-  return router;
-}
+  
+
+export default router;

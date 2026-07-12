@@ -1,22 +1,30 @@
+import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateSectorAnalysis, analyzeSectors, generateDrivingAdvice, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
+import { stateManager } from '../services/state-manager.js';
+import { loadSession } from '../storage/session-db.js';
+import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { 
-  calculateDrivingLineAnalysis,
-  calculateDrivingStyle,
-  calculateDetailedStats,
-  calculateDrivingScore,
-  calculateSectorAnalysis,
-  analyzeSectors,
-  generateDrivingAdvice,
-  getBestLapNum,
-  findClosestPoint
-} from '../services/physics-analyzer.js';
 
 const router = express.Router();
 
-export default function(context) {
-  const { loadSession, tracks, tunes, DATA_DIR, saveJSON, leaderboardCache, setLeaderboardCache } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   // 获取比赛记录列表
   router.get('/api/sessions', (req, res) => {
@@ -26,9 +34,9 @@ export default function(context) {
       const sessions = files.map(f => {
         try {
           const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
-          const tune = data.tuneId && tunes[data.tuneId] ? tunes[data.tuneId] : null;
-          const trackName = (typeof tracks !== 'undefined' && data.trackId && tracks[data.trackId])
-            ? tracks[data.trackId].name
+          const tune = data.tuneId && stateManager.tunes[data.tuneId] ? stateManager.tunes[data.tuneId] : null;
+          const trackName = (typeof stateManager.tracks !== 'undefined' && data.trackId && stateManager.tracks[data.trackId])
+            ? stateManager.tracks[data.trackId].name
             : (data.trackName || '未知赛道');
           return {
             id: data.id,
@@ -220,5 +228,6 @@ export default function(context) {
     }
   });
 
-  return router;
-}
+  
+
+export default router;

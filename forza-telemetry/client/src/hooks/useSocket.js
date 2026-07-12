@@ -44,22 +44,20 @@ export function useSocket() {
 
     socket.on('telemetry', (telemetry) => {
       dataRef.current = telemetry;
-      setPacketCount(prev => prev + 1);
       packetCounterRef.current += 1;
       
-      // Full frame rate data for physics/charts
-      setRenderData(telemetry);
-
-      // Throttled data for text/UI to prevent React from stalling (approx 15 FPS)
+      // Prevent React global render storms: only update state at ~30 FPS (33ms)
       const now = Date.now();
-      if (now - lastThrottleTimeRef.current >= 66) {
-        setThrottledData(telemetry);
+      if (now - lastThrottleTimeRef.current >= 33) {
+        setRenderData(telemetry);
+        setThrottledData(telemetry); // Keep both for backwards compatibility
         lastThrottleTimeRef.current = now;
       }
     });
 
     const timer = setInterval(() => {
       setPacketsPerSecond(packetCounterRef.current);
+      setPacketCount(prev => prev + packetCounterRef.current);
       packetCounterRef.current = 0;
     }, 1000);
 

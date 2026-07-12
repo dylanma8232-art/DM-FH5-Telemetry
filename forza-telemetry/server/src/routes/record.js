@@ -1,34 +1,32 @@
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 import { checkAndAnnounceTurn, resetAnnouncedTurnIndex } from '../services/navigator.js';
-import { recognizeTrack } from '../services/track-recognizer.js';
 import { stateManager } from '../services/state-manager.js';
+import { saveJSON, loadJSON } from '../utils/helpers.js';
+import { saveTracksDatabase, readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
-export default function(context) {
-  const { 
-    DATA_DIR, 
-    tracks, 
-    vehicles, 
-    saveJSON, 
-    saveTracksDatabase, 
-    readTrackDetail, 
-    io,
-    getCurrentData,
-    getCurrentTuneId,
-    getTrackMode,
-    setTrackMode,
-    getLastRecognitionResult,
-    setLastRecognitionResult,
-    getRecognitionHistory,
-    pushToRecognitionHistory,
-    getPacketCount,
-    setPacketCount
-  } = context;
+
+  
+const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
+
+const calculateTrackLength = (pts) => {
+  if (!pts || pts.length < 2) return 0;
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dx = pts[i].x - pts[i-1].x;
+    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
+    const dz = pts[i].z - pts[i-1].z;
+    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+  return Math.round(len);
+};
+
 
   // 内部状态
   let isManualRecording = false;
@@ -127,7 +125,7 @@ export default function(context) {
     autoRecordWriteStream.on('error', (err) => console.error('[自动录制] 文件写入流异常:', err));
 
     console.log(`[自动录制] 比赛开始，实时流式写入: ${autoRecordTempPath}`);
-    io.emit('autoRecordStatus', { state: 'RECORDING', message: '比赛开始，自动录制中' });
+    stateManager.io.emit('autoRecordStatus', { state: 'RECORDING', message: '比赛开始，自动录制中' });
   }
 
   function stopAutoRecording() {
@@ -144,7 +142,7 @@ export default function(context) {
       if (autoRecordTempPath && fs.existsSync(autoRecordTempPath)) {
         try { fs.unlinkSync(autoRecordTempPath); } catch {}
       }
-      io.emit('autoRecordStatus', { state: 'IDLE', message: '比赛太短，数据已丢弃' });
+      stateManager.io.emit('autoRecordStatus', { state: 'IDLE', message: '比赛太短，数据已丢弃' });
       return;
     }
     
@@ -162,14 +160,14 @@ export default function(context) {
     lastSignificantPosition = null;
     
     // 比赛确实结束并保存时，立即退出路书模式，提供更快的 UI 响应
-    const trackMode = getTrackMode();
+    const trackMode = stateManager.getTrackMode();
     if (trackMode) {
       console.log(`[赛道模式] 比赛已结束并保存，退出路书模式。`);
-      setTrackMode(null);
-      io.emit('trackModeChanged', { active: false, trackId: null, trackName: null });
+      stateManager.setTrackMode(null);
+      stateManager.io.emit('trackModeChanged', { active: false, trackId: null, trackName: null });
     }
     
-    io.emit('autoRecordStatus', { state: 'PROCESSING', message: '正在后台生成赛道地图和路书...' });
+    stateManager.io.emit('autoRecordStatus', { state: 'PROCESSING', message: '正在后台生成赛道地图和路书...' });
     
     saveAutoRecordedDataWithWorker(duration, tempPath, capturedPositions, trackMode);
   }
@@ -190,7 +188,7 @@ export default function(context) {
     }
 
     const ts = Date.now();
-    const currentData = getCurrentData();
+    const currentData = stateManager.getCurrentData();
     const sessionDataMeta = {
       id: 'session_' + ts,
       trackName: trackName,
@@ -198,7 +196,7 @@ export default function(context) {
       savedAt: new Date().toISOString(),
       autoRecorded: true,
       trackMode: !!trackMode,
-      tuneId: getCurrentTuneId(),
+      tuneId: stateManager.getCurrentTuneId(),
       duration: duration,
       vehicle: currentData ? currentData.car : null
     };
@@ -209,8 +207,7 @@ export default function(context) {
         tempFilePath,
         positions,
         sessionDataMeta,
-        DATA_DIR,
-        tracks,
+        DATA_DIR, tracks: stateManager.tracks,
         trackMode
       }
     });
@@ -221,8 +218,8 @@ export default function(context) {
         
         if (msg.tracksUpdate) {
           const trUpdate = msg.tracksUpdate;
-          tracks[trUpdate.id] = trUpdate;
-          saveTracksDatabase(tracks);
+          stateManager.tracks[trUpdate.id] = trUpdate;
+          saveTracksDatabase(stateManager.tracks);
         }
 
         // 核心修复：通知缓存比赛记录+1
@@ -234,18 +231,18 @@ export default function(context) {
 
         const sessionSummary = msg.sessionSummary;
         const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
-        if (vehicleOrdinal && vehicles[vehicleOrdinal]) {
-          vehicles[vehicleOrdinal].raceCount = (vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          if (trackName && !vehicles[vehicleOrdinal].tracks.includes(trackName)) {
-            vehicles[vehicleOrdinal].tracks.push(trackName);
+        if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
+          stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
+          if (trackName && !stateManager.vehicles[vehicleOrdinal].tracks.includes(trackName)) {
+            stateManager.vehicles[vehicleOrdinal].tracks.push(trackName);
           }
-          if (!vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < vehicles[vehicleOrdinal].bestLap)) {
-            vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
+          if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
+            stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
           }
-          saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+          saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
         }
 
-        io.emit('autoRecordStatus', { 
+        stateManager.io.emit('autoRecordStatus', { 
           state: 'COMPLETED', 
           message: `比赛结束，数据保存成功`,
           sessionId: msg.sessionId,
@@ -254,7 +251,7 @@ export default function(context) {
         });
       } else {
         console.error(`[自动录制] 后台保存失败: ${msg.error}`);
-        io.emit('autoRecordStatus', { state: 'ERROR', message: `保存失败: ${msg.error}` });
+        stateManager.io.emit('autoRecordStatus', { state: 'ERROR', message: `保存失败: ${msg.error}` });
       }
 
       try {
@@ -262,13 +259,13 @@ export default function(context) {
       } catch {}
       
       // 注意：trackMode 已在 stopAutoRecording() 捕获后立即清除，
-      // 此处不能再次 setTrackMode(null)，否则会误杀用户随后开始的新赛道模式
+      // 此处不能再次 stateManager.setTrackMode(null)，否则会误杀用户随后开始的新赛道模式
       worker.terminate();
     });
 
     worker.on('error', (err) => {
       console.error(`[自动录制] 后台保存工作线程出现错误:`, err);
-      io.emit('autoRecordStatus', { state: 'ERROR', message: `工作线程错误: ${err.message}` });
+      stateManager.io.emit('autoRecordStatus', { state: 'ERROR', message: `工作线程错误: ${err.message}` });
       try {
         if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
       } catch {}
@@ -277,43 +274,6 @@ export default function(context) {
     });
   }
 
-  async function performTrackRecognition(currentPositions) {
-    try {
-      const results = recognizeTrack(currentPositions, tracks);
-      if (results.length > 0) {
-        const bestMatch = results[0];
-        if (bestMatch.confidence > 0.5) {
-          const result = {
-            ...bestMatch,
-            timestamp: new Date().toISOString(),
-            pointCount: currentPositions.length
-          };
-          setLastRecognitionResult(result);
-          pushToRecognitionHistory(result);
-          
-          // 自动挂载识别到的历史赛道，使得当前的自动录制可以保存并归属到这条赛道下
-          setTrackMode({ trackId: bestMatch.trackId, trackName: bestMatch.trackName });
-          resetAnnouncedTurnIndex(-1);
-          io.emit('trackModeChanged', { active: true, trackId: bestMatch.trackId, trackName: bestMatch.trackName });
-          
-          io.emit('trackRecognized', {
-            trackId: bestMatch.trackId,
-            trackName: bestMatch.trackName,
-            confidence: bestMatch.confidence,
-            details: bestMatch.details,
-            alternatives: results.slice(1, 4).map(r => ({
-              trackId: r.trackId,
-              trackName: r.trackName,
-              confidence: r.confidence
-            }))
-          });
-          console.log(`[赛道识别] 识别到赛道: ${bestMatch.trackName} (置信度: ${Math.round(bestMatch.confidence * 100)}%)`);
-        }
-      }
-    } catch (e) {
-      console.error('[赛道识别] 识别失败:', e.message);
-    }
-  }
 
   // 外部暴露的自动录制 UDP 包处理句柄
   function handleAutoRecord(telemetry) {
@@ -419,27 +379,19 @@ export default function(context) {
             lastAutoPositionSaveTime = nowTime;
           }
           
-          const trackMode = getTrackMode();
+          const trackMode = stateManager.getTrackMode();
           // 路书播报依旧基于 isStartConditionMet 避免倒车/静止时播报，但正常比赛时继续
-          if (isStartConditionMet && trackMode && tracks[trackMode.trackId]) {
-            const track = tracks[trackMode.trackId];
+          if (isStartConditionMet && trackMode && trackMode.detail) {
+            const track = trackMode.detail;
             if (track.turns && track.turns.length > 0) {
-              checkAndAnnounceTurn(position, track.turns, track.points, { io });
-            }
-          }
-          
-          if (!trackMode && autoRacePositions.length > 50) {
-            const now2 = Date.now();
-            if (now2 - lastRecognitionCheckTime > RECOGNITION_INTERVAL_MS) {
-              lastRecognitionCheckTime = now2;
-              performTrackRecognition(autoRacePositions);
+              checkAndAnnounceTurn(position, track.turns, track.centerline || track.points, { io: stateManager.io });
             }
           }
         }
         
-        const packetCount = getPacketCount();
+        const packetCount = stateManager.getPacketCount();
         if (packetCount % 30 === 0) {
-          io.emit('recordStats', {
+          console.log("--> handleAutoRecord io:", stateManager.io); stateManager.io.emit('recordStats', {
             state: 'RECORDING',
             pointCount: autoRecordDataCount,
             positionCount: autoRacePositions.length,
@@ -460,11 +412,11 @@ export default function(context) {
       }
     }
 
-    const trackMode = getTrackMode();
-    if (isManualRecording && isStartConditionMet && trackMode && tracks[trackMode.trackId]) {
-      const track = tracks[trackMode.trackId];
+    const trackMode = stateManager.getTrackMode();
+    if (isManualRecording && isStartConditionMet && trackMode && trackMode.detail) {
+      const track = trackMode.detail;
       if (track.turns && track.turns.length > 0 && isPositionValid) {
-        checkAndAnnounceTurn(position, track.turns, track.points, { io });
+        checkAndAnnounceTurn(position, track.turns, track.centerline || track.points, { io: stateManager.io });
       }
     }
   }
@@ -515,14 +467,14 @@ export default function(context) {
       return res.status(400).json({ error: '没有录制数据或临时文件已丢失' });
     }
 
-    const currentData = getCurrentData();
+    const currentData = stateManager.getCurrentData();
     const sessionDataMeta = {
       id: 'session_' + ts,
       trackName: trackName,
       trackId: trackId || null,
       savedAt: new Date().toISOString(),
       autoRecorded: false,
-      tuneId: getCurrentTuneId(),
+      tuneId: stateManager.getCurrentTuneId(),
       duration: 0,
       vehicle: currentData ? currentData.car : null
     };
@@ -540,8 +492,7 @@ export default function(context) {
         tempFilePath,
         positions,
         sessionDataMeta,
-        DATA_DIR,
-        tracks,
+        DATA_DIR, tracks: stateManager.tracks,
         trackMode: trackId ? { trackId, trackName } : null
       }
     });
@@ -552,8 +503,8 @@ export default function(context) {
         
         if (msg.tracksUpdate) {
           const trUpdate = msg.tracksUpdate;
-          tracks[trUpdate.id] = trUpdate;
-          saveTracksDatabase(tracks);
+          stateManager.tracks[trUpdate.id] = trUpdate;
+          saveTracksDatabase(stateManager.tracks);
         }
 
         // 核心修复：通知缓存比赛记录+1
@@ -564,15 +515,15 @@ export default function(context) {
 
         const sessionSummary = msg.sessionSummary;
         const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
-        if (vehicleOrdinal && vehicles[vehicleOrdinal]) {
-          vehicles[vehicleOrdinal].raceCount = (vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          if (trackName && !vehicles[vehicleOrdinal].tracks.includes(trackName)) {
-            vehicles[vehicleOrdinal].tracks.push(trackName);
+        if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
+          stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
+          if (trackName && !stateManager.vehicles[vehicleOrdinal].tracks.includes(trackName)) {
+            stateManager.vehicles[vehicleOrdinal].tracks.push(trackName);
           }
-          if (!vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < vehicles[vehicleOrdinal].bestLap)) {
-            vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
+          if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
+            stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
           }
-          saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+          saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
         }
 
         res.json({
@@ -627,7 +578,7 @@ export default function(context) {
   }, 2000);
 
   // 将辅助参数与核心逻辑包导给外部
-  return {
+  export default {
     router,
     handleAutoRecord,
     getIsManualRecording: () => isManualRecording,
@@ -653,4 +604,3 @@ export default function(context) {
       }
     }
   };
-}
