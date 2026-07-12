@@ -552,9 +552,8 @@ DashboardPage → 各子组件渲染
 |------|------|------|
 | `server/src/index.js` | ~5356 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
 | `server/src/telemetry-parser.js` | ~368 | UDP二进制→JSON解析（SLED+Dash） |
-| `server/src/track-builder.js` | ~1074 | 赛道算法: 中心线/弯道/路书/环道检测 |
-| `server/src/rebuild-tracks.js` | ~279 | 数据清洗: 重建赛道/清洗vehicles |
-| `server/src/data-listener.js` | - | 独立数据监听工具 |
+| `server/src/track-builder.js` | 门面 | 聚合导出 `track-math`, `track-turns`, `trajectory-cleaner`, `centerline-processor`, `builder-facade` 等赛道算法拆分模块 |
+| `server/src/services/physics-analyzer.js` | 门面 | 聚合导出 `scoring`, `telemetry-stats`, `advice-generator` 等物理与遥测分析拆分模块 |
 | `server/src/config/constants.js` | - | 配置常量 |
 | `server/src/services/retention.js` | - | 会话自动清理 |
 | `server/src/services/state-manager.js` | - | 全局状态管理 |
@@ -562,6 +561,7 @@ DashboardPage → 各子组件渲染
 | `server/src/storage/file-db.js` | - | Brotli 压缩读写 |
 | `server/src/storage/migration.js` | - | 数据迁移 |
 | `server/src/utils/rdp.js` | - | RDP 轨迹简化算法 |
+| `server/src/utils/asyncHandler.js` | - | 路由全自动异常捕获 |
 
 ### 前端核心
 
