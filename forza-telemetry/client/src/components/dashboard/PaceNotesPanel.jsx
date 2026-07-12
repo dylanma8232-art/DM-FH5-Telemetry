@@ -534,11 +534,14 @@ export function PaceNotesPanel({
   const [showGlossary, setShowGlossary] = useState(false);
   const listRef = useRef(null);
   const activeItemRef = useRef(null);
-  const lastSpokenTurnRef = useRef(-1);
+  const spokenTurnsRef = useRef(new Set());
 
   // 赛道切换时重置状态
   useEffect(() => {
     setHasRaceStarted(false);
+    setActiveTurnIdx(-1);
+    setHasPassed(false);
+    spokenTurnsRef.current.clear();
   }, [trackData?.id]);
 
   // 侦测比赛开始/结束
@@ -638,7 +641,12 @@ export function PaceNotesPanel({
   // 语音播报路书弯道 (优先级 2: 中等优先级) - WRC标准格式
   useEffect(() => {
     if (activeTurnIdx >= 0 && turnNotes[activeTurnIdx] && hasRaceStarted) {
-      if (lastSpokenTurnRef.current === activeTurnIdx) return; // 防止连续弯道拆开后被重复播报
+      // 如果进入了第0弯，且之前播报过一大半弯道，说明是一圈跑完开启新的一圈，清空已播报记录
+      if (activeTurnIdx === 0 && spokenTurnsRef.current.size > turnNotes.length / 2) {
+        spokenTurnsRef.current.clear();
+      }
+
+      if (spokenTurnsRef.current.has(activeTurnIdx)) return; // 防止连续弯道拆开后或来回波动被重复播报
 
       const note = turnNotes[activeTurnIdx];
       const dir = note.direction === 'left' ? '左' : '右';
@@ -652,10 +660,11 @@ export function PaceNotesPanel({
         const nextDir = nextNote.direction === 'left' ? '左' : '右';
         let nextSev = nextNote.severity || '3';
         text += `，接 ${nextDir}${nextSev}`;
-        // 如果是组合弯，直接标记下个弯道也已播报，防止开到下个弯时又播报一遍
-        lastSpokenTurnRef.current = activeTurnIdx + 1;
+        // 如果是组合弯，直接标记当前和下个弯道都已播报
+        spokenTurnsRef.current.add(activeTurnIdx);
+        spokenTurnsRef.current.add(activeTurnIdx + 1);
       } else {
-        lastSpokenTurnRef.current = activeTurnIdx;
+        spokenTurnsRef.current.add(activeTurnIdx);
       }
       
       // 地形与倾角描述

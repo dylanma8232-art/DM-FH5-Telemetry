@@ -371,52 +371,6 @@ router.put('/:id/turns', express.json(), asyncHandler(async (req, res) => {
 }));
 
 
-// 高级编辑器：合并两个相邻的弯道
-router.post('/:id/turns/merge', express.json(), asyncHandler(async (req, res) => {
-  const id = req.params.id;
-
-  let trackDetail = readTrackDetail(id) || stateManager.tracks[id];
-  if (!trackDetail || !trackDetail.turns) return res.status(404).json({ error: 'Track or turns not found' });
-
-  const { index1, index2 } = req.body;
-  if (index1 === undefined || index2 === undefined || index1 >= index2 || index2 >= trackDetail.turns.length) {
-    return res.status(400).json({ error: 'Invalid indices' });
-  }
-
-  const t1 = trackDetail.turns[index1];
-  const t2 = trackDetail.turns[index2];
-
-  const newStartIdx = Math.min(t1.startIdx, t2.startIdx);
-  const newEndIdx = Math.max(t1.endIdx, t2.endIdx);
-
-  const newTurn = calculateTurnAttributes(trackDetail.centerline, newStartIdx, newEndIdx, t1.id);
-  if (!newTurn) return res.status(400).json({ error: 'Failed to calculate merged turn attributes' });
-
-  if (t1.customNote) newTurn.customNote = t1.customNote;
-
-  trackDetail.turns.splice(index1, 2, newTurn);
-
-
-  const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
-  trackDetail.routeBook = rebuiltRouteBook;
-  trackDetail.updatedAt = new Date().toISOString();
-
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].turnCount = trackDetail.turns.length;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    stateManager.tracks[id].turns = trackDetail.turns;
-    stateManager.tracks[id].routeBook = trackDetail.routeBook;
-    saveTracksDatabase(stateManager.tracks);
-  }
-
-  if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
-  res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
-
-
-
-}));
 
 // 高级编辑器：在顶点拆分一个弯道
 router.post('/:id/turns/split', express.json(), asyncHandler(async (req, res) => {
