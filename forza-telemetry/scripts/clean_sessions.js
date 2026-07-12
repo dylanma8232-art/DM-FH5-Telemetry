@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * 数据清洗脚本：规范化历史比赛会话记录的赛道数据
+ * 数据清洗脚本 v2：规范化历史比赛会话记录和车辆统计数据
  * 功能：
  * 1. 扫描 data/sessions 下的所有 summary 文件
- * 2. 检查其中的 trackId 与 trackName 字段，如果缺失或者不匹配，使用 tracks-metadata.json 进行校正
- * 3. 规范化车辆基本信息，确保字段健壮
+ * 2. 检查 trackId 与 trackName 字段，使用 tracks-metadata.json 校正
+ * 3. 规范化 vehicle 字段，从 vehicles.json 补全缺失的车名等信息
+ * 4. 重新计算 vehicles.json 中的 raceCount, tracks, bestLap 字段
  */
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
@@ -17,47 +18,48 @@ const __dirname = dirname(__filename);
 const DATA_DIR = join(__dirname, '../data');
 const SESSIONS_DIR = join(DATA_DIR, 'sessions');
 
-// 读取 JSON 文件
 function readJSON(filepath) {
   try {
     if (!existsSync(filepath)) return null;
-    const data = readFileSync(filepath, 'utf8');
-    return JSON.parse(data);
+    return JSON.parse(readFileSync(filepath, 'utf8'));
   } catch (e) {
-    console.error(`读取文件失败: ${filepath}`, e.message);
+    console.error(`读取失败: ${filepath}`, e.message);
     return null;
   }
 }
 
-// 写入 JSON 文件
 function writeJSON(filepath, data) {
   try {
     writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
     return true;
   } catch (e) {
-    console.error(`写入文件失败: ${filepath}`, e.message);
+    console.error(`写入失败: ${filepath}`, e.message);
     return false;
   }
 }
 
 async function main() {
-  console.log('=== 开始清洗历史比赛记录数据 ===\n');
+  console.log('=== 开始执行 V2 深度数据清洗 ===\n');
 
-  const tracksMetadata = readJSON(join(DATA_DIR, 'tracks-metadata.json'));
-  if (!tracksMetadata) {
-    console.error('无法读取 tracks-metadata.json，终止数据清洗');
-    process.exit(1);
-  }
-
+  const tracksMetadata = readJSON(join(DATA_DIR, 'tracks-metadata.json')) || {};
+  const vehiclesData = readJSON(join(DATA_DIR, 'vehicles.json')) || {};
+  
   if (!existsSync(SESSIONS_DIR)) {
     console.log('未找到比赛记录存储目录');
     process.exit(0);
   }
 
   const files = readdirSync(SESSIONS_DIR).filter(f => f.endsWith('_summary.json'));
-  console.log(`找到 ${files.length} 个历史记录 summary 文件。`);
+  console.log(`> 找到 ${files.length} 个历史记录 summary 文件。\n`);
 
-  let modifiedCount = 0;
+  let modifiedSessionsCount = 0;
+
+  // 重置车辆统计数据
+  for (const key in vehiclesData) {
+    vehiclesData[key].raceCount = 0;
+    vehiclesData[key].tracks = [];
+    vehiclesData[key].bestLap = 0;
+  }
 
   for (const file of files) {
     const filePath = join(SESSIONS_DIR, file);
@@ -71,28 +73,45 @@ async function main() {
     let trackName = session.trackName;
 
     if (!trackId || trackId === 'unknown') {
-      // 尝试通过名字寻找 ID
       if (trackName && trackName !== '未知赛道') {
-        const foundId = Object.keys(tracksMetadata).find(
-          id => tracksMetadata[id].name === trackName
-        );
+        const foundId = Object.keys(tracksMetadata).find(id => tracksMetadata[id].name === trackName);
         if (foundId) {
           session.trackId = foundId;
+          trackId = foundId;
           modified = true;
-          console.log(`  [会话 ${session.id}] 根据赛道名 "${trackName}" 匹配并补全赛道 ID: ${foundId}`);
+          console.log(`[会话 ${session.id}] 赛道 ID 补全: ${foundId}`);
         }
       }
     } else if (tracksMetadata[trackId]) {
-      // ID 存在，校正名字以确保完全一致
       const correctName = tracksMetadata[trackId].name;
       if (trackName !== correctName) {
         session.trackName = correctName;
+        trackName = correctName;
         modified = true;
-        console.log(`  [会话 ${session.id}] 校正赛道名: "${trackName}" -> "${correctName}"`);
+        console.log(`[会话 ${session.id}] 赛道名校正: "${trackName}" -> "${correctName}"`);
       }
     }
 
-    // 2. 健壮性检查：确保 laps 中存在 best/last/count
+    // 2. 车辆数据清洗补全
+    if (session.vehicle) {
+      const ordinal = session.vehicle.ordinal;
+      if (ordinal && vehiclesData[ordinal]) {
+        const vInfo = vehiclesData[ordinal];
+        // 补全名字等信息
+        if (!session.vehicle.name || session.vehicle.name !== vInfo.name) {
+          session.vehicle.name = vInfo.name;
+          session.vehicle.class = vInfo.class;
+          session.vehicle.performanceIndex = vInfo.pi;
+          modified = true;
+          console.log(`[会话 ${session.id}] 车辆信息补全: Car #${ordinal} -> ${vInfo.name}`);
+        }
+      }
+    } else {
+      // 早期可能没有存 vehicle 但可能在其他地方能找到，目前保持 null 但记录日志
+      // console.log(`[会话 ${session.id}] 无车辆信息 (null)`);
+    }
+
+    // 3. 圈数数据结构健壮性检查
     if (!session.laps) {
       session.laps = { best: 0, last: 0, count: 0 };
       modified = true;
@@ -102,13 +121,36 @@ async function main() {
       if (session.laps.count === undefined) { session.laps.count = 0; modified = true; }
     }
 
+    // 4. 重建车辆的统计信息 (raceCount, tracks, bestLap)
+    if (session.vehicle && session.vehicle.ordinal) {
+      const ordinal = String(session.vehicle.ordinal);
+      if (vehiclesData[ordinal]) {
+        vehiclesData[ordinal].raceCount += 1;
+        
+        if (trackName && !vehiclesData[ordinal].tracks.includes(trackName)) {
+          vehiclesData[ordinal].tracks.push(trackName);
+        }
+        
+        const lapBest = session.laps.best || 0;
+        if (lapBest > 0) {
+          if (!vehiclesData[ordinal].bestLap || lapBest < vehiclesData[ordinal].bestLap) {
+            vehiclesData[ordinal].bestLap = lapBest;
+          }
+        }
+      }
+    }
+
     if (modified) {
       writeJSON(filePath, session);
-      modifiedCount++;
+      modifiedSessionsCount++;
     }
   }
 
-  console.log(`\n=== 数据清洗完成。共更新了 ${modifiedCount} 个会话的属性。 ===`);
+  // 保存重建后的 vehicles 数据
+  console.log(`\n> 正在保存重建的车辆统计数据...`);
+  writeJSON(join(DATA_DIR, 'vehicles.json'), vehiclesData);
+
+  console.log(`\n=== 数据清洗完成。共修复了 ${modifiedSessionsCount} 个会话。 ===`);
 }
 
 main().catch(console.error);

@@ -1257,7 +1257,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border)'
                           }}>
                             <div>
-                              <div style={{ fontSize: 12, fontWeight: 600 }}>{(vehiclesList[e.vehicleOrdinal]?.name || e.vehicleName) || `Car #${e.vehicleOrdinal}`}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600 }}>{(vehiclesList[e.vehicleOrdinal]?.name || e.vehicleName) || (e.vehicleOrdinal && e.vehicleOrdinal !== 'null' ? `Car #${e.vehicleOrdinal}` : '未知车辆')}</div>
                               <div style={{ fontSize: 11, color: '#8b949e', marginTop: 2 }}>
                                 #{e.vehicleOrdinal} · {getVehicleClass(e.vehicleClass)} {e.vehiclePI} PI
                               </div>
@@ -1295,7 +1295,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             {trackSessions.map(session => (
                               <tr key={session.id} style={{ borderBottom: '1px solid rgba(48, 54, 61, 0.3)' }}>
                                 <td style={{ padding: '8px 6px' }}>{formatDate(session.savedAt)}</td>
-                                <td style={{ padding: '8px 6px' }}>{(vehiclesList[session.vehicle?.ordinal]?.name || session.vehicle?.name) || `Car #${session.vehicle?.ordinal}`}</td>
+                                <td style={{ padding: '8px 6px' }}>{(vehiclesList[session.vehicle?.ordinal]?.name || session.vehicle?.name) || (session.vehicle?.ordinal && session.vehicle?.ordinal !== 'null' ? `Car #${session.vehicle?.ordinal}` : '未知车辆')}</td>
                                 <td style={{ padding: '8px 6px', fontFamily: 'monospace', fontWeight: 600, color: '#3fb950' }}>
                                   {session.laps?.best > 0 ? formatTime(session.laps.best) : (session.summary?.duration > 0 ? formatTime(session.summary.duration / 1000) : '-')}
                                 </td>
