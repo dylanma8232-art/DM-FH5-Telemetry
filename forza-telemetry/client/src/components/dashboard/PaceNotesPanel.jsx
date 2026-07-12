@@ -1235,5 +1235,3 @@ export function PaceNoteGlossaryModal({ onClose }) {
     </div>
   );
 }
-
-export default PaceNotesPanel;

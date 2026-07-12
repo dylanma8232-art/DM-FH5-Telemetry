@@ -164,9 +164,7 @@ router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  if (context.clearLeaderboardCache) {
-    context.clearLeaderboardCache();
-  }
+  stateManager.setLeaderboardCache(null);
   res.json({ status: 'ok' });
 
 
