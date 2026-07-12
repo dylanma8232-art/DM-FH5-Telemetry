@@ -207,7 +207,8 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   const myFilteredSessions = sessions.filter(s => {
     const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
-    const matchTrack = !trackFilter || (s.trackName || '未知赛道') === trackFilter
+    // trackFilter 可能是 trackId 或 trackName，两者都要支持
+    const matchTrack = !trackFilter || (s.trackId === trackFilter) || (s.trackName || '未知赛道') === trackFilter
     return matchSearch && matchTrack
   });
 
