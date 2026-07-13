@@ -50,3 +50,6 @@ forza-telemetry/data/
 
 # 启动脚本（本地使用）
 启动FH5遥测.command
+一键启动与数据清洗.command
+*.command
+*.sh
