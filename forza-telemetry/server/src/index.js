@@ -61,6 +61,8 @@ migrateOldSessions();
 let vehicles = loadJSON(DATA_DIR + '/vehicles.json');
 let tracks = loadTracksDatabase();
 let tunes = loadJSON(DATA_DIR + '/tunes.json');
+const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'config/cars-database.json');
+let carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
 let trackMode = null;
 let lastRecognitionResult = null;
 let recognitionHistory = [];
@@ -174,7 +176,7 @@ function processTelemetryPacket(telemetry, msgLength) {
     const carOrd = telemetry.car.ordinal;
     if (!vehicles[carOrd]) {
       vehicles[carOrd] = {
-        name: `Car #${carOrd}`,
+        name: carsDatabase[carOrd] || `Car #${carOrd}`,
         class: telemetry.car.class || '?',
         pi: telemetry.car.performanceIndex || 0,
         drivetrain: ['FWD','RWD','AWD'][telemetry.car.drivetrainType] || 'Unknown',
@@ -186,7 +188,7 @@ function processTelemetryPacket(telemetry, msgLength) {
         autoDetected: true
       };
       saveJSON(DATA_DIR + '/vehicles.json', vehicles);
-      console.log(`[Vehicle] 自动识别新车辆: Car #${carOrd}`);
+      console.log(`[Vehicle] 自动识别新车辆: ${vehicles[carOrd].name}`);
       io.emit('vehicleDetected', vehicles[carOrd]);
     } else {
       vehicles[carOrd].lastUsed = new Date().toISOString();

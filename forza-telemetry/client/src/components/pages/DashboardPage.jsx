@@ -221,6 +221,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
                 currentSpeed={telemetryData.speedKmh}
                 isRaceOn={telemetryData.isRaceOn}
                 racePosition={telemetryData.racePosition}
+                gear={telemetryData.controls?.gear || 0}
                 compact={true}
                 onExit={() => setTrackData(null)}
               />

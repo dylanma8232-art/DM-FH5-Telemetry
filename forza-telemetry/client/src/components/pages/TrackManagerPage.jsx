@@ -97,6 +97,7 @@ export function TrackManagerPage({ onNavigate }) {
   const canvasRef = useRef(null);
   const mapContextRef = useRef({});
   const [dragMode, setDragMode] = useState(null); // null, "start", "end"
+  const [isHoveringHandle, setIsHoveringHandle] = useState(false); // 是否悬停在拖拽手柄上
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -253,6 +254,22 @@ export function TrackManagerPage({ onNavigate }) {
     } catch (e) {
       toast('重建失败: ' + e.message, 'error');
     }
+  };
+
+  const updateSelectedTrackTurns = (turns, routeBook = null) => {
+    setTracks(prev => {
+      const track = prev[selectedTrack];
+      if (!track) return prev;
+      return {
+        ...prev,
+        [selectedTrack]: {
+          ...track,
+          turns: turns,
+          routeBook: routeBook || track.routeBook,
+          turnCount: turns.length
+        }
+      };
+    });
   };
 
   // 选中编辑弯道
@@ -1186,6 +1203,50 @@ export function TrackManagerPage({ onNavigate }) {
     return () => observer.disconnect();
   }, [drawCanvas]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 只有处于弯道编辑状态，且焦点不在输入框内时才响应快捷键
+      if (editingTurnIndex === null || !editTurnForm) return;
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      const track = tracks[selectedTrack];
+      if (!track || !track.turns) return;
+
+      // 1. [ 和 ] 翻页
+      if (e.key === '[') {
+        e.preventDefault();
+        if (editingTurnIndex > 0) {
+          selectTurnForEdit(editingTurnIndex - 1);
+        }
+      } else if (e.key === ']') {
+        e.preventDefault();
+        if (editingTurnIndex < track.turns.length - 1) {
+          selectTurnForEdit(editingTurnIndex + 1);
+        }
+      }
+      // 2. 左/右方向键切换左右弯
+      else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setEditTurnForm(prev => ({ ...prev, direction: 'left' }));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setEditTurnForm(prev => ({ ...prev, direction: 'right' }));
+      }
+      // 3. 数字键 1-6 设定 WRC 级别
+      else if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+        e.preventDefault();
+        setEditTurnForm(prev => ({ ...prev, severity: e.key }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingTurnIndex, editTurnForm, selectedTrack, tracks]);
+
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -1277,12 +1338,42 @@ export function TrackManagerPage({ onNavigate }) {
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
       }));
+      return;
+    }
+
+    // 检测鼠标是否悬停在正在编辑的弯道的黄色/红色手柄上
+    if (editingTurnIndex !== null && editTurnForm && mapContextRef.current) {
+      const { toScreen, points } = mapContextRef.current;
+      const { sx, sy } = getClosestPointIndex(e.clientX, e.clientY);
+      
+      const sPt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.startIdx) || points[editTurnForm.startIdx];
+      const ePt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.endIdx) || points[editTurnForm.endIdx];
+      if (sPt && ePt) {
+        const sScreen = toScreen(sPt);
+        const eScreen = toScreen(ePt);
+        
+        const distToStart = Math.hypot(sScreen.sx - sx, sScreen.sy - sy);
+        const distToEnd = Math.hypot(eScreen.sx - sx, eScreen.sy - sy);
+        
+        const hitRadius = 40 / transform.scale;
+        
+        if (distToStart < hitRadius || distToEnd < hitRadius) {
+          setIsHoveringHandle(true);
+        } else {
+          setIsHoveringHandle(false);
+        }
+      } else {
+        setIsHoveringHandle(false);
+      }
+    } else {
+      setIsHoveringHandle(false);
     }
   };
 
   const handleMouseUp = async (e) => {
     if (dragMode) {
       setDragMode(null);
+      setIsHoveringHandle(false);
       
       // Auto save bounds!
       if (editTurnForm && selectedTrack && editingTurnIndex !== null) {
@@ -1403,12 +1494,13 @@ export function TrackManagerPage({ onNavigate }) {
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 100px)' }}>
-      <div style={{
-        width: 300,
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+      {editingTurnIndex === null && (
+        <div style={{
+          width: 300,
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
         <div style={{
           padding: 8,
           borderBottom: '1px solid #21262d',
@@ -1516,6 +1608,7 @@ export function TrackManagerPage({ onNavigate }) {
           )}
         </div>
       </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{
@@ -1549,7 +1642,7 @@ export function TrackManagerPage({ onNavigate }) {
                   width: '100%',
                   height: '100%',
                   background: '#0d1117',
-                  cursor: isDragging ? 'grabbing' : 'grab'
+                  cursor: isDragging ? 'grabbing' : (isHoveringHandle ? 'pointer' : 'grab')
                 }}
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
@@ -1645,6 +1738,7 @@ export function TrackManagerPage({ onNavigate }) {
               height: '100%',
               overflow: 'hidden'
             }}>
+              {/* 头部标题与返回按钮 */}
               <div style={{
                 padding: '10px 12px 6px',
                 fontSize: 11,
@@ -1655,242 +1749,237 @@ export function TrackManagerPage({ onNavigate }) {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span>赛道详情与评分</span>
-                {(selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount || 0) > 0 && (
-                  <span style={{ fontSize: 9, color: '#58a6ff', fontWeight: 600 }}>
-                    基于 {selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount} 次比赛数据
-                  </span>
+                <span>{editingTurnIndex !== null ? `编辑弯道 T${editingTurnIndex + 1}` : '赛道详情与评分'}</span>
+                {editingTurnIndex !== null ? (
+                  <button
+                    onClick={() => { setEditingTurnIndex(null); setEditTurnForm(null); }}
+                    style={btnSmallStyle}
+                  >
+                    返回列表
+                  </button>
+                ) : (
+                  (selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount || 0) > 0 && (
+                    <span style={{ fontSize: 9, color: '#58a6ff', fontWeight: 600 }}>
+                      基于 {selectedTrackData.routeBook?.dataSourceCount || selectedTrackData.dataSourceCount || selectedTrackData.trajectoryCount} 次比赛数据
+                    </span>
+                  )
                 )}
               </div>
 
-              {/* 数据质量卡片 */}
-              {(() => {
-                const q = validationResult && validationResult[selectedTrack];
-                const gradeColor = q?.overallScore >= 85 ? '#3fb950' : q?.overallScore >= 70 ? '#58a6ff' : q?.overallScore >= 50 ? '#d29922' : '#f85149';
-                const gradeBg = q?.overallScore >= 85 ? 'rgba(63,185,80,0.15)' : q?.overallScore >= 70 ? 'rgba(88,166,255,0.15)' : q?.overallScore >= 50 ? 'rgba(210,153,34,0.15)' : 'rgba(248,81,73,0.15)';
-                return (
-                  <div style={{ padding: 12, borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 14, fontWeight: 900, fontFamily: 'monospace',
-                          background: gradeBg,
-                          color: gradeColor,
-                          border: `2px solid ${gradeColor}`
-                        }}>
-                          {q?.grade || '?'}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            质量评分: {q ? q.overallScore + '/100' : '计算中...'}
-                          </div>
-                          <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
-                            {selectedTrackData.pointCount || 0}点 · {selectedTrackData.turns?.length || 0}弯 · {selectedTrackData.trajectoryCount || 0}轨迹
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => rebuildTrack(selectedTrack)}
-                        style={btnSmallStyle}
-                        title="重新构建中心线与弯道"
-                      >
-                        🔄 重建
-                      </button>
-                    </div>
-
-                    {/* 分项进度条 */}
-                    {q?.details && (
-                      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-                        {Object.entries(q.details).map(([key, val]) => {
-                          const labels = { points: '点', turns: '弯', routeBook: '路', dataRichness: '富', coverage: '覆' };
-                          const barColor = val >= 80 ? '#3fb950' : val >= 50 ? '#d29922' : '#f85149';
-                          return (
-                            <div key={key} style={{ flex: 1 }} title={`${labels[key] || key}: ${val}/100`}>
-                              <div style={{ height: 2, background: '#21262d', borderRadius: 1, overflow: 'hidden' }}>
-                                <div style={{ width: `${val}%`, height: '100%', background: barColor }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* 警告/建议 */}
-                    {q?.warnings && q.warnings.length > 0 && (
-                      <div style={{ fontSize: 9, color: '#d29922', display: 'flex', gap: 4, marginBottom: 2 }}>
-                        <span>⚠️</span>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.warnings[0]}>
-                          {q.warnings[0]}
-                        </span>
-                      </div>
-                    )}
-                    {q?.suggestions && q.suggestions.length > 0 && (
-                      <div style={{ fontSize: 9, color: '#58a6ff', display: 'flex', gap: 4 }}>
-                        <span>💡</span>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.suggestions[0]}>
-                          {q.suggestions[0]}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* 弯道编辑表单（与数据质量卡片联动展示） */}
-              {editingTurnIndex !== null && editTurnForm && (
+              {/* 核心内容区：编辑状态 vs. 列表状态 */}
+              {editingTurnIndex !== null && editTurnForm ? (
                 <div style={{
                   padding: '12px 16px',
-                  borderBottom: '1px solid var(--border)',
-                  background: 'var(--bg-primary)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 10
+                  gap: 12,
+                  flex: 1,
+                  overflow: 'auto',
+                  background: 'var(--bg-primary)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>
-                      ⚙️ 编辑弯道 T{editingTurnIndex + 1}
-                    </span>
-                    <button 
-                      onClick={() => { setEditingTurnIndex(null); setEditTurnForm(null); }}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 11 }}
+                  {/* 顶部翻页导航 */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '6px 8px',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: 6,
+                    border: '1px solid var(--border)',
+                    marginBottom: 4
+                  }}>
+                    <button
+                      disabled={editingTurnIndex === 0}
+                      onClick={() => selectTurnForEdit(editingTurnIndex - 1)}
+                      style={{
+                        ...btnSmallStyle,
+                        opacity: editingTurnIndex === 0 ? 0.5 : 1,
+                        cursor: editingTurnIndex === 0 ? 'default' : 'pointer'
+                      }}
+                      title="快捷键: ["
                     >
-                      取消
+                      ← 上一弯
+                    </button>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      弯道 {editingTurnIndex + 1} / {selectedTrackData.turns?.length || 0}
+                    </span>
+                    <button
+                      disabled={!selectedTrackData.turns || editingTurnIndex === selectedTrackData.turns.length - 1}
+                      onClick={() => selectTurnForEdit(editingTurnIndex + 1)}
+                      style={{
+                        ...btnSmallStyle,
+                        opacity: (!selectedTrackData.turns || editingTurnIndex === selectedTrackData.turns.length - 1) ? 0.5 : 1,
+                        cursor: (!selectedTrackData.turns || editingTurnIndex === selectedTrackData.turns.length - 1) ? 'default' : 'pointer'
+                      }}
+                      title="快捷键: ]"
+                    >
+                      下一弯 →
                     </button>
                   </div>
 
-                  
-                  <div style={{ marginTop: 10, padding: 8, background: 'rgba(88,166,255,0.1)', borderRadius: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                    <div style={{ marginBottom: 4 }}>💡 <strong>调整边界</strong>：在上方地图中按住并拖拽入弯点(黄色)或出弯点(红色)。</div>
-                    <div>✂️ <strong>拆分弯道</strong>：在地图轨迹线上双击即可在此处切开弯道。</div>
+                  {/* 提示信息 */}
+                  <div style={{ padding: 8, background: 'rgba(88,166,255,0.06)', border: '1px dashed rgba(88,166,255,0.2)', borderRadius: 6, fontSize: 10, color: 'var(--text-muted)' }}>
+                    <div style={{ marginBottom: 4 }}>💡 <strong>调整边界</strong>：在地图中按住拖拽黄色(入弯)或红色(出弯)手柄。</div>
+                    <div style={{ marginBottom: 4 }}>✂️ <strong>拆分弯道</strong>：在地图轨迹线上双击即可在此处切开弯道。</div>
+                    <div>⌨️ <strong>快捷键流</strong>：非输入框状态下可使用快捷键 <code>[</code>、<code>]</code> 翻页，<code>1</code>-<code>6</code> 设级别，<code>←/→</code> 切换方向。</div>
                   </div>
 
-                  {/* 方向与级别 */}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {/* 方向选择 */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>转向方向</div>
-                      <div style={{ display: 'flex', gap: 2 }}>
-                        <button
-                          onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'left' }))}
-                          style={{
-                            flex: 1, padding: '4px 0', fontSize: 10, borderRadius: 4, cursor: 'pointer',
-                            background: editTurnForm.direction === 'left' ? '#1f6feb' : '#21262d',
-                            color: '#fff',
-                            border: editTurnForm.direction === 'left' ? '1px solid #58a6ff' : '1px solid #30363d',
-                            fontWeight: editTurnForm.direction === 'left' ? 600 : 400
-                          }}
-                        >
-                          ← 左
-                        </button>
-                        <button
-                          onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'right' }))}
-                          style={{
-                            flex: 1, padding: '4px 0', fontSize: 10, borderRadius: 4, cursor: 'pointer',
-                            background: editTurnForm.direction === 'right' ? '#f85149' : '#21262d',
-                            color: '#fff',
-                            border: editTurnForm.direction === 'right' ? '1px solid #f85149' : '1px solid #30363d',
-                            fontWeight: editTurnForm.direction === 'right' ? 600 : 400
-                          }}
-                        >
-                          右 →
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 严重度级别 */}
-                    <div style={{ flex: 1.2 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>WRC 严重度</div>
-                      <select
-                        value={editTurnForm.severity}
-                        onChange={(e) => setEditTurnForm(prev => ({ ...prev, severity: e.target.value }))}
+                  {/* 方向选择 */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>转向方向</div>
+                    <div style={{ display: 'flex', background: '#21262d', borderRadius: 6, padding: 2, border: '1px solid #30363d' }}>
+                      <button
+                        onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'left' }))}
                         style={{
-                          width: '100%', padding: '4px', fontSize: 10, borderRadius: 4,
-                          background: '#21262d', color: '#fff', border: '1px solid #30363d',
-                          height: 24, cursor: 'pointer'
+                          flex: 1, padding: '6px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: 'none',
+                          background: editTurnForm.direction === 'left' ? '#1f6feb' : 'transparent',
+                          color: editTurnForm.direction === 'left' ? '#fff' : 'var(--text-muted)',
+                          fontWeight: editTurnForm.direction === 'left' ? 700 : 400,
+                          transition: 'all 0.15s ease'
                         }}
                       >
-                        <option value="1">1级弯（最急）</option>
-                        <option value="2">2级弯</option>
-                        <option value="3">3级弯</option>
-                        <option value="4">4级弯</option>
-                        <option value="5">5级弯</option>
-                        <option value="6">6级弯（最缓）</option>
-                      </select>
+                        ⬅️ 左
+                      </button>
+                      <button
+                        onClick={() => setEditTurnForm(prev => ({ ...prev, direction: 'right' }))}
+                        style={{
+                          flex: 1, padding: '6px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: 'none',
+                          background: editTurnForm.direction === 'right' ? '#da3633' : 'transparent',
+                          color: editTurnForm.direction === 'right' ? '#fff' : 'var(--text-muted)',
+                          fontWeight: editTurnForm.direction === 'right' ? 700 : 400,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        右 ➡️
+                      </button>
                     </div>
                   </div>
 
-                  {/* 倾角与盲坡 */}
+                  {/* WRC 级别 */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>WRC 严重度</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {['1', '2', '3', '4', '5', '6'].map(num => {
+                        const isSelected = editTurnForm.severity === num;
+                        let activeBg = '#3fb950'; // 5, 6
+                        if (num === '1' || num === '2') activeBg = '#da3633'; // 1, 2
+                        else if (num === '3' || num === '4') activeBg = '#d29922'; // 3, 4
+
+                        return (
+                          <button
+                            key={num}
+                            onClick={() => setEditTurnForm(prev => ({ ...prev, severity: num }))}
+                            style={{
+                              flex: 1,
+                              height: 28,
+                              fontSize: 12,
+                              fontWeight: 700,
+                              borderRadius: 6,
+                              border: isSelected ? 'none' : '1px solid #30363d',
+                              background: isSelected ? activeBg : '#21262d',
+                              color: isSelected ? '#fff' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              boxShadow: isSelected ? `0 0 6px ${activeBg}80` : 'none',
+                              transition: 'all 0.1s ease'
+                            }}
+                          >
+                            {num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--text-muted)', marginTop: 2, padding: '0 2px' }}>
+                      <span>急弯 1</span>
+                      <span>缓弯 6</span>
+                    </div>
+                  </div>
+
+                  {/* 附加特征 (Pills) */}
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>路面倾角</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                          <input
-                            type="checkbox"
-                            checked={editTurnForm.camber === 'banking'}
-                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'banking' : null }))}
-                          />
-                          带倾角
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                          <input
-                            type="checkbox"
-                            checked={editTurnForm.camber === 'off-camber'}
-                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, camber: e.target.checked ? 'off-camber' : null }))}
-                          />
-                          反倾角
-                        </label>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>路面倾角</div>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, camber: prev.camber === 'banking' ? null : 'banking' }))}
+                          style={{
+                            flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 6, cursor: 'pointer',
+                            border: editTurnForm.camber === 'banking' ? 'none' : '1px solid #30363d',
+                            background: editTurnForm.camber === 'banking' ? '#238636' : '#21262d',
+                            color: editTurnForm.camber === 'banking' ? '#fff' : 'var(--text-primary)',
+                            fontWeight: editTurnForm.camber === 'banking' ? 600 : 400
+                          }}
+                        >
+                          📐 带倾角
+                        </button>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, camber: prev.camber === 'off-camber' ? null : 'off-camber' }))}
+                          style={{
+                            flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 6, cursor: 'pointer',
+                            border: editTurnForm.camber === 'off-camber' ? 'none' : '1px solid #30363d',
+                            background: editTurnForm.camber === 'off-camber' ? '#f0883e' : '#21262d',
+                            color: editTurnForm.camber === 'off-camber' ? '#fff' : 'var(--text-primary)',
+                            fontWeight: editTurnForm.camber === 'off-camber' ? 600 : 400
+                          }}
+                        >
+                          🚨 反倾角
+                        </button>
                       </div>
                     </div>
 
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>坡度起伏</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                          <input
-                            type="checkbox"
-                            checked={editTurnForm.crest === 'crest'}
-                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'crest' : null }))}
-                          />
-                          盲坡/过坡
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, cursor: 'pointer', color: 'var(--text-primary)' }}>
-                          <input
-                            type="checkbox"
-                            checked={editTurnForm.crest === 'jump'}
-                            onChange={(e) => setEditTurnForm(prev => ({ ...prev, crest: e.target.checked ? 'jump' : null }))}
-                          />
-                          飞跳
-                        </label>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>坡度起伏</div>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, crest: prev.crest === 'crest' ? null : 'crest' }))}
+                          style={{
+                            flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 6, cursor: 'pointer',
+                            border: editTurnForm.crest === 'crest' ? 'none' : '1px solid #30363d',
+                            background: editTurnForm.crest === 'crest' ? '#1f6feb' : '#21262d',
+                            color: editTurnForm.crest === 'crest' ? '#fff' : 'var(--text-primary)',
+                            fontWeight: editTurnForm.crest === 'crest' ? 600 : 400
+                          }}
+                        >
+                          ⛰️ 盲坡
+                        </button>
+                        <button
+                          onClick={() => setEditTurnForm(prev => ({ ...prev, crest: prev.crest === 'jump' ? null : 'jump' }))}
+                          style={{
+                            flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 6, cursor: 'pointer',
+                            border: editTurnForm.crest === 'jump' ? 'none' : '1px solid #30363d',
+                            background: editTurnForm.crest === 'jump' ? '#f0883e' : '#21262d',
+                            color: editTurnForm.crest === 'jump' ? '#fff' : 'var(--text-primary)',
+                            fontWeight: editTurnForm.crest === 'jump' ? 600 : 400
+                          }}
+                        >
+                          ✈️ 飞跳
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* 自定义备注 */}
+                  {/* 自定义语音备注 */}
                   <div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>自定义语音备注</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>自定义语音备注</div>
                     <input
                       type="text"
                       placeholder="例如：压路肩 / 靠内侧 / 出弯有积水"
-                      value={editTurnForm.customNote}
+                      value={editTurnForm.customNote || ''}
                       onChange={(e) => setEditTurnForm(prev => ({ ...prev, customNote: e.target.value }))}
                       style={{
-                        width: '100%', padding: '4px 6px', fontSize: 10, borderRadius: 4,
+                        width: '100%', padding: '6px 8px', fontSize: 11, borderRadius: 6,
                         background: '#21262d', color: '#fff', border: '1px solid #30363d',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box', outline: 'none'
                       }}
                     />
                   </div>
 
-                  {/* 保存与删除 */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  {/* 操作按钮组 */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                     <button
                       onClick={saveTurnChanges}
                       style={{
-                        flex: 1.5, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
-                        background: '#238636', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                        flex: 1.5, padding: '8px 0', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
+                        background: '#238636', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                       }}
                     >
                       💾 保存修改
@@ -1899,8 +1988,8 @@ export function TrackManagerPage({ onNavigate }) {
                       <button
                         onClick={() => mergeTurnDown(editingTurnIndex)}
                         style={{
-                          flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
-                          background: '#1f6feb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                          flex: 1, padding: '8px 0', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
+                          background: '#1f6feb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                         }}
                       >
                         🔗 向下合并
@@ -1909,167 +1998,227 @@ export function TrackManagerPage({ onNavigate }) {
                     <button
                       onClick={() => deleteTurn(editingTurnIndex)}
                       style={{
-                        flex: 1, padding: '5px 0', fontSize: 10, borderRadius: 4, border: 'none', cursor: 'pointer',
-                        background: '#da3637', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2
+                        flex: 1, padding: '8px 0', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
+                        background: '#da3633', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4
                       }}
                     >
-                      🗑️ 删除弯道
+                      🗑️ 删除
                     </button>
                   </div>
                 </div>
-              )}
+              ) : (
+                <>
+                  {/* 数据质量卡片 */}
+                  {(() => {
+                    const q = validationResult && validationResult[selectedTrack];
+                    const gradeColor = q?.overallScore >= 85 ? '#3fb950' : q?.overallScore >= 70 ? '#58a6ff' : q?.overallScore >= 50 ? '#d29922' : '#f85149';
+                    const gradeBg = q?.overallScore >= 85 ? 'rgba(63,185,80,0.15)' : q?.overallScore >= 70 ? 'rgba(88,166,255,0.15)' : q?.overallScore >= 50 ? 'rgba(210,153,34,0.15)' : 'rgba(248,81,73,0.15)';
+                    return (
+                      <div style={{ padding: 12, borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 14, fontWeight: 900, fontFamily: 'monospace',
+                              background: gradeBg,
+                              color: gradeColor,
+                              border: `2px solid ${gradeColor}`
+                            }}>
+                              {q?.grade || '?'}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                                质量评分: {q ? q.overallScore + '/100' : '计算中...'}
+                              </div>
+                              <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                                {selectedTrackData.pointCount || 0}点 · {selectedTrackData.turns?.length || 0}弯 · {selectedTrackData.trajectoryCount || 0}轨迹
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => rebuildTrack(selectedTrack)}
+                            style={btnSmallStyle}
+                            title="重新构建中心线与弯道"
+                          >
+                            🔄 重建
+                          </button>
+                        </div>
 
-              {/* 弯道列表 */}
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    弯道列表 (点击行定位与编辑)
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowGlossary(true);
-                      }}
-                      style={{
-                        cursor: 'pointer',
-                        color: '#8b949e',
-                        fontSize: 10,
-                        fontWeight: 'bold',
-                        padding: '0 4px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.08)',
-                        width: 14,
-                        height: 14
-                      }}
-                      title="路书术语释义"
-                    >
-                      ?
-                    </span>
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleTrackPaceNoteLock();
-                    }}
-                    style={{
-                      background: selectedTrackData.isPaceNoteLocked ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                      color: selectedTrackData.isPaceNoteLocked ? '#3fb950' : 'var(--text-secondary)',
-                      border: `1px solid ${selectedTrackData.isPaceNoteLocked ? '#3fb950' : 'var(--border)'}`,
-                      borderRadius: 4,
-                      padding: '2px 6px',
-                      fontSize: 9,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                    title={selectedTrackData.isPaceNoteLocked ? '已开启全局锁定，自动重建将严格保留所有旧弯道坐标' : '开启全局锁定'}
-                  >
-                    {selectedTrackData.isPaceNoteLocked ? '骨架已锁定' : '骨架未锁定'}
-                  </button>
-                </div>
-                <div style={{ flex: 1, overflow: 'auto' }}>
-                  {selectedTrackData.turns && selectedTrackData.turns.length > 0 ? (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)', position: 'sticky', top: 0, zIndex: 1 }}>
-                          <th style={{ padding: '6px 8px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>#</th>
-                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>类型</th>
-                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
-                          <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
-                          <th style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>操作</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(selectedTrackData.turns || []).map((turn, idx) => {
-                          const isCurrentEditing = editingTurnIndex === idx;
-                          let sev = turn.severity || '3';
-                          let severityColor = '#58a6ff';
-                          if (sev === '1') severityColor = '#f85149';
-                          else if (['2', '3'].includes(String(sev))) severityColor = '#f0883e';
-                          else if (['4', '5', '6'].includes(String(sev))) severityColor = '#3fb950';
-
-                          return (
-                            <tr 
-                              key={idx} 
-                              onClick={() => selectTurnForEdit(idx)}
-                              style={{ 
-                                borderBottom: '1px solid var(--border-light)', 
-                                cursor: 'pointer',
-                                background: isCurrentEditing 
-                                  ? 'rgba(255, 211, 61, 0.15)' 
-                                  : (turn.severity === 'critical' ? 'rgba(248,81,73,0.04)' : 'transparent'),
-                                borderLeft: isCurrentEditing ? '3px solid #ffd33d' : 'none'
-                              }}
-                            >
-                              <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
-                              <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9, fontWeight: 600 }}>
-                                {sev + '级弯'}
-                              </td>
-                              <td style={{ padding: '6px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
-                                {turn.direction === 'left' ? '左' : '右'}
-                              </td>
-                              <td style={{ padding: '6px 4px', fontFamily: 'monospace' }}>
-                                {turn.angle != null ? turn.angle.toFixed(0) + '°' : '-'}
-                              </td>
-                              <td style={{ padding: '6px 4px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleTurnLock(idx);
-                                    }}
-                                    style={{
-                                      background: turn.isLockedByUser ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                      border: turn.isLockedByUser ? '1px solid #3fb950' : '1px solid var(--border)',
-                                      borderRadius: 4,
-                                      color: turn.isLockedByUser ? '#3fb950' : 'var(--text-secondary)',
-                                      cursor: 'pointer',
-                                      fontSize: 10,
-                                      padding: '2px 6px',
-                                      fontWeight: 600
-                                    }}
-                                    title={turn.isLockedByUser ? "解除局部锁定" : "锁定此弯道 (下次合并时保留它)"}
-                                  >
-                                    {turn.isLockedByUser ? '解锁' : '锁定'}
-                                  </button>
-
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteTurn(idx);
-                                    }}
-                                    style={{
-                                      background: 'rgba(248, 81, 73, 0.1)',
-                                      border: '1px solid #f85149',
-                                      borderRadius: 4,
-                                      color: '#f85149',
-                                      cursor: 'pointer',
-                                      fontSize: 10,
-                                      padding: '2px 6px',
-                                      fontWeight: 600
-                                    }}
-                                    title="从路书中删除此弯道 (不再生成)"
-                                  >
-                                    删除
-                                  </button>
+                        {/* 分项进度条 */}
+                        {q?.details && (
+                          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                            {Object.entries(q.details).map(([key, val]) => {
+                              const labels = { points: '点', turns: '弯', routeBook: '路', dataRichness: '富', coverage: '覆' };
+                              const barColor = val >= 80 ? '#3fb950' : val >= 50 ? '#d29922' : '#f85149';
+                              return (
+                                <div key={key} style={{ flex: 1 }} title={`${labels[key] || key}: ${val}/100`}>
+                                  <div style={{ height: 2, background: '#21262d', borderRadius: 1, overflow: 'hidden' }}>
+                                    <div style={{ width: `${val}%`, height: '100%', background: barColor }} />
+                                  </div>
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
-                      暂无弯道数据。<br />
-                      <span style={{ fontSize: 9, color: 'var(--text-secondary)' }}>点击上方“重建”尝试生成中心线。</span>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* 警告/建议 */}
+                        {q?.warnings && q.warnings.length > 0 && (
+                          <div style={{ fontSize: 9, color: '#d29922', display: 'flex', gap: 4, marginBottom: 2 }}>
+                            <span>⚠️</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.warnings[0]}>
+                              {q.warnings[0]}
+                            </span>
+                          </div>
+                        )}
+                        {q?.suggestions && q.suggestions.length > 0 && (
+                          <div style={{ fontSize: 9, color: '#58a6ff', display: 'flex', gap: 4 }}>
+                            <span>💡</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={q.suggestions[0]}>
+                              {q.suggestions[0]}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 弯道列表 */}
+                  <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        弯道列表 (点击行定位与编辑)
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowGlossary(true);
+                          }}
+                          style={{
+                            cursor: 'pointer',
+                            color: '#8b949e',
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            padding: '0 4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.08)',
+                            width: 14,
+                            height: 14
+                          }}
+                          title="路书术语释义"
+                        >
+                          ?
+                        </span>
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
+
+                    <div style={{ flex: 1, overflow: 'auto', padding: '0 12px 12px' }}>
+                      {selectedTrackData.turns && selectedTrackData.turns.length > 0 ? (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                              <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>#</th>
+                              <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>严重度</th>
+                              <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>方向</th>
+                              <th style={{ padding: '6px 4px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600 }}>角度</th>
+                              <th style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>操作</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(selectedTrackData.turns || []).map((turn, idx) => {
+                              const isCurrentEditing = editingTurnIndex === idx;
+                              let sev = turn.severity || '3';
+                              let severityColor = '#58a6ff';
+                              if (sev === '1') severityColor = '#f85149';
+                              else if (['2', '3'].includes(String(sev))) severityColor = '#f0883e';
+                              else if (['4', '5', '6'].includes(String(sev))) severityColor = '#3fb950';
+
+                              return (
+                                <tr 
+                                  key={idx} 
+                                  onClick={() => selectTurnForEdit(idx)}
+                                  style={{ 
+                                    borderBottom: '1px solid var(--border-light)', 
+                                    cursor: 'pointer',
+                                    background: isCurrentEditing 
+                                      ? 'rgba(255, 211, 61, 0.15)' 
+                                      : (turn.severity === 'critical' ? 'rgba(248,81,73,0.04)' : 'transparent'),
+                                    borderLeft: isCurrentEditing ? '3px solid #ffd33d' : 'none'
+                                  }}
+                                >
+                                  <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>{idx + 1}</td>
+                                  <td style={{ padding: '6px 4px', color: severityColor, fontSize: 9, fontWeight: 600 }}>
+                                    {sev + '级弯'}
+                                  </td>
+                                  <td style={{ padding: '6px 4px', fontWeight: 600, color: turn.direction === 'left' ? '#58a6ff' : '#f85149' }}>
+                                    {turn.direction === 'left' ? '左' : '右'}
+                                  </td>
+                                  <td style={{ padding: '6px 4px', fontFamily: 'monospace' }}>
+                                    {turn.angle != null ? turn.angle.toFixed(0) + '°' : '-'}
+                                  </td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleTurnLock(idx);
+                                        }}
+                                        style={{
+                                          background: turn.isLockedByUser ? 'rgba(63, 185, 80, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                          border: turn.isLockedByUser ? '1px solid #3fb950' : '1px solid var(--border)',
+                                          borderRadius: 4,
+                                          color: turn.isLockedByUser ? '#3fb950' : 'var(--text-secondary)',
+                                          cursor: 'pointer',
+                                          fontSize: 10,
+                                          padding: '2px 6px',
+                                          fontWeight: 600,
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 2
+                                        }}
+                                        title={turn.isLockedByUser ? "点击解锁 (下次合并/重建可能会覆盖此弯道)" : "点击锁定 (保留您的编辑属性)"}
+                                      >
+                                        {turn.isLockedByUser ? '🔒 已锁' : '🔓 未锁'}
+                                      </button>
+
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteTurn(idx);
+                                        }}
+                                        style={{
+                                          background: 'rgba(248, 81, 73, 0.1)',
+                                          border: '1px solid #f85149',
+                                          borderRadius: 4,
+                                          color: '#f85149',
+                                          cursor: 'pointer',
+                                          fontSize: 10,
+                                          padding: '2px 6px',
+                                          fontWeight: 600
+                                        }}
+                                        title="从路书中删除此弯道 (不再生成)"
+                                      >
+                                        删除
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
+                          暂无弯道数据。<br />
+                          <span style={{ fontSize: 9, color: 'var(--text-secondary)' }}>点击上方“重建”尝试生成中心线。</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

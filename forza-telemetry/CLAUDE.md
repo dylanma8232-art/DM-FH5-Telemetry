@@ -708,3 +708,18 @@ toast('合并成功', 'success');
 > [!NOTE]
 > 2026-07-11 前 save-worker.js 改造时漏掉了圈速计算逻辑，
 > 一批历史比赛记录缺失 `laps` 字段，已用修复脚本补救。
+
+---
+
+### 11.5 环路弯道跨数组边界计算与锁定属性保留（2026-07-13 修复/优化）
+
+1. **环路弯道跨边界遍历**：
+   - **背景**：在环形赛道（闭合环路）中，弯道起止索引可能会跨越数组首尾（如 `turnStartIdx > turnEndIdx`）。原来的 `for (let i = start; i <= end; i++)` 遍历会导致数组越界或逻辑死锁。
+   - **优化**：在 `server/src/services/track/track-turns.js` 的 `calculateTurnAttributes` 中，改用模运算对索引进行遍历（即 `const i = (turnStartIdx + step) % len`），使其在处理跨越边界的环路弯道时能够正常循环计算出弯道半径、Apex 弯心及坡度起伏信息。
+
+2. **合并/重建赛道时保留用户锁定修改**：
+   - **背景**：在进行赛道合并（`/api/tracks/merge`）或重新生成中心线时，原来的逻辑在映射旧弯道到新中线时，会把用户修改好的 `direction`、`severity`、`camber`、`crest` 等路书属性覆盖为默认生成的计算值。
+   - **优化**：
+     - 在 `routes/tracks.js` 的 `/merge` 接口中，将现有的赛道弯道数据（`oldTurns` 等）作为选项传递给 `buildTrackFromTrajectories`。
+     - 在 `mapOldTurnsToNewCenterline` 中增加了对 `isLoop` 环路特性的检查（通过 `isLoopCrossing` 判断是否跨数组首尾），并确保新构建的弯道对象保留了用户已锁定的属性值，避免了赛道合并后用户手修路书丢失的问题。
+

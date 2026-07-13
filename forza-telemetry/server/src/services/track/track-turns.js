@@ -242,11 +242,15 @@ function filterKinks(centerline, angleThreshold = 35) {
 }
 
 export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, idStr = 'T0') {
-  if (turnStartIdx >= turnEndIdx || !centerline[turnStartIdx] || !centerline[turnEndIdx]) return null;
+  if (turnStartIdx === turnEndIdx || !centerline[turnStartIdx] || !centerline[turnEndIdx]) return null;
+  const len = centerline.length;
+  const loopCount = turnStartIdx > turnEndIdx ? (len - turnStartIdx + turnEndIdx + 1) : (turnEndIdx - turnStartIdx + 1);
+
   let minRadius = 10000;
   let turnDirection = 0;
   let apexIdx = turnStartIdx;
-  for (let i = turnStartIdx; i <= turnEndIdx; i++) {
+  for (let step = 0; step < loopCount; step++) {
+    const i = (turnStartIdx + step) % len;
     let r = centerline[i].radius;
     if (r < minRadius) {
       minRadius = r;
@@ -264,7 +268,8 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   let totalCompRoll = 0;
   let ptsCount = 0;
   let hasRollData = false;
-  for (let idx = turnStartIdx; idx <= turnEndIdx; idx++) {
+  for (let step = 0; step < loopCount; step++) {
+    const idx = (turnStartIdx + step) % len;
     const p = centerline[idx];
     if (!p) continue;
     if (p.roll !== undefined && p.roll !== null) hasRollData = true;
@@ -291,23 +296,26 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
   let maxSlopeDrop = 0;
   let maxSlopeDropIdx = -1;
-  for (let j = Math.max(4, turnStartIdx - 15); j <= Math.min(centerline.length - 5, turnStartIdx + 5); j++) {
-    const pPrev = centerline[j - 4];
-    const pCurr = centerline[j];
-    const pNext = centerline[j + 4];
+  for (let j = Math.max(4, turnStartIdx - 15); j <= Math.min(len - 5, turnStartIdx + 5); j++) {
+    const idxPrev = (j - 4 + len) % len;
+    const idxCurr = j % len;
+    const idxNext = (j + 4) % len;
+    const pPrev = centerline[idxPrev];
+    const pCurr = centerline[idxCurr];
+    const pNext = centerline[idxNext];
     const slope1 = (pCurr.y - pPrev.y) / (getDist2D(pPrev, pCurr) || 1.0);
     const slope2 = (pNext.y - pCurr.y) / (getDist2D(pCurr, pNext) || 1.0);
     const slopeDrop = slope1 - slope2;
     if (slopeDrop > maxSlopeDrop) {
       maxSlopeDrop = slopeDrop;
-      maxSlopeDropIdx = j;
+      maxSlopeDropIdx = j % len;
     }
   }
   let crestType = null;
   if (maxSlopeDrop > 0.04) {
     let totalSusp = 0;
     let suspCount = 0;
-    for (let idx = Math.max(0, maxSlopeDropIdx - 2); idx <= Math.min(centerline.length - 1, maxSlopeDropIdx + 4); idx++) {
+    for (let idx = Math.max(0, maxSlopeDropIdx - 2); idx <= Math.min(len - 1, maxSlopeDropIdx + 4); idx++) {
       const p = centerline[idx];
       if (p) {
         const FL = p.suspFL !== undefined ? p.suspFL : p.suspension ? p.suspension.frontLeft || 0.5 : 0.5;
@@ -349,14 +357,19 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   let dirStr = turnDirection > 0 ? "右" : "左";
   let note = `${dirStr}${severity}`;
   let physicalDistance = 0;
-  for (let i = turnStartIdx; i < turnEndIdx; i++) {
-    const dx = centerline[i + 1].x - centerline[i].x;
-    const dz = centerline[i + 1].z - centerline[i].z;
+  for (let step = 0; step < loopCount - 1; step++) {
+    const i = (turnStartIdx + step) % len;
+    const nextI = (i + 1) % len;
+    const dx = centerline[nextI].x - centerline[i].x;
+    const dz = centerline[nextI].z - centerline[i].z;
     physicalDistance += Math.sqrt(dx * dx + dz * dz);
   }
   let isLong = physicalDistance > 60 && angleDiff > 60;
   if (isLong) note += "长";
-  let brakePointIdx = Math.max(0, turnStartIdx - Math.floor(100 / 2)); // roughly 100m before
+  let brakePointIdx = turnStartIdx - Math.floor(100 / 2); // roughly 100m before
+  if (brakePointIdx < 0) {
+    brakePointIdx = (brakePointIdx + len) % len;
+  }
 
   return {
     id: idStr,
@@ -387,7 +400,7 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
   };
 }
 
-export function mapOldTurnsToNewCenterline(oldTurns, centerline) {
+export function mapOldTurnsToNewCenterline(oldTurns, centerline, isLoop = false) {
   if (!oldTurns || oldTurns.length === 0) return [];
   const mapped = [];
   const getDist2D = (x1, z1, x2, z2) => Math.sqrt((x1 - x2) ** 2 + (z1 - z2) ** 2);
@@ -407,20 +420,33 @@ export function mapOldTurnsToNewCenterline(oldTurns, centerline) {
     let startIdx = findClosestIdx(oldT.startX, oldT.startZ);
     let endIdx = findClosestIdx(oldT.endX, oldT.endZ);
 
-    // 如果找反了，或者距离太近（比如变成了一个点），就兜底给点宽度
-    if (startIdx >= endIdx) {
-      startIdx = Math.max(0, endIdx - 5);
+    const isLoopCrossing = isLoop && (oldT.startIdx > oldT.endIdx || Math.abs(startIdx - endIdx) > centerline.length * 0.7);
+
+    if (isLoopCrossing) {
+      if (startIdx < endIdx) {
+        const temp = startIdx;
+        startIdx = endIdx;
+        endIdx = temp;
+      }
+    } else {
+      if (startIdx >= endIdx) {
+        startIdx = Math.max(0, endIdx - 5);
+      }
+      if (endIdx - startIdx < 4) {
+        startIdx = Math.max(0, endIdx - 4);
+      }
     }
-    if (endIdx - startIdx < 4) {
-      startIdx = Math.max(0, endIdx - 4);
-    }
+
     const newT = calculateTurnAttributes(centerline, startIdx, endIdx, oldT.id);
     if (newT) {
+      newT.direction = oldT.direction; // 保留修改后的转向方向
       newT.severity = oldT.severity;
+      newT.camber = oldT.camber;       // 保留修改后的路面倾角
+      newT.crest = oldT.crest;         // 保留修改后的坡度起伏
       newT.name = oldT.name;
       newT.customNote = oldT.customNote;
       newT.turnCategory = oldT.turnCategory;
-      newT.isLockedByUser = true;
+      newT.isLockedByUser = oldT.isLockedByUser !== undefined ? oldT.isLockedByUser : true;
       if (oldT.isChicane) newT.isChicane = true;
       mapped.push(newT);
     }

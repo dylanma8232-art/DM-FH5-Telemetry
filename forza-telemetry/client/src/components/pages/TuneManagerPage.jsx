@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { EmptyState } from '../shared/EmptyState'
 import {
   PART_CATEGORIES,
@@ -7,7 +7,7 @@ import {
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets'
 import { useTuneManager } from '../../hooks/useTuneManager'
 
-export function TuneManagerPage({ onNavigate }) {
+export function TuneManagerPage({ onNavigate, navIntent }) {
   const {
     tunes,
     setTunes,
@@ -82,8 +82,6 @@ export function TuneManagerPage({ onNavigate }) {
     applyProblemFix,
     loadTelemetrySessions,
     runTelemetryDiagnosis,
-    adaptedTelemetry,
-    formatTireTemp,
     applyDiagnosisFix,
     loadTunes,
     loadVehicles,
@@ -102,8 +100,6 @@ export function TuneManagerPage({ onNavigate }) {
     toggleCompareMode,
     toggleSelectForCompare,
     runCompare,
-    tuneA,
-    tuneB,
     clearCompare,
     allTags,
     filteredTunes,
@@ -121,7 +117,6 @@ export function TuneManagerPage({ onNavigate }) {
     resetAllToDefaults,
     updatePartSelection,
     tuneConstraints,
-    getLockedHint,
     exportTune,
     uint8ToBase64,
     base64ToUint8,
@@ -130,11 +125,11 @@ export function TuneManagerPage({ onNavigate }) {
     parseShareCode,
     handleImportFile,
     importFromShareCode,
+    applyPresetTune,
     ni,
     toggleSection,
-    handleKeyDown,
     TUNE_DEFAULT_KEY_MAP
-  } = useTuneManager({ onNavigate });
+  } = useTuneManager({ onNavigate, navIntent });
   return (
     <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8, padding: '0 6px' }}>
@@ -793,6 +788,69 @@ export function TuneManagerPage({ onNavigate }) {
                   fontFamily: 'inherit'
                 }}
               />
+            </div>
+
+            {/* 自由改装模式与智能改装向导 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', background: 'rgba(56, 139, 253, 0.1)', border: '1px solid rgba(56, 139, 253, 0.3)', borderRadius: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#58a6ff' }}>自由改装模式</span>
+                <span style={{ fontSize: 9, color: '#8b949e' }}>开启后解除配件解锁限制，直接开启全部调校参数（原厂参数直接调校）</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={formData.freeMode || false}
+                onChange={e => setFormData(prev => ({ ...prev, freeMode: e.target.checked }))}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{
+              background: 'rgba(35, 134, 54, 0.08)',
+              border: '1px solid rgba(35, 134, 54, 0.3)',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 16
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#56d364', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>⚡ 智能改装向导</span>
+                <span style={{ fontSize: 9, color: '#8b949e', fontWeight: 400 }}>一键填充符合地平线5 Meta 的基准调校与改装</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                <div>
+                  <label style={{ ...labelStyle, marginBottom: 2, fontSize: 9 }}>赛事类型</label>
+                  <select id="presetRaceType" style={{ ...inputStyle, padding: '4px 6px', fontSize: 10, height: 26 }} defaultValue="road">
+                    <option value="road">公路赛/街头赛 (高下压力/硬避震)</option>
+                    <option value="dirt">泥地赛 (拉力避震/拉力胎/AWD)</option>
+                    <option value="cross_country">越野赛 (最大高度/软避震/AWD)</option>
+                    <option value="drift">漂移赛 (大前外倾/双100%锁/漂移避震)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, marginBottom: 2, fontSize: 9 }}>目标 PI 等级</label>
+                  <select id="presetPiClass" style={{ ...inputStyle, padding: '4px 6px', fontSize: 10, height: 26 }} defaultValue="A">
+                    <option value="D">D 500</option>
+                    <option value="C">C 600</option>
+                    <option value="B">B 700</option>
+                    <option value="A">A 800</option>
+                    <option value="S1">S1 900</option>
+                    <option value="S2">S2 998</option>
+                    <option value="X">X 999</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const type = document.getElementById('presetRaceType').value;
+                    const pi = document.getElementById('presetPiClass').value;
+                    if (window.confirm('一键生成会覆盖当前的改装配件和调校值，确定生成吗？')) {
+                      applyPresetTune(type, pi);
+                    }
+                  }}
+                  style={{ ...btnPrimaryStyle, padding: '4px 10px', fontSize: 10, height: 26, background: '#238636', borderColor: '#3fb950' }}
+                >
+                  生成向导方案
+                </button>
+              </div>
             </div>
 
             {/* Round 7: 配件推荐引擎 */}
@@ -1932,6 +1990,25 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
 const PartSelector = React.memo(function PartSelector({ category, selected, onChange }) {
   const [expanded, setExpanded] = useState(false)
 
+  // 若 tierSystem 类别缺少 tiers 数组（仅有 piSteps），自动从 piSteps 合成
+  const effectiveTiers = React.useMemo(() => {
+    if (!category.tierSystem) return null;
+    if (category.tiers && category.tiers.length > 0) return category.tiers;
+    if (category.piSteps) {
+      return Object.entries(category.piSteps)
+        .filter(([tierId]) => tierId !== 'stock' && TIER_LABELS[tierId])
+        .sort((a, b) => (TIER_LABELS[a[0]]?.sort ?? 99) - (TIER_LABELS[b[0]]?.sort ?? 99))
+        .map(([tierId, piBonus]) => ({
+          id: tierId,
+          label: TIER_LABELS[tierId]?.zh || tierId,
+          color: TIER_LABELS[tierId]?.color || '#8b949e',
+          piBonus: piBonus || 0,
+          options: [{ id: tierId, label: TIER_LABELS[tierId]?.zh || tierId }]
+        }));
+    }
+    return [];
+  }, [category]);
+
   const isStock = category.tierSystem
     ? (!selected?.tier || selected.tier === 'stock')
     : (!selected?.optionId || selected.optionId === 'stock')
@@ -2000,7 +2077,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
           {category.tierSystem ? (
             /* 等级制配件 */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {category.tiers.map(tier => {
+              {(effectiveTiers || []).map(tier => {
                 const isActive = selected?.tier === tier.id
                 const options = tier.options || []
                 return (
@@ -2084,7 +2161,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
           ) : (
             /* 选项制配件（如引擎swap） */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {category.options.map(opt => {
+              {(category.options || []).map(opt => {
                 const isActive = selected?.optionId === opt.id
                 const color = opt.color || '#8b949e'
                 return (

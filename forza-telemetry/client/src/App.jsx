@@ -157,8 +157,8 @@ export default function App() {
             )}
             {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
             {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}
-            {activeTab === 'vehicles' && <VehicleManagerPage onNavigate={navigateTo} socket={socket} />}
-            {activeTab === 'tunes' && <TuneManagerPage onNavigate={navigateTo} />}
+            {activeTab === 'vehicles' && <VehicleManagerPage onNavigate={navigateTo} navIntent={navIntent} socket={socket} />}
+            {activeTab === 'tunes' && <TuneManagerPage onNavigate={navigateTo} navIntent={navIntent} />}
           </Suspense>
         </ErrorBoundary>
       </div>
