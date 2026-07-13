@@ -92,10 +92,11 @@ const defaultFormData = {
     rearDownforce: 200
   },
   parts: getDefaultParts(),
+  freeMode: false,
   notes: ''
 }
 
-export function useTuneManager({ onNavigate }) {
+export function useTuneManager({ onNavigate, navIntent }) {
   const [tunes, setTunes] = useState([])
   const [vehicles, setVehicles] = useState({})
   const [tracks, setTracks] = useState([])
@@ -153,6 +154,39 @@ export function useTuneManager({ onNavigate }) {
     loadActiveTune()
     loadTuneSessionStats()
   }, [])
+
+  useEffect(() => {
+    if (navIntent) {
+      if (navIntent.vehicleId) {
+        setVehicleFilter(String(navIntent.vehicleId))
+      }
+      if (navIntent.action === 'create' && navIntent.vehicleId) {
+        const targetVehicle = vehicles[navIntent.vehicleId]
+        const baseCarPi = targetVehicle?.pi || 500
+        setFormData({
+          ...defaultFormData,
+          vehicleId: String(navIntent.vehicleId),
+          parts: getDefaultParts()
+        })
+        setBasePi(baseCarPi)
+        setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+        setEditingTune(null)
+        setShowModal(true)
+        setDrivingProblemsOpen(false)
+        setSelectedProblem(null)
+        setTelemetryPanelOpen(false)
+        setDiagnosisResult(null)
+        setSelectedSessionId('')
+        dirtyParamsRef.current.clear()
+      }
+      if (navIntent.action === 'edit' && navIntent.tuneId) {
+        const found = tunes.find(t => String(t.id) === String(navIntent.tuneId))
+        if (found) {
+          startEdit(found)
+        }
+      }
+    }
+  }, [navIntent, vehicles, tunes])
 
   // 根据配件计算PI增量
   const partsPiDelta = useMemo(() => {
@@ -565,6 +599,7 @@ export function useTuneManager({ onNavigate }) {
       drivetrain: { ...formData.drivetrain },
       aero: { ...formData.aero },
       parts: { ...formData.parts },
+      freeMode: !!formData.freeMode,
       notes: formData.notes || ''
     }
 
@@ -609,7 +644,8 @@ export function useTuneManager({ onNavigate }) {
         suspension: { ...tune.suspension },
         drivetrain: { ...tune.drivetrain },
         aero: { ...tune.aero },
-        parts: { ...tune.parts }
+        parts: { ...tune.parts },
+        freeMode: !!tune.freeMode
       }
       const res = await fetch('/api/tunes', {
         method: 'POST',
@@ -645,6 +681,7 @@ export function useTuneManager({ onNavigate }) {
       drivetrain: { ...defaultFormData.drivetrain, ...(tune.drivetrain || {}) },
       aero: { ...defaultFormData.aero, ...(tune.aero || {}) },
       parts: { ...getDefaultParts(), ...(tune.parts || {}) },
+      freeMode: !!tune.freeMode,
       notes: tune.notes || ''
     })
     // 设置PI相关
@@ -909,7 +946,7 @@ export function useTuneManager({ onNavigate }) {
       });
     }
 
-    const rawConstraints = getTuneConstraints(currentParts);
+    const rawConstraints = getTuneConstraints(currentParts, formData.freeMode);
 
     // getTuneConstraints 返回扁平 key（如 tire_pressure_front），
     // UI 使用嵌套路径（如 tires.frontPressure），这里做映射转换
@@ -964,7 +1001,7 @@ export function useTuneManager({ onNavigate }) {
       }
     }
     return mapped;
-  }, [formData.parts])
+  }, [formData.parts, formData.freeMode])
 
   // 导出调校为JSON文件
   const exportTune = (tune) => {
@@ -1165,6 +1202,96 @@ export function useTuneManager({ onNavigate }) {
   };
 
   // Round 9: 快捷键支持
+  // 智能改装与调校预设生成器
+  const applyPresetTune = (raceType, targetPiClass) => {
+    const classPiMap = { D: 500, C: 600, B: 700, A: 800, S1: 900, S2: 998, X: 999 };
+    const targetPiVal = classPiMap[targetPiClass] || 800;
+    const newParts = { ...getDefaultParts() };
+
+    newParts.suspension = { tier: 'race' };
+    newParts.differential = { tier: 'race' };
+    newParts.transmission = { tier: 'race' };
+    newParts.anti_roll_bars = { tier: 'race' };
+    newParts.brakes = { tier: 'race' };
+
+    if (raceType === 'road' || raceType === 'street') {
+      newParts.tires_compound = { tier: targetPiVal >= 900 ? 'race' : 'sport' };
+      newParts.aero_front = { tier: 'race' };
+      newParts.aero_rear = { tier: 'race' };
+      newParts.weight_reduction = { tier: targetPiVal >= 800 ? 'race' : 'sport' };
+    } else if (raceType === 'dirt') {
+      newParts.tires_compound = { tier: 'sport' };
+      newParts.aero_front = { tier: 'stock' };
+      newParts.aero_rear = { tier: 'stock' };
+      newParts.weight_reduction = { tier: 'sport' };
+      newParts.drivetrain_swap = { optionId: 'awd' };
+    } else if (raceType === 'cross_country') {
+      newParts.tires_compound = { tier: 'sport' };
+      newParts.aero_front = { tier: 'stock' };
+      newParts.aero_rear = { tier: 'stock' };
+      newParts.weight_reduction = { tier: 'sport' };
+      newParts.drivetrain_swap = { optionId: 'awd' };
+    } else if (raceType === 'drift') {
+      newParts.tires_compound = { tier: 'sport' };
+      newParts.aero_front = { tier: 'stock' };
+      newParts.aero_rear = { tier: 'stock' };
+      newParts.drivetrain_swap = { optionId: 'rwd' };
+    }
+
+    const newTires = {
+      frontPressure: raceType === 'drift' ? 32.0 : raceType === 'cross_country' ? 26.0 : 28.5,
+      rearPressure: raceType === 'drift' ? 26.0 : raceType === 'cross_country' ? 26.0 : 28.5,
+      frontCamber: raceType === 'drift' ? -5.0 : raceType === 'cross_country' ? -1.2 : -2.0,
+      rearCamber: raceType === 'drift' ? -0.5 : raceType === 'cross_country' ? -0.8 : -1.5,
+      frontToe: raceType === 'drift' ? 0.8 : 0.0,
+      rearToe: 0.0
+    };
+
+    const newSuspension = {
+      frontSpring: raceType === 'cross_country' ? 45.0 : raceType === 'dirt' ? 60.0 : 95.0,
+      rearSpring: raceType === 'cross_country' ? 40.0 : raceType === 'dirt' ? 50.0 : 80.0,
+      frontDamping: raceType === 'cross_country' ? 4.5 : raceType === 'dirt' ? 5.5 : 8.5,
+      rearDamping: raceType === 'cross_country' ? 4.0 : raceType === 'dirt' ? 5.0 : 7.5,
+      frontARB: raceType === 'cross_country' ? 8.0 : raceType === 'dirt' ? 10.0 : 15.0,
+      rearARB: raceType === 'cross_country' ? 30.0 : raceType === 'dirt' ? 35.0 : 40.0,
+      frontRideHeight: raceType === 'cross_country' ? 18.0 : raceType === 'dirt' ? 15.0 : 8.0,
+      rearRideHeight: raceType === 'cross_country' ? 18.5 : raceType === 'dirt' ? 15.5 : 8.5
+    };
+
+    const newDrivetrain = {
+      diffAccel: raceType === 'drift' ? 100 : raceType === 'road' ? 50 : 40,
+      diffDecel: raceType === 'drift' ? 100 : raceType === 'road' ? 10 : 0,
+      diffCenter: raceType === 'drift' ? 85 : 65,
+      finalDrive: 3.8,
+      gear1: 3.2,
+      gear2: 2.2,
+      gear3: 1.6,
+      gear4: 1.2,
+      gear5: 1.0,
+      gear6: 0.85
+    };
+
+    const newAero = {
+      frontDownforce: raceType === 'road' ? 150 : 100,
+      rearDownforce: raceType === 'road' ? 250 : 150
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      parts: newParts,
+      tires: newTires,
+      suspension: newSuspension,
+      drivetrain: newDrivetrain,
+      aero: newAero,
+      freeMode: false
+    }));
+
+    setTargetPi(targetPiVal);
+    if (formData.vehicleId && vehicles[formData.vehicleId]) {
+      setBasePi(vehicles[formData.vehicleId].pi || 500);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!showModal) return;
@@ -1258,8 +1385,6 @@ export function useTuneManager({ onNavigate }) {
     applyProblemFix,
     loadTelemetrySessions,
     runTelemetryDiagnosis,
-    adaptedTelemetry,
-    formatTireTemp,
     applyDiagnosisFix,
     loadTunes,
     loadVehicles,
@@ -1278,8 +1403,6 @@ export function useTuneManager({ onNavigate }) {
     toggleCompareMode,
     toggleSelectForCompare,
     runCompare,
-    tuneA,
-    tuneB,
     clearCompare,
     allTags,
     filteredTunes,
@@ -1297,7 +1420,6 @@ export function useTuneManager({ onNavigate }) {
     resetAllToDefaults,
     updatePartSelection,
     tuneConstraints,
-    getLockedHint,
     exportTune,
     uint8ToBase64,
     base64ToUint8,
@@ -1306,9 +1428,9 @@ export function useTuneManager({ onNavigate }) {
     parseShareCode,
     handleImportFile,
     importFromShareCode,
+    applyPresetTune,
     ni,
     toggleSection,
-    handleKeyDown,
     TUNE_DEFAULT_KEY_MAP
   };
 }

@@ -29,24 +29,16 @@ router.get('/', (req, res) => {
 
 // 更新车辆信息
 router.post('/:id', express.json(), asyncHandler(async (req, res) => {
-
-  stateManager.vehicles[req.params.id] = { ...vehicles[req.params.id], ...req.body };
-  saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
+  stateManager.vehicles[req.params.id] = { ...stateManager.vehicles[req.params.id], ...req.body };
+  saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
   res.json({ status: 'ok' });
-
-
-
 }));
 
 // 删除车辆信息
 router.delete('/:id', asyncHandler(async (req, res) => {
-
   delete stateManager.vehicles[req.params.id];
-  saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
+  saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
   res.json({ status: 'ok' });
-
-
-
 }));
 
 

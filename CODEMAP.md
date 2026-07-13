@@ -33,6 +33,7 @@
         - 📄 [RacePerformanceTimingPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/RacePerformanceTimingPanel.jsx)   *(函数/组件: `RacePerformanceTimingPanel`)*
         - 📄 [ReplayPlayer.jsx](file:///forza-telemetry/client/src/components/dashboard/ReplayPlayer.jsx)   *(函数/组件: `ReplayPlayer`)*
         - 📄 [SuspensionAnalysisPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/SuspensionAnalysisPanel.jsx)   *(函数/组件: `SuspensionAnalysisPanel`)*
+        - 📄 [TireAnalysisPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/TireAnalysisPanel.jsx)   *(函数/组件: `TireAnalysisPanel`)*
       - 📂 **pages/**
         - 📄 [DashboardPage.jsx](file:///forza-telemetry/client/src/components/pages/DashboardPage.jsx)   *(函数/组件: `DashboardPage`)*
         - 📄 [SessionHistoryPage.jsx](file:///forza-telemetry/client/src/components/pages/SessionHistoryPage.jsx)   *(函数/组件: `SessionHistoryPage`)*
@@ -81,21 +82,18 @@
   - 📄 [workshop-round2-5.md](file:///forza-telemetry/docs/workshop-round2-5.md) 
   - 📄 [workshop-round6-10.md](file:///forza-telemetry/docs/workshop-round6-10.md) 
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh) 
-- 📂 **out/**
-  - 📄 [DashboardPage.js](file:///forza-telemetry/out/DashboardPage.js) 
-  - 📄 [SessionHistoryPage.js](file:///forza-telemetry/out/SessionHistoryPage.js) 
-  - 📄 [useSessionHistory.js](file:///forza-telemetry/out/useSessionHistory.js) 
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
   - 📄 [clean_history.js](file:///forza-telemetry/scripts/clean_history.js) 
-  - 📄 [clean_sessions.js](file:///forza-telemetry/scripts/clean_sessions.js) 
+  - 📄 [clean_sessions.mjs](file:///forza-telemetry/scripts/clean_sessions.mjs) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
-  - 📄 [start-server.sh](file:///forza-telemetry/scripts/start-server.sh) 
+  - 📄 [sync_tracks.js](file:///forza-telemetry/scripts/sync_tracks.js) 
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
   - 📂 **src/**
     - 📂 **config/**
+      - 📄 [cars-database.json](file:///forza-telemetry/server/src/config/cars-database.json) 
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `DATA_DIR`)*
     - 📄 [index.js](file:///forza-telemetry/server/src/index.js) 
     - 📂 **routes/**

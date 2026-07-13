@@ -25,7 +25,7 @@ const TIER_LABELS = {
 };
 
 // ============================================================
-// 配件类别定义 (14类)
+// 配件类别定义 (30+类)
 // ============================================================
 
 /**
@@ -45,7 +45,32 @@ const PI_TABLE = {
   anti_roll_bars:    { stock: 3,  street: 5,  sport: 8,  race: 4  },
   aero_front:        { stock: 2,  street: 4,  sport: 6,  race: 3  },
   aero_rear:         { stock: 3,  street: 5,  sport: 8,  race: 4  },
-  weight_reduction:  { stock: 3,  street: 5,  sport: 8,  race: 4  }
+  weight_reduction:  { stock: 3,  street: 5,  sport: 8,  race: 4  },
+
+  // 发动机子项
+  engine_intake:       { stock: 2, street: 4, sport: 6, race: 3 },
+  engine_fuel_system:  { stock: 3, street: 5, sport: 8, race: 4 },
+  engine_ignition:     { stock: 1, street: 2, sport: 4, race: 2 },
+  engine_camshaft:     { stock: 6, street: 10, sport: 15, race: 12 },
+  engine_valves:       { stock: 2, street: 4, sport: 6, race: 3 },
+  engine_displacement: { stock: 4, street: 7, sport: 11, race: 8 },
+  engine_pistons:      { stock: 3, street: 6, sport: 9, race: 6 },
+  engine_turbo:        { stock: 8, street: 14, sport: 22, race: 16 },
+  engine_intercooler:  { stock: 2, street: 3, sport: 5, race: 3 },
+  engine_oil_cooling:  { stock: 1, street: 2, sport: 4, race: 2 },
+  engine_flywheel:     { stock: 1, street: 2, sport: 4, race: 2 },
+
+  // 传动与底盘子项
+  driveline:           { stock: 1, street: 2, sport: 4, race: 2 },
+  roll_cage:           { stock: 1, street: 2, sport: 4, race: 2 },
+
+  // 轮胎尺寸与轮距
+  tires_width_front:   { stock: 2, street: 4, sport: 6, race: 3 },
+  tires_width_rear:    { stock: 3, street: 6, sport: 9, race: 5 },
+  rim_size_front:      { stock: 1, street: 2, sport: 3, race: 1 },
+  rim_size_rear:       { stock: 1, street: 2, sport: 3, race: 1 },
+  track_width_front:   { stock: 1, street: 2, sport: 3, race: 1 },
+  track_width_rear:    { stock: 1, street: 2, sport: 3, race: 1 }
 };
 
 /**
@@ -56,37 +81,163 @@ const PART_CATEGORIES = [
     id: 'engine_swap',
     label: '引擎置换',
     labelEn: 'Engine Swap',
-    icon: '\u2699\uFE0F',
+    icon: '⚙️',
     description: '更换引擎，影响最大马力、最大扭矩、车重和车辆平衡',
-    tierSystem: false, // 选项制，非等级制
-    // options由用户自行添加，此处仅保留原厂
+    tierSystem: false,
     options: [
       { id: 'stock', label: '原厂引擎', labelEn: 'Stock Engine', piBonus: 0, powerMod: 0, torqueMod: 0, weightMod: 0 }
     ]
   },
   {
-    id: 'aspiration',
-    label: '进气增压',
-    labelEn: 'Aspiration',
-    icon: '\uD83D\uDCA8',
-    description: '加装涡轮或机械增压，大幅影响马力/扭矩输出曲线',
+    id: 'drivetrain_swap',
+    label: '驱动置换',
+    labelEn: 'Drivetrain Swap',
+    icon: '🔄',
+    description: '改变驱动形式（前驱/后驱/四驱），大幅改变操控特性',
+    tierSystem: false,
+    options: [
+      { id: 'stock', label: '原厂驱动', labelEn: 'Stock Drivetrain', piBonus: 0 },
+      { id: 'fwd', label: '前轮驱动 FWD', labelEn: 'FWD', piBonus: -15 },
+      { id: 'rwd', label: '后轮驱动 RWD', labelEn: 'RWD', piBonus: -10 },
+      { id: 'awd', label: '四轮驱动 AWD', labelEn: 'AWD', piBonus: 25 }
+    ]
+  },
+  {
+    id: 'aspiration_swap',
+    label: '进气置换',
+    labelEn: 'Aspiration Swap',
+    icon: '🌪️',
+    description: '加装或更换增压系统类别（涡轮/双涡轮/机械增压）',
+    tierSystem: false,
+    options: [
+      { id: 'stock', label: '原厂进气方式', labelEn: 'Stock Aspiration', piBonus: 0 },
+      { id: 'turbo', label: '单涡轮增压', labelEn: 'Single Turbo', piBonus: 15 },
+      { id: 'twin_turbo', label: '双涡轮增压', labelEn: 'Twin Turbo', piBonus: 20 },
+      { id: 'supercharger', label: '机械增压', labelEn: 'Supercharger', piBonus: 18 }
+    ]
+  },
+  {
+    id: 'engine_intake',
+    label: '引擎进气系统',
+    labelEn: 'Intake',
+    icon: '💨',
+    description: '升级进气滤网及进气歧管',
     tierSystem: true,
-    piSteps: PI_TABLE.aspiration
+    piSteps: PI_TABLE.engine_intake
+  },
+  {
+    id: 'engine_fuel_system',
+    label: '燃油系统',
+    labelEn: 'Fuel System',
+    icon: '⛽',
+    description: '升级喷油嘴及燃油泵',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_fuel_system
+  },
+  {
+    id: 'engine_ignition',
+    label: '点火系统',
+    labelEn: 'Ignition',
+    icon: '⚡',
+    description: '升级点火线圈与火花塞',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_ignition
   },
   {
     id: 'exhaust',
     label: '排气系统',
     labelEn: 'Exhaust',
-    icon: '\uD83D\uDD0A',
-    description: '更换排气管，小幅影响马力和扭矩',
+    icon: '🔊',
+    description: '更换排气管与催化器，提升排气效率',
     tierSystem: true,
     piSteps: PI_TABLE.exhaust
+  },
+  {
+    id: 'engine_camshaft',
+    label: '凸轮轴',
+    labelEn: 'Camshaft',
+    icon: '⚙️',
+    description: '升级凸轮轴，提升中高转速马力，提高最高转速上限',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_camshaft
+  },
+  {
+    id: 'engine_valves',
+    label: '气门与弹簧',
+    labelEn: 'Valves',
+    icon: '🔩',
+    description: '升级气门机构，提升引擎呼吸效率',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_valves
+  },
+  {
+    id: 'engine_displacement',
+    label: '发动机排量',
+    labelEn: 'Displacement',
+    icon: '🧪',
+    description: '扩缸增加排量，全转速区间提升扭矩',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_displacement
+  },
+  {
+    id: 'engine_pistons',
+    label: '活塞与压缩比',
+    labelEn: 'Pistons',
+    icon: '⚙️',
+    description: '更换锻造活塞，提高压缩比',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_pistons
+  },
+  {
+    id: 'engine_turbo',
+    label: '增压器套件',
+    labelEn: 'Turbocharger',
+    icon: '🐌',
+    description: '更换更大号的增压器或废气旁通阀',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_turbo
+  },
+  {
+    id: 'engine_intercooler',
+    label: '中冷器',
+    labelEn: 'Intercooler',
+    icon: '❄️',
+    description: '换装高效中冷器，降低进气温度',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_intercooler
+  },
+  {
+    id: 'engine_oil_cooling',
+    label: '机油冷却',
+    labelEn: 'Oil Cooling',
+    icon: '🌡️',
+    description: '换装机油冷凝器，确保引擎稳定运转',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_oil_cooling
+  },
+  {
+    id: 'engine_flywheel',
+    label: '飞轮',
+    labelEn: 'Flywheel',
+    icon: '💿',
+    description: '换装轻量化飞轮，加快引擎转速爬升与下落速度',
+    tierSystem: true,
+    piSteps: PI_TABLE.engine_flywheel
+  },
+  {
+    id: 'aspiration',
+    label: '进气增压大项',
+    labelEn: 'Aspiration Kit',
+    icon: '💨',
+    description: '进气增压主改装选项',
+    tierSystem: true,
+    piSteps: PI_TABLE.aspiration
   },
   {
     id: 'transmission',
     label: '变速箱',
     labelEn: 'Transmission',
-    icon: '\uD83D\uDD00',
+    icon: '🔀',
     description: '更换变速箱，影响齿比范围，Sport以上解锁自定义齿比',
     tierSystem: true,
     piSteps: PI_TABLE.transmission
@@ -95,16 +246,25 @@ const PART_CATEGORIES = [
     id: 'clutch',
     label: '离合器',
     labelEn: 'Clutch',
-    icon: '\uD83D\uDD27',
-    description: '更换离合器，影响换挡速度',
+    icon: '🔧',
+    description: '更换离合器，影响换挡动力中断时间',
     tierSystem: true,
     piSteps: PI_TABLE.clutch
+  },
+  {
+    id: 'driveline',
+    label: '传动轴',
+    labelEn: 'Driveline',
+    icon: '🥖',
+    description: '换装碳纤维/轻量化传动轴，降低传动损耗与转动惯量',
+    tierSystem: true,
+    piSteps: PI_TABLE.driveline
   },
   {
     id: 'differential',
     label: '差速器',
     labelEn: 'Differential',
-    icon: '\uD83D\uDD04',
+    icon: '🔄',
     description: '更换差速器，逐步解锁差速器加速/减速/中央差速调校',
     tierSystem: true,
     piSteps: PI_TABLE.differential
@@ -113,26 +273,80 @@ const PART_CATEGORIES = [
     id: 'tires_compound',
     label: '轮胎配方',
     labelEn: 'Tire Compound',
-    icon: '\uD83D\uDEDE',
+    icon: '🛞',
     description: '更换轮胎配方，大幅影响抓地力；Sport以上解锁外倾角和束角调校',
     tierSystem: true,
     piSteps: PI_TABLE.tires_compound
   },
   {
     id: 'tires_width',
-    label: '轮胎宽度',
+    label: '轮胎宽度大项',
     labelEn: 'Tire Width',
-    icon: '\uD83D\uDEDE',
-    description: '加宽轮胎，小幅提升抓地力和PI',
+    icon: '🛞',
+    description: '轮胎宽度主改装项',
     tierSystem: true,
     piSteps: PI_TABLE.tires_width
+  },
+  {
+    id: 'tires_width_front',
+    label: '前轮胎宽度',
+    labelEn: 'Front Tire Width',
+    icon: '🛞',
+    description: '加宽前胎，提升弯道导向能力与刹车抓地力',
+    tierSystem: true,
+    piSteps: PI_TABLE.tires_width_front
+  },
+  {
+    id: 'tires_width_rear',
+    label: '后轮胎宽度',
+    labelEn: 'Rear Tire Width',
+    icon: '🛞',
+    description: '加宽后胎，大幅提升驱动轮加速抓地力',
+    tierSystem: true,
+    piSteps: PI_TABLE.tires_width_rear
+  },
+  {
+    id: 'rim_size_front',
+    label: '前轮毂尺寸',
+    labelEn: 'Front Rim Size',
+    icon: '🎡',
+    description: '加大前轮毂，减少轮胎胎壁厚度，提升转向瞬态响应',
+    tierSystem: true,
+    piSteps: PI_TABLE.rim_size_front
+  },
+  {
+    id: 'rim_size_rear',
+    label: '后轮毂尺寸',
+    labelEn: 'Rear Rim Size',
+    icon: '🎡',
+    description: '加大后轮毂，提升高速出弯车尾支撑性',
+    tierSystem: true,
+    piSteps: PI_TABLE.rim_size_rear
+  },
+  {
+    id: 'track_width_front',
+    label: '前轮距加宽',
+    labelEn: 'Front Track Width',
+    icon: '↔️',
+    description: '垫宽前轮距，提升前轴侧翻极限与横向稳定性',
+    tierSystem: true,
+    piSteps: PI_TABLE.track_width_front
+  },
+  {
+    id: 'track_width_rear',
+    label: '后轮距加宽',
+    labelEn: 'Rear Track Width',
+    icon: '↔️',
+    description: '垫宽后轮距，提升高速过弯车尾侧向抓地力',
+    tierSystem: true,
+    piSteps: PI_TABLE.track_width_rear
   },
   {
     id: 'brakes',
     label: '制动系统',
     labelEn: 'Brakes',
-    icon: '\uD83D\uDED1',
-    description: '更换刹车系统，影响刹车力度和热衰减特性',
+    icon: '🛑',
+    description: '更换刹车系统，解锁刹车力度及前后平衡调校',
     tierSystem: true,
     piSteps: PI_TABLE.brakes
   },
@@ -140,17 +354,17 @@ const PART_CATEGORIES = [
     id: 'suspension',
     label: '悬挂系统',
     labelEn: 'Suspension',
-    icon: '\uD83D\uDD29',
+    icon: '🔩',
     description: '更换悬挂系统，逐步解锁弹簧、阻尼、车身高度调校',
     tierSystem: true,
     piSteps: PI_TABLE.suspension
   },
   {
     id: 'anti_roll_bars',
-    label: '防倾杆',
+    label: '防倾杆大项',
     labelEn: 'Anti-Roll Bars',
-    icon: '\uD83D\uDCD0',
-    description: '独立防倾杆改装，Street以上解锁前后防倾杆调校',
+    icon: '📐',
+    description: '前后防倾杆改装大项',
     tierSystem: true,
     piSteps: PI_TABLE.anti_roll_bars
   },
@@ -173,10 +387,31 @@ const PART_CATEGORIES = [
     piSteps: PI_TABLE.aero_rear
   },
   {
+    id: 'roll_cage',
+    label: '底盘防滚架',
+    labelEn: 'Roll Cage',
+    icon: '🕸️',
+    description: '加装防滚架，提升车身扭转刚性，略微增加车重',
+    tierSystem: true,
+    piSteps: PI_TABLE.roll_cage
+  },
+  {
+    id: 'body_kit',
+    label: '宽体套件',
+    labelEn: 'Widebody Kit',
+    icon: '🚘',
+    description: '加装大宽体，提升极限胎宽限制与轮距稳定性',
+    tierSystem: false,
+    options: [
+      { id: 'stock', label: '原厂车身', labelEn: 'Stock Body', piBonus: 0 },
+      { id: 'widebody', label: '竞赛宽体套件', labelEn: 'Widebody Kit', piBonus: 15 }
+    ]
+  },
+  {
     id: 'weight_reduction',
     label: '减重',
     labelEn: 'Weight Reduction',
-    icon: '\u2696\uFE0F',
+    icon: '⚖️',
     description: '减轻车重，提升加速、刹车和操控性能',
     tierSystem: true,
     piSteps: PI_TABLE.weight_reduction
@@ -589,10 +824,21 @@ function getPartPiAdd(partId, fromTier, toTier) {
  * // tire_pressure_front: { locked: false, min: 28, max: 35, step: 0.5 }
  * // spring_front: { locked: true, min: null, max: null, step: null }
  */
-export function getTuneConstraints(parts) {
+export function getTuneConstraints(parts, freeMode = false) {
   const constraints = {};
 
   for (const [paramId, rangeMap] of Object.entries(TUNE_RANGES)) {
+    if (freeMode) {
+      const range = rangeMap.extreme || rangeMap.race || rangeMap.sport || rangeMap.street || rangeMap.stock;
+      constraints[paramId] = {
+        locked: false,
+        min: range?.min ?? null,
+        max: range?.max ?? null,
+        step: range?.step ?? null
+      };
+      continue;
+    }
+
     const requirement = TUNE_REQUIREMENTS[paramId];
 
     if (!requirement || requirement.category === null) {

@@ -9,6 +9,8 @@ import { SuspensionAnalysisPanel } from '../dashboard/SuspensionAnalysisPanel';
 import { DifferentialAnalysisPanel } from '../dashboard/DifferentialAnalysisPanel';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { toast } from '../shared/Toast';
+import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets';
+import { TireAnalysisPanel } from '../dashboard/TireAnalysisPanel';
 
 const inputStyle = {
   width: '100%',
@@ -123,11 +125,82 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     worst3,
     SESSION_PAGE_SIZE,
     myFilteredSessions,
-    totalPages
+    totalPages,
+    sessionTune
   } = useSessionHistory({ onNavigate, navIntent });
+
+  const [pageMode, setPageMode] = useState(navIntent?._subTab === 'leaderboard' ? 'leaderboard' : 'telemetry');
+
+  useEffect(() => {
+    if (navIntent?._subTab === 'leaderboard') {
+      setPageMode('leaderboard');
+    }
+  }, [navIntent]);
+
+  const [selectedIssueCategory, setSelectedIssueCategory] = useState('steering');
+  const [selectedIssueId, setSelectedIssueId] = useState(null);
+
+  const getParamValue = (tune, key) => {
+    if (!tune) return null;
+    const mapping = {
+      frontTirePressure: tune.tires?.frontPressure,
+      rearTirePressure: tune.tires?.rearPressure,
+      frontCamber: tune.tires?.frontCamber,
+      rearCamber: tune.tires?.rearCamber,
+      frontToe: tune.tires?.frontToe,
+      rearToe: tune.tires?.rearToe,
+      frontSpring: tune.suspension?.frontSpring,
+      rearSpring: tune.suspension?.rearSpring,
+      frontDamping: tune.suspension?.frontDamping,
+      rearDamping: tune.suspension?.rearDamping,
+      frontARB: tune.suspension?.frontARB,
+      rearARB: tune.suspension?.rearARB,
+      frontRideHeight: tune.suspension?.frontRideHeight,
+      rearRideHeight: tune.suspension?.rearRideHeight,
+      diffAccel: tune.drivetrain?.diffAccel,
+      diffDecel: tune.drivetrain?.diffDecel,
+      diffCenter: tune.drivetrain?.diffCenter,
+      finalDrive: tune.drivetrain?.finalDrive,
+      frontDownforce: tune.aero?.frontDownforce,
+      rearDownforce: tune.aero?.rearDownforce
+    };
+    return mapping[key] !== undefined ? mapping[key] : null;
+  };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
-      <div style={{ display: 'flex', flex: 1 }}>
+
+      {/* ===== 顶部视图模式切换 ===== */}
+      <div style={{
+        display: 'flex', gap: 0, background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border)', padding: '0 16px', flexShrink: 0
+      }}>
+        {[
+          { id: 'telemetry', label: '🏁 单场比赛遥测' },
+          { id: 'leaderboard', label: '🏆 赛道风云榜' }
+        ].map(mode => (
+          <button
+            key={mode.id}
+            onClick={() => setPageMode(mode.id)}
+            style={{
+              padding: '9px 18px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: pageMode === mode.id ? '2px solid #58a6ff' : '2px solid transparent',
+              color: pageMode === mode.id ? '#58a6ff' : '#8b949e',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: pageMode === mode.id ? 700 : 400,
+              transition: 'all 0.15s'
+            }}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      {/* 左侧边栏：仅在单场遥测模式下显示 */}
+      {pageMode === 'telemetry' && (
       <div style={{ 
         width: 320, 
         borderRight: '1px solid var(--border)',
@@ -307,12 +380,111 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
           )}
         </div>
       </div>
+      )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
-        {loading ? (
-          <LoadingSpinner />
-        ) : selectedSession && analysis ? (
+        {/* ===== 单场遥测模式 ===== */}
+        {pageMode === 'telemetry' && (
+          loading ? (
+            <LoadingSpinner />
+          ) : selectedSession && analysis ? (
           <div>
+            {/* ===== 车辆与工坊调校快照卡片 ===== */}
+            {(() => {
+              const hasTune = !!sessionTune;
+              const piClass = sessionTune?.targetPiClass || '';
+              const piColors = {
+                'D': { bg: 'rgba(88,166,255,0.12)', border: '#58a6ff', text: '#58a6ff' },
+                'C': { bg: 'rgba(254,215,0,0.1)', border: '#d29922', text: '#d29922' },
+                'B': { bg: 'rgba(63,185,80,0.1)', border: '#3fb950', text: '#3fb950' },
+                'A': { bg: 'rgba(248,81,73,0.1)', border: '#f85149', text: '#f85149' },
+                'S1': { bg: 'rgba(163,113,247,0.12)', border: '#a371f7', text: '#a371f7' },
+                'S2': { bg: 'rgba(163,113,247,0.18)', border: '#d2a8ff', text: '#d2a8ff' },
+                'X': { bg: 'rgba(255,123,114,0.15)', border: '#ff7b72', text: '#ff7b72' }
+              };
+              const cls = piColors[piClass] || { bg: 'rgba(255,255,255,0.04)', border: '#30363d', text: '#8b949e' };
+              const vehicle = analysis?.vehicle;
+              const driveType = vehicle?.drivetrain || '';
+              return (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: '10px 14px'
+                }}>
+                  {/* 车辆 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 2 }}>当前车辆</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {vehicle?.name || `车辆 #${vehicle?.ordinal || '未知'}`}
+                    </div>
+                    {driveType && (
+                      <div style={{ fontSize: 9, color: '#8b949e', marginTop: 2 }}>{driveType} · {vehicle?.manufacturer || ''}</div>
+                    )}
+                  </div>
+
+                  {/* 分隔线 */}
+                  <div style={{ width: 1, height: 36, background: 'var(--border)' }} />
+
+                  {/* 调校方案 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 2 }}>工坊调校方案</div>
+                    {hasTune ? (
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#58a6ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sessionTune.name}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#484f58', fontStyle: 'italic' }}>未关联工坊调校</div>
+                    )}
+                    {hasTune && sessionTune.raceType && (
+                      <div style={{ fontSize: 9, color: '#8b949e', marginTop: 2 }}>{sessionTune.raceType}</div>
+                    )}
+                  </div>
+
+                  {/* PI 等级徽章 */}
+                  {hasTune && piClass && (
+                    <div style={{
+                      padding: '4px 10px', borderRadius: 4, fontSize: 13, fontWeight: 900,
+                      background: cls.bg, border: `1px solid ${cls.border}`, color: cls.text,
+                      fontFamily: 'monospace', whiteSpace: 'nowrap'
+                    }}>
+                      {piClass} {sessionTune.targetPi || ''}
+                    </div>
+                  )}
+
+                  {/* 操作按钮 */}
+                  {hasTune ? (
+                    <button
+                      onClick={() => onNavigate('tunes', { action: 'edit', tuneId: sessionTune.id })}
+                      style={{
+                        padding: '6px 12px', background: 'rgba(88,166,255,0.1)',
+                        border: '1px solid rgba(88,166,255,0.35)', borderRadius: 6,
+                        color: '#58a6ff', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                        whiteSpace: 'nowrap', transition: 'all 0.15s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = 'rgba(88,166,255,0.2)'}
+                      onMouseOut={e => e.currentTarget.style.background = 'rgba(88,166,255,0.1)'}
+                    >
+                      🔧 调整此改装方案
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onNavigate('tunes', { action: 'create', vehicleId: vehicle?.ordinal })}
+                      style={{
+                        padding: '6px 12px', background: 'rgba(63,185,80,0.08)',
+                        border: '1px solid rgba(63,185,80,0.3)', borderRadius: 6,
+                        color: '#3fb950', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                        whiteSpace: 'nowrap', transition: 'all 0.15s'
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = 'rgba(63,185,80,0.16)'}
+                      onMouseOut={e => e.currentTarget.style.background = 'rgba(63,185,80,0.08)'}
+                    >
+                      ➕ 为此车新建调校
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* 面包屑导航 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
               <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setSelectedSession(null); setTrackFilter(''); }}>
@@ -336,6 +508,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
               {[
                 { id: 'overview', label: '总览与遥测' },
                 { id: 'corners', label: '弯道诊断' },
+                { id: 'driving_issues', label: '赛后问题诊断' },
                 { id: 'replay', label: '影子与教练' }
               ].map(tab => (
                 <button
@@ -580,6 +753,15 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                 })()}
 
               </>
+
+              {/* ===== 轮胎定位与抓地力透视仪 ===== */}
+              {channelsData && channelsData.channels && channelsData.channels.length > 0 && (
+                <div style={sectionStyle}>
+                  <h3 style={sectionTitleStyle}>轮胎定位与抓地力透视仪</h3>
+                  <TireAnalysisPanel channelsData={channelsData} />
+                </div>
+              )}
+
             </div>
           )}
 
@@ -931,6 +1113,212 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
               {analysis && <DifferentialAnalysisPanel data={analysis['差速抓地力']} />}
             </div>
           )} 
+          {/* ===== Tab 4: 赛后问题诊断 ===== */}
+          {activeTab === 'driving_issues' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={sectionStyle}>
+                <h3 style={{ ...sectionTitleStyle, margin: 0, fontSize: 14 }}>赛后驾驶问题自主诊断</h3>
+                <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12, lineHeight: 1.5, marginTop: 8 }}>
+                  如果在刚才的比赛中你感觉车辆操控存在异样，请在下方选择最贴近的驾驶感受。系统将结合当前车辆改装及调校，给出定量修改建议。
+                </div>
+
+                {/* 分类过滤选择 */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                  {PROBLEM_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => { setSelectedIssueCategory(cat.id); setSelectedIssueId(null); }}
+                      style={{
+                        padding: '4px 10px',
+                        background: selectedIssueCategory === cat.id ? cat.color : '#1f242c',
+                        color: selectedIssueCategory === cat.id ? '#fff' : '#c9d1d9',
+                        border: '1px solid #30363d',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 问题列表与详细诊断卡片左右布局 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
+                  {/* 问题列表 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto', paddingRight: 4 }}>
+                    {DRIVING_PROBLEMS.filter(p => p.category === selectedIssueCategory).map(prob => (
+                      <div
+                        key={prob.id}
+                        onClick={() => setSelectedIssueId(prob.id)}
+                        style={{
+                          padding: '8px 10px',
+                          background: selectedIssueId === prob.id ? 'rgba(88, 166, 255, 0.1)' : '#161b22',
+                          border: selectedIssueId === prob.id ? '1px solid #58a6ff' : '1px solid #21262d',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: 11, color: selectedIssueId === prob.id ? '#58a6ff' : '#e6edf3' }}>
+                          {prob.name}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#8b949e', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {prob.description}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 详细诊断卡片 */}
+                  <div style={{ background: '#161b22', border: '1px solid #21262d', borderRadius: 8, padding: 16, minHeight: 250 }}>
+                    {selectedIssueId ? (() => {
+                      const prob = DRIVING_PROBLEMS.find(p => p.id === selectedIssueId);
+                      if (!prob) return null;
+
+                      // Check parts required (simulated or text display)
+                      const partsReqText = prob.requiresParts ? prob.requiresParts.map(p => {
+                        const labels = {
+                          street_tires: '街道胎或以上',
+                          sport_tires: '运动胎或以上',
+                          sport_suspension: '运动/赛用悬挂',
+                          sport_aero: '空力套件',
+                          sport_diff: '跑车/赛用差速器'
+                        };
+                        return labels[p] || p;
+                      }).join(', ') : '无';
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#e6edf3' }}>{prob.name}</span>
+                              <span style={{ fontSize: 8, padding: '1px 6px', background: 'rgba(248, 81, 73, 0.15)', color: '#ff7b72', border: '1px solid rgba(248, 81, 73, 0.2)', borderRadius: 10 }}>
+                                驾驶表现建议
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 10, color: '#c9d1d9', marginTop: 6, lineHeight: 1.5, background: '#0d1117', padding: '6px 10px', borderRadius: 6, border: '1px solid #21262d' }}>
+                              <strong style={{ color: '#8b949e' }}>典型症状: </strong>{prob.symptoms}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#58a6ff' }}>🛠️ 建议调校修改方案:</div>
+                            
+                            {sessionTune ? (
+                              <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 4 }}>
+                                关联调校: <strong style={{ color: '#e6edf3' }}>{sessionTune.name || '未命名调校'}</strong> (已检测到原参数值，显示具体调校后目标)
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 9, color: '#c9d1d9', background: 'rgba(210,153,34,0.1)', border: '1px solid rgba(210,153,34,0.2)', padding: '4px 8px', borderRadius: 4, marginBottom: 4 }}>
+                                ⚠️ 未检测到此场比赛关联的工坊调校方案，以下仅显示建议的增减相对值。
+                              </div>
+                            )}
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {Object.entries(prob.fixes).map(([paramKey, fix]) => {
+                                const currentVal = getParamValue(sessionTune, paramKey);
+                                const hasCurrent = currentVal !== null && currentVal !== undefined;
+                                
+                                // Parameter name mapping
+                                const paramNameMap = {
+                                  frontTirePressure: '前胎压',
+                                  rearTirePressure: '后胎压',
+                                  frontCamber: '前外倾角',
+                                  rearCamber: '后外倾角',
+                                  frontToe: '前束角',
+                                  rearToe: '后束角',
+                                  frontSpring: '前弹簧刚度',
+                                  rearSpring: '后弹簧刚度',
+                                  frontDamping: '前阻尼压缩',
+                                  rearDamping: '后阻尼压缩',
+                                  frontARB: '前防倾杆',
+                                  rearARB: '后防倾杆',
+                                  frontRideHeight: '前车身高度',
+                                  rearRideHeight: '后车身高度',
+                                  diffAccel: '差速器加速锁',
+                                  diffDecel: '差速器减速锁',
+                                  diffCenter: '中央差速偏置',
+                                  finalDrive: '终传比',
+                                  frontDownforce: '前空气下压力',
+                                  rearDownforce: '后空气下压力'
+                                };
+                                
+                                const unitMap = {
+                                  frontTirePressure: ' PSI',
+                                  rearTirePressure: ' PSI',
+                                  frontCamber: '°',
+                                  rearCamber: '°',
+                                  frontToe: '°',
+                                  rearToe: '°',
+                                  frontSpring: '',
+                                  rearSpring: '',
+                                  frontDamping: '',
+                                  rearDamping: '',
+                                  frontARB: '',
+                                  rearARB: '',
+                                  frontRideHeight: ' cm',
+                                  rearRideHeight: ' cm',
+                                  diffAccel: '%',
+                                  diffDecel: '%',
+                                  diffCenter: '%',
+                                  finalDrive: '',
+                                  frontDownforce: ' lbs',
+                                  rearDownforce: ' lbs'
+                                };
+
+                                const paramName = paramNameMap[paramKey] || paramKey;
+                                const unit = unitMap[paramKey] || '';
+                                const deltaText = fix.delta > 0 ? `+${fix.delta}` : `${fix.delta}`;
+                                
+                                return (
+                                  <div key={paramKey} style={{
+                                    display: 'flex', flexDirection: 'column', gap: 3,
+                                    padding: '6px 10px', background: '#0d1117', borderRadius: 4, borderLeft: '3px solid #58a6ff'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontWeight: 600, color: '#e6edf3', fontSize: 10 }}>{paramName}</span>
+                                      <span style={{ fontSize: 9, fontFamily: 'monospace' }}>
+                                        {hasCurrent ? (
+                                          <>
+                                            <span style={{ color: '#8b949e' }}>当前: {currentVal}{unit}</span>
+                                            <span style={{ color: '#8b949e', margin: '0 4px' }}>→</span>
+                                            <span style={{ color: '#3fb950', fontWeight: 600 }}>目标: {(currentVal + fix.delta).toFixed(hasCurrent && typeof currentVal === 'number' && currentVal % 1 !== 0 ? 2 : 1)}{unit}</span>
+                                          </>
+                                        ) : (
+                                          <span style={{ color: fix.delta > 0 ? '#3fb950' : '#f85149', fontWeight: 600 }}>调整: {deltaText}{unit}</span>
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: 9, color: '#8b949e', lineHeight: 1.4 }}>
+                                      {fix.reason}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div style={{ borderTop: '1px solid #21262d', paddingTop: 10, fontSize: 9, color: '#8b949e', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>所需改装件: <strong style={{ color: '#c9d1d9' }}>{partsReqText}</strong></span>
+                            <span>注: 建议根据车辆实际手感逐步微调，避免过度调整</span>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8b949e', gap: 12 }}>
+                        <span style={{ fontSize: 24 }}>🧭</span>
+                        <span style={{ fontSize: 11 }}>请在左侧选择你在赛道中遇到的具体驾驶问题。</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ===== Tab 3: 影子与教练 ===== */}
           {activeTab === 'replay' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -959,7 +1347,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
           </div>
         </div>
         ) : trackFilter ? (
-          // 状态 2: 赛道成长轨迹看板
+          // 状态 2: 赛道成长轨迹看板 (仅在遥测模式下显示)
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* 导航面包屑 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -969,7 +1357,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                 </span>
                 <span>&gt;</span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {tracksMetadata[trackFilter]?.name || sessions.find(s => s.trackId === trackFilter)?.trackName || trackFilter} 轨迹概览
+                  {sessions.find(s => s.trackId === trackFilter)?.trackName || trackFilter} 轨迹概览
                 </span>
               </div>
               <button onClick={() => setTrackFilter('')} style={{
@@ -995,7 +1383,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                   bestLap: s.laps.best,
                   date: s.savedAt ? new Date(s.savedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) : '',
                   car: s.vehicle?.name || `车辆 #${s.vehicle?.ordinal}`,
-                  sessionId: s.id
+                  sessionId: s.id,
+                  tuneName: s.tuneId && tunes[s.tuneId] ? tunes[s.tuneId].name : null
                 }));
 
               const minLap = learningData.length > 0 ? Math.min(...learningData.map(d => d.bestLap)) : 0;
@@ -1049,7 +1438,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                               ]}
                               labelFormatter={(label, payload) => {
                                 const item = payload?.[0]?.payload;
-                                return `第 ${label} 次出赛 · ${item?.date || ''}`;
+                                const tuneLabel = item?.tuneName ? ` · 调校: ${item.tuneName}` : '';
+                                return `第 ${label} 次出赛 · ${item?.date || ''}${tuneLabel}`;
                               }}
                               contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', fontSize: 10 }}
                             />
@@ -1325,7 +1715,11 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
               );
             })()}
           </div>
-        ) : (
+        ) : null
+        )}
+
+        {/* ===== 风云榜模式：全宽大屏渲染 ===== */}
+        {pageMode === 'leaderboard' && (
           // 状态 1: 赛道风云榜大屏
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 700 }}>
             {/* 顶部控制栏 */}

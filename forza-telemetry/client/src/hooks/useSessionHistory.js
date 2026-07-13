@@ -22,6 +22,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // Changed from activeChart
   const [diagnosis, setDiagnosis] = useState(null);
+  const [sessionTune, setSessionTune] = useState(null);
   const [channelsData, setChannelsData] = useState(null);
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [advancedData, setAdvancedData] = useState(null);
@@ -396,6 +397,24 @@ export function useSessionHistory({ onNavigate, navIntent }) {
       setAnalysis(analysisData);
       setDiagnosis(diagnosisData);
       setSelectedSession(sessionId);
+      
+      // 加载关联的调校方案
+      if (diagnosisData?.tuneId) {
+        try {
+          const tuneRes = await fetch('/api/tunes/' + diagnosisData.tuneId);
+          if (tuneRes.ok) {
+            const tuneData = await tuneRes.json();
+            setSessionTune(tuneData);
+          } else {
+            setSessionTune(null);
+          }
+        } catch (err) {
+          setSessionTune(null);
+        }
+      } else {
+        setSessionTune(null);
+      }
+
       // 切换session时重置tab缓存和detail标记
       setDetailLoaded(false);
       setSessionDetail(null);
@@ -950,6 +969,7 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
     worst3,
     SESSION_PAGE_SIZE,
     myFilteredSessions,
-    totalPages
+    totalPages,
+    sessionTune
   };
 }

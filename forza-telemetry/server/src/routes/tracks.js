@@ -500,7 +500,11 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
 
   const mergedTrajectories = rawMerged.map((traj) => simplifyRDP(traj, 0.25));
 
-  const trackData = buildTrackFromTrajectories(mergedTrajectories);
+  const trackData = buildTrackFromTrajectories(mergedTrajectories, {
+    oldTurns: targetDetail.turns || [],
+    isPaceNoteLocked: targetDetail.isPaceNoteLocked || false,
+    deletedTurns: targetDetail.deletedTurns || []
+  });
 
   targetDetail.trajectories = mergedTrajectories;
   targetDetail.trajectoryCount = mergedTrajectories.length;

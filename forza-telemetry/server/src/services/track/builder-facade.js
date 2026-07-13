@@ -280,7 +280,7 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
   let turns = [];
   if (isPaceNoteLocked) {
     // 全局锁定，只映射旧弯道，不进行新弯道检测
-    turns = mapOldTurnsToNewCenterline(oldTurns, reconstructedCenterline);
+    turns = mapOldTurnsToNewCenterline(oldTurns, reconstructedCenterline, detectedIsLoop);
   } else {
     // 局部锁定，先找出新弯道，然后用黑名单过滤，再用保留的旧弯道覆盖
     let rawTurns = detectTurnsEnhanced(reconstructedCenterline);
@@ -295,7 +295,7 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
     // 映射被锁定的旧弯道
     const lockedOldTurns = oldTurns.filter(t => t.isLockedByUser);
     if (lockedOldTurns.length > 0) {
-      const mappedLockedTurns = mapOldTurnsToNewCenterline(lockedOldTurns, reconstructedCenterline);
+      const mappedLockedTurns = mapOldTurnsToNewCenterline(lockedOldTurns, reconstructedCenterline, detectedIsLoop);
 
       // 合并逻辑：如果新检测出的弯道与任何 lockedOldTurn 距离 < 30米，则剔除该新弯道
       rawTurns = rawTurns.filter(newT => {

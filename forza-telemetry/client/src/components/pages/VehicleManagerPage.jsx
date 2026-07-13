@@ -60,9 +60,11 @@ function InlineConfirm({ message, onConfirm, onCancel }) {
   );
 }
 
-export function VehicleManagerPage({ onNavigate, socket }) {
+export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const [vehicles, setVehicles] = useState({});
   const [sessions, setSessions] = useState([]);
+  const [tunesList, setTunesList] = useState([]);
+  const [subTabMap, setSubTabMap] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [formData, setFormData] = useState({
@@ -105,9 +107,21 @@ export function VehicleManagerPage({ onNavigate, socket }) {
     return () => { socket.off('vehicleDetected', handler); };
   }, [socket]);
 
+  const loadTunes = async () => {
+    try {
+      const res = await fetch('/api/tunes');
+      if (res.ok) {
+        const data = await res.json();
+        setTunesList(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('加载调校方案失败', e);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([loadVehicles(), loadSessions()]);
+    await Promise.all([loadVehicles(), loadSessions(), loadTunes()]);
     setLoading(false);
   };
 
@@ -682,47 +696,164 @@ export function VehicleManagerPage({ onNavigate, socket }) {
                 </div>
               )}
 
-              {/* Round 7: 展开显示最近5场session */}
-              {expandedCard === card.ord && card.stat.recentSessions.length > 0 && (
+              {/* Round 7: 展开显示最近比赛和改装方案 */}
+              {expandedCard === card.ord && (
                 <div style={{ background: '#0d1117', borderRadius: 4, padding: 6, marginBottom: 4, fontSize: 9 }}>
-                  <div style={{ color: '#484f58', fontWeight: 600, marginBottom: 4, fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    最近比赛 ({card.stat.recentSessions.length})
-                  </div>
-                  {card.stat.recentSessions.map((s, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '2px 0',
-                      borderBottom: idx < card.stat.recentSessions.length - 1 ? '1px solid #161b22' : 'none'
-                    }}>
-                      <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
-                        {s.trackName || '未知赛道'}
-                      </span>
-                      <span style={{ color: '#58a6ff', fontFamily: 'monospace', fontSize: 8, flexShrink: 0, marginLeft: 4 }}>
-                        {formatTime(s.laps && s.laps.best ? s.laps.best : 0)}
-                      </span>
-                    </div>
-                  ))}
+                  {(() => {
+                    const carTunes = tunesList.filter(t => String(t.vehicleId) === String(card.ord));
+                    const currentSubTab = subTabMap[card.ord] || 'races';
+                    
+                    return (
+                      <>
+                        {/* 子 Tab 头部 */}
+                        <div style={{ display: 'flex', borderBottom: '1px solid #21262d', marginBottom: 6, gap: 4 }}>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); setSubTabMap(prev => ({ ...prev, [card.ord]: 'races' })) }}
+                            style={{
+                              padding: '2px 8px', cursor: 'pointer', fontSize: 9,
+                              color: currentSubTab === 'races' ? '#58a6ff' : '#8b949e',
+                              borderBottom: currentSubTab === 'races' ? '2px solid #58a6ff' : '2px solid transparent',
+                              fontWeight: currentSubTab === 'races' ? 600 : 400
+                            }}
+                          >
+                            最近比赛
+                          </div>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); setSubTabMap(prev => ({ ...prev, [card.ord]: 'tunes' })) }}
+                            style={{
+                              padding: '2px 8px', cursor: 'pointer', fontSize: 9,
+                              color: currentSubTab === 'tunes' ? '#58a6ff' : '#8b949e',
+                              borderBottom: currentSubTab === 'tunes' ? '2px solid #58a6ff' : '2px solid transparent',
+                              fontWeight: currentSubTab === 'tunes' ? 600 : 400
+                            }}
+                          >
+                            改装调校方案 ({carTunes.length})
+                          </div>
+                        </div>
+
+                        {/* 最近比赛列表 */}
+                        {currentSubTab === 'races' && (
+                          <div>
+                            {card.stat.recentSessions.length === 0 ? (
+                              <div style={{ color: '#484f58', padding: '6px 0', textAlign: 'center' }}>暂无比赛记录</div>
+                            ) : (
+                              card.stat.recentSessions.map((s, idx) => (
+                                <div key={idx} style={{
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                  padding: '2px 0',
+                                  borderBottom: idx < card.stat.recentSessions.length - 1 ? '1px solid #161b22' : 'none'
+                                }}>
+                                  <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
+                                    {s.trackName || '未知赛道'}
+                                  </span>
+                                  <span style={{ color: '#58a6ff', fontFamily: 'monospace', fontSize: 8, flexShrink: 0, marginLeft: 4 }}>
+                                    {formatTime(s.laps && s.laps.best ? s.laps.best : 0)}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+
+                        {/* 改装调校方案列表 */}
+                        {currentSubTab === 'tunes' && (
+                          <div>
+                            {carTunes.length === 0 ? (
+                              <div style={{ color: '#484f58', padding: '6px 0', textAlign: 'center' }}>暂无改装方案，点击下方「工坊」新建</div>
+                            ) : (
+                              carTunes.map((tune, idx) => {
+                                const tuneSessions = sessions.filter(s => String(s.vehicle?.ordinal) === String(card.ord) && s.tuneId === tune.id && s.laps?.best > 0);
+                                const bestTuneLap = tuneSessions.length > 0 ? Math.min(...tuneSessions.map(s => s.laps.best)) : 0;
+                                
+                                return (
+                                  <div key={tune.id} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: '4px 0',
+                                    borderBottom: idx < carTunes.length - 1 ? '1px solid #161b22' : 'none'
+                                  }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                                      <span style={{ color: '#e6edf3', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {tune.name || '未命名调校'}
+                                      </span>
+                                      <span style={{ color: '#8b949e', fontSize: 7, marginTop: 1 }}>
+                                        PI: {tune.targetPi || 800} | {(tune.tags || []).join(', ') || '无标签'}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                      <span style={{ color: bestTuneLap > 0 ? '#3fb950' : '#484f58', fontFamily: 'monospace', fontSize: 8 }}>
+                                        {bestTuneLap > 0 ? `🏆 ${formatTime(bestTuneLap)}` : '未跑圈'}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onNavigate('tunes', { tuneId: tune.id, action: 'edit' });
+                                        }}
+                                        style={{
+                                          padding: '1px 6px',
+                                          background: '#21262d',
+                                          color: '#58a6ff',
+                                          border: '1px solid #30363d',
+                                          borderRadius: 3,
+                                          fontSize: 8,
+                                          cursor: 'pointer',
+                                          marginLeft: 6
+                                        }}
+                                        title="去工坊编辑"
+                                      >
+                                        编辑
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#484f58', borderTop: '1px solid #21262d', paddingTop: 4 }}>
                 <span>{formatRelative(card.stat.lastUsed)}</span>
-                {!card.isAuto && !compareMode && (
-                  <div style={{ display: 'flex', gap: 2, position: 'relative' }}>
-                    <button onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }} style={{ ...btnSmallStyle, fontSize: 9, padding: '2px 6px' }}>&#9998;</button>
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deleteConfirmId === card.ord ? null : card.ord); }}
-                        style={{ ...btnDangerSmallStyle, fontSize: 9, padding: '2px 6px' }}
-                      >&#10005;</button>
-                      {deleteConfirmId === card.ord && (
-                        <InlineConfirm
-                          message="确定删除此车辆？"
-                          onConfirm={() => deleteVehicle(card.ord)}
-                          onCancel={() => setDeleteConfirmId(null)}
-                        />
-                      )}
-                    </div>
+                {!compareMode && (
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate('tunes', { vehicleId: card.ord, action: 'create' });
+                      }}
+                      style={{
+                        ...btnSmallStyle,
+                        fontSize: 9,
+                        padding: '2px 6px',
+                        background: 'rgba(56, 139, 253, 0.1)',
+                        borderColor: 'rgba(56, 139, 253, 0.3)',
+                        color: '#58a6ff'
+                      }}
+                      title="为此车辆新建改装与调校方案"
+                    >
+                      🔧 工坊
+                    </button>
+                    {!card.isAuto && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }} style={{ ...btnSmallStyle, fontSize: 9, padding: '2px 6px' }}>&#9998;</button>
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deleteConfirmId === card.ord ? null : card.ord); }}
+                            style={{ ...btnDangerSmallStyle, fontSize: 9, padding: '2px 6px' }}
+                          >&#10005;</button>
+                          {deleteConfirmId === card.ord && (
+                            <InlineConfirm
+                              message="确定删除此车辆？"
+                              onConfirm={() => deleteVehicle(card.ord)}
+                              onCancel={() => setDeleteConfirmId(null)}
+                            />
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
