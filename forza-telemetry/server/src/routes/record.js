@@ -239,13 +239,14 @@ const calculateTrackLength = (pts) => {
         const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
         if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
           stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          if (trackName && !stateManager.vehicles[vehicleOrdinal].tracks.includes(trackName)) {
-            stateManager.vehicles[vehicleOrdinal].tracks.push(trackName);
+          const finalTrackId = (msg.tracksUpdate && msg.tracksUpdate.id) || trackId;
+          if (finalTrackId && finalTrackId !== 'unknown' && !stateManager.vehicles[vehicleOrdinal].tracks.includes(finalTrackId)) {
+            stateManager.vehicles[vehicleOrdinal].tracks.push(finalTrackId);
           }
           if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
             stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
           }
-          saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
+          saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
         }
 
         stateManager.io.emit('autoRecordStatus', { 
@@ -528,13 +529,13 @@ const calculateTrackLength = (pts) => {
         const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
         if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
           stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          if (trackName && !stateManager.vehicles[vehicleOrdinal].tracks.includes(trackName)) {
-            stateManager.vehicles[vehicleOrdinal].tracks.push(trackName);
+          if (targetTrackId && targetTrackId !== 'unknown' && !stateManager.vehicles[vehicleOrdinal].tracks.includes(targetTrackId)) {
+            stateManager.vehicles[vehicleOrdinal].tracks.push(targetTrackId);
           }
           if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
             stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
           }
-          saveJSON(DATA_DIR + '/stateManager.vehicles.json', stateManager.vehicles);
+          saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
         }
 
         res.json({

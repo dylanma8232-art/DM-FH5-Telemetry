@@ -154,8 +154,8 @@ router.post('/backup/restore', express.raw({ type: '*/*', limit: '100mb' }), asy
   writeDirRecursive(DATA_DIR, data.data);
 
   const nextTracks = loadTracksDatabase();
-  const nextVehicles = loadJSON(DATA_DIR + '/stateManager.vehicles.json');
-  const nextTunes = loadJSON(DATA_DIR + '/stateManager.tunes.json');
+  const nextVehicles = loadJSON(DATA_DIR + '/vehicles.json');
+  const nextTunes = loadJSON(DATA_DIR + '/tunes.json');
 
   stateManager.onRestore(nextTracks, nextVehicles, nextTunes);
   res.json({ success: true, message: '数据恢复成功，原数据已备份至 ' + path.basename(backupDir) });

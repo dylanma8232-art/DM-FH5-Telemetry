@@ -8,6 +8,6 @@
     "client": "cd client && npm run dev",
     "test": "cd server && node src/test-sender.js",
     "build:map": "python3 scripts/generate_codemap.py",
-    "rebuild:tracks": "cd server && node src/rebuild-tracks.js"
+    "rebuild:tracks": "node scripts/rebuild_tracks.mjs"
   }
 }

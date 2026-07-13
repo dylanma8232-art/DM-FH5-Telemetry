@@ -62,7 +62,6 @@ forza-telemetry/
 │   │   ├── index.js             # 主入口: Express + Socket.IO + UDP + 所有API (~5356行)
 │   │   ├── telemetry-parser.js  # UDP 二进制数据解析器 (SLED 232B + Dash 79B, ~368行)
 │   │   ├── track-builder.js     # 赛道构建: 中心线提取/弯道检测/路书生成/环道检测 (~1074行)
-│   │   ├── rebuild-tracks.js    # 数据清洗脚本: 重建赛道/清洗vehicles (~279行)
 │   │   ├── data-listener.js     # 独立数据监听工具（轮询API检查数据）
 │   │   ├── config/
 │   │   │   └── constants.js     # 配置常量
@@ -209,9 +208,6 @@ forza-telemetry/
 - `resampleCenterline()` - 中心线重采样
 - `smoothCenterline()` - 中心线平滑（Catmull-Rom + 高斯滤波）
 - `computeDTWPath()` - DTW 动态时间规整（含 Yaw 惩罚，解决交叉环道）
-
-数据清洗工具：`server/src/rebuild-tracks.js`
-- `npm run rebuild:tracks` - 重建所有赛道数据，清洗 vehicles.json 孤儿引用
 
 ### 4.3 比赛中心
 
@@ -591,9 +587,6 @@ npm run client
 
 # 更新代码图谱/知识图谱 (在代码文件发生变动后运行)
 npm run build:map
-
-# 重建所有赛道数据（应用环道检测，清洗vehicles.json）
-npm run rebuild:tracks
 ```
 
 ---

@@ -84,9 +84,9 @@
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh) 
 - 📄 [package.json](file:///forza-telemetry/package.json) 
 - 📂 **scripts/**
-  - 📄 [clean_history.js](file:///forza-telemetry/scripts/clean_history.js) 
   - 📄 [clean_sessions.mjs](file:///forza-telemetry/scripts/clean_sessions.mjs) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
+  - 📄 [rebuild_tracks.mjs](file:///forza-telemetry/scripts/rebuild_tracks.mjs) 
   - 📄 [sync_tracks.js](file:///forza-telemetry/scripts/sync_tracks.js) 
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
