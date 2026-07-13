@@ -171,7 +171,7 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     parts: body.parts || null
   };
   stateManager.tunes[tuneId] = tune;
-  saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
+  saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
   res.json({ status: 'ok', tuneId, tune });
 
 
@@ -215,7 +215,7 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   if (body.parts !== undefined) tune.parts = body.parts;
   tune.updatedAt = new Date().toISOString();
   stateManager.tunes[req.params.tuneId] = tune;
-  saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
+  saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
   res.json({ status: 'ok', tune });
 
 
@@ -229,7 +229,7 @@ router.delete('/:tuneId', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Tune not found' });
   }
   delete stateManager.tunes[req.params.tuneId];
-  saveJSON(DATA_DIR + '/stateManager.tunes.json', stateManager.tunes);
+  saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
   res.json({ status: 'ok' });
 
 

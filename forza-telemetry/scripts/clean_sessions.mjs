@@ -44,6 +44,8 @@ async function main() {
 
   const tracksMetadata = readJSON(join(DATA_DIR, 'tracks-metadata.json')) || {};
   const vehiclesData = readJSON(join(DATA_DIR, 'vehicles.json')) || {};
+  const CARS_DB_PATH = join(__dirname, '../server/src/config/cars-database.json');
+  const carsDatabase = readJSON(CARS_DB_PATH) || {};
   
   if (!existsSync(SESSIONS_DIR)) {
     console.log('未找到比赛记录存储目录');
@@ -55,11 +57,17 @@ async function main() {
 
   let modifiedSessionsCount = 0;
 
-  // 重置车辆统计数据
+  // 重置车辆统计数据并修复默认名称
   for (const key in vehiclesData) {
     vehiclesData[key].raceCount = 0;
     vehiclesData[key].tracks = [];
     vehiclesData[key].bestLap = 0;
+
+    // 如果名称是默认的 "Car #<ordinal>" 且数据库中拥有对应真名，则执行自动愈合
+    if ((!vehiclesData[key].name || vehiclesData[key].name.startsWith('Car #')) && carsDatabase[key]) {
+      console.log(`[车辆名称修复] ${key}: "${vehiclesData[key].name || ''}" -> "${carsDatabase[key]}"`);
+      vehiclesData[key].name = carsDatabase[key];
+    }
   }
 
   for (const file of files) {
@@ -151,8 +159,9 @@ async function main() {
       if (vehiclesData[ordinal]) {
         vehiclesData[ordinal].raceCount += 1;
         
-        if (trackName && !vehiclesData[ordinal].tracks.includes(trackName)) {
-          vehiclesData[ordinal].tracks.push(trackName);
+        // 按照最新格式要求：tracks 存储 trackId 而非 trackName
+        if (trackId && trackId.startsWith('track_') && !vehiclesData[ordinal].tracks.includes(trackId)) {
+          vehiclesData[ordinal].tracks.push(trackId);
         }
         
         const lapBest = session.laps.best || 0;

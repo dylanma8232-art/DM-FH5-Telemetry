@@ -192,8 +192,17 @@ function processTelemetryPacket(telemetry, msgLength) {
       io.emit('vehicleDetected', vehicles[carOrd]);
     } else {
       vehicles[carOrd].lastUsed = new Date().toISOString();
+      let updated = false;
+      if ((!vehicles[carOrd].name || vehicles[carOrd].name.startsWith('Car #')) && carsDatabase[carOrd]) {
+        vehicles[carOrd].name = carsDatabase[carOrd];
+        updated = true;
+        console.log(`[Vehicle] 自动修正已存在车辆的名称: ${carOrd} -> ${vehicles[carOrd].name}`);
+      }
       if (telemetry.car.performanceIndex && telemetry.car.performanceIndex > vehicles[carOrd].pi) {
         vehicles[carOrd].pi = telemetry.car.performanceIndex;
+        updated = true;
+      }
+      if (updated) {
         saveJSON(DATA_DIR + '/vehicles.json', vehicles);
       }
     }
