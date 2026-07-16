@@ -1,6 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";import { stateManager } from '../services/state-manager.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
@@ -8,6 +11,14 @@ const router = express.Router();
 
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
+const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
+
+function getManufacturer(name) {
+  const withoutYear = String(name || '').replace(/^\d{4}\s+/, '').trim();
+  if (withoutYear.startsWith('Alfa Romeo ')) return 'Alfa Romeo';
+  if (withoutYear.startsWith('Mercedes-Benz ')) return 'Mercedes-Benz';
+  return withoutYear.split(/\s+/)[0] || '其他';
+}
 
 const calculateTrackLength = (pts) => {
   if (!pts || pts.length < 2) return 0;
@@ -25,6 +36,17 @@ const calculateTrackLength = (pts) => {
 // 获取所有车辆
 router.get('/', (req, res) => {
   res.json(stateManager.vehicles);
+});
+
+// 游戏内完整车辆目录：客户端据此区分已接收与尚未接收的车辆。
+router.get('/catalog', (req, res) => {
+  const cars = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+  const catalog = Object.entries(cars).map(([ordinal, name]) => ({
+    ordinal: String(ordinal),
+    name,
+    manufacturer: getManufacturer(name)
+  }));
+  res.json(catalog);
 });
 
 // 更新车辆信息
