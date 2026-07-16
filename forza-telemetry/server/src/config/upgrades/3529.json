@@ -1,0 +1,133 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1975 Forsberg Racing Nissan \"Gold Leader\" Datsun 280Z",
+  "basePi": 791,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_505",
+          "label": "7.0L V8 · 505 马力",
+          "sourceValue": "505",
+          "engineName": "7.0L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.0L V8",
+              "sourceVehicle": "Chevrolet Camaro Z/28",
+              "powerHp": 505,
+              "torqueLbFt": 481,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 3,
+          "performanceScore": 81
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 381
+        },
+        {
+          "id": "engine_1015",
+          "label": "Racing 4.0L V6TT · 1015 马力",
+          "sourceValue": "1015",
+          "engineName": "Racing 4.0L V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 4.0L V6TT",
+              "sourceVehicle": "Formula Drift #64 Nissan 370Z",
+              "powerHp": 1015,
+              "torqueLbFt": 845,
+              "aspiration": "2t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 24,
+          "performanceScore": 591
+        },
+        {
+          "id": "engine_550",
+          "label": "3.5L V8TT 或 5.0L V8 DSC，待核验",
+          "sourceValue": "550",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.5L V8TT",
+              "sourceVehicle": "Nissan R390 (GT1)",
+              "powerHp": 550,
+              "torqueLbFt": 471,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "5.0L V8 DSC",
+              "sourceVehicle": "Land Rover Range Rover Sport SVR",
+              "powerHp": 550,
+              "torqueLbFt": 542,
+              "aspiration": "ps",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 126
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

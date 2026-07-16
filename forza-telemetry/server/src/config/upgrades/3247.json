@@ -1,0 +1,93 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2018 Formula Drift #64 Nissan 370Z",
+  "basePi": 843,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_542_3_8l",
+          "label": "3.5L V6TT 或 3.8L V6 - TT，待核验",
+          "sourceValue": "542(3.8L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.5L V6TT",
+              "sourceVehicle": "Jaguar XJ220",
+              "powerHp": 542,
+              "torqueLbFt": 473,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "3.8L V6 - TT",
+              "sourceVehicle": "Nissan GT-R Black Edition",
+              "powerHp": 542,
+              "torqueLbFt": 466,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -15,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -7,
+          "performanceScore": 0
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

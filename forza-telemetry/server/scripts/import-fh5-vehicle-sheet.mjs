@@ -155,6 +155,29 @@ for (const row of rows) {
   };
 }
 
-const target = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/config/vehicle-upgrades.json');
-fs.writeFileSync(target, JSON.stringify({ schemaVersion: 1, game: 'Forza Horizon 5', updatedAt: new Date().toISOString(), profiles }, null, 2) + '\n');
-console.log(`已导入 ${Object.keys(profiles).length} 辆车辆的已公开改装选项。`);
+const outputDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/config/upgrades');
+const metadataPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/config/upgrades-metadata.json');
+
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+}
+
+const metadata = {
+  schemaVersion: 1,
+  game: 'Forza Horizon 5',
+  updatedAt: new Date().toISOString(),
+  profiles: {}
+};
+
+for (const [ordinal, profile] of Object.entries(profiles)) {
+  metadata.profiles[ordinal] = {
+    name: profile.name,
+    basePi: profile.basePi,
+    baseDriveType: profile.baseDriveType
+  };
+  const shardedPath = path.join(outputDir, `${ordinal}.json`);
+  fs.writeFileSync(shardedPath, JSON.stringify(profile, null, 2) + '\n');
+}
+
+fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n');
+console.log(`已导入并分片保存 ${Object.keys(profiles).length} 辆车辆的已公开改装选项。`);

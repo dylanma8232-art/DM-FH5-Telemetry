@@ -1,0 +1,70 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1939 Mercedes-Benz W154",
+  "basePi": 672,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_483",
+          "label": "Vintage 3.0L DSC V12 · 483 马力",
+          "sourceValue": "483",
+          "engineName": "Vintage 3.0L DSC V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Vintage 3.0L DSC V12",
+              "sourceVehicle": "Mercedes-Benz W154",
+              "powerHp": 483,
+              "torqueLbFt": 361,
+              "aspiration": "ps",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

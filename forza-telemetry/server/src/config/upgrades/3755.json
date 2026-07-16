@@ -1,0 +1,29 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2022 Ford Supervan 4",
+  "basePi": 953,
+  "baseDriveType": "awd",
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.003Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

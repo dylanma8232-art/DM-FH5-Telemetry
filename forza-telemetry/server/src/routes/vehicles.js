@@ -13,11 +13,17 @@ const router = express.Router();
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
-const upgradesDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/vehicle-upgrades.json');
+const upgradesMetadataPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades-metadata.json');
+const upgradesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades');
 
-function loadUpgradeProfiles() {
-  const database = fs.existsSync(upgradesDbPath) ? loadJSON(upgradesDbPath) : {};
+function loadUpgradeMetadata() {
+  const database = fs.existsSync(upgradesMetadataPath) ? loadJSON(upgradesMetadataPath) : {};
   return database?.profiles || {};
+}
+
+function loadSingleUpgradeProfile(vehicleId) {
+  const profilePath = path.join(upgradesDir, `${vehicleId}.json`);
+  return fs.existsSync(profilePath) ? loadJSON(profilePath) : null;
 }
 
 function getManufacturer(name) {
@@ -48,13 +54,13 @@ router.get('/', (req, res) => {
 // 游戏内完整车辆目录：客户端据此区分已接收与尚未接收的车辆。
 router.get('/catalog', (req, res) => {
   const cars = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
-  const profiles = loadUpgradeProfiles();
+  const metadata = loadUpgradeMetadata();
   const catalog = Object.entries(cars).map(([ordinal, name]) => ({
     ordinal: String(ordinal),
     name,
     manufacturer: getManufacturer(name),
-    basePi: Number.isFinite(Number(profiles[String(ordinal)]?.basePi)) && Number(profiles[String(ordinal)]?.basePi) > 0
-      ? Number(profiles[String(ordinal)].basePi)
+    basePi: Number.isFinite(Number(metadata[String(ordinal)]?.basePi)) && Number(metadata[String(ordinal)]?.basePi) > 0
+      ? Number(metadata[String(ordinal)].basePi)
       : null
   }));
   res.json(catalog);
@@ -62,20 +68,33 @@ router.get('/catalog', (req, res) => {
 
 // 选择车辆后解析“通用模板 + 车辆覆盖 + 专属选项 + 当前选择联动”。
 router.get('/:id/upgrades', (req, res) => {
-  const profiles = loadUpgradeProfiles();
-  const profile = profiles[String(req.params.id)] || null;
+  const vehicleId = String(req.params.id);
+  const profile = loadSingleUpgradeProfile(vehicleId);
   let selections = {};
   try {
     selections = req.query.selections ? JSON.parse(req.query.selections) : {};
   } catch (_) {
     return res.status(400).json({ error: '改装选择参数格式无效。' });
   }
-  const driveType = ['fwd', 'rwd', 'awd'].includes(req.query.driveType) ? req.query.driveType : null;
-  res.json({ vehicleId: String(req.params.id), ...resolveUpgradeProfile(profile, selections, { driveType }) });
+
+  // 从元数据中读取该车辆的默认基本PI和驱动，用作fallback上下文
+  const metadata = loadUpgradeMetadata() || {};
+  const meta = metadata[vehicleId] || {};
+  
+  const driveType = ['fwd', 'rwd', 'awd'].includes(req.query.driveType)
+    ? req.query.driveType
+    : (meta.baseDriveType || 'awd').toLowerCase();
+
+  const basePi = Number(meta.basePi) || 500;
+
+  res.json({
+    vehicleId,
+    ...resolveUpgradeProfile(profile, selections, { driveType, basePi })
+  });
 });
 
 router.post('/:id/upgrades/validate', express.json(), (req, res) => {
-  const profile = loadUpgradeProfiles()[String(req.params.id)] || null;
+  const profile = loadSingleUpgradeProfile(String(req.params.id));
   const body = req.body || {};
   const hasTunePayload = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero', 'generationMode', 'targetPi'].some(key => body[key] !== undefined);
   const result = hasTunePayload ? validateTunePayload(profile, body) : validateBuild(profile, body.parts || {});

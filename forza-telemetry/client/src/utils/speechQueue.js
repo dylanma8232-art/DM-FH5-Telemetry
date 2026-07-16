@@ -27,10 +27,12 @@ class SpeechQueueManager {
     }
 
     // 优先级冲突处理
+    let delay = 0;
     if (this.isPlaying) {
       if (priority > this.currentPriority) {
         // 新播报优先级更高：立即强行中断当前正在播报的低级内容，插播高级警告！
         this.cancelCurrent();
+        delay = 50; // 预留 50ms 给浏览器音频通道进行释放
       } else {
         // 新播报优先级较低或相同：直接丢弃（赛车竞速瞬息万变，延迟播报旧信息已无意义，坚决不积压队列）
         return;
@@ -96,11 +98,26 @@ class SpeechQueueManager {
     if (this.safeguardTimer) clearTimeout(this.safeguardTimer);
     this.safeguardTimer = setTimeout(() => {
       console.warn('[Speech] 语音播报触发保底超时自愈');
+      try {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.resume();
+          window.speechSynthesis.cancel();
+        }
+      } catch (_) {}
       cleanUp();
     }, 5000);
 
     this.currentUtterance = utterance;
-    window.speechSynthesis.speak(utterance);
+    
+    if (delay > 0) {
+      setTimeout(() => {
+        if (this.currentUtterance === utterance) {
+          window.speechSynthesis.speak(utterance);
+        }
+      }, delay);
+    } else {
+      window.speechSynthesis.speak(utterance);
+    }
   }
 
   /**
