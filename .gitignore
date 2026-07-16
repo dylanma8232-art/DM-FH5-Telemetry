@@ -53,3 +53,6 @@ forza-telemetry/data/
 一键启动与数据清洗.command
 *.command
 *.sh
+
+# 其他
+pet-runs/
