@@ -46,11 +46,10 @@ export default function App() {
   ];
 
   const navigateTo = (tabId, intent = null) => {
-    // 圈速榜已合并到sessions中，重定向到sessions并带上leaderboard intent
+    // 赛道成绩已融合进比赛中心，兼容旧入口和赛道管理页跳转。
     if (tabId === 'leaderboard') {
       tabId = 'sessions';
-      intent = intent || {};
-      intent._subTab = 'leaderboard';
+      intent = { ...(intent || {}), _subTab: 'leaderboard' };
     }
     setActiveTab(tabId);
     setNavIntent(intent);

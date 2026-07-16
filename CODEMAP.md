@@ -23,7 +23,6 @@
     - 📂 **components/**
       - 📄 [Header.jsx](file:///forza-telemetry/client/src/components/Header.jsx)   *(函数/组件: `Header`)*
       - 📂 **dashboard/**
-        - 📄 [AICoachPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/AICoachPanel.jsx)   *(函数/组件: `AICoachPanel`)*
         - 📄 [AlertAdvicePanel.jsx](file:///forza-telemetry/client/src/components/dashboard/AlertAdvicePanel.jsx)   *(函数/组件: `AlertAdvicePanel`)*
         - 📄 [BrakingGripDynamicsPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/BrakingGripDynamicsPanel.jsx)   *(函数/组件: `BrakingGripDynamicsPanel`)*
         - 📄 [DifferentialAnalysisPanel.jsx](file:///forza-telemetry/client/src/components/dashboard/DifferentialAnalysisPanel.jsx)   *(函数/组件: `DifferentialAnalysisPanel`)*

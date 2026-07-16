@@ -19,10 +19,11 @@
 - 赛道自动识别、中心线提取、弯道检测、路书生成
 - **环道检测**：自动检测环形赛道并提取单圈数据（方案F闭合点检测 + 方案D曲率周期性检测）
 - 比赛记录与回放、分段计时、圈速对比
+- AI 智能诊断工坊
 - 车辆自动检测与管理
 - 调校管理与对比
 - 驾驶建议与语音播报（小米 TTS）
-- AI 教练分析
+- AI 智能诊断分析
 
 ---
 
@@ -38,7 +39,7 @@
 | 数据接收 | Node.js dgram (UDP) |
 | 数据存储 | JSON 文件 + Brotli 压缩（文件系统） |
 | 语音合成 | 小米 TTS API (mimo-v2.5-tts) |
-| AI 教练 | DashScope API |
+| AI 智能诊断 | DashScope API |
 | PWA | Service Worker + manifest.json |
 
 ---
@@ -100,7 +101,6 @@ forza-telemetry/
 │       │   │   ├── VehicleManagerPage.jsx
 │       │   │   └── TuneManagerPage.jsx
 │       │   ├── dashboard/       # 仪表盘子组件
-│       │   │   ├── AICoachPanel.jsx          # AI教练面板
 │       │   │   ├── AlertAdvicePanel.jsx      # 警报与驾驶反馈中心
 │       │   │   ├── BrakingGripDynamicsPanel.jsx # 底盘监测面板
 │       │   │   ├── LapComparison.jsx         # 圈速对比
@@ -147,7 +147,7 @@ forza-telemetry/
 │       ├── session_*_summary.json          # 摘要文件
 │       ├── session_*_detail_hifi.json.br   # 高精度详情（Brotli压缩）
 │       ├── session_*_detail_lowfi.json.br  # 低精度详情（Brotli压缩）
-│       └── session_*_ai_coach.md           # AI教练报告
+│       └── session_*_ai_diagnosis.json     # AI 智能诊断缓存
 │
 └── docs/                        # 开发文档（迭代记录）
     └── *.md                     # 各模块开发迭代记录
@@ -165,7 +165,6 @@ forza-telemetry/
 
 | 功能组 | 组件 | 说明 |
 |--------|------|------|
-| AI教练 | `AICoachPanel.jsx` | AI驾驶教练建议 |
 | 警报/建议 | `AlertAdvicePanel.jsx` | 警报与驾驶反馈中心，基于物理参数动态计算阈值 |
 | 底盘/轮胎 | `BrakingGripDynamicsPanel.jsx` | 底盘监测：四轮滑移、胎温、行程、差速、G力 |
 | 圈速对比 | `LapComparison.jsx` | 多圈速度/油门/刹车曲线对比 |
@@ -227,7 +226,7 @@ forza-telemetry/
   - 遥测通道 (`/api/analysis/:id/telemetry-channels`)
   - 高级分析 (`/api/analysis/:id/advanced`)
   - 弯道分析 (`/api/analysis/:id/turns`)
-  - AI教练 (`/api/analysis/:id/ai-coach`)
+  - AI 智能诊断 (`/api/analysis/:id/ai-diagnosis`)
 - 数据导出（CSV/JSON）
 - 比赛报告生成
 - 关联赛道和车辆
@@ -474,8 +473,8 @@ DashboardPage → 各子组件渲染
 | GET | `/api/analysis/:sessionId/telemetry-channels` | 遥测通道分析 |
 | GET | `/api/analysis/:sessionId/advanced` | 高级分析 |
 | GET | `/api/analysis/:sessionId/turns` | 弯道分析 |
-| GET | `/api/analysis/:sessionId/ai-coach` | AI教练建议 |
-| POST | `/api/analysis/:sessionId/ai-coach` | 生成AI教练报告 |
+| GET | `/api/analysis/:sessionId/ai-diagnosis` | 读取 AI 智能诊断 |
+| POST | `/api/analysis/:sessionId/ai-diagnosis` | 生成 AI 智能诊断 |
 
 ### 6.8 导出与报告
 
@@ -609,7 +608,7 @@ npm run build:map
 
 ### 11.1 routerContext 上下文注册规范
 
-所有路由模块（`routes/` 目录）均通过 `const { ... } = context` 解构获取工具函数。  
+所有路由模块（`routes/` 目录）均通过 `const { ... } = context` 解构获取工具函数。
 **必须确保** 每个路由模块解构所需的函数/对象都已在 `server/src/index.js` 的 `routerContext` 对象上注册。
 
 已注册的关键项（含 2026-07-11 补充）：
@@ -715,4 +714,3 @@ toast('合并成功', 'success');
    - **优化**：
      - 在 `routes/tracks.js` 的 `/merge` 接口中，将现有的赛道弯道数据（`oldTurns` 等）作为选项传递给 `buildTrackFromTrajectories`。
      - 在 `mapOldTurnsToNewCenterline` 中增加了对 `isLoop` 环路特性的检查（通过 `isLoopCrossing` 判断是否跨数组首尾），并确保新构建的弯道对象保留了用户已锁定的属性值，避免了赛道合并后用户手修路书丢失的问题。
-

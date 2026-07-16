@@ -153,6 +153,10 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
         suspensionFR: d.suspensionTravelMeters?.frontRight || d.suspensionTravelMetersFrontRight || 0,
         suspensionRL: d.suspensionTravelMeters?.rearLeft || d.suspensionTravelMetersRearLeft || 0,
         suspensionRR: d.suspensionTravelMeters?.rearRight || d.suspensionTravelMetersRearRight || 0,
+        suspensionNormFL: d.suspension?.frontLeft || d.suspensionFrontLeft || 0,
+        suspensionNormFR: d.suspension?.frontRight || d.suspensionFrontRight || 0,
+        suspensionNormRL: d.suspension?.rearLeft || d.suspensionRearLeft || 0,
+        suspensionNormRR: d.suspension?.rearRight || d.suspensionRearRight || 0,
         puddleDepth: Math.max(
           d.wheelInPuddleDepth?.frontLeft || d.wheelInPuddleDepthFrontLeft || 0,
           d.wheelInPuddleDepth?.frontRight || d.wheelInPuddleDepthFrontRight || 0,
@@ -532,29 +536,79 @@ router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
 
 }));
 
-// AI 驾驶教练缓存读取接口
-router.get('/:sessionId/ai-coach', asyncHandler(async (req, res) => {
+// 辅助函数：计算轮胎温度和滑移的物理状态特征
+function calculateTireAnalysisStats(rawData) {
+  let maxTempFL = 0, maxTempFR = 0, maxTempRL = 0, maxTempRR = 0;
+  let sumTempFL = 0, sumTempFR = 0, sumTempRL = 0, sumTempRR = 0;
+  let maxSlipFL = 0, maxSlipFR = 0, maxSlipRL = 0, maxSlipRR = 0;
+  const count = rawData.length;
 
+  rawData.forEach(d => {
+    const tFL = d.tireTemp?.frontLeft || d.tireTempFrontLeft || 0;
+    const tFR = d.tireTemp?.frontRight || d.tireTempFrontRight || 0;
+    const tRL = d.tireTemp?.rearLeft || d.tireTempRearLeft || 0;
+    const tRR = d.tireTemp?.rearRight || d.tireTempRearRight || 0;
+
+    sumTempFL += tFL;
+    sumTempFR += tFR;
+    sumTempRL += tRL;
+    sumTempRR += tRR;
+
+    if (tFL > maxTempFL) maxTempFL = tFL;
+    if (tFR > maxTempFR) maxTempFR = tFR;
+    if (tRL > maxTempRL) maxTempRL = tRL;
+    if (tRR > maxTempRR) maxTempRR = tRR;
+
+    const sFL = Math.abs(d.tireSlipRatio?.frontLeft || d.tireSlipRatioFrontLeft || 0);
+    const sFR = Math.abs(d.tireSlipRatio?.frontRight || d.tireSlipRatioFrontRight || 0);
+    const sRL = Math.abs(d.tireSlipRatio?.rearLeft || d.tireSlipRatioRearLeft || 0);
+    const sRR = Math.abs(d.tireSlipRatio?.rearRight || d.tireSlipRatioRearRight || 0);
+
+    if (sFL > maxSlipFL) maxSlipFL = sFL;
+    if (sFR > maxSlipFR) maxSlipFR = sFR;
+    if (sRL > maxSlipRL) maxSlipRL = sRL;
+    if (sRR > maxSlipRR) maxSlipRR = sRR;
+  });
+
+  return {
+    maxTempFL: Math.round(maxTempFL),
+    maxTempFR: Math.round(maxTempFR),
+    maxTempRL: Math.round(maxTempRL),
+    maxTempRR: Math.round(maxTempRR),
+    avgTempFL: count > 0 ? Math.round(sumTempFL / count) : 0,
+    avgTempFR: count > 0 ? Math.round(sumTempFR / count) : 0,
+    avgTempRL: count > 0 ? Math.round(sumTempRL / count) : 0,
+    avgTempRR: count > 0 ? Math.round(sumTempRR / count) : 0,
+    maxSlipFL: Number(maxSlipFL.toFixed(3)),
+    maxSlipFR: Number(maxSlipFR.toFixed(3)),
+    maxSlipRL: Number(maxSlipRL.toFixed(3)),
+    maxSlipRR: Number(maxSlipRR.toFixed(3))
+  };
+}
+
+// AI 赛后智能诊断缓存读取接口
+router.get('/:sessionId/ai-diagnosis', asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   const sessionDir = path.join(DATA_DIR, 'sessions');
-  const reportPath = path.join(sessionDir, `${sessionId}_ai_coach.md`);
+  const cachePath = path.join(sessionDir, `${sessionId}_ai_diagnosis.json`);
   const keyConfigured = !!process.env.DASHSCOPE_API_KEY;
 
-  if (fs.existsSync(reportPath)) {
-    const report = fs.readFileSync(reportPath, 'utf8');
-    return res.json({ status: 'success', report, keyConfigured });
+  if (fs.existsSync(cachePath)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      return res.json({ status: 'success', ...cached, keyConfigured });
+    } catch (e) {
+      // 忽略解析错误，视为未缓存
+    }
   }
 
   res.json({ status: 'empty', keyConfigured });
-
-
-
 }));
 
-// AI 驾驶教练诊断生成接口 (阿里云百炼平台)
-router.post('/:sessionId/ai-coach', express.json(), asyncHandler(async (req, res) => {
-
+// AI 赛后智能诊断生成接口 (阿里云百炼平台)
+router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
+  const { problemId, customQuestion, problemDetails } = req.body || {};
   const apiKey = process.env.DASHSCOPE_API_KEY;
   const baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
   const modelName = process.env.DASHSCOPE_MODEL || 'qwen3.7-plus';
@@ -568,82 +622,72 @@ router.post('/:sessionId/ai-coach', express.json(), asyncHandler(async (req, res
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  const laps = session.laps || {};
+  const tune = session.tuneId ? stateManager.tunes[session.tuneId] : null;
+  const vehicle = session.vehicle || {};
+  const vehicleDetail = vehicle.ordinal ? stateManager.vehicles[vehicle.ordinal] : null;
+  const vehicleName = vehicleDetail?.name || vehicle.name || `车辆 #${vehicle.ordinal || '未知'}`;
+  const vehicleClass = vehicleDetail?.class ?? ({ 0: 'D', 1: 'C', 2: 'B', 3: 'A', 4: 'S1', 5: 'S2', 6: 'X' }[vehicle.class] || '未知');
+  const vehiclePi = vehicleDetail?.pi || vehicle.performanceIndex || '';
+  const vehicleDrivetrain = vehicleDetail?.drivetrain || vehicle.drivetrain || '未知';
+
+  // 读取物理遥测统计
+  const rawData = session.data || [];
   const drivingScore = calculateDrivingScore(session);
+  const suspensionAnalysis = calculateSuspensionAnalysis(rawData, session.positions || []);
+  const tireAnalysis = calculateTireAnalysisStats(rawData);
 
-  const trackId = session.trackId;
-  let turnsSummary = [];
-  if (trackId && stateManager.tracks[trackId]) {
-    const trackTurns = stateManager.tracks[trackId].turns || [];
-    const rawData = session.data || [];
-    const bestLapNum = getBestLapNum(rawData);
-    const currentLapFrames = rawData.filter((d) => (d.lapNumber || d.lapNum || 0) === bestLapNum);
+  // 格式化当前车辆的调校参数明细
+  const tuneParamsStr = tune ? `
+  - 轮胎气压：前轮 ${tune.tires?.frontPressure || '未设置'} PSI, 后轮 ${tune.tires?.rearPressure || '未设置'} PSI
+  - 轮胎外倾角：前轮 ${tune.tires?.frontCamber || '未设置'}°, 后轮 ${tune.tires?.rearCamber || '未设置'}°
+  - 轮胎束角：前轮 ${tune.tires?.frontToe || '未设置'}°, 后轮 ${tune.tires?.rearToe || '未设置'}°
+  - 悬架弹簧刚度：前部 ${tune.suspension?.frontSpring || '未设置'}, 后部 ${tune.suspension?.rearSpring || '未设置'}
+  - 防倾杆硬度：前部 ${tune.suspension?.frontARB || '未设置'}, 后部 ${tune.suspension?.rearARB || '未设置'}
+  - 车身高度：前部 ${tune.suspension?.frontRideHeight || '未设置'} cm, 后部 ${tune.suspension?.rearRideHeight || '未设置'} cm
+  - 避震阻尼：前侧压缩 ${tune.suspension?.frontDamping || '未设置'}, 后侧压缩 ${tune.suspension?.rearDamping || '未设置'}
+  - 差速器锁：加速锁 ${tune.drivetrain?.diffAccel || '未设置'}%, 减速锁 ${tune.drivetrain?.diffDecel || '未设置'}%, 中央分配 ${tune.drivetrain?.diffCenter || '未设置'}%
+  - 空气动力学下压力：前部 ${tune.aero?.frontDownforce || '未设置'} lbs, 后部 ${tune.aero?.rearDownforce || '未设置'} lbs
+  ` : '该车辆目前使用的是未改动的原厂设定，没有可用的自定义调校参数。';
 
-    turnsSummary = trackTurns.map((turn, tIdx) => {
-      const entryPt = findClosestPoint(turn.startX, turn.startZ, currentLapFrames);
-      const apexPt = findClosestPoint(turn.x, turn.z, currentLapFrames);
-      const exitPt = findClosestPoint(turn.endX, turn.endZ, currentLapFrames);
-
-      const entrySpeed = entryPt ? Math.round(entryPt.speedKmh || (entryPt.speed ? entryPt.speed * 3.6 : 0)) : 0;
-      const apexSpeed = apexPt ? Math.round(apexPt.speedKmh || (apexPt.speed ? apexPt.speed * 3.6 : 0)) : 0;
-      const exitSpeed = exitPt ? Math.round(exitPt.speedKmh || (exitPt.speed ? exitPt.speed * 3.6 : 0)) : 0;
-      const gear = apexPt ? apexPt.gear || 0 : 0;
-
-      return {
-        name: `T${tIdx + 1}`,
-        type: turn.turnCategory || turn.type || '常规弯',
-        direction: turn.direction === 'left' ? '左' : '右',
-        radius: turn.radius ? Math.round(turn.radius) : '未知',
-        entrySpeed,
-        apexSpeed,
-        exitSpeed,
-        gear
-      };
-    });
+  let issueDescription = '';
+  if (problemDetails) {
+    issueDescription = `
+    【用户选择的问题】：${problemDetails.name}
+    【典型症状】：${problemDetails.symptoms}
+    【系统初步诊断物理建议】：${problemDetails.fixes ? Object.entries(problemDetails.fixes).map(([param, fix]) => `- ${param}: 调整量 ${fix.delta}, 原因: ${fix.reason}`).join('\n') : '无'}
+    `;
+  }
+  if (customQuestion) {
+    issueDescription += `\n【用户补充/自定义提问】：${customQuestion}`;
   }
 
-  const formattedBestLap = (() => {
-    const sec = laps.best || 0;
-    if (!sec) return '无记录';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    const ms = Math.round(sec % 1 * 1000);
-    return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
-  })();
-
-  const vehicleDetail = session.vehicle?.ordinal ? stateManager.vehicles[session.vehicle.ordinal] : null;
-  const vehicleName = vehicleDetail?.name || (session.vehicle?.ordinal ? 'Car #' + session.vehicle.ordinal : '未知车辆');
-  const vehicleClass = vehicleDetail?.class ?? ({ 0: 'D', 1: 'C', 2: 'B', 3: 'A', 4: 'S1', 5: 'S2', 6: 'X' }[session.vehicle?.class] || '未知');
-  const vehiclePi = vehicleDetail?.pi || session.vehicle?.performanceIndex || '';
-
-  const suspensionAnalysis = calculateSuspensionAnalysis(rawData, session.positions || []);
-
   const promptContent = `
-赛道名称：${session.trackName || '未知赛道'}
-车辆名称：${vehicleName} (级别: ${vehicleClass} ${vehiclePi} PI)
-最佳圈速：${formattedBestLap}
-总出赛圈数：${laps.count || 0} 圈
+  赛道名称：${session.trackName || '未知赛道'}
+  车辆名称：${vehicleName} (级别: ${vehicleClass} ${vehiclePi} PI, 驱动方式: ${vehicleDrivetrain})
 
-驾驶行为综合打分（满分 100 分，当前得分：${drivingScore.总分 || 0} 分，评价等级：${drivingScore.等级 || 'N/A'}）：
-- 圈速节奏分：${drivingScore.维度?.圈速?.分数 || 0} / 20
-- 刹车控制分：${drivingScore.维度?.刹车?.分数 || 0} / 20
-- 弯中油门分：${drivingScore.维度?.油门?.分数 || 0} / 20
-- 路线走线分：${drivingScore.维度?.走线?.分数 || 0} / 20
-- 圈速一致分：${drivingScore.维度?.一致性?.分数 || 0} / 20
+  当前车辆的调校参数：
+  ${tuneParamsStr}
 
-底盘与悬挂健康度：
-- 悬挂健康得分：${suspensionAnalysis.bottomingScore || 100} / 100
-- 严重触底帧数：${suspensionAnalysis.totalBottomingTicks || 0} 帧
+  车手在本次比赛后反馈的操控问题或自定义提问：
+  ${issueDescription}
 
-基础诊断建议：
-${drivingScore.建议 ? drivingScore.建议.map((s) => `- ${s}`).join('\n') : '无'}
+  物理数据反馈：
+  - 驾驶表现综合评分：${drivingScore.总分 || 0}分 (${drivingScore.等级 || 'N/A'})
+  - 严重底盘托底帧数：${suspensionAnalysis.totalBottomingTicks || 0}帧 (悬架得分: ${suspensionAnalysis.bottomingScore || 100})
+  - 轮胎最高工作温度：左前 ${tireAnalysis.maxTempFL}°C, 右前 ${tireAnalysis.maxTempFR}°C, 左后 ${tireAnalysis.maxTempRL}°C, 右后 ${tireAnalysis.maxTempRR}°C
+  - 轮胎平均工作温度：左前 ${tireAnalysis.avgTempFL}°C, 右前 ${tireAnalysis.avgTempFR}°C, 左后 ${tireAnalysis.avgTempRL}°C, 右后 ${tireAnalysis.avgTempRR}°C
+  - 轮胎最高滑移率：左前 ${(tireAnalysis.maxSlipFL*100).toFixed(0)}%, 右前 ${(tireAnalysis.maxSlipFR*100).toFixed(0)}%, 左后 ${(tireAnalysis.maxSlipRL*100).toFixed(0)}%, 右后 ${(tireAnalysis.maxSlipRR*100).toFixed(0)}%
 
-弯道遥测细分数据（各弯角的入弯速度、弯心最低速、出弯速度及弯心档位）：
-${turnsSummary.map((t) => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半径 ${t.radius}米): 入弯车速 ${t.entrySpeed}km/h, 弯心车速 ${t.apexSpeed}km/h, 出弯车速 ${t.exitSpeed}km/h, 弯中档位 ${t.gear}档`).join('\n')}
+  请作为一名顶尖的模拟赛车调校大师与教练，针对车手所遇到的特定操控问题或自定义疑问，结合当前车辆的具体调校参数与遥测物理数据，提供深度的、定量的分析与改进建议：
+  1. 【物理分析】：分析为什么在当前调校参数与行驶状态下，极易产生或加剧此操控问题。
+  2. 【调校调整方案】：给出具体且定量的调校修改方案。如果当前车辆有具体的参数数值，请给出调整后的目标数值（例如：“将前弹簧从 800 磅降低至 750 磅”），如果使用的是原厂设定，请给出相对的调整方向和幅度。
+  3. 【驾驶行为改善建议】：分析是否有驾驶动作（如刹车过晚、给油过急、打方向过猛等）导致了该问题，并给出可执行的驾驶习惯改善建议。
 
-请作为一名专业的模拟赛车教练，为我详细分析这场比赛的遥测表现，指出最需要优先改进的 2 个弯道和具体的驾驶操作短板，并给出一个明确的“下一步提升行动清单”。
-注意：请完全使用纯正、地道的中文赛车术语（例如用“尾迹制动”或“循迹刹车”，而非带有英文括号备注的形式；用“弯心”或“APEX点”）。不要在中文词汇后面使用括号做任何英文的备注或说明。
-`;
+  注意规范：
+  - 必须完全使用纯正、地道的中文赛车术语。
+  - 严禁在中文词汇后附加括号英文备注（如禁止出现“外倾角 (Camber)”、“前轮后倾角 (Caster)”、“防倾杆 (ARB)”、“APEX点 (弯心)”、“尾迹制动 (Trail Braking)”等，应当直接写为“外倾角”、“弯心”或“APEX点”、“循迹刹车”或“尾迹制动”）。
+  - 全部使用 Markdown 格式输出。
+  `;
 
   const apiResponse = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
@@ -654,9 +698,9 @@ ${turnsSummary.map((t) => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半
     body: JSON.stringify({
       model: modelName,
       messages: [
-      { role: 'system', content: '你是一位专业的模拟赛车驾驶教练。请根据车手的遥测数据，给出中肯、精确的驾驶建议，指出短板并给出行动清单。使用专业的赛车工程 and 驾驶术语（如：刹车尾迹/循迹制动，弯心/APEX点，重力加速度等）。不要在中文技术术语后面用括号附加英文备注。全部使用 Markdown 格式输出。' },
-      { role: 'user', content: promptContent }]
-
+        { role: 'system', content: '你是一位顶尖的模拟赛车调校大师与教练。请根据车手的物理数据和当前调校配置，针对其具体的操控问题进行深度剖析，并提供极其专业、具体的定量调校建议和驾驶技巧改善建议。' },
+        { role: 'user', content: promptContent }
+      ]
     })
   });
 
@@ -667,13 +711,19 @@ ${turnsSummary.map((t) => `- 弯道 ${t.name} (${t.type}, ${t.direction}弯, 半
   }
 
   const json = await apiResponse.json();
-  const report = json.choices?.[0]?.message?.content || '生成报告为空';
+  const diagnosis = json.choices?.[0]?.message?.content || '生成报告为空';
 
   const sessionDir = path.join(DATA_DIR, 'sessions');
-  const reportPath = path.join(sessionDir, `${sessionId}_ai_coach.md`);
-  fs.writeFileSync(reportPath, report, 'utf8');
+  const cachePath = path.join(sessionDir, `${sessionId}_ai_diagnosis.json`);
+  const cachedDiagnosis = {
+    diagnosis,
+    problemId: problemId || null,
+    customQuestion: customQuestion || '',
+    generatedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(cachePath, JSON.stringify(cachedDiagnosis, null, 2), 'utf8');
 
-  res.json({ status: 'success', report });
+  res.json({ status: 'success', ...cachedDiagnosis });
 
 
 

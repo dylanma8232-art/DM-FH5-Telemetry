@@ -1582,7 +1582,7 @@ export function TrackManagerPage({ onNavigate }) {
                         ) : (
                           <>
                             <button onClick={(e) => { e.stopPropagation(); startTrackRace(id); }} style={btnIconStyle} title="开始赛道模式">▶</button>
-                            <button onClick={(e) => { e.stopPropagation(); onNavigate && onNavigate('leaderboard', { trackId: id, trackName: track.name || '' }); }} style={btnIconStyle} title="排行榜">⏱</button>
+                            <button onClick={(e) => { e.stopPropagation(); onNavigate?.('leaderboard', { trackId: id, trackName: track.name || '' }); }} style={btnIconStyle} title="查看比赛中心">⏱</button>
                             <button onClick={(e) => { e.stopPropagation(); setEditingTrack(id); setEditName(track.name || ''); }} style={btnIconStyle} title="重命名">✎</button>
                             <button onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(id); }} style={btnDangerIconStyle} title="删除">✕</button>
                           </>
@@ -2630,5 +2630,4 @@ const btnDangerIconStyle = {
   fontSize: 14,
   lineHeight: 1
 };
-
 
