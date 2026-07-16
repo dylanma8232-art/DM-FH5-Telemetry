@@ -54,7 +54,7 @@
       - 📄 [useKeyboard.js](file:///forza-telemetry/client/src/hooks/useKeyboard.js)   *(函数/组件: `useKeyboard`)*
       - 📄 [useSessionHistory.js](file:///forza-telemetry/client/src/hooks/useSessionHistory.js)   *(函数/组件: `useSessionHistory`)*
       - 📄 [useSocket.js](file:///forza-telemetry/client/src/hooks/useSocket.js)   *(函数/组件: `useSocket`)*
-      - 📄 [useTuneManager.js](file:///forza-telemetry/client/src/hooks/useTuneManager.js)   *(函数/组件: `useTuneManager`)*
+      - 📄 [useTuneManager.js](file:///forza-telemetry/client/src/hooks/useTuneManager.js)   *(函数/组件: `useTuneManager`, 常量/方法: `FIX_PARAM_MAP`)*
     - 📄 [main.jsx](file:///forza-telemetry/client/src/main.jsx) 
     - 📄 [themes.js](file:///forza-telemetry/client/src/themes.js)   *(函数/组件: `getThemeCSSVariables`, 常量/方法: `themes`, 常量/方法: `defaultSettings`)*
     - 📂 **utils/**

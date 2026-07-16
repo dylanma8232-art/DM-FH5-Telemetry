@@ -245,7 +245,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         // 上下箭头切换Tab
         e.preventDefault();
-        const allSubTabs = ['overview', 'corners', 'telemetry_charts', 'ai_diagnosis_workshop'];
+        const allSubTabs = ['overview', 'professional_review', 'ai_coach'];
         const curIdx = allSubTabs.indexOf(activeTab);
         if (e.key === 'ArrowUp' && curIdx > 0) {
           setActiveTab(allSubTabs[curIdx - 1]);
@@ -498,12 +498,11 @@ export function useSessionHistory({ onNavigate, navIntent }) {
       loadTelemetryChannels();
       loadAdvancedAnalysis();
       loadTurnsData();
-    } else if (activeTab === 'corners') {
+    } else if (activeTab === 'professional_review') {
       loadTurnsData();
-      loadTelemetryChannels(); // Corner analysis needs channelsData
-      loadSessionDetail(selectedSession);
-    } else if (activeTab === 'telemetry_charts') {
       loadTelemetryChannels();
+      loadAdvancedAnalysis();
+      loadSessionDetail(selectedSession);
     }
   }, [activeTab, selectedSession]);
 

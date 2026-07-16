@@ -11,7 +11,7 @@ import {
 import { DRIVING_PROBLEMS, diagnoseFromTelemetry, PROBLEM_CATEGORIES } from '../data/tunePresets'
 
 // fixes 扁平 key 到 suggestedChanges 嵌套路径的映射
-const FIX_PARAM_MAP = {
+export const FIX_PARAM_MAP = {
   'frontTirePressure': 'tires.frontPressure',
   'rearTirePressure': 'tires.rearPressure',
   'frontCamber': 'tires.frontCamber',
@@ -146,6 +146,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   // Round 6: 调校与比赛关联
   const [tuneSessionStats, setTuneSessionStats] = useState({})
+  const [telemetrySuggestions, setTelemetrySuggestions] = useState(null)
 
   useEffect(() => {
     loadTunes()
@@ -160,6 +161,16 @@ export function useTuneManager({ onNavigate, navIntent }) {
       if (navIntent.vehicleId) {
         setVehicleFilter(String(navIntent.vehicleId))
       }
+      
+      // 提取遥测诊断建议
+      if (navIntent.suggestedChanges) {
+        setTelemetrySuggestions({
+          changes: navIntent.suggestedChanges,
+          problemName: navIntent.problemName || '遥测诊断建议',
+          trackName: navIntent.trackName || '未知赛道'
+        })
+      }
+
       if (navIntent.action === 'create' && navIntent.vehicleId) {
         const targetVehicle = vehicles[navIntent.vehicleId]
         const baseCarPi = targetVehicle?.pi || 500
@@ -178,11 +189,50 @@ export function useTuneManager({ onNavigate, navIntent }) {
         setDiagnosisResult(null)
         setSelectedSessionId('')
         dirtyParamsRef.current.clear()
-      }
-      if (navIntent.action === 'edit' && navIntent.tuneId) {
-        const found = tunes.find(t => String(t.id) === String(navIntent.tuneId))
-        if (found) {
-          startEdit(found)
+      } else if (navIntent.action === 'edit') {
+        if (navIntent.tuneId) {
+          const found = tunes.find(t => String(t.id) === String(navIntent.tuneId))
+          if (found) {
+            startEdit(found)
+          } else if (navIntent.vehicleId) {
+            // 没有对应的tuneId，降级为为该车创建调校
+            const targetVehicle = vehicles[navIntent.vehicleId]
+            const baseCarPi = targetVehicle?.pi || 500
+            setFormData({
+              ...defaultFormData,
+              vehicleId: String(navIntent.vehicleId),
+              parts: getDefaultParts()
+            })
+            setBasePi(baseCarPi)
+            setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+            setEditingTune(null)
+            setShowModal(true)
+            setDrivingProblemsOpen(false)
+            setSelectedProblem(null)
+            setTelemetryPanelOpen(false)
+            setDiagnosisResult(null)
+            setSelectedSessionId('')
+            dirtyParamsRef.current.clear()
+          }
+        } else if (navIntent.vehicleId) {
+          // 没有 tuneId，降级为创建
+          const targetVehicle = vehicles[navIntent.vehicleId]
+          const baseCarPi = targetVehicle?.pi || 500
+          setFormData({
+            ...defaultFormData,
+            vehicleId: String(navIntent.vehicleId),
+            parts: getDefaultParts()
+          })
+          setBasePi(baseCarPi)
+          setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+          setEditingTune(null)
+          setShowModal(true)
+          setDrivingProblemsOpen(false)
+          setSelectedProblem(null)
+          setTelemetryPanelOpen(false)
+          setDiagnosisResult(null)
+          setSelectedSessionId('')
+          dirtyParamsRef.current.clear()
         }
       }
     }
@@ -723,6 +773,33 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setEditingTune(null)
     setFormData({ ...defaultFormData })
     dirtyParamsRef.current.clear()
+    setTelemetrySuggestions(null)
+    setHighlightedParams([])
+  }
+
+  const applyTelemetrySuggestions = (suggestions) => {
+    if (!suggestions || !suggestions.changes) return
+
+    const suggestedChanges = convertFixesToSuggestedChanges(suggestions.changes)
+    if (!suggestedChanges) return
+
+    setFormData(prev => {
+      const updated = { ...prev }
+      const newHighlighted = []
+      for (const [category, params] of Object.entries(suggestedChanges)) {
+        if (updated[category]) {
+          updated[category] = { ...updated[category] }
+          for (const [key, value] of Object.entries(params)) {
+            if (key in updated[category]) {
+              updated[category][key] = Number((updated[category][key] + value).toFixed(2))
+              newHighlighted.push(`${category}.${key}`)
+            }
+          }
+        }
+      }
+      setHighlightedParams(newHighlighted)
+      return updated
+    })
   }
 
   const toggleExpand = (id) => {
@@ -1182,11 +1259,28 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // Round 1: NumberInput 辅助函数，自动注入 defaultValue / highlighted / onResetDefault
   const ni = (category, field, extra = {}) => {
     const key = `${category}.${field}`
+    let suggestedValue = undefined
+    if (telemetrySuggestions && telemetrySuggestions.changes) {
+      const paramKey = Object.keys(telemetrySuggestions.changes).find(k => {
+        const dotPath = FIX_PARAM_MAP[k] || ''
+        return dotPath === key
+      })
+      if (paramKey) {
+        const fix = telemetrySuggestions.changes[paramKey]
+        const originalValue = editingTune
+          ? (editingTune[category]?.[field])
+          : (formData[category]?.[field])
+        if (originalValue !== undefined && fix) {
+          suggestedValue = Number((originalValue + fix.delta).toFixed(2))
+        }
+      }
+    }
     return {
       defaultValue: tuneDefaults[key],
       highlighted: highlightedParams.includes(key),
       onResetDefault: () => resetParamToDefault(category, field),
       lockedHint: tuneConstraints[key]?.lockedHint || '',
+      suggestedValue,
       ...extra
     }
   }
@@ -1431,6 +1525,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
     applyPresetTune,
     ni,
     toggleSection,
-    TUNE_DEFAULT_KEY_MAP
+    TUNE_DEFAULT_KEY_MAP,
+    telemetrySuggestions,
+    setTelemetrySuggestions,
+    applyTelemetrySuggestions
   };
 }
