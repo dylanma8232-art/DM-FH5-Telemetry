@@ -5,7 +5,7 @@ import {
   TIER_LABELS,
 } from '../../data/parts'
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets'
-import { useTuneManager } from '../../hooks/useTuneManager'
+import { useTuneManager, FIX_PARAM_MAP } from '../../hooks/useTuneManager'
 
 export function TuneManagerPage({ onNavigate, navIntent }) {
   const {
@@ -128,7 +128,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     applyPresetTune,
     ni,
     toggleSection,
-    TUNE_DEFAULT_KEY_MAP
+    TUNE_DEFAULT_KEY_MAP,
+    telemetrySuggestions,
+    setTelemetrySuggestions,
+    applyTelemetrySuggestions
   } = useTuneManager({ onNavigate, navIntent });
   return (
     <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
@@ -736,6 +739,90 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 ×
               </button>
             </div>
+
+            {telemetrySuggestions && (
+              <div style={{
+                background: 'rgba(210, 153, 34, 0.08)',
+                border: '1px solid rgba(210, 153, 34, 0.45)',
+                borderRadius: 6,
+                padding: '10px 14px',
+                marginBottom: 16,
+                boxShadow: '0 0 12px rgba(210, 153, 34, 0.15)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#d29922', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>💡</span> 遥测诊断建议
+                  </div>
+                  <div style={{ fontSize: 10, color: '#c9d1d9', lineHeight: 1.4 }}>
+                    针对您的车辆在「{telemetrySuggestions.trackName}」的「{telemetrySuggestions.problemName}」操控问题，推荐进行以下参数调整：
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 4 }}>
+                      {Object.entries(telemetrySuggestions.changes).map(([paramKey, fix]) => {
+                        const paramNames = {
+                          frontTirePressure: '前胎压', rearTirePressure: '后胎压',
+                          frontCamber: '前外倾角', rearCamber: '后外倾角',
+                          frontToe: '前束角', rearToe: '后束角',
+                          frontSpring: '前弹簧刚度', rearSpring: '后弹簧刚度',
+                          frontDamping: '前阻尼压缩', rearDamping: '后阻尼压缩',
+                          frontARB: '前防倾杆', rearARB: '后防倾杆',
+                          frontRideHeight: '前车身高度', rearRideHeight: '后车身高度',
+                          diffAccel: '差速器加速锁', diffDecel: '差速器减速锁',
+                          diffCenter: '中央差速偏置', finalDrive: '终传比',
+                          frontDownforce: '前下压力', rearDownforce: '后下压力',
+                          brakeBias: '刹车偏置'
+                        };
+                        const paramName = paramNames[paramKey] || paramKey;
+                        const unit = paramKey.includes('Pressure') ? ' PSI' : paramKey.includes('Height') ? ' cm' : paramKey.includes('Downforce') ? ' kg' : paramKey.includes('Camber') || paramKey.includes('Toe') ? '°' : paramKey.includes('diff') || paramKey.includes('Bias') ? '%' : '';
+                        const deltaText = fix.delta > 0 ? `+${fix.delta}` : `${fix.delta}`;
+                        return (
+                          <span key={paramKey} style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontFamily: 'monospace', color: '#bc8cff' }}>
+                            {paramName}: {deltaText}{unit}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => applyTelemetrySuggestions(telemetrySuggestions)}
+                    style={{
+                      padding: '4px 10px',
+                      background: '#d29922',
+                      border: 'none',
+                      borderRadius: 4,
+                      color: '#0d1117',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(210, 153, 34, 0.3)'
+                    }}
+                  >
+                    一键预填建议
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTelemetrySuggestions(null)}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid #30363d',
+                      borderRadius: 4,
+                      color: '#8b949e',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    忽略
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 基本信息 */}
             <div style={{ marginBottom: 16 }}>
@@ -1914,7 +2001,7 @@ const ParamItem = React.memo(function ParamItem({ label, value, unit = '', defau
   )
 });
 
-const NumberInput = React.memo(function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, lockedHint = '', defaultValue, highlighted = false, onResetDefault }) {
+const NumberInput = React.memo(function NumberInput({ label, value, onChange, min, max, step, unit = '', locked = false, lockedHint = '', defaultValue, highlighted = false, onResetDefault, suggestedValue }) {
   const handleChange = (e) => {
     if (locked) return
     const raw = e.target.value
@@ -1947,9 +2034,17 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
       <label style={labelStyle}>
         {label} {unit && <span style={{ color: 'var(--text-muted)' }}>({unit})</span>}
         {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }} title={lockedHint}>🔒 {lockedHint || '需升级'}</span>}
-        {highlighted && <span style={{ color: '#3fb950', marginLeft: 4, fontSize: 9, fontWeight: 600, animation: 'paramHighlight 0.5s ease-in-out 3' }}>NEW</span>}
+        {highlighted && <span style={{ color: '#d29922', marginLeft: 4, fontSize: 9, fontWeight: 600 }}>遥测推荐</span>}
       </label>
-      {defaultValue !== undefined && !locked && isOffDefault && (
+      {suggestedValue !== undefined && !locked ? (
+        <div style={{
+          fontSize: 8, color: '#d29922', marginTop: -2, marginBottom: 2,
+          display: 'flex', alignItems: 'center', gap: 3
+        }}>
+          <span>遥测预填建议: {suggestedValue}</span>
+          <span style={{ color: 'var(--text-muted)' }}>(差值: {Number((parseFloat(value) - suggestedValue).toFixed(2)) > 0 ? `+${(parseFloat(value) - suggestedValue).toFixed(2)}` : (parseFloat(value) - suggestedValue).toFixed(2)})</span>
+        </div>
+      ) : (defaultValue !== undefined && !locked && isOffDefault && (
         <div style={{
           fontSize: 8, color: '#d29922', marginTop: -2, marginBottom: 2,
           display: 'flex', alignItems: 'center', gap: 3
@@ -1961,7 +2056,7 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
             }}>重置</span>
           )}
         </div>
-      )}
+      ))}
       <input
         type="number"
         value={locked ? '-' : value}
@@ -1975,9 +2070,9 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
           ...inputStyle,
           opacity: locked ? 0.4 : 1,
           cursor: locked ? 'not-allowed' : 'auto',
-          boxShadow: highlighted ? '0 0 8px rgba(63, 185, 80, 0.6)' : (isOffDefault ? 'inset 0 0 0 1px rgba(210, 153, 34, 0.3)' : 'none'),
-          borderColor: highlighted ? '#3fb950' : (isOffDefault ? 'rgba(210, 153, 34, 0.5)' : 'var(--border)'),
-          animation: highlighted ? 'paramHighlight 0.5s ease-in-out 3' : 'none'
+          boxShadow: highlighted ? '0 0 10px rgba(210, 153, 34, 0.6)' : (isOffDefault ? 'inset 0 0 0 1px rgba(210, 153, 34, 0.3)' : 'none'),
+          borderColor: highlighted ? '#d29922' : (isOffDefault ? 'rgba(210, 153, 34, 0.5)' : 'var(--border)'),
+          animation: highlighted ? 'paramAmberBreathing 1.5s ease-in-out infinite' : 'none'
         }}
       />
     </div>
