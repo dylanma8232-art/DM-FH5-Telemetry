@@ -251,10 +251,12 @@ export function useTuneManager({ onNavigate, navIntent }) {
       const resolved = await res.json()
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop(resolved)
-      if (resolved.invalidated?.length && resolved.effectiveSelections) {
+      if (resolved.effectiveSelections) {
         setFormData(prev => ({ ...prev, parts: resolved.effectiveSelections }))
-        setUnlockToast(`已清除 ${resolved.invalidated.length} 个不再兼容的下游改装`)
-        setTimeout(() => setUnlockToast(null), 4000)
+        if (resolved.invalidated?.length) {
+          setUnlockToast(`已清除 ${resolved.invalidated.length} 个不再兼容的下游改装`)
+          setTimeout(() => setUnlockToast(null), 4000)
+        }
       }
     } catch (_) {
       if (requestId !== upgradeRequestRef.current) return
@@ -983,7 +985,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     const newParts = {
       ...oldParts,
       [categoryId]: {
-        tier: tier || undefined,
+        tier: tier || 'stock',
         optionId: optionId || 'stock'
       }
     }
