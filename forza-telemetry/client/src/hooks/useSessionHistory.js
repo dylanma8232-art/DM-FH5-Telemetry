@@ -496,8 +496,6 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     if (!selectedSession) return;
     if (activeTab === 'overview') {
       loadTelemetryChannels();
-      loadAdvancedAnalysis();
-      loadTurnsData();
     } else if (activeTab === 'professional_review') {
       loadTurnsData();
       loadTelemetryChannels();

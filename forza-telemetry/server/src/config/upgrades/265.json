@@ -1,0 +1,152 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1982 Porsche 911 Turbo 3.3",
+  "basePi": 666,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.008Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_493_34k",
+          "label": "4.0L F6 · 493 马力",
+          "sourceValue": "493(34k)",
+          "engineName": "4.0L F6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 34000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 197
+        },
+        {
+          "id": "engine_424",
+          "label": "3.6 F6TT · 424 马力",
+          "sourceValue": "424",
+          "engineName": "3.6 F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.6 F6TT",
+              "sourceVehicle": "Porsche 911 GT2",
+              "powerHp": 424,
+              "torqueLbFt": 398,
+              "aspiration": "2t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 128
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        }
+      ]
+    },
+    {
+      "id": "widebody",
+      "label": "宽体与车身套件",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂车身",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_widebody",
+          "label": "可用宽体或车身套件",
+          "sourceValue": "Preset / WB",
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / WB",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

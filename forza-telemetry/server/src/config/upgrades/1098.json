@@ -1,0 +1,103 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2009 MINI John Cooper Works",
+  "basePi": 598,
+  "baseDriveType": "fwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 92
+        }
+      ]
+    },
+    {
+      "id": "widebody",
+      "label": "宽体与车身套件",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂车身",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_widebody",
+          "label": "可用宽体或车身套件",
+          "sourceValue": "Preset WB Aftermkt",
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset WB Aftermkt",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

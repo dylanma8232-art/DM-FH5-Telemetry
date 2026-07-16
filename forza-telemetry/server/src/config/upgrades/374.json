@@ -1,0 +1,103 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2006 Mitsubishi Lancer Evolution IX MR",
+  "basePi": 632,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 129
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 14
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / Rally lights",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

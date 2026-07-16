@@ -1,0 +1,83 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2022 GMC HUMMER EV Pickup",
+  "basePi": 718,
+  "baseDriveType": "awd",
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_1893",
+          "label": "1893BHP Motor · 1893 马力",
+          "sourceValue": "1893",
+          "engineName": "1893BHP Motor",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1893BHP Motor",
+              "sourceVehicle": "Rimac Nevera",
+              "powerHp": 1893,
+              "torqueLbFt": 1739,
+              "aspiration": "e",
+              "priceCredits": 100000,
+              "added": "Series 21"
+            }
+          ],
+          "piEstimate": 35,
+          "performanceScore": 867
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Bars, Rack",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

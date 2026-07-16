@@ -1,6 +1,23 @@
-import { asyncHandler } from "../utils/asyncHandler.js";import { stateManager } from '../services/state-manager.js';
-import { saveTracksDatabase, readTrackDetail, writeTrackDetail as _writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
-import { detectTurnsEnhanced, generateSectors, buildRouteBook, validateTrackQuality, buildTrackFromTrajectories, calculateTurnAttributes, remapLockedTurns } from '../track-builder.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { stateManager } from '../services/state-manager.js';
+import {
+  writeTrackDetail,
+  healTrackIfNeeded,
+  getTrackDetail,
+  createTrack,
+  deleteTrack,
+  getEnrichedTracks
+} from '../services/track-service.js';
+import { readTrackDetail, saveTracksDatabase } from '../storage/session-db.js';
+import {
+  detectTurnsEnhanced,
+  generateSectors,
+  buildRouteBook,
+  validateTrackQuality,
+  buildTrackFromTrajectories,
+  calculateTurnAttributes,
+  remapLockedTurns
+} from '../track-builder.js';
 import { simplifyRDP } from '../utils/rdp.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
@@ -8,117 +25,28 @@ import fs from 'fs';
 import path from 'path';
 
 const router = express.Router();
-
-
-
-const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i - 1].x;
-    const dy = (pts[i].y || 0) - (pts[i - 1].y || 0);
-    const dz = pts[i].z - pts[i - 1].z;
-    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  return Math.round(len);
-};
-
-function writeTrackDetail(id, trackDetail) {
-  _writeTrackDetail(id, trackDetail);
-  const currentMode = stateManager.getTrackMode();
-  if (currentMode && currentMode.trackId === id) {
-    currentMode.detail = trackDetail;
-    stateManager.setTrackMode(currentMode);
-    console.log(`[同步] 赛道 ${id} 的最新路书数据已热更新到播报内存`);
-  }
-}
-
-// 自动愈合老旧赛道的弯道和路书数据（如果弯道缺失，触发重算并存盘）
-function healTrackIfNeeded(trackDetail, id) {
-  if (!trackDetail) return trackDetail;
-
-  const hasNoTurns = !trackDetail.turns || trackDetail.turns.length === 0;
-  if (hasNoTurns && trackDetail.centerline && trackDetail.centerline.length > 0) {
-    console.log(`[自愈合] 发现赛道 ${id} 无弯道数据，正在触发实时重算...`);
-    try {
-      const turns = detectTurnsEnhanced(trackDetail.centerline);
-      trackDetail.turns = turns;
-      trackDetail.sectors = generateSectors(trackDetail.centerline, turns);
-
-      const allPoints = [];
-      if (trackDetail.trajectories) {
-        trackDetail.trajectories.forEach((t) => {
-          if (t.points) allPoints.push(...t.points);
-        });
-      }
-      trackDetail.routeBook = buildRouteBook(trackDetail.centerline, turns, allPoints.length > 0 ? allPoints : trackDetail.centerline);
-      trackDetail.quality = validateTrackQuality(trackDetail);
-
-      writeTrackDetail(id, trackDetail);
-      console.log(`[自愈合] 成功更新并存盘赛道 ${id} 的弯道和路书数据！`);
-
-      if (stateManager.tracks[id]) {
-        stateManager.tracks[id].turns = turns;
-        stateManager.tracks[id].sectors = trackDetail.sectors;
-        stateManager.tracks[id].routeBook = trackDetail.routeBook;
-        stateManager.tracks[id].quality = trackDetail.quality;
-        saveTracksDatabase();
-      }
-    } catch (err) {
-      console.error(`[自愈合] 修复赛道 ${id} 弯道失败:`, err.message);
-    }
-  }
-  return trackDetail;
-}
 
 // 赛道列表增强 - 从 stateManager 内存快速缓存返回，避免 I/O 带来的严重延迟
 router.get('/', (req, res) => {
-  const enriched = {};
-  for (const [id, track] of Object.entries(stateManager.tracks)) {
-    enriched[id] = {
-      ...track,
-      sessionCount: stateManager.sessionCounts[id] || 0,
-      lastUsedAt: stateManager.lastUsedMap[id] || track.updatedAt || track.createdAt || null
-    };
-  }
-  res.json(enriched);
+  res.json(getEnrichedTracks());
 });
 
 // 获取赛道详情 - 从独立小分包文件读取几何坐标点
 router.get('/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
-
-  let trackDetail = readTrackDetail(id);
+  const trackDetail = getTrackDetail(id);
   if (trackDetail) {
-    trackDetail = healTrackIfNeeded(trackDetail, id);
     res.json(trackDetail);
   } else {
-    let track = stateManager.tracks[id];
-    if (!track) return res.status(404).json({ error: 'Track not found' });
-    track = healTrackIfNeeded(track, id);
-    res.json(track);
+    res.status(404).json({ error: 'Track not found' });
   }
-
-
-
 }));
 
 // 获取赛道导航中线点数据
 router.get('/:id/navigation', asyncHandler(async (req, res) => {
   const id = req.params.id;
-
-  let trackDetail = readTrackDetail(id);
-  if (trackDetail) {
-    trackDetail = healTrackIfNeeded(trackDetail, id);
-  } else {
-    trackDetail = stateManager.tracks[id];
-    if (trackDetail) {
-      trackDetail = healTrackIfNeeded(trackDetail, id);
-    }
-  }
+  const trackDetail = getTrackDetail(id);
   if (!trackDetail) {
     return res.status(404).json({ error: 'Track not found' });
   }
@@ -132,96 +60,29 @@ router.get('/:id/navigation', asyncHandler(async (req, res) => {
     length: trackDetail.length || 0,
     trajectoryCount: trackDetail.trajectories ? trackDetail.trajectories.length : trackDetail.trajectoryCount || 0
   });
-
-
-
 }));
 
 // 创建新赛道
 router.post('/', express.json(), (req, res) => {
-  const id = 'track_' + Date.now();
-  const rawBody = req.body || {};
-  const createdAt = new Date().toISOString();
-
-  const simplifiedPoints = simplifyRDP(rawBody.points || [], 0.25);
-
-  const trackDetail = {
-    id,
-    name: rawBody.name || '未命名赛道',
-    points: simplifiedPoints,
-    pointCount: simplifiedPoints.length,
-    length: rawBody.length || 0,
-    trajectories: rawBody.trajectories ? rawBody.trajectories.map((t) => simplifyRDP(t, 0.25)) : [simplifiedPoints],
-    trajectoryCount: rawBody.trajectories ? rawBody.trajectories.length : 1,
-    centerline: rawBody.centerline || simplifiedPoints,
-    turns: rawBody.turns || [],
-    sectors: rawBody.sectors || [],
-    navigation: rawBody.navigation || null,
-    createdAt,
-    updatedAt: createdAt
-  };
-
-  writeTrackDetail(id, trackDetail);
-
-  stateManager.tracks[id] = {
-    id,
-    name: trackDetail.name,
-    length: trackDetail.length,
-    pointCount: simplifiedPoints.length,
-    turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
-    trajectoryCount: trackDetail.trajectoryCount,
-    createdAt,
-    updatedAt: createdAt
-  };
-  saveTracksDatabase(stateManager.tracks);
-
-  res.json({ status: 'ok', id });
+  try {
+    const id = createTrack(req.body);
+    res.json({ status: 'ok', id });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // 删除特定赛道
 router.delete('/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
-  delete stateManager.tracks[id];
-  saveTracksDatabase(stateManager.tracks);
-
-  deleteTrackDetail(id);
-
-
-  const sessionsDir = DATA_DIR + '/sessions';
-  if (fs.existsSync(sessionsDir)) {
-    const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
-    let deletedCount = 0;
-    sessionFiles.forEach((file) => {
-      try {
-        const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
-        if (session.trackId === id) {
-          const sessionId = session.id;
-          const summaryPath = path.join(sessionsDir, `${sessionId}_summary.json`);
-          const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
-          const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
-          const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
-          const gzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
-          if (fs.existsSync(summaryPath)) fs.unlinkSync(summaryPath);
-          if (fs.existsSync(hifiPath)) fs.unlinkSync(hifiPath);
-          if (fs.existsSync(lowfiPath)) fs.unlinkSync(lowfiPath);
-          if (fs.existsSync(brPath)) fs.unlinkSync(brPath);
-          if (fs.existsSync(gzPath)) fs.unlinkSync(gzPath);
-          deletedCount++;
-        }
-      } catch (e) {
-
-        // ignore
-      }});
-    if (deletedCount > 0) {
-      console.log(`已同步删除关联赛道 ${id} 的 ${deletedCount} 个会话记录`);
-    }
+  const success = deleteTrack(id);
+  if (success) {
+    res.json({ status: 'ok' });
+  } else {
+    res.status(404).json({ error: 'Track not found' });
   }
-
-
-
-
-  res.json({ status: 'ok' });
 }));
+
 
 // 赛道数据质量验证
 router.get('/:id/validate', asyncHandler(async (req, res) => {

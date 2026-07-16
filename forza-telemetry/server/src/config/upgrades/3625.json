@@ -1,0 +1,85 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2021 Rimac Nevera",
+  "basePi": 968,
+  "baseDriveType": "awd",
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.008Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_1893",
+          "label": "1893BHP Motor · 1893 马力",
+          "sourceValue": "1893",
+          "engineName": "1893BHP Motor",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1893BHP Motor",
+              "sourceVehicle": "Rimac Nevera",
+              "powerHp": 1893,
+              "torqueLbFt": 1739,
+              "aspiration": "e",
+              "priceCredits": 100000,
+              "added": "Series 21"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "fixed",
+          "label": "固定前部件",
+          "sourceValue": "Front",
+          "adjustable": false,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

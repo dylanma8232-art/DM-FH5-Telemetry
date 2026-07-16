@@ -1,0 +1,90 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2022 Alumicraft #6165 Trick Truck",
+  "basePi": 596,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.000Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 370
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 17,
+          "performanceScore": 420
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

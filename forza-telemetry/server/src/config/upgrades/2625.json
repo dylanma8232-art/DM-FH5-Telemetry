@@ -1,0 +1,83 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2016 Bentley Bentayga",
+  "basePi": 727,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.000Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 201
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / Offroad",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

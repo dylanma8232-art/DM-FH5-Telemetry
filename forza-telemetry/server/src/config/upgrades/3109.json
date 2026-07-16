@@ -1,0 +1,125 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2018 DeBerti F-150 Prerunner Truck",
+  "basePi": 691,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.002Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 50
+        },
+        {
+          "id": "engine_914",
+          "label": "Racing V6TT · 914 马力",
+          "sourceValue": "914",
+          "engineName": "Racing V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing V6TT",
+              "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+              "powerHp": 914,
+              "torqueLbFt": 702,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 114
+        },
+        {
+          "id": "engine_1000",
+          "label": "7.2L V8 · 1000 马力",
+          "sourceValue": "1000",
+          "engineName": "7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.2L V8",
+              "sourceVehicle": "Ford Mustang RTR",
+              "powerHp": 1000,
+              "torqueLbFt": 737,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 200
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "fixed",
+          "label": "固定前部件",
+          "sourceValue": "Front bar, mudflaps",
+          "adjustable": false,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

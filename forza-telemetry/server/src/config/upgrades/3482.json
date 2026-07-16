@@ -1,0 +1,35 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2021 McLaren 765LT",
+  "basePi": 913,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

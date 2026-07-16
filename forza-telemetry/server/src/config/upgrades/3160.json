@@ -1,0 +1,128 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1995 Porsche 911 Carrera 2 by Gunther Werks",
+  "basePi": 804,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.008Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_691",
+          "label": "3.8 F6TT · 691 马力",
+          "sourceValue": "691",
+          "engineName": "3.8 F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.8 F6TT",
+              "sourceVehicle": "Porsche 911 GT2 RS",
+              "powerHp": 691,
+              "torqueLbFt": 553,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 260
+        },
+        {
+          "id": "engine_536",
+          "label": "3.2L F6TT · 536 马力",
+          "sourceValue": "536",
+          "engineName": "3.2L F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L F6TT",
+              "sourceVehicle": "Porsche 911 GT1 Strassenversion",
+              "powerHp": 536,
+              "torqueLbFt": 442,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 10"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 105
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Sport",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

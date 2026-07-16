@@ -13,11 +13,11 @@ const router = express.Router();
 
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
-const upgradesDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/vehicle-upgrades.json');
+const upgradesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades');
 
 const loadUpgradeProfile = vehicleId => {
-  const database = fs.existsSync(upgradesDbPath) ? loadJSON(upgradesDbPath) : {};
-  return database?.profiles?.[String(vehicleId)] || null;
+  const profilePath = path.join(upgradesDir, `${vehicleId}.json`);
+  return fs.existsSync(profilePath) ? loadJSON(profilePath) : null;
 };
 
 const nestedTuneKeys = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero'];

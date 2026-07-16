@@ -1,0 +1,69 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1960 Chevrolet Corvette",
+  "basePi": 541,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.002Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_cs",
+          "label": "离心式机械增压",
+          "sourceValue": "CS"
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Hood",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -7,6 +7,59 @@ import {
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets'
 import { useTuneManager, FIX_PARAM_MAP } from '../../hooks/useTuneManager'
 
+const TUNE_FIELDS_SCHEMA = [
+  {
+    category: 'tires',
+    title: '轮胎参数',
+    fields: [
+      { id: 'frontPressure', label: '前胎压', min: 20, max: 40, step: 0.1, unit: 'PSI' },
+      { id: 'rearPressure', label: '后胎压', min: 20, max: 40, step: 0.1, unit: 'PSI' },
+      { id: 'frontCamber', label: '前外倾角', min: -5, max: 0, step: 0.1, unit: '°' },
+      { id: 'rearCamber', label: '后外倾角', min: -5, max: 0, step: 0.1, unit: '°' },
+      { id: 'frontToe', label: '前束角', min: -0.5, max: 0.5, step: 0.1, unit: '°' },
+      { id: 'rearToe', label: '后束角', min: -0.5, max: 0.5, step: 0.1, unit: '°' },
+      { id: 'frontCaster', label: '主销后倾角', min: 1, max: 7, step: 0.1, unit: '°' }
+    ]
+  },
+  {
+    category: 'suspension',
+    title: '悬挂参数',
+    fields: [
+      { id: 'frontSpring', label: '前弹簧硬度', min: 1, max: 100, step: 1, unit: '' },
+      { id: 'rearSpring', label: '后弹簧硬度', min: 1, max: 100, step: 1, unit: '' },
+      { id: 'frontRebound', label: '前回弹阻尼', min: 1, max: 20, step: 0.1, unit: '' },
+      { id: 'rearRebound', label: '后回弹阻尼', min: 1, max: 20, step: 0.1, unit: '' },
+      { id: 'frontBump', label: '前压缩阻尼', min: 1, max: 20, step: 0.1, unit: '' },
+      { id: 'rearBump', label: '后压缩阻尼', min: 1, max: 20, step: 0.1, unit: '' },
+      { id: 'frontARB', label: '前防倾杆', min: 1, max: 50, step: 1, unit: '' },
+      { id: 'rearARB', label: '后防倾杆', min: 1, max: 50, step: 1, unit: '' },
+      { id: 'frontRideHeight', label: '前车身高度', min: 3, max: 20, step: 1, unit: 'cm' },
+      { id: 'rearRideHeight', label: '后车身高度', min: 3, max: 20, step: 1, unit: 'cm' }
+    ]
+  },
+  {
+    category: 'drivetrain',
+    title: '传动系统',
+    isDrivetrain: true
+  },
+  {
+    category: 'brakes',
+    title: '制动系统',
+    fields: [
+      { id: 'balance', label: '制动力平衡', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'pressure', label: '制动力压力', min: 20, max: 200, step: 1, unit: '%' }
+    ]
+  },
+  {
+    category: 'aero',
+    title: '空气动力学',
+    fields: [
+      { id: 'frontDownforce', label: '前下压力', min: 0, max: 500, step: 1, unit: 'kg' },
+      { id: 'rearDownforce', label: '后下压力', min: 0, max: 500, step: 1, unit: 'kg' }
+    ]
+  }
+]
+
 function VehicleSearchSelect({ id, value, options, onChange, style, placeholder = '输入品牌、年份或车型搜索' }) {
   const selected = options.find(option => String(option.id) === String(value))
   const [query, setQuery] = useState(selected?.name || '')
@@ -185,6 +238,125 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   }
   return (
     <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
+      <style>{`
+        /* 改装商店卡片高级样式 */
+        .part-card {
+          background: rgba(22, 27, 34, 0.4);
+          border-radius: 8px;
+          border: 1px solid rgba(48, 54, 66, 0.5);
+          backdrop-filter: blur(8px);
+          transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+        }
+        .part-card:hover {
+          border-color: rgba(139, 148, 158, 0.25);
+          background: rgba(30, 36, 45, 0.45);
+        }
+        .part-card.active {
+          background: rgba(33, 39, 53, 0.55);
+          box-shadow: 0 4px 16px var(--glow-color);
+        }
+        .part-header {
+          padding: 8px 10px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.15s ease;
+        }
+        .part-header:hover {
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .part-title {
+          font-size: 10px;
+          font-weight: 700;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        /* Pill badges */
+        .badge-pill {
+          font-size: 8px;
+          font-weight: 700;
+          padding: 1.5px 5px;
+          border-radius: 20px;
+          letter-spacing: 0.02em;
+        }
+        .badge-exclusive {
+          background: rgba(188, 140, 255, 0.12);
+          color: #bc8cff;
+          border: 1px solid rgba(188, 140, 255, 0.2);
+        }
+        .badge-state {
+          background: rgba(255, 136, 0, 0.12);
+          color: #ff8800;
+          border: 1px solid rgba(255, 136, 0, 0.2);
+        }
+        .badge-inferred {
+          background: rgba(210, 153, 34, 0.12);
+          color: #d29922;
+          border: 1px solid rgba(210, 153, 34, 0.2);
+        }
+        .badge-common {
+          background: rgba(88, 166, 255, 0.1);
+          color: #58a6ff;
+          border: 1px solid rgba(88, 166, 255, 0.18);
+        }
+        
+        .badge-selected {
+          font-size: 8.5px;
+          font-weight: 700;
+          padding: 1.5px 6px;
+          border-radius: 4px;
+          border: 1px solid transparent;
+        }
+        
+        /* Buttons */
+        .part-opt-btn {
+          width: 100%;
+          text-align: left;
+          padding: 5px 8px;
+          border-radius: 4px;
+          border: 1px solid transparent;
+          background: transparent;
+          color: #8b949e;
+          font-size: 9.5px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .part-opt-btn:hover {
+          background: rgba(255, 255, 255, 0.04);
+          color: #c9d1d9;
+          transform: translateX(3px);
+        }
+        .part-opt-btn.active {
+          border-color: var(--active-border);
+          background: var(--active-bg);
+          color: var(--active-color);
+          font-weight: 700;
+        }
+        
+        .part-pi-pill {
+          font-size: 8px;
+          font-weight: 800;
+          padding: 1px 5px;
+          border-radius: 3px;
+          background: rgba(63, 185, 80, 0.12);
+          color: #3fb950;
+          border: 1px solid rgba(63, 185, 80, 0.2);
+        }
+        .part-pi-pill.negative {
+          background: rgba(255, 123, 114, 0.12);
+          color: #ff7b72;
+          border: 1px solid rgba(255, 123, 114, 0.2);
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8, padding: '0 6px' }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>调校管理</h2>
@@ -1283,384 +1455,110 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 弹簧、车高、逐挡齿比或下压力中的部分范围需要按当前车辆在游戏内核对。手动模式可以填写；AI 会保留为空，避免生成超出该车范围的数值。
               </div>
             )}
-            {/* 轮胎参数 */}
-            <div style={formSectionStyle}>
-              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('tires')}>
-                <span>{collapsedSections.has('tires') ? '▶ ' : '▼ '}轮胎参数</span>
-                {Object.keys(tuneDefaults).some(k => k.startsWith('tires.')) && (
-                  <button onClick={resetAllToDefaults} style={{ ...btnSmallStyle, padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
-                    重置为推荐值
-                  </button>
-                )}
-              </div>
-              {!collapsedSections.has('tires') && <div style={formGridStyle}>
-                <NumberInput
-                  label="前胎压"
-                  value={formData.tires.frontPressure}
-                  onChange={v => updateFormField('tires', 'frontPressure', v)}
-                  min={tuneConstraints['tires.frontPressure']?.min ?? 20}
-                  max={tuneConstraints['tires.frontPressure']?.max ?? 40}
-                  step={0.1}
-                  unit="PSI"
-                  locked={tuneConstraints['tires.frontPressure']?.locked}
-                  {...ni('tires', 'frontPressure')}
-                />
-                <NumberInput
-                  label="后胎压"
-                  value={formData.tires.rearPressure}
-                  onChange={v => updateFormField('tires', 'rearPressure', v)}
-                  min={tuneConstraints['tires.rearPressure']?.min ?? 20}
-                  max={tuneConstraints['tires.rearPressure']?.max ?? 40}
-                  step={0.1}
-                  unit="PSI"
-                  locked={tuneConstraints['tires.rearPressure']?.locked}
-                  {...ni('tires', 'rearPressure')}
-                />
-                <NumberInput
-                  label="前外倾角"
-                  value={formData.tires.frontCamber}
-                  onChange={v => updateFormField('tires', 'frontCamber', v)}
-                  min={tuneConstraints['tires.frontCamber']?.min ?? -5}
-                  max={tuneConstraints['tires.frontCamber']?.max ?? 0}
-                  step={tuneConstraints['tires.frontCamber']?.step ?? 0.1}
-                  unit="°"
-                  locked={tuneConstraints['tires.frontCamber']?.locked}
-                  {...ni('tires', 'frontCamber')}
-                />
-                <NumberInput
-                  label="后外倾角"
-                  value={formData.tires.rearCamber}
-                  onChange={v => updateFormField('tires', 'rearCamber', v)}
-                  min={tuneConstraints['tires.rearCamber']?.min ?? -5}
-                  max={tuneConstraints['tires.rearCamber']?.max ?? 0}
-                  step={tuneConstraints['tires.rearCamber']?.step ?? 0.1}
-                  unit="°"
-                  locked={tuneConstraints['tires.rearCamber']?.locked}
-                  {...ni('tires', 'rearCamber')}
-                />
-                <NumberInput
-                  label="前束角"
-                  value={formData.tires.frontToe}
-                  onChange={v => updateFormField('tires', 'frontToe', v)}
-                  min={tuneConstraints['tires.frontToe']?.min ?? -0.5}
-                  max={tuneConstraints['tires.frontToe']?.max ?? 0.5}
-                  step={tuneConstraints['tires.frontToe']?.step ?? 0.1}
-                  unit="°"
-                  locked={tuneConstraints['tires.frontToe']?.locked}
-                  {...ni('tires', 'frontToe')}
-                />
-                <NumberInput
-                  label="后束角"
-                  value={formData.tires.rearToe}
-                  onChange={v => updateFormField('tires', 'rearToe', v)}
-                  min={tuneConstraints['tires.rearToe']?.min ?? -0.5}
-                  max={tuneConstraints['tires.rearToe']?.max ?? 0.5}
-                  step={tuneConstraints['tires.rearToe']?.step ?? 0.1}
-                  unit="°"
-                  locked={tuneConstraints['tires.rearToe']?.locked}
-                  {...ni('tires', 'rearToe')}
-                />
-                <NumberInput
-                  label="主销后倾角"
-                  value={formData.tires.frontCaster}
-                  onChange={v => updateFormField('tires', 'frontCaster', v)}
-                  min={tuneConstraints['tires.frontCaster']?.min ?? 1}
-                  max={tuneConstraints['tires.frontCaster']?.max ?? 7}
-                  step={tuneConstraints['tires.frontCaster']?.step ?? 0.1}
-                  unit="°"
-                  locked={tuneConstraints['tires.frontCaster']?.locked}
-                  {...ni('tires', 'frontCaster')}
-                />
-              </div>}
-            </div>
+            {TUNE_FIELDS_SCHEMA.map(section => {
+              if (section.isDrivetrain) {
+                return (
+                  <div key={section.category} className="form-section">
+                    <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('drivetrain')}>
+                      <span>{collapsedSections.has('drivetrain') ? '▶ ' : '▼ '}传动系统</span>
+                      {Object.keys(tuneDefaults).some(k => k.startsWith('drivetrain.')) && (
+                        <button onClick={resetAllToDefaults} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
+                          重置为推荐值
+                        </button>
+                      )}
+                    </div>
+                    {!collapsedSections.has('drivetrain') && <>
+                      <div className="form-grid">
+                        {[
+                          ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
+                          ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
+                        ].map(([field, label]) => (
+                          <NumberInput
+                            key={field}
+                            label={label}
+                            value={formData.drivetrain[field]}
+                            onChange={v => updateFormField('drivetrain', field, v)}
+                            min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
+                            max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
+                            step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
+                            unit="%"
+                            locked={tuneConstraints[`drivetrain.${field}`]?.locked}
+                            {...ni('drivetrain', field)}
+                          />
+                        ))}
+                        <NumberInput
+                          label="中央差速器"
+                          value={formData.drivetrain.diffCenter}
+                          onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
+                          min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
+                          max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
+                          step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
+                          unit="%"
+                          locked={tuneConstraints['drivetrain.diffCenter']?.locked}
+                          {...ni('drivetrain', 'diffCenter')}
+                        />
+                        <NumberInput
+                          label="终传比"
+                          value={formData.drivetrain.finalDrive}
+                          onChange={v => updateFormField('drivetrain', 'finalDrive', v)}
+                          min={tuneConstraints['drivetrain.finalDrive']?.min ?? 2.0}
+                          max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6.0}
+                          step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01}
+                          locked={tuneConstraints['drivetrain.finalDrive']?.locked}
+                          {...ni('drivetrain', 'finalDrive')}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 8 }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(gear => (
+                          <NumberInput
+                            key={gear}
+                            label={`${gear}档齿比`}
+                            value={formData.drivetrain[`gear${gear}`]}
+                            onChange={v => updateFormField('drivetrain', `gear${gear}`, v)}
+                            min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5}
+                            max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? (gear <= 6 ? 5.0 : 6.0)}
+                            step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01}
+                            locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked}
+                            {...ni('drivetrain', `gear${gear}`)}
+                          />
+                        ))}
+                      </div>
+                    </>}
+                  </div>
+                )
+              }
 
-            {/* 悬挂参数 */}
-            <div style={formSectionStyle}>
-              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('suspension')}>
-                <span>{collapsedSections.has('suspension') ? '▶ ' : '▼ '}悬挂参数</span>
-                {Object.keys(tuneDefaults).some(k => k.startsWith('suspension.')) && (
-                  <button onClick={resetAllToDefaults} style={{ ...btnSmallStyle, padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
-                    重置为推荐值
-                  </button>
-                )}
-              </div>
-              {!collapsedSections.has('suspension') && <div style={formGridStyle}>
-                <NumberInput
-                  label="前弹簧硬度"
-                  value={formData.suspension.frontSpring}
-                  onChange={v => updateFormField('suspension', 'frontSpring', v)}
-                  min={tuneConstraints['suspension.frontSpring']?.min ?? 1}
-                  max={tuneConstraints['suspension.frontSpring']?.max ?? 100}
-                  step={tuneConstraints['suspension.frontSpring']?.step ?? 1}
-                  locked={tuneConstraints['suspension.frontSpring']?.locked}
-                  {...ni('suspension', 'frontSpring')}
-                />
-                <NumberInput
-                  label="后弹簧硬度"
-                  value={formData.suspension.rearSpring}
-                  onChange={v => updateFormField('suspension', 'rearSpring', v)}
-                  min={tuneConstraints['suspension.rearSpring']?.min ?? 1}
-                  max={tuneConstraints['suspension.rearSpring']?.max ?? 100}
-                  step={tuneConstraints['suspension.rearSpring']?.step ?? 1}
-                  locked={tuneConstraints['suspension.rearSpring']?.locked}
-                  {...ni('suspension', 'rearSpring')}
-                />
-                {[
-                  ['frontRebound', '前回弹阻尼'], ['rearRebound', '后回弹阻尼'],
-                  ['frontBump', '前压缩阻尼'], ['rearBump', '后压缩阻尼']
-                ].map(([field, label]) => (
-                  <NumberInput
-                    key={field}
-                    label={label}
-                    value={formData.suspension[field]}
-                    onChange={v => updateFormField('suspension', field, v)}
-                    min={tuneConstraints[`suspension.${field}`]?.min ?? 1}
-                    max={tuneConstraints[`suspension.${field}`]?.max ?? 20}
-                    step={tuneConstraints[`suspension.${field}`]?.step ?? 0.1}
-                    locked={tuneConstraints[`suspension.${field}`]?.locked}
-                    {...ni('suspension', field)}
-                  />
-                ))}
-                <NumberInput
-                  label="前防倾杆"
-                  value={formData.suspension.frontARB}
-                  onChange={v => updateFormField('suspension', 'frontARB', v)}
-                  min={tuneConstraints['suspension.frontARB']?.min ?? 1}
-                  max={tuneConstraints['suspension.frontARB']?.max ?? 50}
-                  step={tuneConstraints['suspension.frontARB']?.step ?? 1}
-                  locked={tuneConstraints['suspension.frontARB']?.locked}
-                  {...ni('suspension', 'frontARB')}
-                />
-                <NumberInput
-                  label="后防倾杆"
-                  value={formData.suspension.rearARB}
-                  onChange={v => updateFormField('suspension', 'rearARB', v)}
-                  min={tuneConstraints['suspension.rearARB']?.min ?? 1}
-                  max={tuneConstraints['suspension.rearARB']?.max ?? 50}
-                  step={tuneConstraints['suspension.rearARB']?.step ?? 1}
-                  locked={tuneConstraints['suspension.rearARB']?.locked}
-                  {...ni('suspension', 'rearARB')}
-                />
-                <NumberInput
-                  label="前车身高度"
-                  value={formData.suspension.frontRideHeight}
-                  onChange={v => updateFormField('suspension', 'frontRideHeight', v)}
-                  min={tuneConstraints['suspension.frontRideHeight']?.min ?? 3}
-                  max={tuneConstraints['suspension.frontRideHeight']?.max ?? 20}
-                  step={tuneConstraints['suspension.frontRideHeight']?.step ?? 1}
-                  unit="cm"
-                  locked={tuneConstraints['suspension.frontRideHeight']?.locked}
-                  {...ni('suspension', 'frontRideHeight')}
-                />
-                <NumberInput
-                  label="后车身高度"
-                  value={formData.suspension.rearRideHeight}
-                  onChange={v => updateFormField('suspension', 'rearRideHeight', v)}
-                  min={tuneConstraints['suspension.rearRideHeight']?.min ?? 3}
-                  max={tuneConstraints['suspension.rearRideHeight']?.max ?? 20}
-                  step={tuneConstraints['suspension.rearRideHeight']?.step ?? 1}
-                  unit="cm"
-                  locked={tuneConstraints['suspension.rearRideHeight']?.locked}
-                  {...ni('suspension', 'rearRideHeight')}
-                />
-              </div>}
-            </div>
-
-            {/* 传动系统 */}
-            <div style={formSectionStyle}>
-              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('drivetrain')}>
-                <span>{collapsedSections.has('drivetrain') ? '▶ ' : '▼ '}传动系统</span>
-                {Object.keys(tuneDefaults).some(k => k.startsWith('drivetrain.')) && (
-                  <button onClick={resetAllToDefaults} style={{ ...btnSmallStyle, padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
-                    重置为推荐值
-                  </button>
-                )}
-              </div>
-              {!collapsedSections.has('drivetrain') && <>
-                <div style={formGridStyle}>
-                {[
-                  ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
-                  ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
-                ].map(([field, label]) => (
-                  <NumberInput
-                    key={field}
-                    label={label}
-                    value={formData.drivetrain[field]}
-                    onChange={v => updateFormField('drivetrain', field, v)}
-                    min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
-                    max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
-                    step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
-                    unit="%"
-                    locked={tuneConstraints[`drivetrain.${field}`]?.locked}
-                    {...ni('drivetrain', field)}
-                  />
-                ))}
-                <NumberInput
-                  label="中央差速器"
-                  value={formData.drivetrain.diffCenter}
-                  onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
-                  min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
-                  max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
-                  step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
-                  unit="%"
-                  locked={tuneConstraints['drivetrain.diffCenter']?.locked}
-                  {...ni('drivetrain', 'diffCenter')}
-                />
-                <NumberInput
-                  label="终传比"
-                  value={formData.drivetrain.finalDrive}
-                  onChange={v => updateFormField('drivetrain', 'finalDrive', v)}
-                  min={tuneConstraints['drivetrain.finalDrive']?.min ?? 2.0}
-                  max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6.0}
-                  step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.finalDrive']?.locked}
-                  {...ni('drivetrain', 'finalDrive')}
-                />
-              </div>
-              <div style={{ ...formGridStyle, marginTop: 8, gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                <NumberInput
-                  label="1档齿比"
-                  value={formData.drivetrain.gear1}
-                  onChange={v => updateFormField('drivetrain', 'gear1', v)}
-                  min={tuneConstraints['drivetrain.gear1']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear1']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear1']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear1']?.locked}
-                  {...ni('drivetrain', 'gear1')}
-                />
-                <NumberInput
-                  label="2档齿比"
-                  value={formData.drivetrain.gear2}
-                  onChange={v => updateFormField('drivetrain', 'gear2', v)}
-                  min={tuneConstraints['drivetrain.gear2']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear2']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear2']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear2']?.locked}
-                  {...ni('drivetrain', 'gear2')}
-                />
-                <NumberInput
-                  label="3档齿比"
-                  value={formData.drivetrain.gear3}
-                  onChange={v => updateFormField('drivetrain', 'gear3', v)}
-                  min={tuneConstraints['drivetrain.gear3']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear3']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear3']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear3']?.locked}
-                  {...ni('drivetrain', 'gear3')}
-                />
-                <NumberInput
-                  label="4档齿比"
-                  value={formData.drivetrain.gear4}
-                  onChange={v => updateFormField('drivetrain', 'gear4', v)}
-                  min={tuneConstraints['drivetrain.gear4']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear4']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear4']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear4']?.locked}
-                  {...ni('drivetrain', 'gear4')}
-                />
-                <NumberInput
-                  label="5档齿比"
-                  value={formData.drivetrain.gear5}
-                  onChange={v => updateFormField('drivetrain', 'gear5', v)}
-                  min={tuneConstraints['drivetrain.gear5']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear5']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear5']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear5']?.locked}
-                  {...ni('drivetrain', 'gear5')}
-                />
-                <NumberInput
-                  label="6档齿比"
-                  value={formData.drivetrain.gear6}
-                  onChange={v => updateFormField('drivetrain', 'gear6', v)}
-                  min={tuneConstraints['drivetrain.gear6']?.min ?? 0.5}
-                  max={tuneConstraints['drivetrain.gear6']?.max ?? 5.0}
-                  step={tuneConstraints['drivetrain.gear6']?.step ?? 0.01}
-                  locked={tuneConstraints['drivetrain.gear6']?.locked}
-                  {...ni('drivetrain', 'gear6')}
-                />
-                {[7, 8, 9, 10].map(gear => (
-                  <NumberInput
-                    key={gear}
-                    label={`${gear}档齿比`}
-                    value={formData.drivetrain[`gear${gear}`]}
-                    onChange={v => updateFormField('drivetrain', `gear${gear}`, v)}
-                    min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5}
-                    max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6}
-                    step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01}
-                    locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked}
-                    {...ni('drivetrain', `gear${gear}`)}
-                  />
-                ))}
-              </div>
-              </>}
-            </div>
-
-            {/* 制动系统 */}
-            <div style={formSectionStyle}>
-              <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('brakes')}>
-                <span>{collapsedSections.has('brakes') ? '▶ ' : '▼ '}制动系统</span>
-              </div>
-              {!collapsedSections.has('brakes') && <div style={formGridStyle}>
-                <NumberInput
-                  label="制动力平衡"
-                  value={formData.brakes.balance}
-                  onChange={v => updateFormField('brakes', 'balance', v)}
-                  min={tuneConstraints['brakes.balance']?.min ?? 0}
-                  max={tuneConstraints['brakes.balance']?.max ?? 100}
-                  step={tuneConstraints['brakes.balance']?.step ?? 1}
-                  unit="%"
-                  locked={tuneConstraints['brakes.balance']?.locked}
-                  {...ni('brakes', 'balance')}
-                />
-                <NumberInput
-                  label="制动力压力"
-                  value={formData.brakes.pressure}
-                  onChange={v => updateFormField('brakes', 'pressure', v)}
-                  min={tuneConstraints['brakes.pressure']?.min ?? 20}
-                  max={tuneConstraints['brakes.pressure']?.max ?? 200}
-                  step={tuneConstraints['brakes.pressure']?.step ?? 1}
-                  unit="%"
-                  locked={tuneConstraints['brakes.pressure']?.locked}
-                  {...ni('brakes', 'pressure')}
-                />
-              </div>}
-            </div>
-
-            {/* 空气动力学 */}
-            <div style={formSectionStyle}>
-              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('aero')}>
-                <span>{collapsedSections.has('aero') ? '▶ ' : '▼ '}空气动力学</span>
-                {Object.keys(tuneDefaults).some(k => k.startsWith('aero.')) && (
-                  <button onClick={resetAllToDefaults} style={{ ...btnSmallStyle, padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
-                    重置为推荐值
-                  </button>
-                )}
-              </div>
-              {!collapsedSections.has('aero') && <div style={formGridStyle}>
-                <NumberInput
-                  label="前下压力"
-                  value={formData.aero.frontDownforce}
-                  onChange={v => updateFormField('aero', 'frontDownforce', v)}
-                  min={tuneConstraints['aero.frontDownforce']?.min ?? 0}
-                  max={tuneConstraints['aero.frontDownforce']?.max ?? 500}
-                  step={tuneConstraints['aero.frontDownforce']?.step ?? 1}
-                  unit="kg"
-                  locked={tuneConstraints['aero.frontDownforce']?.locked}
-                  {...ni('aero', 'frontDownforce')}
-                />
-                <NumberInput
-                  label="后下压力"
-                  value={formData.aero.rearDownforce}
-                  onChange={v => updateFormField('aero', 'rearDownforce', v)}
-                  min={tuneConstraints['aero.rearDownforce']?.min ?? 0}
-                  max={tuneConstraints['aero.rearDownforce']?.max ?? 500}
-                  step={tuneConstraints['aero.rearDownforce']?.step ?? 1}
-                  unit="kg"
-                  locked={tuneConstraints['aero.rearDownforce']?.locked}
-                  {...ni('aero', 'rearDownforce')}
-                />
-              </div>}
-            </div>
+              return (
+                <div key={section.category} className="form-section">
+                  <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection(section.category)}>
+                    <span>{collapsedSections.has(section.category) ? '▶ ' : '▼ '}{section.title}</span>
+                    {section.category !== 'brakes' && Object.keys(tuneDefaults).some(k => k.startsWith(`${section.category}.`)) && (
+                      <button onClick={resetAllToDefaults} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
+                        重置为推荐值
+                      </button>
+                    )}
+                  </div>
+                  {!collapsedSections.has(section.category) && (
+                    <div className="form-grid">
+                      {section.fields.map(f => (
+                        <NumberInput
+                          key={f.id}
+                          label={f.label}
+                          value={formData[section.category][f.id]}
+                          onChange={v => updateFormField(section.category, f.id, v)}
+                          min={tuneConstraints[`${section.category}.${f.id}`]?.min ?? f.min}
+                          max={tuneConstraints[`${section.category}.${f.id}`]?.max ?? f.max}
+                          step={tuneConstraints[`${section.category}.${f.id}`]?.step ?? f.step}
+                          unit={f.unit}
+                          locked={tuneConstraints[`${section.category}.${f.id}`]?.locked}
+                          {...ni(section.category, f.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
             {/* 常用驾驶问题面板 + 遥测诊断面板 - 并排显示 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -2302,7 +2200,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
     : (!selected?.optionId || selected.optionId === 'stock')
 
   const selectedTier = category.tierSystem && selected?.tier ? selected.tier : null
-  const selectedColor = selectedTier ? (TIER_LABELS[selectedTier]?.color || 'var(--accent)') : 'var(--accent)'
+  const selectedColor = selectedTier ? (TIER_LABELS[selectedTier]?.color || '#58a6ff') : '#58a6ff'
   const selectedOption = !category.tierSystem ? category.options?.find(option => option.id === selected?.optionId) : null
   const selectedLabel = selectedTier ? (TIER_LABELS[selectedTier]?.zh || selectedTier) : (selectedOption?.label || '')
 
@@ -2310,65 +2208,49 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
     onChange(tier, optionId)
   }
 
+  // 根据 scope 决定标签颜色
+  const scopeBadgeClass = category.scope === 'vehicle_specific' ? 'badge-exclusive' : category.scope === 'state_dependent' ? 'badge-state' : category.availability === 'inferred_common' ? 'badge-inferred' : 'badge-common';
+  const scopeBadgeText = category.scope === 'vehicle_specific' ? '专属' : category.scope === 'state_dependent' ? '联动' : category.availability === 'inferred_common' ? '通用候选' : '通用';
+
   return (
-    <div style={{
-      background: isStock ? 'var(--bg-primary)' : 'var(--bg-tertiary)',
-      borderRadius: 6,
-      border: `1px solid ${isStock ? 'var(--border)' : (selectedColor + '33')}`,
-      overflow: 'hidden'
-    }}>
+    <div 
+      className={`part-card ${isStock ? '' : 'active'}`}
+      style={isStock ? {} : { '--glow-color': selectedColor + '18', borderColor: selectedColor + '44' }}
+    >
       {/* 头部 - 点击展开/收起 */}
-      <div
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          padding: '6px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          cursor: 'pointer',
-          borderBottom: expanded ? '1px solid var(--border)' : 'none'
-        }}
-      >
-        <span style={{ fontSize: 12 }}>{category.icon}</span>
-        <span style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: isStock ? 'var(--text-muted)' : 'var(--text-primary)',
-          flex: 1,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}>
+      <div className="part-header" onClick={() => setExpanded(!expanded)}>
+        <span style={{ fontSize: 13 }}>{category.icon}</span>
+        <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)' }}>
           {category.label}
         </span>
-        <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, background: category.scope === 'vehicle_specific' ? 'rgba(188,140,255,0.15)' : 'rgba(88,166,255,0.12)', color: category.scope === 'vehicle_specific' ? '#bc8cff' : '#58a6ff' }}>
-          {category.scope === 'vehicle_specific' ? '专属' : category.scope === 'state_dependent' ? '联动' : category.availability === 'inferred_common' ? '通用候选' : '通用'}
+        <span className={`badge-pill ${scopeBadgeClass}`}>
+          {scopeBadgeText}
         </span>
         {!isStock && selectedLabel && (
-          <span style={{
-            fontSize: 8,
-            padding: '1px 5px',
-            borderRadius: 3,
-            background: `${selectedColor}22`,
-            color: selectedColor,
-            fontWeight: 600
-          }}>
+          <span 
+            className="badge-selected"
+            style={{ 
+              borderColor: selectedColor + '33', 
+              background: selectedColor + '16', 
+              color: selectedColor 
+            }}
+          >
             {selectedLabel}
           </span>
         )}
-        <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>{expanded ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 2 }}>{expanded ? '▲' : '▼'}</span>
       </div>
 
       {/* 展开的选项列表 */}
       {expanded && (
-        <div style={{ padding: '4px 6px 6px' }}>
-          <div style={{ fontSize: 8, color: 'var(--text-muted)', marginBottom: 4, paddingLeft: 2 }}>
+        <div style={{ padding: '4px 8px 8px' }}>
+          <div style={{ fontSize: 8.5, color: 'var(--text-muted)', marginBottom: 6, paddingLeft: 2, lineHeight: 1.3 }}>
             {category.description}
           </div>
 
           {category.tierSystem ? (
             /* 等级制配件 */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {(effectiveTiers || []).map(tier => {
                 const isActive = selected?.tier === tier.id
                 const options = tier.options || []
@@ -2378,67 +2260,59 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
                       /* 只有一个选项：直接选等级 */
                       <button
                         onClick={() => handleSelect(tier.id, options[0].id)}
-                        style={{
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '3px 6px',
-                          borderRadius: 3,
-                          border: `1px solid ${isActive ? tier.color + '66' : 'transparent'}`,
-                          background: isActive ? tier.color + '22' : 'transparent',
-                          color: isActive ? tier.color : 'var(--text-secondary)',
-                          fontSize: 9,
-                          cursor: 'pointer',
-                          fontWeight: isActive ? 600 : 400,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
-                        }}
+                        className={`part-opt-btn ${isActive ? 'active' : ''}`}
+                        style={isActive ? {
+                          '--active-border': tier.color + '55',
+                          '--active-bg': tier.color + '1a',
+                          '--active-color': tier.color
+                        } : {}}
                       >
                         <span style={{
                           width: 6, height: 6, borderRadius: 2,
-                          background: isActive ? tier.color : 'var(--border)'
+                          background: isActive ? tier.color : 'rgba(255,255,255,0.15)'
                         }} />
                         <span style={{ flex: 1 }}>{tier.label}</span>
-                        {tier.piBonus > 0 && (
-                          <span style={{ fontSize: 8, color: tier.color }}>+{tier.piBonus}PI</span>
+                        {tier.piBonus !== 0 && (
+                          <span className={`part-pi-pill ${tier.piBonus < 0 ? 'negative' : ''}`}>
+                            {tier.piBonus > 0 ? '+' : ''}{tier.piBonus}PI
+                          </span>
                         )}
                       </button>
                     ) : (
                       /* 多个选项：显示子选项 */
-                      <div>
+                      <div style={{ padding: '2px 0' }}>
                         <div style={{
-                          fontSize: 8,
+                          fontSize: 9,
                           color: tier.color,
-                          fontWeight: 600,
-                          padding: '2px 6px',
+                          fontWeight: 700,
+                          padding: '3px 6px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 4
+                          gap: 5
                         }}>
                           <span style={{
                             width: 6, height: 6, borderRadius: 2,
-                            background: options.some(o => o.id === selected?.optionId) ? tier.color : 'var(--border)'
+                            background: options.some(o => o.id === selected?.optionId) ? tier.color : 'rgba(255,255,255,0.15)'
                           }} />
                           {tier.label}
-                          {tier.piBonus > 0 && <span>+{tier.piBonus}PI</span>}
+                          {tier.piBonus !== 0 && (
+                            <span className={`part-pi-pill ${tier.piBonus < 0 ? 'negative' : ''}`} style={{ marginLeft: 3 }}>
+                              {tier.piBonus > 0 ? '+' : ''}{tier.piBonus}PI
+                            </span>
+                          )}
                         </div>
-                        <div style={{ paddingLeft: 12 }}>
+                        <div style={{ paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 2, marginTop: 1 }}>
                           {options.map(opt => (
                             <button
                               key={opt.id}
                               onClick={() => handleSelect(tier.id, opt.id)}
-                              style={{
-                                width: '100%',
-                                textAlign: 'left',
-                                padding: '2px 6px',
-                                borderRadius: 2,
-                                border: 'none',
-                                background: selected?.optionId === opt.id ? tier.color + '22' : 'transparent',
-                                color: selected?.optionId === opt.id ? tier.color : 'var(--text-muted)',
-                                fontSize: 8,
-                                cursor: 'pointer',
-                                fontWeight: selected?.optionId === opt.id ? 600 : 400
-                              }}
+                              className="part-opt-btn"
+                              style={selected?.optionId === opt.id ? {
+                                background: tier.color + '16',
+                                color: tier.color,
+                                fontWeight: 700,
+                                paddingLeft: 12
+                              } : { paddingLeft: 12 }}
                             >
                               {opt.label}
                             </button>
@@ -2452,7 +2326,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
             </div>
           ) : (
             /* 选项制配件（如引擎swap） */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {(category.options || []).map(opt => {
                 const isActive = selected?.optionId === opt.id
                 const color = opt.color || '#8b949e'
@@ -2462,29 +2336,26 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
                   <button
                     key={opt.id}
                     onClick={() => handleSelect(undefined, opt.id)}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '3px 6px',
-                      borderRadius: 3,
-                      border: `1px solid ${isActive ? color + '66' : 'transparent'}`,
-                      background: isActive ? color + '22' : 'transparent',
-                      color: isActive ? color : 'var(--text-secondary)',
-                      fontSize: 9,
-                      cursor: 'pointer',
-                      fontWeight: isActive ? 600 : 400,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
+                    className={`part-opt-btn ${isActive ? 'active' : ''}`}
+                    style={isActive ? {
+                      '--active-border': color + '55',
+                      '--active-bg': color + '1a',
+                      '--active-color': color
+                    } : {}}
                   >
                     <span style={{
                       width: 6, height: 6, borderRadius: 2,
-                      background: isActive ? color : 'var(--border)'
+                      background: isActive ? color : 'rgba(255,255,255,0.15)'
                     }} />
                     <span style={{ flex: 1 }}>{opt.label}</span>
-                    {hasKnownPi && Number(rawPi) !== 0 && <span style={{ fontSize: 8, color }}>{Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI</span>}
-                    {!hasKnownPi && opt.id !== 'stock' && <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>PI 待确认</span>}
+                    {hasKnownPi && Number(rawPi) !== 0 && (
+                      <span className={`part-pi-pill ${Number(rawPi) < 0 ? 'negative' : ''}`}>
+                        {Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI
+                      </span>
+                    )}
+                    {!hasKnownPi && opt.id !== 'stock' && (
+                      <span style={{ fontSize: 8, color: 'var(--text-muted)', padding: '1px 4px' }}>PI 待确认</span>
+                    )}
                   </button>
                 )
               })}

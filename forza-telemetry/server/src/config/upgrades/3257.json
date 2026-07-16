@@ -1,0 +1,244 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1990 Nissan Pulsar GTi-R",
+  "basePi": 594,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_321",
+          "label": "3.2L I6 · 321 马力",
+          "sourceValue": "321",
+          "engineName": "3.2L I6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L I6",
+              "sourceVehicle": "BMW M3",
+              "powerHp": 321,
+              "torqueLbFt": 258,
+              "aspiration": "na",
+              "priceCredits": 10000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 94
+        },
+        {
+          "id": "engine_212",
+          "label": "2.0L I4 - VVT · 212 马力",
+          "sourceValue": "212",
+          "engineName": "2.0L I4 - VVT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L I4 - VVT",
+              "sourceVehicle": "Honda Civic Type-R",
+              "powerHp": 212,
+              "torqueLbFt": 149,
+              "aspiration": "na",
+              "priceCredits": 12000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -1,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_250",
+          "label": "2.0L I4 - Turbo · 250 马力",
+          "sourceValue": "250",
+          "engineName": "2.0L I4 - Turbo",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L I4 - Turbo",
+              "sourceVehicle": "Nissan Silvia Spec-R",
+              "powerHp": 250,
+              "torqueLbFt": 203,
+              "aspiration": "1t",
+              "priceCredits": 17500,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 23
+        },
+        {
+          "id": "engine_327",
+          "label": "2.6L I6 - TT · 327 马力",
+          "sourceValue": "327",
+          "engineName": "2.6L I6 - TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.6L I6 - TT",
+              "sourceVehicle": "Nissan Skyline GT-R V-Spec II",
+              "powerHp": 327,
+              "torqueLbFt": 293,
+              "aspiration": "2t",
+              "priceCredits": 23000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 100
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 3,
+          "performanceScore": 73
+        },
+        {
+          "id": "engine_542_3_8l",
+          "label": "3.5L V6TT 或 3.8L V6 - TT，待核验",
+          "sourceValue": "542(3.8L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.5L V6TT",
+              "sourceVehicle": "Jaguar XJ220",
+              "powerHp": 542,
+              "torqueLbFt": 473,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "3.8L V6 - TT",
+              "sourceVehicle": "Nissan GT-R Black Edition",
+              "powerHp": 542,
+              "torqueLbFt": 466,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 13,
+          "performanceScore": 315
+        },
+        {
+          "id": "engine_690",
+          "label": "670BHP Race Motor 或 2.6L 4 Rotor - Racing，待核验",
+          "sourceValue": "690",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "670BHP Race Motor",
+              "sourceVehicle": "Porsche Mission R",
+              "powerHp": 690,
+              "torqueLbFt": 741,
+              "aspiration": "e",
+              "priceCredits": 75000,
+              "added": "Series 21"
+            },
+            {
+              "name": "2.6L 4 Rotor - Racing",
+              "sourceVehicle": "Mazda 787B",
+              "powerHp": 690,
+              "torqueLbFt": 448,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 19,
+          "performanceScore": 463
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

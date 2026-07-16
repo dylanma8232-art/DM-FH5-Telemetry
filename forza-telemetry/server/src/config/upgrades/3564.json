@@ -1,0 +1,92 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1999 Ford Racing Puma Forza Edition",
+  "basePi": 900,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_506",
+          "label": "2.1L I4 - Turbo 或 2.9L V6TT，待核验",
+          "sourceValue": "506",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "2.1L I4 - Turbo",
+              "sourceVehicle": "Ford RS200 Evolution",
+              "powerHp": 506,
+              "torqueLbFt": 401,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.9L V6TT",
+              "sourceVehicle": "Alfa Romeo Giulia Quadrifoglio",
+              "powerHp": 506,
+              "torqueLbFt": 443,
+              "aspiration": "2t",
+              "priceCredits": 60000,
+              "added": "Series 24"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Street rally lights",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -10,9 +10,9 @@ const COMMON_SLOTS = [
     group: '置换',
     options: [
       option('stock', '保持原厂驱动', 0),
-      { id: 'fwd', label: '置换为前轮驱动', driveType: 'fwd' },
-      { id: 'rwd', label: '置换为后轮驱动', driveType: 'rwd' },
-      { id: 'awd', label: '置换为四轮驱动', driveType: 'awd' }
+      option('fwd', '置换为前轮驱动', -15, { driveType: 'fwd' }),
+      option('rwd', '置换为后轮驱动', -15, { driveType: 'rwd' }),
+      option('awd', '置换为四轮驱动', 30, { driveType: 'awd' })
     ]
   },
   {
@@ -21,11 +21,11 @@ const COMMON_SLOTS = [
     group: '置换',
     options: [
       option('stock', '保持原厂增压方式', 0),
-      { id: 'aspiration_na', label: '自然吸气' },
-      { id: 'aspiration_t', label: '涡轮增压' },
-      { id: 'aspiration_tt', label: '双涡轮增压' },
-      { id: 'aspiration_pds', label: '机械增压' },
-      { id: 'aspiration_cs', label: '离心式机械增压' }
+      option('aspiration_na', '自然吸气', 0),
+      option('aspiration_t', '涡轮增压', 20),
+      option('aspiration_tt', '双涡轮增压', 20),
+      option('aspiration_pds', '机械增压', 20),
+      option('aspiration_cs', '离心式机械增压', 20)
     ]
   },
   {
@@ -34,7 +34,7 @@ const COMMON_SLOTS = [
     group: '置换',
     options: [
       option('stock', '保持原厂车身', 0),
-      { id: 'listed_widebody', label: '宽体或车身套件（请对照游戏）' }
+      option('listed_widebody', '宽体或车身套件（请对照游戏）', 8)
     ]
   },
   { id: 'engine_intake', label: '进气系统', group: '发动机', options: levels(1, 2, 4) },
@@ -52,8 +52,8 @@ const COMMON_SLOTS = [
   { id: 'suspension', label: '悬挂', group: '平台与操控', options: [option('stock', '原厂'), option('street', '街道悬挂不可调', 2), option('sport', '运动悬挂不可调', 4), option('race', '竞赛悬挂可调', 6, { adjustable: true }), option('rally', '拉力悬挂可调', 5, { adjustable: true }), option('drift', '漂移悬挂可调', 5, { adjustable: true }), option('offroad', '越野悬挂可调', 5, { adjustable: true })] },
   { id: 'anti_roll_bar_front', label: '前防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '竞赛级可调', 1, { adjustable: true })] },
   { id: 'anti_roll_bar_rear', label: '后防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '竞赛级可调', 1, { adjustable: true })] },
-  { id: 'roll_cage', label: '防滚架', group: '平台与操控', options: levels(0, 1, 2) },
-  { id: 'weight_reduction', label: '车身减重', group: '平台与操控', options: levels(2, 5, 9) },
+  { id: 'roll_cage', label: '防滚架', group: '平台与操控', options: levels(-2, -5, -8) },
+  { id: 'weight_reduction', label: '车身减重', group: '平台与操控', options: levels(6, 16, 28) },
   { id: 'clutch', label: '离合器', group: '传动系统', options: levels(0, 1, 2) },
   { id: 'transmission', label: '变速箱', group: '传动系统', options: [option('stock', '原厂'), option('street', '街道级不可调', 1), option('sport', '运动级，可调终传比', 2, { adjustableFinalDrive: true }), option('race_standard', '标准竞赛级可调', 3, { gearCount: 6, gearCountConfidence: 'unknown', adjustable: true }), option('drift_4', '四速漂移变速箱可调', 3, { gearCount: 4, adjustable: true }), option('race_6', '竞赛六速可调', 3, { gearCount: 6, adjustable: true }), option('race_7', '竞赛七速可调', 4, { gearCount: 7, adjustable: true }), option('race_8', '竞赛八速可调', 5, { gearCount: 8, adjustable: true }), option('race_9', '竞赛九速可调', 6, { gearCount: 9, adjustable: true }), option('race_10', '竞赛十速可调', 7, { gearCount: 10, adjustable: true })] },
   { id: 'driveline', label: '传动轴', group: '传动系统', options: levels(0, 1, 2) },
@@ -105,12 +105,24 @@ function buildCommonSlots(profile, selections) {
     const allowed = override.allowedOptions ? new Set(override.allowedOptions) : null;
     const aiSafe = new Set(override.aiEligibleOptions || AI_SAFE_OPTION_IDS[slot.id] || []);
     const options = slot.options.filter(item => !allowed || item.id === 'stock' || allowed.has(item.id)).map(item => {
-      const hasPiEstimate = item.piEstimate !== null && item.piEstimate !== '' && Number.isFinite(Number(item.piEstimate));
+      const isSameDrivetrain = slot.id === 'drivetrain_swap' && item.driveType === profile.baseDriveType;
+      const actualPiEstimate = isSameDrivetrain ? 0 : (item.piEstimate || 0);
+      const hasPiEstimate = actualPiEstimate !== null && actualPiEstimate !== '' && Number.isFinite(Number(actualPiEstimate));
+
+      let upperEstimate = null;
+      if (item.id === 'stock' || isSameDrivetrain) {
+        upperEstimate = 0;
+      } else if (hasPiEstimate) {
+        const est = Number(actualPiEstimate);
+        upperEstimate = est < 0 ? 0 : Math.max(est, Math.ceil(est * 1.5) + 1);
+      }
+
       return {
         ...item,
+        piEstimate: actualPiEstimate,
         aiEligible: item.id !== 'stock' && aiSafe.has(item.id),
-        piConfidence: item.id === 'stock' ? 'exact' : (hasPiEstimate ? 'bounded_generic_estimate' : 'unknown'),
-        piUpperEstimate: item.id === 'stock' ? 0 : (hasPiEstimate ? Math.max(Number(item.piEstimate), Math.ceil(Number(item.piEstimate) * 1.5) + 1) : null)
+        piConfidence: (item.id === 'stock' || isSameDrivetrain) ? 'exact' : (hasPiEstimate ? 'bounded_generic_estimate' : 'unknown'),
+        piUpperEstimate: upperEstimate
       };
     });
     return {
@@ -198,12 +210,31 @@ export function isConditionMet(condition, selections = {}) {
 
 export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   if (!profile) {
+    const defaultProfile = {
+      status: 'unverified',
+      basePi: context.basePi || 500,
+      baseDriveType: context.driveType || 'awd',
+      commonTemplate: 'combustion_road'
+    };
+    const commonSlots = buildCommonSlots(defaultProfile, selections);
+    const tuneParameters = buildTuneParameters(defaultProfile, selections, commonSlots, defaultProfile.baseDriveType);
+
+    const effectiveSelections = { ...selections };
+    for (const slot of commonSlots) {
+      if (!effectiveSelections[slot.id]) {
+        effectiveSelections[slot.id] = { optionId: 'stock' };
+      }
+    }
+
     return {
       status: 'unverified',
-      message: '该车辆的游戏内改装资料尚未录入，不显示通用猜测配件。',
-      piStatus: 'unverified',
-      slots: [],
-      tuneParameters: []
+      message: '该车辆的游戏内改装资料尚未录入，显示通用猜测配件。',
+      piStatus: 'bounded_generic_estimate',
+      basePi: defaultProfile.basePi,
+      baseDriveType: defaultProfile.baseDriveType,
+      slots: commonSlots,
+      tuneParameters,
+      effectiveSelections
     };
   }
 

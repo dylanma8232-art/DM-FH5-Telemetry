@@ -1,0 +1,106 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2016 Abarth 695 Biposto",
+  "basePi": 657,
+  "baseDriveType": "fwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:02.998Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 114
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

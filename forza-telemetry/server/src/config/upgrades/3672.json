@@ -1,0 +1,148 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2020 Lamborghini Huracán STO",
+  "basePi": 883,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.006Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_700v",
+          "label": "6.0L W12TT 或 6.5L V12，待核验",
+          "sourceValue": "700V",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "6.0L W12TT",
+              "sourceVehicle": "Bentley Continental Supersports",
+              "powerHp": 700,
+              "torqueLbFt": 749,
+              "aspiration": "2t",
+              "priceCredits": 100000,
+              "added": "Series 12"
+            },
+            {
+              "name": "6.5L V12",
+              "sourceVehicle": "Lamborghini Aventador LP700-4",
+              "powerHp": 700,
+              "torqueLbFt": 509,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 3,
+          "performanceScore": 70
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 120
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "fixed",
+          "label": "固定前部件",
+          "sourceValue": "Front",
+          "adjustable": false,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

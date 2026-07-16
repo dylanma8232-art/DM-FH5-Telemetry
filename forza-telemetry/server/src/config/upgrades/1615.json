@@ -1,0 +1,231 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1969 FIAT Dino 2.4 Coupe",
+  "basePi": 498,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.003Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_321",
+          "label": "3.2L I6 · 321 马力",
+          "sourceValue": "321",
+          "engineName": "3.2L I6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L I6",
+              "sourceVehicle": "BMW M3",
+              "powerHp": 321,
+              "torqueLbFt": 258,
+              "aspiration": "na",
+              "priceCredits": 10000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 141
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 120
+        },
+        {
+          "id": "engine_455",
+          "label": "5.2L V12 · 455 马力",
+          "sourceValue": "455",
+          "engineName": "5.2L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V12",
+              "sourceVehicle": "Lamborghini Countach LP5000 QV",
+              "powerHp": 455,
+              "torqueLbFt": 369,
+              "aspiration": "na",
+              "priceCredits": 35000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 11,
+          "performanceScore": 275
+        },
+        {
+          "id": "engine_485",
+          "label": "7.0L V8 · 485 马力",
+          "sourceValue": "485",
+          "engineName": "7.0L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.0L V8",
+              "sourceVehicle": "Ford GT40 Mk II",
+              "powerHp": 485,
+              "torqueLbFt": 475,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 305
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 27,
+          "performanceScore": 670
+        },
+        {
+          "id": "engine_262",
+          "label": "3.0L V12 · 262 马力",
+          "sourceValue": "262",
+          "engineName": "3.0L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.0L V12",
+              "sourceVehicle": "Ferrari 250 California",
+              "powerHp": 262,
+              "torqueLbFt": 188,
+              "aspiration": "na",
+              "priceCredits": 80000,
+              "added": "Series 29"
+            }
+          ],
+          "piEstimate": 3,
+          "performanceScore": 82
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_t",
+          "label": "涡轮增压",
+          "sourceValue": "T"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

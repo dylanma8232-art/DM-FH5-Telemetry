@@ -1,0 +1,246 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2017 Ram 2500 Power Wagon",
+  "basePi": 467,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.008Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 5
+        },
+        {
+          "id": "engine_475d",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475d",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 3,
+          "performanceScore": 65
+        },
+        {
+          "id": "engine_640",
+          "label": "8.4L V10 · 640 马力",
+          "sourceValue": "640",
+          "engineName": "8.4L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.4L V10",
+              "sourceVehicle": "Dodge SRT Viper GTS",
+              "powerHp": 640,
+              "torqueLbFt": 600,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 9,
+          "performanceScore": 230
+        },
+        {
+          "id": "engine_700v",
+          "label": "6.0L W12TT 或 6.5L V12，待核验",
+          "sourceValue": "700V",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "6.0L W12TT",
+              "sourceVehicle": "Bentley Continental Supersports",
+              "powerHp": 700,
+              "torqueLbFt": 749,
+              "aspiration": "2t",
+              "priceCredits": 100000,
+              "added": "Series 12"
+            },
+            {
+              "name": "6.5L V12",
+              "sourceVehicle": "Lamborghini Aventador LP700-4",
+              "powerHp": 700,
+              "torqueLbFt": 509,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 290
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 16,
+          "performanceScore": 390
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 18,
+          "performanceScore": 440
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 54,
+          "performanceScore": 1340
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset Offroad bed",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

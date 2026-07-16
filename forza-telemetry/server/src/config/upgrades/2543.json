@@ -1,0 +1,64 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2016 Ford #66 Ford Racing GT Le Mans",
+  "basePi": 910,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_914",
+          "label": "Racing V6TT · 914 马力",
+          "sourceValue": "914",
+          "engineName": "Racing V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing V6TT",
+              "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+              "powerHp": 914,
+              "torqueLbFt": 702,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 384
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

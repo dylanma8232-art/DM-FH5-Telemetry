@@ -1,0 +1,133 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1932 Ford De Luxe Five-Window Coupe",
+  "basePi": 126,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 14,
+          "performanceScore": 350
+        },
+        {
+          "id": "engine_526",
+          "label": "5.2L V8 · 526 马力",
+          "sourceValue": "526",
+          "engineName": "5.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V8",
+              "sourceVehicle": "Ford Shelby GT350R",
+              "powerHp": 526,
+              "torqueLbFt": 429,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 18,
+          "performanceScore": 461
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        },
+        {
+          "id": "aspiration_cs",
+          "label": "离心式机械增压",
+          "sourceValue": "CS"
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / Street",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

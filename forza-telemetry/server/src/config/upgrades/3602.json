@@ -1,0 +1,161 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2019 Jaguar XE SV Project 8",
+  "basePi": 830,
+  "baseDriveType": "awd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.005Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_602",
+          "label": "5.2L V10 · 602 马力",
+          "sourceValue": "602",
+          "engineName": "5.2L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V10",
+              "sourceVehicle": "Lamborghini Huracán LP 610-4",
+              "powerHp": 602,
+              "torqueLbFt": 413,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 10
+        },
+        {
+          "id": "engine_700",
+          "label": "6.0L W12TT 或 6.5L V12，待核验",
+          "sourceValue": "700",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "6.0L W12TT",
+              "sourceVehicle": "Bentley Continental Supersports",
+              "powerHp": 700,
+              "torqueLbFt": 749,
+              "aspiration": "2t",
+              "priceCredits": 100000,
+              "added": "Series 12"
+            },
+            {
+              "name": "6.5L V12",
+              "sourceVehicle": "Lamborghini Aventador LP700-4",
+              "powerHp": 700,
+              "torqueLbFt": 509,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 108
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 158
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 208
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Sport",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

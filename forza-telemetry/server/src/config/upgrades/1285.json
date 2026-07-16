@@ -1,0 +1,197 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1965 Pontiac GTO",
+  "basePi": 484,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.008Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 55
+        },
+        {
+          "id": "engine_475d",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475d",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 115
+        },
+        {
+          "id": "engine_640",
+          "label": "8.4L V10 · 640 马力",
+          "sourceValue": "640",
+          "engineName": "8.4L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.4L V10",
+              "sourceVehicle": "Dodge SRT Viper GTS",
+              "powerHp": 640,
+              "torqueLbFt": 600,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 11,
+          "performanceScore": 280
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 18,
+          "performanceScore": 440
+        },
+        {
+          "id": "engine_1500",
+          "label": "8.9L V8 DSC · 1500 马力",
+          "sourceValue": "1500",
+          "engineName": "8.9L V8 DSC",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.9L V8 DSC",
+              "sourceVehicle": "Hot Wheels Monster Trucks Bone Shaker",
+              "powerHp": 1500,
+              "torqueLbFt": 1100,
+              "aspiration": "ps",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 46,
+          "performanceScore": 1140
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Hood",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

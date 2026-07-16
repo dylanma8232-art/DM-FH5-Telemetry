@@ -1,0 +1,220 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2018 Morgan Aero GT",
+  "basePi": 784,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_510",
+          "label": "6.2L V8 · 510 马力",
+          "sourceValue": "510",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Mercedes-Benz C 63 AMG Coupé Black Series",
+              "powerHp": 510,
+              "torqueLbFt": 457,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 148
+        },
+        {
+          "id": "engine_602",
+          "label": "5.2L V10 · 602 马力",
+          "sourceValue": "602",
+          "engineName": "5.2L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V10",
+              "sourceVehicle": "Lamborghini Huracán LP 610-4",
+              "powerHp": 602,
+              "torqueLbFt": 413,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 240
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 18,
+          "performanceScore": 443
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": 16,
+          "performanceScore": 388
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 18,
+          "performanceScore": 438
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -1,0 +1,113 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "1996 Formula Drift #51 Donut Media Nissan 240SX",
+  "basePi": 822,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.004Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -1,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_690",
+          "label": "670BHP Race Motor 或 2.6L 4 Rotor - Racing，待核验",
+          "sourceValue": "690",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "670BHP Race Motor",
+              "sourceVehicle": "Porsche Mission R",
+              "powerHp": 690,
+              "torqueLbFt": 741,
+              "aspiration": "e",
+              "priceCredits": 75000,
+              "added": "Series 21"
+            },
+            {
+              "name": "2.6L 4 Rotor - Racing",
+              "sourceVehicle": "Mazda 787B",
+              "powerHp": 690,
+              "torqueLbFt": 448,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -5,
+          "performanceScore": 0
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

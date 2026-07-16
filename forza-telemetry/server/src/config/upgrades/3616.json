@@ -1,0 +1,64 @@
+{
+  "status": "partial",
+  "piStatus": "unverified",
+  "name": "2021 Mercedes-AMG GT Black Series",
+  "basePi": 884,
+  "baseDriveType": "rwd",
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-16T10:09:03.007Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_739",
+          "label": "6.0L V12 Racing · 739 马力",
+          "sourceValue": "739",
+          "engineName": "6.0L V12 Racing",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.0L V12 Racing",
+              "sourceVehicle": "Pagani Zonda R",
+              "powerHp": 739,
+              "torqueLbFt": 523,
+              "aspiration": "na",
+              "priceCredits": null,
+              "added": "Series 22"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 19
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}
