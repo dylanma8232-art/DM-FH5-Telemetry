@@ -589,8 +589,8 @@ function calculateTireAnalysisStats(rawData) {
 // AI 赛后智能诊断缓存读取接口
 router.get('/:sessionId/ai-diagnosis', asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
-  const sessionDir = path.join(DATA_DIR, 'sessions');
-  const cachePath = path.join(sessionDir, `${sessionId}_ai_diagnosis.json`);
+  const diagnosisDir = path.join(DATA_DIR, 'diagnoses');
+  const cachePath = path.join(diagnosisDir, `${sessionId}.json`);
   const keyConfigured = !!process.env.DASHSCOPE_API_KEY;
 
   if (fs.existsSync(cachePath)) {
@@ -713,8 +713,9 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   const json = await apiResponse.json();
   const diagnosis = json.choices?.[0]?.message?.content || '生成报告为空';
 
-  const sessionDir = path.join(DATA_DIR, 'sessions');
-  const cachePath = path.join(sessionDir, `${sessionId}_ai_diagnosis.json`);
+  const diagnosisDir = path.join(DATA_DIR, 'diagnoses');
+  fs.mkdirSync(diagnosisDir, { recursive: true });
+  const cachePath = path.join(diagnosisDir, `${sessionId}.json`);
   const cachedDiagnosis = {
     diagnosis,
     problemId: problemId || null,

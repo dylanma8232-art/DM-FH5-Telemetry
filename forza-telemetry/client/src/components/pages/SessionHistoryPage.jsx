@@ -64,7 +64,6 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
   // 子页签状态
   const [chartSubTab, setChartSubTab] = useState('inputs');
-  const [showRawSignals, setShowRawSignals] = useState(false);
   const [selectedIssueCategory, setSelectedIssueCategory] = useState('steering');
   const [selectedIssueId, setSelectedIssueId] = useState(null);
 
@@ -325,13 +324,14 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const raceOverview = useMemo(() => {
     const score = analysis?.驾驶评分;
     const sectors = advancedData?.lapSectorDetails || [];
+    const selectedSummary = sessions.find(session => session.id === selectedSession);
     const normalizeToMs = (value) => {
       const numericValue = Number(value);
       if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
       return numericValue < 1000 ? numericValue * 1000 : numericValue;
     };
-    const currentLap = normalizeToMs(analysis?.成绩?.最佳圈);
-    const theoreticalBest = normalizeToMs(advancedData?.theoreticalBest);
+    const currentLap = normalizeToMs(analysis?.成绩?.最快圈速 || selectedSummary?.laps?.best);
+    const theoreticalBest = normalizeToMs(advancedData?.theoreticalBest?.time);
     const recoverableMs = theoreticalBest > 0 && currentLap > theoreticalBest
       ? currentLap - theoreticalBest
       : 0;
@@ -360,7 +360,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       bestSectorLoss,
       events: events.slice(0, 4)
     };
-  }, [analysis, advancedData, driverPerformanceStats]);
+  }, [analysis, advancedData, driverPerformanceStats, selectedSession, sessions]);
 
   const selectedTurnReview = useMemo(() => {
     const turn = turnsData?.turns?.[activeTurnIdx];
@@ -620,6 +620,19 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       tempRR: Math.round((c.tempRR - 32) * 5 / 9),
     }));
   }, [channelsData]);
+
+  // 根据本场实际滑移峰值扩展纵轴，避免超过正负 40% 的数据被裁掉。
+  const slipChartDomain = useMemo(() => {
+    const maxAbsSlip = formattedChannels.reduce((max, channel) => {
+      const channelPeak = ['slipFL', 'slipFR', 'slipRL', 'slipRR'].reduce((peak, key) => {
+        const value = Math.abs(Number(channel[key]));
+        return Number.isFinite(value) ? Math.max(peak, value) : peak;
+      }, 0);
+      return Math.max(max, channelPeak);
+    }, 0);
+    const limit = Math.max(0.4, Math.ceil(maxAbsSlip * 20) / 20);
+    return [-limit, limit];
+  }, [formattedChannels]);
 
   // 极简 Markdown 渲染器
   const renderMarkdown = (mdText) => {
@@ -1277,11 +1290,6 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                   <span style={{ flex: '1 1 320px', color: 'var(--text-secondary)', fontSize: 10, lineHeight: 1.4 }}>
                     {chartGuidance[chartSubTab]}
                   </span>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <button onClick={() => setShowRawSignals(!showRawSignals)} style={{ ...btnZoomStyle, padding: '4px 8px' }}>
-                      {showRawSignals ? '收起原始信号' : '展开原始信号'}
-                    </button>
-                  </div>
                   </div>
 
                   {/* 2.2.1 轮胎与定位 */}
@@ -1302,7 +1310,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                         ].map(item => <div key={item.label} style={{ ...sectionStyle, margin: 0, padding: 11 }}><div style={{ color: 'var(--text-secondary)', fontSize: 10, marginBottom: 5 }}>{item.label}</div><div style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 700 }}>{item.value}</div></div>)}
                       </div>
 
-                      {showRawSignals && <div style={sectionStyle}>
+                      <div style={sectionStyle}>
                         <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>轮胎工作温度变化曲线（绿色区域为理想工作区间，单位：摄氏度°C）</h4>
                         <div style={{ height: 200 }}>
                           <ResponsiveContainer width="100%" height="100%">
@@ -1319,9 +1327,9 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
-                      </div>}
+                      </div>
 
-                      {showRawSignals && <div style={sectionStyle}>
+                      <div style={sectionStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', marginBottom: 6, flexWrap: 'wrap' }}>
                           <h4 style={{ margin: 0, fontSize: 11 }}>原始四轮滑移率</h4>
                           <div style={{ display: 'flex', gap: 12, color: 'var(--text-secondary)', fontSize: 10 }}>
@@ -1335,7 +1343,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             <LineChart data={formattedChannels} syncId="overlaySync" margin={{ top: 8, right: 18, bottom: 8, left: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                               <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
-                              <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} domain={[-0.4, 0.4]} allowDataOverflow={true} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} label={{ value: '轮胎滑移率', angle: -90, position: 'insideLeft', offset: 8, fill: '#8b949e', fontSize: 10 }} />
+                              <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} domain={slipChartDomain} tickFormatter={(val) => `${(val * 100).toFixed(0)}%`} label={{ value: '轮胎滑移率', angle: -90, position: 'insideLeft', offset: 8, fill: '#8b949e', fontSize: 10 }} />
                               <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${(Number(value) * 100).toFixed(1)}%`} />
                               <Legend verticalAlign="top" align="left" height={24} iconType="line" wrapperStyle={{ fontSize: 10, paddingBottom: 4 }} />
                               <ReferenceLine y={0.15} stroke="#f85149" strokeDasharray="4 2" />
@@ -1348,7 +1356,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
-                      </div>}
+                      </div>
                     </div>
                   )}
 
@@ -1382,8 +1390,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                         </div>
                       </div>
 
-                      {showRawSignals && (
-                        <div style={sectionStyle}>
+                      <div style={sectionStyle}>
                           <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>原始四轮悬挂行程</h4>
                           <div style={{ height: 180 }}>
                             <ResponsiveContainer width="100%" height="100%">
@@ -1399,8 +1406,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                               </LineChart>
                             </ResponsiveContainer>
                           </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   )}
 
@@ -1584,7 +1590,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       </div>
 
                       {/* 方向盘原始输入曲线 */}
-                      {showRawSignals && <div style={sectionStyle}>
+                      <div style={sectionStyle}>
                         <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>方向盘输入与横向G力对照图（正值代表向右，负值代表向左。横向G力反映转弯时的侧向拉力）</h4>
                         <div style={{ height: 180 }}>
                           <ResponsiveContainer width="100%" height="100%">
@@ -1616,7 +1622,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             </LineChart>
                           </ResponsiveContainer>
                         </div>
-                      </div>}
+                      </div>
 
                     </div>
                   )}

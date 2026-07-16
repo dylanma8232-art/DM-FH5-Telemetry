@@ -143,11 +143,12 @@ forza-telemetry/
 │   ├── track_records/           # 赛道记录
 │   ├── vehicles.json            # 车辆数据库（自动检测）
 │   ├── tunes.json               # 调校数据库
-│   └── sessions/                # 比赛记录
+│   ├── sessions/                # 比赛记录
 │       ├── session_*_summary.json          # 摘要文件
 │       ├── session_*_detail_hifi.json.br   # 高精度详情（Brotli压缩）
 │       ├── session_*_detail_lowfi.json.br  # 低精度详情（Brotli压缩）
-│       └── session_*_ai_diagnosis.json     # AI 智能诊断缓存
+│   └── diagnoses/               # AI 智能诊断缓存
+│       └── session_*.json
 │
 └── docs/                        # 开发文档（迭代记录）
     └── *.md                     # 各模块开发迭代记录

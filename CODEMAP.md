@@ -85,6 +85,7 @@
 - 📂 **scripts/**
   - 📄 [clean_sessions.mjs](file:///forza-telemetry/scripts/clean_sessions.mjs) 
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py) 
+  - 📄 [normalize_runtime_data.mjs](file:///forza-telemetry/scripts/normalize_runtime_data.mjs) 
   - 📄 [rebuild_tracks.mjs](file:///forza-telemetry/scripts/rebuild_tracks.mjs) 
   - 📄 [sync_tracks.js](file:///forza-telemetry/scripts/sync_tracks.js) 
 - 📂 **server/**
