@@ -2251,6 +2251,26 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
           {category.tierSystem ? (
             /* 等级制配件 */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* 原厂选项 */}
+              <button
+                onClick={() => handleSelect('stock', 'stock')}
+                className={`part-opt-btn ${isStock ? 'active' : ''}`}
+                style={isStock ? {
+                  '--active-border': 'rgba(139, 148, 158, 0.4)',
+                  '--active-bg': 'rgba(139, 148, 158, 0.12)',
+                  '--active-color': '#8b949e'
+                } : {}}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: 2,
+                  background: isStock ? '#8b949e' : 'rgba(255,255,255,0.15)'
+                }} />
+                <span style={{ flex: 1 }}>原厂 (Stock)</span>
+                <span className="part-pi-pill" style={{ background: 'rgba(139,148,158,0.06)', color: '#8b949e', border: '1px solid rgba(139,148,158,0.15)' }}>
+                  +0PI
+                </span>
+              </button>
+
               {(effectiveTiers || []).map(tier => {
                 const isActive = selected?.tier === tier.id
                 const options = tier.options || []
