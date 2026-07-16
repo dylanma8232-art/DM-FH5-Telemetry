@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { calculateTotalPi } from '../../data/parts';
 
 const CLASS_LABELS = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
 const MANUFACTURER_ALIASES = {
@@ -21,13 +20,10 @@ function getManufacturerSearchText(manufacturer) {
   return `${manufacturer} ${MANUFACTURER_ALIASES[manufacturer] || ''}`.toLowerCase();
 }
 
-function getTunePi(tune, vehiclePi) {
-  if (Number.isFinite(Number(tune.totalPi))) return Number(tune.totalPi);
-  try {
-    return calculateTotalPi(Number(tune.basePi) || Number(vehiclePi) || 0, tune.parts || {});
-  } catch {
-    return Number(vehiclePi) || 0;
-  }
+function getTunePi(tune) {
+  if (tune.totalPi !== null && tune.totalPi !== '' && Number.isFinite(Number(tune.totalPi))) return Number(tune.totalPi);
+  if (tune.piUpperEstimate !== null && tune.piUpperEstimate !== '' && Number.isFinite(Number(tune.piUpperEstimate))) return Number(tune.piUpperEstimate);
+  return null;
 }
 
 // ============================================================
@@ -204,7 +200,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           ordinal: parseInt(formData.ordinal),
           name: formData.name,
           class: parseInt(formData.class),
-          pi: parseInt(formData.pi) || 0,
+          originalPi: parseInt(formData.pi) || null,
           drivetrain: formData.drivetrain
         })
       });
@@ -252,11 +248,14 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const startEdit = (id) => {
     const v = vehicles[id];
     if (!v) return;
+    const officialBasePi = catalog.find(item => String(item.ordinal) === String(id))?.basePi;
     setFormData({
       ordinal: id,
       name: v.name || '',
       class: v.class || 3,
-      pi: v.pi || '',
+      pi: Number.isFinite(Number(officialBasePi)) && Number(officialBasePi) > 0
+        ? Number(officialBasePi)
+        : (Number(v.originalPi) > 0 ? Number(v.originalPi) : ''),
       drivetrain: v.drivetrain || 'AWD'
     });
     setEditingVehicle(id);
@@ -316,22 +315,27 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       const catalogVehicle = catalogByOrdinal.get(String(ord));
       const savedName = v?.name && !v.name.startsWith('Car #') ? v.name : null;
       const stat = statsByOrdinal[ord] || { count: 0, bestLap: 0, avgLap: 0, lastUsed: 0, trackCount: 0, trackList: [], tracks: new Set(), recentSessions: [] };
-      const basePi = Number(v?.pi) || 0;
+      // 车辆管理只展示资料库中的官方原厂 PI，不使用游戏遥测中的当前改装 PI。
+      const officialBasePi = Number(catalogVehicle?.basePi) > 0
+        ? Number(catalogVehicle.basePi)
+        : (Number(v?.originalPi) > 0 ? Number(v.originalPi) : null);
       const cardTunes = tunesList
         .filter(tune => String(tune.vehicleId || tune.carOrdinal) === String(ord))
-        .map(tune => ({ ...tune, calculatedPi: getTunePi(tune, basePi) }))
-        .sort((a, b) => b.calculatedPi - a.calculatedPi);
+        .map(tune => ({ ...tune, calculatedPi: getTunePi(tune) }))
+        .sort((a, b) => (b.calculatedPi ?? -1) - (a.calculatedPi ?? -1));
+      const knownTunePis = cardTunes.map(tune => tune.calculatedPi).filter(Number.isFinite);
       return {
         ord,
         name: savedName || catalogVehicle?.name || v?.name || 'Car #' + ord,
         manufacturer: catalogVehicle?.manufacturer || getManufacturer(savedName || v?.name),
         class: v ? v.class : null,
-        pi: basePi || null,
+        pi: Number.isFinite(officialBasePi) && officialBasePi > 0 ? officialBasePi : null,
         drivetrain: v ? v.drivetrain : null,
         isAuto: !v,
         isReceived: Boolean(v?.autoDetected || stat.count > 0),
         favorite: Boolean(v?.favorite),
         tunes: cardTunes,
+        tunePiSummary: knownTunePis.length ? `${Math.min(...knownTunePis)}-${Math.max(...knownTunePis)}` : (cardTunes.length ? 'PI 未知' : '暂无'),
         stat: {
           count: stat.count,
           bestLap: stat.bestLap,
@@ -606,7 +610,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
             <div style={{ fontWeight: 700, color: '#58a6ff', textAlign: 'center' }}>{compareData.cardA.name}</div>
             <div style={{ fontWeight: 700, color: '#d29922', textAlign: 'center' }}>{compareData.cardB.name}</div>
 
-            <div style={{ color: '#8b949e' }}>PI</div>
+            <div style={{ color: '#8b949e' }}>官方原厂 PI</div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 600 }}>{compareData.cardA.pi || '-'}</div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 600 }}>{compareData.cardB.pi || '-'}</div>
 
@@ -808,18 +812,18 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
               </div>
 
               <div className="vehicle-build-summary">
-                <div><span>车辆记录 PI</span><strong>{card.pi || '-'}</strong></div>
+                <div><span>官方原厂 PI</span><strong>{card.pi || '-'}</strong></div>
                 <div><span>驱动</span><strong>{card.drivetrain || '-'}</strong></div>
                 <div>
                   <span>改装方案</span>
-                  <strong>{card.tunes.length ? `${Math.min(...card.tunes.map(t => t.calculatedPi))}-${Math.max(...card.tunes.map(t => t.calculatedPi))}` : '暂无'}</strong>
+                  <strong>{card.tunePiSummary}</strong>
                 </div>
               </div>
 
               {card.tunes.length > 0 && (
                 <div className="vehicle-tune-preview">
                   {card.tunes.slice(0, 2).map(tune => (
-                    <span key={tune.id}><b>{tune.calculatedPi}</b> {tune.name || '未命名方案'}</span>
+                    <span key={tune.id}><b>{tune.calculatedPi ?? 'PI 未知'}</b> {tune.name || '未命名方案'}</span>
                   ))}
                   {card.tunes.length > 2 && <span>另有 {card.tunes.length - 2} 套</span>}
                 </div>
@@ -836,7 +840,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                         <strong>{tune.name || '未命名方案'}</strong>
                         <span>{(tune.tags || []).join(' · ') || '未添加标签'}</span>
                       </div>
-                      <div className="vehicle-tune-pi">PI {tune.calculatedPi}</div>
+                      <div className="vehicle-tune-pi">PI {tune.calculatedPi ?? '未知'}</div>
                       <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit' }); }} style={{ ...btnSmallStyle, padding: '3px 7px', fontSize: 9 }}>编辑</button>
                     </div>
                   ))}
@@ -947,12 +951,13 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>性能指数 PI</label>
+                <label style={labelStyle}>官方原厂 PI</label>
                 <input
                   value={formData.pi}
                   onChange={e => setFormData({...formData, pi: e.target.value})}
                   placeholder="100-999"
                   style={inputStyle}
+                  disabled={Number(catalog.find(item => String(item.ordinal) === String(formData.ordinal))?.basePi) > 0}
                 />
               </div>
             </div>

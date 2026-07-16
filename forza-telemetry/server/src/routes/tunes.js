@@ -1,7 +1,11 @@
-import { asyncHandler } from "../utils/asyncHandler.js";import { stateManager } from '../services/state-manager.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { stateManager } from '../services/state-manager.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
+import { validateTunePayload } from '../services/upgrade-catalog.js';
 import express from 'express';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
@@ -9,6 +13,19 @@ const router = express.Router();
 
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
+const upgradesDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/vehicle-upgrades.json');
+
+const loadUpgradeProfile = vehicleId => {
+  const database = fs.existsSync(upgradesDbPath) ? loadJSON(upgradesDbPath) : {};
+  return database?.profiles?.[String(vehicleId)] || null;
+};
+
+const nestedTuneKeys = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero'];
+const mergeTunePayload = (current, patch) => {
+  const merged = { ...current, ...patch };
+  for (const key of nestedTuneKeys) merged[key] = { ...(current?.[key] || {}), ...(patch?.[key] || {}) };
+  return merged;
+};
 
 const calculateTrackLength = (pts) => {
   if (!pts || pts.length < 2) return 0;
@@ -150,6 +167,8 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
   if (!body.name) {
     return res.status(400).json({ error: 'name is required' });
   }
+  const validation = validateTunePayload(loadUpgradeProfile(body.vehicleId), body);
+  if (!validation.valid) return res.status(422).json({ error: '改装或调教校验失败', errors: validation.errors, warnings: validation.warnings });
 
   const tuneId = 'tune_' + Date.now();
   const now = new Date().toISOString();
@@ -161,17 +180,25 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     tags: body.tags || [],
     carOrdinal: body.carOrdinal || body.vehicleId || null,
     vehicleId: body.vehicleId || null,
-    basePi: body.basePi || 0,
-    targetPi: body.targetPi || 0,
-    totalPi: body.totalPi || 0,
+    basePi: validation.computed.basePi,
+    targetPi: body.generationMode === 'ai' ? body.targetPi : null,
+    totalPi: validation.computed.confirmedPi,
+    estimatedPi: validation.computed.unknownPiCount ? null : validation.computed.estimate,
+    piUpperEstimate: validation.computed.upperEstimate,
+    piStatus: validation.computed.status,
+    validationWarnings: validation.warnings,
+    generationMode: body.generationMode === 'ai' ? 'ai' : 'manual',
+    raceType: body.generationMode === 'ai' ? body.raceType || 'road' : null,
+    driveType: ['fwd', 'rwd', 'awd'].includes(body.driveType) ? body.driveType : validation.resolved.effectiveDriveType,
     createdAt: now,
     updatedAt: now,
     params: body.params || {},
     tires: body.tires || null,
     suspension: body.suspension || null,
     drivetrain: body.drivetrain || null,
+    brakes: body.brakes || null,
     aero: body.aero || null,
-    parts: body.parts || null
+    parts: validation.normalizedParts
   };
   stateManager.tunes[tuneId] = tune;
   saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
@@ -202,6 +229,9 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Tune not found' });
   }
   const body = req.body || {};
+  const candidate = mergeTunePayload(tune, body);
+  const validation = validateTunePayload(loadUpgradeProfile(candidate.vehicleId), candidate);
+  if (!validation.valid) return res.status(422).json({ error: '改装或调教校验失败', errors: validation.errors, warnings: validation.warnings });
   if (body.name !== undefined) tune.name = body.name;
   if (body.description !== undefined) tune.description = body.description;
   if (body.tags !== undefined) tune.tags = body.tags;
@@ -210,15 +240,24 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
     tune.vehicleId = body.vehicleId;
     tune.carOrdinal = body.vehicleId;
   }
-  if (body.basePi !== undefined) tune.basePi = body.basePi;
-  if (body.targetPi !== undefined) tune.targetPi = body.targetPi;
-  if (body.totalPi !== undefined) tune.totalPi = body.totalPi;
+  tune.basePi = validation.computed.basePi;
+  tune.targetPi = candidate.generationMode === 'ai' ? candidate.targetPi : null;
+  tune.totalPi = validation.computed.confirmedPi;
+  tune.estimatedPi = validation.computed.unknownPiCount ? null : validation.computed.estimate;
+  tune.piUpperEstimate = validation.computed.upperEstimate;
+  tune.piStatus = validation.computed.status;
+  tune.validationWarnings = validation.warnings;
+  tune.generationMode = candidate.generationMode === 'ai' ? 'ai' : 'manual';
+  tune.raceType = candidate.generationMode === 'ai' ? candidate.raceType || 'road' : null;
+  tune.driveType = ['fwd', 'rwd', 'awd'].includes(candidate.driveType) ? candidate.driveType : validation.resolved.effectiveDriveType;
   if (body.params !== undefined) tune.params = body.params;
   if (body.tires !== undefined) tune.tires = body.tires;
   if (body.suspension !== undefined) tune.suspension = body.suspension;
   if (body.drivetrain !== undefined) tune.drivetrain = body.drivetrain;
+  if (body.brakes !== undefined) tune.brakes = body.brakes;
   if (body.aero !== undefined) tune.aero = body.aero;
   if (body.parts !== undefined) tune.parts = body.parts;
+  tune.parts = validation.normalizedParts;
   tune.updatedAt = new Date().toISOString();
   stateManager.tunes[req.params.tuneId] = tune;
   saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);

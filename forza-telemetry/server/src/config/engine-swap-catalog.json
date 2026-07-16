@@ -1,0 +1,2028 @@
+{
+  "schemaVersion": 1,
+  "game": "Forza Horizon 5",
+  "source": "https://forza.fandom.com/wiki/Forza_Horizon_5/Engine_Swap",
+  "importedAt": "2026-07-16T09:55:16.450Z",
+  "engines": [
+    {
+      "name": "1.8L I4",
+      "sourceVehicle": "Volkswagen Golf GTI",
+      "powerHp": 112,
+      "torqueLbFt": 109,
+      "aspiration": "na",
+      "priceCredits": 10000,
+      "added": "Series 8"
+    },
+    {
+      "name": "1.4L I4 - Turbo",
+      "sourceVehicle": "Abarth 500 esseesse",
+      "powerHp": 158,
+      "torqueLbFt": 169,
+      "aspiration": "1t",
+      "priceCredits": 17500,
+      "added": "Series 24"
+    },
+    {
+      "name": "2.8L V6",
+      "sourceVehicle": "Volkswagen GTI VR6 Mk3",
+      "powerHp": 172,
+      "torqueLbFt": 173,
+      "aspiration": "na",
+      "priceCredits": 12500,
+      "added": "Series 8"
+    },
+    {
+      "name": "2.8L V6",
+      "sourceVehicle": "Volkswagen Corrado VR6",
+      "powerHp": 178,
+      "torqueLbFt": 177,
+      "aspiration": "na",
+      "priceCredits": 10000,
+      "added": "Series 0"
+    },
+    {
+      "name": "1.6L I4 - VVT",
+      "sourceVehicle": "Honda Civic Type R",
+      "powerHp": 182,
+      "torqueLbFt": 118,
+      "aspiration": "na",
+      "priceCredits": 12500,
+      "added": "Series 0"
+    },
+    {
+      "name": "I4 Motorbike Engine",
+      "sourceVehicle": null,
+      "powerHp": 196,
+      "torqueLbFt": 113,
+      "aspiration": "na",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "1.3L Rotary Turbo",
+      "sourceVehicle": "Mazda Savanna RX-7",
+      "powerHp": 200,
+      "torqueLbFt": 196,
+      "aspiration": "1t",
+      "priceCredits": 11250,
+      "added": "Series 0"
+    },
+    {
+      "name": "1.8L I4T",
+      "sourceVehicle": "Peugeot 205 T16",
+      "powerHp": 200,
+      "torqueLbFt": 188,
+      "aspiration": "1t",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.7L F6",
+      "sourceVehicle": "Porsche 911 Carrera RS",
+      "powerHp": 207,
+      "torqueLbFt": 188,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L I4 - VVT",
+      "sourceVehicle": "Honda Civic Type-R",
+      "powerHp": 212,
+      "torqueLbFt": 149,
+      "aspiration": "na",
+      "priceCredits": 12000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L I4 - Turbo",
+      "sourceVehicle": "Ford Escort RS Cosworth",
+      "powerHp": 224,
+      "torqueLbFt": 224,
+      "aspiration": "1t",
+      "priceCredits": 33000,
+      "added": "Series 0"
+    },
+    {
+      "name": "235BHP Motor",
+      "sourceVehicle": null,
+      "powerHp": 235,
+      "torqueLbFt": 173,
+      "aspiration": "e",
+      "priceCredits": 20000,
+      "added": "Series 30"
+    },
+    {
+      "name": "2.0L I4 - Turbo",
+      "sourceVehicle": "Nissan Silvia Spec-R",
+      "powerHp": 250,
+      "torqueLbFt": 203,
+      "aspiration": "1t",
+      "priceCredits": 17500,
+      "added": "Series 0"
+    },
+    {
+      "name": "1.3L 2 Rotor TT",
+      "sourceVehicle": "Mazda RX-7",
+      "powerHp": 261,
+      "torqueLbFt": 217,
+      "aspiration": "2t",
+      "priceCredits": 17500,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.0L V12",
+      "sourceVehicle": "Ferrari 250 California",
+      "powerHp": 262,
+      "torqueLbFt": 188,
+      "aspiration": "na",
+      "priceCredits": 80000,
+      "added": "Series 29"
+    },
+    {
+      "name": "2.0L F4 - Turbo",
+      "sourceVehicle": "SUBARU Impreza WRX STi",
+      "powerHp": 278,
+      "torqueLbFt": 290,
+      "aspiration": "1t",
+      "priceCredits": 15000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L I4 - Turbo",
+      "sourceVehicle": "Mitsubishi Lancer Evolution VI GSR",
+      "powerHp": 280,
+      "torqueLbFt": 300,
+      "aspiration": "1t",
+      "priceCredits": 15000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.3L F6T",
+      "sourceVehicle": "Porsche 911 Turbo 3.3",
+      "powerHp": 296,
+      "torqueLbFt": 304,
+      "aspiration": "1t",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "1.6L I4 - Turbo Rally",
+      "sourceVehicle": null,
+      "powerHp": 300,
+      "torqueLbFt": 332,
+      "aspiration": "1t",
+      "priceCredits": 28000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.5L F4 - Turbo",
+      "sourceVehicle": "SUBARU WRX STI",
+      "powerHp": 305,
+      "torqueLbFt": 290,
+      "aspiration": "1t",
+      "priceCredits": 22000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L Turbo - VVT",
+      "sourceVehicle": "Honda Civic Type R",
+      "powerHp": 306,
+      "torqueLbFt": 295,
+      "aspiration": "1t",
+      "priceCredits": 19000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.0L V8T Diesel",
+      "sourceVehicle": "Nissan TITAN Warrior Concept",
+      "powerHp": 310,
+      "torqueLbFt": 555,
+      "aspiration": "1t",
+      "priceCredits": 20000,
+      "added": "Series 18"
+    },
+    {
+      "name": "3.2L I6",
+      "sourceVehicle": "BMW M3",
+      "powerHp": 321,
+      "torqueLbFt": 258,
+      "aspiration": "na",
+      "priceCredits": 10000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.6L I6 - TT",
+      "sourceVehicle": "Nissan Skyline GT-R V-Spec II",
+      "powerHp": 327,
+      "torqueLbFt": 293,
+      "aspiration": "2t",
+      "priceCredits": 23000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L F4 - Turbo Rally",
+      "sourceVehicle": "Subaru WRX STI VT15R Rally Car",
+      "powerHp": 330,
+      "torqueLbFt": 480,
+      "aspiration": "1t",
+      "priceCredits": 28000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.0L I4T",
+      "sourceVehicle": "Mercedes-Benz A 45 AMG",
+      "powerHp": 355,
+      "torqueLbFt": 326,
+      "aspiration": "1t",
+      "priceCredits": 15000,
+      "added": "Series 22"
+    },
+    {
+      "name": "Racing V6",
+      "sourceVehicle": "Toyota #1 T100 Baja Truck",
+      "powerHp": 360,
+      "torqueLbFt": 265,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.5L I5 TURBO",
+      "sourceVehicle": "Donkervoort D8 GTO",
+      "powerHp": 375,
+      "torqueLbFt": 350,
+      "aspiration": "tc",
+      "priceCredits": 30000,
+      "added": "Series 4"
+    },
+    {
+      "name": "3.5L V8",
+      "sourceVehicle": "Ferrari F355 Berlinetta",
+      "powerHp": 375,
+      "torqueLbFt": 288,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Junkyard 6.0L V8",
+      "sourceVehicle": null,
+      "powerHp": 392,
+      "torqueLbFt": 408,
+      "aspiration": "na",
+      "priceCredits": 8000,
+      "added": "Series 22"
+    },
+    {
+      "name": "4.0L V8",
+      "sourceVehicle": "BMW M3",
+      "powerHp": 414,
+      "torqueLbFt": 295,
+      "aspiration": "na",
+      "priceCredits": 24000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.2L V8",
+      "sourceVehicle": "Chevrolet Super Sport",
+      "powerHp": 415,
+      "torqueLbFt": 415,
+      "aspiration": "na",
+      "priceCredits": 20000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.6 F6TT",
+      "sourceVehicle": "Porsche 911 GT2",
+      "powerHp": 424,
+      "torqueLbFt": 398,
+      "aspiration": "2t",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.0L V8",
+      "sourceVehicle": "Dodge Charger R/T",
+      "powerHp": 425,
+      "torqueLbFt": 490,
+      "aspiration": "na",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.0L V8 - H",
+      "sourceVehicle": "Dodge Challenger R/T",
+      "powerHp": 425,
+      "torqueLbFt": 490,
+      "aspiration": "na",
+      "priceCredits": 33000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.2L V8 Crate Engine",
+      "sourceVehicle": null,
+      "powerHp": 430,
+      "torqueLbFt": 417,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 22"
+    },
+    {
+      "name": "4.7L V8",
+      "sourceVehicle": "Maserati Gran Turismo S",
+      "powerHp": 432,
+      "torqueLbFt": 361,
+      "aspiration": "na",
+      "priceCredits": 35000,
+      "added": "Series 24"
+    },
+    {
+      "name": "3.5L V6TT",
+      "sourceVehicle": "Ford F-150 Raptor",
+      "powerHp": 450,
+      "torqueLbFt": 500,
+      "aspiration": "2t",
+      "priceCredits": 20000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.2L V12",
+      "sourceVehicle": "Lamborghini Countach LP5000 QV",
+      "powerHp": 455,
+      "torqueLbFt": 369,
+      "aspiration": "na",
+      "priceCredits": 35000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.0L V8 - Racing",
+      "sourceVehicle": "Ariel Atom 500 V8",
+      "powerHp": 475,
+      "torqueLbFt": 268,
+      "aspiration": "na",
+      "priceCredits": 38000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.7L V8T Diesel",
+      "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+      "powerHp": 475,
+      "torqueLbFt": 1050,
+      "aspiration": "1t",
+      "priceCredits": 20000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Vintage 3.0L DSC V12",
+      "sourceVehicle": "Mercedes-Benz W154",
+      "powerHp": 483,
+      "torqueLbFt": 361,
+      "aspiration": "ps",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.0L V8",
+      "sourceVehicle": "Ford GT40 Mk II",
+      "powerHp": 485,
+      "torqueLbFt": 475,
+      "aspiration": "na",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "4.0L F6",
+      "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+      "powerHp": 493,
+      "torqueLbFt": 339,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "4.0L F6",
+      "sourceVehicle": "Porsche 911 GT3 RS",
+      "powerHp": 493,
+      "torqueLbFt": 339,
+      "aspiration": "na",
+      "priceCredits": 34000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.0L V10",
+      "sourceVehicle": "BMW M5",
+      "powerHp": 500,
+      "torqueLbFt": 383,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.0L V8",
+      "sourceVehicle": "Chevrolet Camaro Z/28",
+      "powerHp": 505,
+      "torqueLbFt": 481,
+      "aspiration": "na",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.1L I4 - Turbo",
+      "sourceVehicle": "Ford RS200 Evolution",
+      "powerHp": 506,
+      "torqueLbFt": 401,
+      "aspiration": "1t",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.9L V6TT",
+      "sourceVehicle": "Alfa Romeo Giulia Quadrifoglio",
+      "powerHp": 506,
+      "torqueLbFt": 443,
+      "aspiration": "2t",
+      "priceCredits": 60000,
+      "added": "Series 24"
+    },
+    {
+      "name": "6.2L V8",
+      "sourceVehicle": "Mercedes-Benz C 63 AMG Coupé Black Series",
+      "powerHp": 510,
+      "torqueLbFt": 457,
+      "aspiration": "na",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.2L V8",
+      "sourceVehicle": "Ford Shelby GT350R",
+      "powerHp": 526,
+      "torqueLbFt": 429,
+      "aspiration": "na",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.2L F6TT",
+      "sourceVehicle": "Porsche 911 GT1 Strassenversion",
+      "powerHp": 536,
+      "torqueLbFt": 442,
+      "aspiration": "2t",
+      "priceCredits": 75000,
+      "added": "Series 10"
+    },
+    {
+      "name": "3.5L V6TT",
+      "sourceVehicle": "Jaguar XJ220",
+      "powerHp": 542,
+      "torqueLbFt": 473,
+      "aspiration": "2t",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.8L V6 - TT",
+      "sourceVehicle": "Nissan GT-R Black Edition",
+      "powerHp": 542,
+      "torqueLbFt": 466,
+      "aspiration": "2t",
+      "priceCredits": 30000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.5L V8TT",
+      "sourceVehicle": "Nissan R390 (GT1)",
+      "powerHp": 550,
+      "torqueLbFt": 471,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.0L V8 DSC",
+      "sourceVehicle": "Land Rover Range Rover Sport SVR",
+      "powerHp": 550,
+      "torqueLbFt": 542,
+      "aspiration": "ps",
+      "priceCredits": 20000,
+      "added": "Series 0"
+    },
+    {
+      "name": "4.8L V10",
+      "sourceVehicle": "Lexus LFA",
+      "powerHp": 552,
+      "torqueLbFt": 354,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "4.5L V8",
+      "sourceVehicle": "Ferrari 458 Italia",
+      "powerHp": 562,
+      "torqueLbFt": 398,
+      "aspiration": "na",
+      "priceCredits": 46000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.5L TT Hybrid",
+      "sourceVehicle": "Acura NSX",
+      "powerHp": 573,
+      "torqueLbFt": 623,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.5L V8TT",
+      "sourceVehicle": "Mercedes-Benz E 63 AMG",
+      "powerHp": 577,
+      "torqueLbFt": 590,
+      "aspiration": "2t",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.0L F12",
+      "sourceVehicle": "Porsche #3 917 LH",
+      "powerHp": 601,
+      "torqueLbFt": 415,
+      "aspiration": "na",
+      "priceCredits": 40000,
+      "added": "Series 28"
+    },
+    {
+      "name": "5.2L V10",
+      "sourceVehicle": "Lamborghini Huracán LP 610-4",
+      "powerHp": 602,
+      "torqueLbFt": 413,
+      "aspiration": "na",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.2L V12 - TT",
+      "sourceVehicle": "Aston Martin DB11",
+      "powerHp": 608,
+      "torqueLbFt": 516,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.9L V12",
+      "sourceVehicle": "Mercedes-Benz AMG CLK GTR",
+      "powerHp": 622,
+      "torqueLbFt": 539,
+      "aspiration": "na",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.1L V12",
+      "sourceVehicle": "McLaren F1",
+      "powerHp": 627,
+      "torqueLbFt": 480,
+      "aspiration": "na",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.5L V6TT",
+      "sourceVehicle": "Ford GT",
+      "powerHp": 630,
+      "torqueLbFt": 539,
+      "aspiration": "2t",
+      "priceCredits": 55000,
+      "added": "Series 0"
+    },
+    {
+      "name": "8.4L V10",
+      "sourceVehicle": "Dodge SRT Viper GTS",
+      "powerHp": 640,
+      "torqueLbFt": 600,
+      "aspiration": "na",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.0L V12",
+      "sourceVehicle": "Ferrari Enzo Ferrari",
+      "powerHp": 650,
+      "torqueLbFt": 485,
+      "aspiration": "na",
+      "priceCredits": 55000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.9L V8TT",
+      "sourceVehicle": "Ferrari 488 GTB",
+      "powerHp": 660,
+      "torqueLbFt": 560,
+      "aspiration": "2t",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.8L V8 - DSC",
+      "sourceVehicle": "Ford Shelby GT500",
+      "powerHp": 662,
+      "torqueLbFt": 631,
+      "aspiration": "ts",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.2L V8-PDSC",
+      "sourceVehicle": "Cadillac CT5-V Blackwing",
+      "powerHp": 668,
+      "torqueLbFt": 658,
+      "aspiration": "ps",
+      "priceCredits": 30000,
+      "added": "Series 19"
+    },
+    {
+      "name": "7.3L V12",
+      "sourceVehicle": "Pagani Zonda Cinque Roadster",
+      "powerHp": 678,
+      "torqueLbFt": 575,
+      "aspiration": "na",
+      "priceCredits": 75000,
+      "added": "Series 22"
+    },
+    {
+      "name": "670BHP Race Motor",
+      "sourceVehicle": "Porsche Mission R",
+      "powerHp": 690,
+      "torqueLbFt": 741,
+      "aspiration": "e",
+      "priceCredits": 75000,
+      "added": "Series 21"
+    },
+    {
+      "name": "2.6L 4 Rotor - Racing",
+      "sourceVehicle": "Mazda 787B",
+      "powerHp": 690,
+      "torqueLbFt": 448,
+      "aspiration": "na",
+      "priceCredits": 60000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.8 F6TT",
+      "sourceVehicle": "Porsche 911 GT2 RS",
+      "powerHp": 691,
+      "torqueLbFt": 553,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.0L W12TT",
+      "sourceVehicle": "Bentley Continental Supersports",
+      "powerHp": 700,
+      "torqueLbFt": 749,
+      "aspiration": "2t",
+      "priceCredits": 100000,
+      "added": "Series 12"
+    },
+    {
+      "name": "6.5L V12",
+      "sourceVehicle": "Lamborghini Aventador LP700-4",
+      "powerHp": 700,
+      "torqueLbFt": 509,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.2L V8 DSC",
+      "sourceVehicle": "Dodge Challenger SRT Hellcat",
+      "powerHp": 707,
+      "torqueLbFt": 650,
+      "aspiration": "ps",
+      "priceCredits": 25000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.9L V8-TT",
+      "sourceVehicle": "Ferrari 488 Pista",
+      "powerHp": 711,
+      "torqueLbFt": 567,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 24"
+    },
+    {
+      "name": "6.0L V12 Racing",
+      "sourceVehicle": "Pagani Zonda R",
+      "powerHp": 739,
+      "torqueLbFt": 523,
+      "aspiration": "na",
+      "priceCredits": null,
+      "added": "Series 22"
+    },
+    {
+      "name": "Racing V12",
+      "sourceVehicle": "Ferrari F50 GT",
+      "powerHp": 750,
+      "torqueLbFt": 383,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "2.1L I4T",
+      "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+      "powerHp": 750,
+      "torqueLbFt": 590,
+      "aspiration": "1t",
+      "priceCredits": 50000,
+      "added": "Series 18"
+    },
+    {
+      "name": "4.0L V8TT",
+      "sourceVehicle": "McLaren Senna",
+      "powerHp": 789,
+      "torqueLbFt": 590,
+      "aspiration": "2t",
+      "priceCredits": 75000,
+      "added": "Series 29"
+    },
+    {
+      "name": "7.7L V12",
+      "sourceVehicle": "TVR Cerbera Speed 12",
+      "powerHp": 800,
+      "torqueLbFt": 649,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Racing 3.0L I6T",
+      "sourceVehicle": null,
+      "powerHp": 805,
+      "torqueLbFt": 571,
+      "aspiration": "1t",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.0L V12",
+      "sourceVehicle": "Aston Martin Vulcan",
+      "powerHp": 820,
+      "torqueLbFt": 590,
+      "aspiration": "na",
+      "priceCredits": 60000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Racing 7.2L V8",
+      "sourceVehicle": "RJ Pro 2 Truck",
+      "powerHp": 850,
+      "torqueLbFt": 640,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "4.6L V8 Hybrid",
+      "sourceVehicle": "Porsche 918 Spyder",
+      "powerHp": 887,
+      "torqueLbFt": 829,
+      "aspiration": "na",
+      "priceCredits": 60000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Racing V6TT",
+      "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+      "powerHp": 914,
+      "torqueLbFt": 702,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.2L V8",
+      "sourceVehicle": "Ford Mustang RTR",
+      "powerHp": 1000,
+      "torqueLbFt": 737,
+      "aspiration": "na",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "Racing 4.0L V6TT",
+      "sourceVehicle": "Formula Drift #64 Nissan 370Z",
+      "powerHp": 1015,
+      "torqueLbFt": 845,
+      "aspiration": "2t",
+      "priceCredits": 40000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.3L V12 Hybrid",
+      "sourceVehicle": "Ferrari FXX K",
+      "powerHp": 1036,
+      "torqueLbFt": 664,
+      "aspiration": "na",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "3.0L V6-TT",
+      "sourceVehicle": "Aston Martin Valhalla Concept Car",
+      "powerHp": 1042,
+      "torqueLbFt": 995,
+      "aspiration": "2t",
+      "priceCredits": 75000,
+      "added": "Series 9"
+    },
+    {
+      "name": "12.8L I6T Diesel",
+      "sourceVehicle": "Mercedes-Benz #24 Tankpool24 Racing Truck",
+      "powerHp": 1080,
+      "torqueLbFt": 3688,
+      "aspiration": "1t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "6.5L V12",
+      "sourceVehicle": "Aston Martin Valkyrie",
+      "powerHp": 1140,
+      "torqueLbFt": 663,
+      "aspiration": "na",
+      "priceCredits": 100000,
+      "added": "Series 29"
+    },
+    {
+      "name": "8.0L W16 - Quad Turbo",
+      "sourceVehicle": "Bugatti Veyron Super Sport",
+      "powerHp": 1183,
+      "torqueLbFt": 1105,
+      "aspiration": "4t",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "5.1L V8 TT",
+      "sourceVehicle": "Koenigsegg One:1",
+      "powerHp": 1341,
+      "torqueLbFt": 1010,
+      "aspiration": "2t",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "8.2L V10 FD",
+      "sourceVehicle": "Formula Drift #43 Dodge Viper SRT10",
+      "powerHp": 1350,
+      "torqueLbFt": 1400,
+      "aspiration": "2t",
+      "priceCredits": 50000,
+      "added": "Series 0"
+    },
+    {
+      "name": "8.9L V8 DSC",
+      "sourceVehicle": "Hot Wheels Monster Trucks Bone Shaker",
+      "powerHp": 1500,
+      "torqueLbFt": 1100,
+      "aspiration": "ps",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "7.4L V8TT",
+      "sourceVehicle": "Funco Motorsports F9",
+      "powerHp": 1750,
+      "torqueLbFt": 1475,
+      "aspiration": "2t",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    },
+    {
+      "name": "1893BHP Motor",
+      "sourceVehicle": "Rimac Nevera",
+      "powerHp": 1893,
+      "torqueLbFt": 1739,
+      "aspiration": "e",
+      "priceCredits": 100000,
+      "added": "Series 21"
+    },
+    {
+      "name": "12.8L I6T Diesel",
+      "sourceVehicle": "Volvo Iron Knight",
+      "powerHp": 2400,
+      "torqueLbFt": 4422,
+      "aspiration": "1t",
+      "priceCredits": 75000,
+      "added": "Series 0"
+    }
+  ],
+  "byPower": {
+    "112": [
+      {
+        "name": "1.8L I4",
+        "sourceVehicle": "Volkswagen Golf GTI",
+        "powerHp": 112,
+        "torqueLbFt": 109,
+        "aspiration": "na",
+        "priceCredits": 10000,
+        "added": "Series 8"
+      }
+    ],
+    "158": [
+      {
+        "name": "1.4L I4 - Turbo",
+        "sourceVehicle": "Abarth 500 esseesse",
+        "powerHp": 158,
+        "torqueLbFt": 169,
+        "aspiration": "1t",
+        "priceCredits": 17500,
+        "added": "Series 24"
+      }
+    ],
+    "172": [
+      {
+        "name": "2.8L V6",
+        "sourceVehicle": "Volkswagen GTI VR6 Mk3",
+        "powerHp": 172,
+        "torqueLbFt": 173,
+        "aspiration": "na",
+        "priceCredits": 12500,
+        "added": "Series 8"
+      }
+    ],
+    "178": [
+      {
+        "name": "2.8L V6",
+        "sourceVehicle": "Volkswagen Corrado VR6",
+        "powerHp": 178,
+        "torqueLbFt": 177,
+        "aspiration": "na",
+        "priceCredits": 10000,
+        "added": "Series 0"
+      }
+    ],
+    "182": [
+      {
+        "name": "1.6L I4 - VVT",
+        "sourceVehicle": "Honda Civic Type R",
+        "powerHp": 182,
+        "torqueLbFt": 118,
+        "aspiration": "na",
+        "priceCredits": 12500,
+        "added": "Series 0"
+      }
+    ],
+    "196": [
+      {
+        "name": "I4 Motorbike Engine",
+        "sourceVehicle": null,
+        "powerHp": 196,
+        "torqueLbFt": 113,
+        "aspiration": "na",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "200": [
+      {
+        "name": "1.3L Rotary Turbo",
+        "sourceVehicle": "Mazda Savanna RX-7",
+        "powerHp": 200,
+        "torqueLbFt": 196,
+        "aspiration": "1t",
+        "priceCredits": 11250,
+        "added": "Series 0"
+      },
+      {
+        "name": "1.8L I4T",
+        "sourceVehicle": "Peugeot 205 T16",
+        "powerHp": 200,
+        "torqueLbFt": 188,
+        "aspiration": "1t",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "207": [
+      {
+        "name": "2.7L F6",
+        "sourceVehicle": "Porsche 911 Carrera RS",
+        "powerHp": 207,
+        "torqueLbFt": 188,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "212": [
+      {
+        "name": "2.0L I4 - VVT",
+        "sourceVehicle": "Honda Civic Type-R",
+        "powerHp": 212,
+        "torqueLbFt": 149,
+        "aspiration": "na",
+        "priceCredits": 12000,
+        "added": "Series 0"
+      }
+    ],
+    "224": [
+      {
+        "name": "2.0L I4 - Turbo",
+        "sourceVehicle": "Ford Escort RS Cosworth",
+        "powerHp": 224,
+        "torqueLbFt": 224,
+        "aspiration": "1t",
+        "priceCredits": 33000,
+        "added": "Series 0"
+      }
+    ],
+    "235": [
+      {
+        "name": "235BHP Motor",
+        "sourceVehicle": null,
+        "powerHp": 235,
+        "torqueLbFt": 173,
+        "aspiration": "e",
+        "priceCredits": 20000,
+        "added": "Series 30"
+      }
+    ],
+    "250": [
+      {
+        "name": "2.0L I4 - Turbo",
+        "sourceVehicle": "Nissan Silvia Spec-R",
+        "powerHp": 250,
+        "torqueLbFt": 203,
+        "aspiration": "1t",
+        "priceCredits": 17500,
+        "added": "Series 0"
+      }
+    ],
+    "261": [
+      {
+        "name": "1.3L 2 Rotor TT",
+        "sourceVehicle": "Mazda RX-7",
+        "powerHp": 261,
+        "torqueLbFt": 217,
+        "aspiration": "2t",
+        "priceCredits": 17500,
+        "added": "Series 0"
+      }
+    ],
+    "262": [
+      {
+        "name": "3.0L V12",
+        "sourceVehicle": "Ferrari 250 California",
+        "powerHp": 262,
+        "torqueLbFt": 188,
+        "aspiration": "na",
+        "priceCredits": 80000,
+        "added": "Series 29"
+      }
+    ],
+    "278": [
+      {
+        "name": "2.0L F4 - Turbo",
+        "sourceVehicle": "SUBARU Impreza WRX STi",
+        "powerHp": 278,
+        "torqueLbFt": 290,
+        "aspiration": "1t",
+        "priceCredits": 15000,
+        "added": "Series 0"
+      }
+    ],
+    "280": [
+      {
+        "name": "2.0L I4 - Turbo",
+        "sourceVehicle": "Mitsubishi Lancer Evolution VI GSR",
+        "powerHp": 280,
+        "torqueLbFt": 300,
+        "aspiration": "1t",
+        "priceCredits": 15000,
+        "added": "Series 0"
+      }
+    ],
+    "296": [
+      {
+        "name": "3.3L F6T",
+        "sourceVehicle": "Porsche 911 Turbo 3.3",
+        "powerHp": 296,
+        "torqueLbFt": 304,
+        "aspiration": "1t",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "300": [
+      {
+        "name": "1.6L I4 - Turbo Rally",
+        "sourceVehicle": null,
+        "powerHp": 300,
+        "torqueLbFt": 332,
+        "aspiration": "1t",
+        "priceCredits": 28000,
+        "added": "Series 0"
+      }
+    ],
+    "305": [
+      {
+        "name": "2.5L F4 - Turbo",
+        "sourceVehicle": "SUBARU WRX STI",
+        "powerHp": 305,
+        "torqueLbFt": 290,
+        "aspiration": "1t",
+        "priceCredits": 22000,
+        "added": "Series 0"
+      }
+    ],
+    "306": [
+      {
+        "name": "2.0L Turbo - VVT",
+        "sourceVehicle": "Honda Civic Type R",
+        "powerHp": 306,
+        "torqueLbFt": 295,
+        "aspiration": "1t",
+        "priceCredits": 19000,
+        "added": "Series 0"
+      }
+    ],
+    "310": [
+      {
+        "name": "5.0L V8T Diesel",
+        "sourceVehicle": "Nissan TITAN Warrior Concept",
+        "powerHp": 310,
+        "torqueLbFt": 555,
+        "aspiration": "1t",
+        "priceCredits": 20000,
+        "added": "Series 18"
+      }
+    ],
+    "321": [
+      {
+        "name": "3.2L I6",
+        "sourceVehicle": "BMW M3",
+        "powerHp": 321,
+        "torqueLbFt": 258,
+        "aspiration": "na",
+        "priceCredits": 10000,
+        "added": "Series 0"
+      }
+    ],
+    "327": [
+      {
+        "name": "2.6L I6 - TT",
+        "sourceVehicle": "Nissan Skyline GT-R V-Spec II",
+        "powerHp": 327,
+        "torqueLbFt": 293,
+        "aspiration": "2t",
+        "priceCredits": 23000,
+        "added": "Series 0"
+      }
+    ],
+    "330": [
+      {
+        "name": "2.0L F4 - Turbo Rally",
+        "sourceVehicle": "Subaru WRX STI VT15R Rally Car",
+        "powerHp": 330,
+        "torqueLbFt": 480,
+        "aspiration": "1t",
+        "priceCredits": 28000,
+        "added": "Series 0"
+      }
+    ],
+    "355": [
+      {
+        "name": "2.0L I4T",
+        "sourceVehicle": "Mercedes-Benz A 45 AMG",
+        "powerHp": 355,
+        "torqueLbFt": 326,
+        "aspiration": "1t",
+        "priceCredits": 15000,
+        "added": "Series 22"
+      }
+    ],
+    "360": [
+      {
+        "name": "Racing V6",
+        "sourceVehicle": "Toyota #1 T100 Baja Truck",
+        "powerHp": 360,
+        "torqueLbFt": 265,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "375": [
+      {
+        "name": "2.5L I5 TURBO",
+        "sourceVehicle": "Donkervoort D8 GTO",
+        "powerHp": 375,
+        "torqueLbFt": 350,
+        "aspiration": "tc",
+        "priceCredits": 30000,
+        "added": "Series 4"
+      },
+      {
+        "name": "3.5L V8",
+        "sourceVehicle": "Ferrari F355 Berlinetta",
+        "powerHp": 375,
+        "torqueLbFt": 288,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "392": [
+      {
+        "name": "Junkyard 6.0L V8",
+        "sourceVehicle": null,
+        "powerHp": 392,
+        "torqueLbFt": 408,
+        "aspiration": "na",
+        "priceCredits": 8000,
+        "added": "Series 22"
+      }
+    ],
+    "414": [
+      {
+        "name": "4.0L V8",
+        "sourceVehicle": "BMW M3",
+        "powerHp": 414,
+        "torqueLbFt": 295,
+        "aspiration": "na",
+        "priceCredits": 24000,
+        "added": "Series 0"
+      }
+    ],
+    "415": [
+      {
+        "name": "6.2L V8",
+        "sourceVehicle": "Chevrolet Super Sport",
+        "powerHp": 415,
+        "torqueLbFt": 415,
+        "aspiration": "na",
+        "priceCredits": 20000,
+        "added": "Series 0"
+      }
+    ],
+    "424": [
+      {
+        "name": "3.6 F6TT",
+        "sourceVehicle": "Porsche 911 GT2",
+        "powerHp": 424,
+        "torqueLbFt": 398,
+        "aspiration": "2t",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "425": [
+      {
+        "name": "7.0L V8",
+        "sourceVehicle": "Dodge Charger R/T",
+        "powerHp": 425,
+        "torqueLbFt": 490,
+        "aspiration": "na",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      },
+      {
+        "name": "7.0L V8 - H",
+        "sourceVehicle": "Dodge Challenger R/T",
+        "powerHp": 425,
+        "torqueLbFt": 490,
+        "aspiration": "na",
+        "priceCredits": 33000,
+        "added": "Series 0"
+      }
+    ],
+    "430": [
+      {
+        "name": "6.2L V8 Crate Engine",
+        "sourceVehicle": null,
+        "powerHp": 430,
+        "torqueLbFt": 417,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 22"
+      }
+    ],
+    "432": [
+      {
+        "name": "4.7L V8",
+        "sourceVehicle": "Maserati Gran Turismo S",
+        "powerHp": 432,
+        "torqueLbFt": 361,
+        "aspiration": "na",
+        "priceCredits": 35000,
+        "added": "Series 24"
+      }
+    ],
+    "450": [
+      {
+        "name": "3.5L V6TT",
+        "sourceVehicle": "Ford F-150 Raptor",
+        "powerHp": 450,
+        "torqueLbFt": 500,
+        "aspiration": "2t",
+        "priceCredits": 20000,
+        "added": "Series 0"
+      }
+    ],
+    "455": [
+      {
+        "name": "5.2L V12",
+        "sourceVehicle": "Lamborghini Countach LP5000 QV",
+        "powerHp": 455,
+        "torqueLbFt": 369,
+        "aspiration": "na",
+        "priceCredits": 35000,
+        "added": "Series 0"
+      }
+    ],
+    "475": [
+      {
+        "name": "3.0L V8 - Racing",
+        "sourceVehicle": "Ariel Atom 500 V8",
+        "powerHp": 475,
+        "torqueLbFt": 268,
+        "aspiration": "na",
+        "priceCredits": 38000,
+        "added": "Series 0"
+      },
+      {
+        "name": "6.7L V8T Diesel",
+        "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+        "powerHp": 475,
+        "torqueLbFt": 1050,
+        "aspiration": "1t",
+        "priceCredits": 20000,
+        "added": "Series 0"
+      }
+    ],
+    "483": [
+      {
+        "name": "Vintage 3.0L DSC V12",
+        "sourceVehicle": "Mercedes-Benz W154",
+        "powerHp": 483,
+        "torqueLbFt": 361,
+        "aspiration": "ps",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "485": [
+      {
+        "name": "7.0L V8",
+        "sourceVehicle": "Ford GT40 Mk II",
+        "powerHp": 485,
+        "torqueLbFt": 475,
+        "aspiration": "na",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "493": [
+      {
+        "name": "4.0L F6",
+        "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+        "powerHp": 493,
+        "torqueLbFt": 339,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      },
+      {
+        "name": "4.0L F6",
+        "sourceVehicle": "Porsche 911 GT3 RS",
+        "powerHp": 493,
+        "torqueLbFt": 339,
+        "aspiration": "na",
+        "priceCredits": 34000,
+        "added": "Series 0"
+      }
+    ],
+    "500": [
+      {
+        "name": "5.0L V10",
+        "sourceVehicle": "BMW M5",
+        "powerHp": 500,
+        "torqueLbFt": 383,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "505": [
+      {
+        "name": "7.0L V8",
+        "sourceVehicle": "Chevrolet Camaro Z/28",
+        "powerHp": 505,
+        "torqueLbFt": 481,
+        "aspiration": "na",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "506": [
+      {
+        "name": "2.1L I4 - Turbo",
+        "sourceVehicle": "Ford RS200 Evolution",
+        "powerHp": 506,
+        "torqueLbFt": 401,
+        "aspiration": "1t",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      },
+      {
+        "name": "2.9L V6TT",
+        "sourceVehicle": "Alfa Romeo Giulia Quadrifoglio",
+        "powerHp": 506,
+        "torqueLbFt": 443,
+        "aspiration": "2t",
+        "priceCredits": 60000,
+        "added": "Series 24"
+      }
+    ],
+    "510": [
+      {
+        "name": "6.2L V8",
+        "sourceVehicle": "Mercedes-Benz C 63 AMG Coupé Black Series",
+        "powerHp": 510,
+        "torqueLbFt": 457,
+        "aspiration": "na",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "526": [
+      {
+        "name": "5.2L V8",
+        "sourceVehicle": "Ford Shelby GT350R",
+        "powerHp": 526,
+        "torqueLbFt": 429,
+        "aspiration": "na",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "536": [
+      {
+        "name": "3.2L F6TT",
+        "sourceVehicle": "Porsche 911 GT1 Strassenversion",
+        "powerHp": 536,
+        "torqueLbFt": 442,
+        "aspiration": "2t",
+        "priceCredits": 75000,
+        "added": "Series 10"
+      }
+    ],
+    "542": [
+      {
+        "name": "3.5L V6TT",
+        "sourceVehicle": "Jaguar XJ220",
+        "powerHp": 542,
+        "torqueLbFt": 473,
+        "aspiration": "2t",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      },
+      {
+        "name": "3.8L V6 - TT",
+        "sourceVehicle": "Nissan GT-R Black Edition",
+        "powerHp": 542,
+        "torqueLbFt": 466,
+        "aspiration": "2t",
+        "priceCredits": 30000,
+        "added": "Series 0"
+      }
+    ],
+    "550": [
+      {
+        "name": "3.5L V8TT",
+        "sourceVehicle": "Nissan R390 (GT1)",
+        "powerHp": 550,
+        "torqueLbFt": 471,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      },
+      {
+        "name": "5.0L V8 DSC",
+        "sourceVehicle": "Land Rover Range Rover Sport SVR",
+        "powerHp": 550,
+        "torqueLbFt": 542,
+        "aspiration": "ps",
+        "priceCredits": 20000,
+        "added": "Series 0"
+      }
+    ],
+    "552": [
+      {
+        "name": "4.8L V10",
+        "sourceVehicle": "Lexus LFA",
+        "powerHp": 552,
+        "torqueLbFt": 354,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "562": [
+      {
+        "name": "4.5L V8",
+        "sourceVehicle": "Ferrari 458 Italia",
+        "powerHp": 562,
+        "torqueLbFt": 398,
+        "aspiration": "na",
+        "priceCredits": 46000,
+        "added": "Series 0"
+      }
+    ],
+    "573": [
+      {
+        "name": "3.5L TT Hybrid",
+        "sourceVehicle": "Acura NSX",
+        "powerHp": 573,
+        "torqueLbFt": 623,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "577": [
+      {
+        "name": "5.5L V8TT",
+        "sourceVehicle": "Mercedes-Benz E 63 AMG",
+        "powerHp": 577,
+        "torqueLbFt": 590,
+        "aspiration": "2t",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "601": [
+      {
+        "name": "5.0L F12",
+        "sourceVehicle": "Porsche #3 917 LH",
+        "powerHp": 601,
+        "torqueLbFt": 415,
+        "aspiration": "na",
+        "priceCredits": 40000,
+        "added": "Series 28"
+      }
+    ],
+    "602": [
+      {
+        "name": "5.2L V10",
+        "sourceVehicle": "Lamborghini Huracán LP 610-4",
+        "powerHp": 602,
+        "torqueLbFt": 413,
+        "aspiration": "na",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "608": [
+      {
+        "name": "5.2L V12 - TT",
+        "sourceVehicle": "Aston Martin DB11",
+        "powerHp": 608,
+        "torqueLbFt": 516,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "622": [
+      {
+        "name": "6.9L V12",
+        "sourceVehicle": "Mercedes-Benz AMG CLK GTR",
+        "powerHp": 622,
+        "torqueLbFt": 539,
+        "aspiration": "na",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "627": [
+      {
+        "name": "6.1L V12",
+        "sourceVehicle": "McLaren F1",
+        "powerHp": 627,
+        "torqueLbFt": 480,
+        "aspiration": "na",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "630": [
+      {
+        "name": "3.5L V6TT",
+        "sourceVehicle": "Ford GT",
+        "powerHp": 630,
+        "torqueLbFt": 539,
+        "aspiration": "2t",
+        "priceCredits": 55000,
+        "added": "Series 0"
+      }
+    ],
+    "640": [
+      {
+        "name": "8.4L V10",
+        "sourceVehicle": "Dodge SRT Viper GTS",
+        "powerHp": 640,
+        "torqueLbFt": 600,
+        "aspiration": "na",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "650": [
+      {
+        "name": "6.0L V12",
+        "sourceVehicle": "Ferrari Enzo Ferrari",
+        "powerHp": 650,
+        "torqueLbFt": 485,
+        "aspiration": "na",
+        "priceCredits": 55000,
+        "added": "Series 0"
+      }
+    ],
+    "660": [
+      {
+        "name": "3.9L V8TT",
+        "sourceVehicle": "Ferrari 488 GTB",
+        "powerHp": 660,
+        "torqueLbFt": 560,
+        "aspiration": "2t",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "662": [
+      {
+        "name": "5.8L V8 - DSC",
+        "sourceVehicle": "Ford Shelby GT500",
+        "powerHp": 662,
+        "torqueLbFt": 631,
+        "aspiration": "ts",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "668": [
+      {
+        "name": "6.2L V8-PDSC",
+        "sourceVehicle": "Cadillac CT5-V Blackwing",
+        "powerHp": 668,
+        "torqueLbFt": 658,
+        "aspiration": "ps",
+        "priceCredits": 30000,
+        "added": "Series 19"
+      }
+    ],
+    "678": [
+      {
+        "name": "7.3L V12",
+        "sourceVehicle": "Pagani Zonda Cinque Roadster",
+        "powerHp": 678,
+        "torqueLbFt": 575,
+        "aspiration": "na",
+        "priceCredits": 75000,
+        "added": "Series 22"
+      }
+    ],
+    "690": [
+      {
+        "name": "670BHP Race Motor",
+        "sourceVehicle": "Porsche Mission R",
+        "powerHp": 690,
+        "torqueLbFt": 741,
+        "aspiration": "e",
+        "priceCredits": 75000,
+        "added": "Series 21"
+      },
+      {
+        "name": "2.6L 4 Rotor - Racing",
+        "sourceVehicle": "Mazda 787B",
+        "powerHp": 690,
+        "torqueLbFt": 448,
+        "aspiration": "na",
+        "priceCredits": 60000,
+        "added": "Series 0"
+      }
+    ],
+    "691": [
+      {
+        "name": "3.8 F6TT",
+        "sourceVehicle": "Porsche 911 GT2 RS",
+        "powerHp": 691,
+        "torqueLbFt": 553,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "700": [
+      {
+        "name": "6.0L W12TT",
+        "sourceVehicle": "Bentley Continental Supersports",
+        "powerHp": 700,
+        "torqueLbFt": 749,
+        "aspiration": "2t",
+        "priceCredits": 100000,
+        "added": "Series 12"
+      },
+      {
+        "name": "6.5L V12",
+        "sourceVehicle": "Lamborghini Aventador LP700-4",
+        "powerHp": 700,
+        "torqueLbFt": 509,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "707": [
+      {
+        "name": "6.2L V8 DSC",
+        "sourceVehicle": "Dodge Challenger SRT Hellcat",
+        "powerHp": 707,
+        "torqueLbFt": 650,
+        "aspiration": "ps",
+        "priceCredits": 25000,
+        "added": "Series 0"
+      }
+    ],
+    "711": [
+      {
+        "name": "3.9L V8-TT",
+        "sourceVehicle": "Ferrari 488 Pista",
+        "powerHp": 711,
+        "torqueLbFt": 567,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 24"
+      }
+    ],
+    "739": [
+      {
+        "name": "6.0L V12 Racing",
+        "sourceVehicle": "Pagani Zonda R",
+        "powerHp": 739,
+        "torqueLbFt": 523,
+        "aspiration": "na",
+        "priceCredits": null,
+        "added": "Series 22"
+      }
+    ],
+    "750": [
+      {
+        "name": "Racing V12",
+        "sourceVehicle": "Ferrari F50 GT",
+        "powerHp": 750,
+        "torqueLbFt": 383,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      },
+      {
+        "name": "2.1L I4T",
+        "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+        "powerHp": 750,
+        "torqueLbFt": 590,
+        "aspiration": "1t",
+        "priceCredits": 50000,
+        "added": "Series 18"
+      }
+    ],
+    "789": [
+      {
+        "name": "4.0L V8TT",
+        "sourceVehicle": "McLaren Senna",
+        "powerHp": 789,
+        "torqueLbFt": 590,
+        "aspiration": "2t",
+        "priceCredits": 75000,
+        "added": "Series 29"
+      }
+    ],
+    "800": [
+      {
+        "name": "7.7L V12",
+        "sourceVehicle": "TVR Cerbera Speed 12",
+        "powerHp": 800,
+        "torqueLbFt": 649,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "805": [
+      {
+        "name": "Racing 3.0L I6T",
+        "sourceVehicle": null,
+        "powerHp": 805,
+        "torqueLbFt": 571,
+        "aspiration": "1t",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "820": [
+      {
+        "name": "7.0L V12",
+        "sourceVehicle": "Aston Martin Vulcan",
+        "powerHp": 820,
+        "torqueLbFt": 590,
+        "aspiration": "na",
+        "priceCredits": 60000,
+        "added": "Series 0"
+      }
+    ],
+    "850": [
+      {
+        "name": "Racing 7.2L V8",
+        "sourceVehicle": "RJ Pro 2 Truck",
+        "powerHp": 850,
+        "torqueLbFt": 640,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "887": [
+      {
+        "name": "4.6L V8 Hybrid",
+        "sourceVehicle": "Porsche 918 Spyder",
+        "powerHp": 887,
+        "torqueLbFt": 829,
+        "aspiration": "na",
+        "priceCredits": 60000,
+        "added": "Series 0"
+      }
+    ],
+    "914": [
+      {
+        "name": "Racing V6TT",
+        "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+        "powerHp": 914,
+        "torqueLbFt": 702,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "1000": [
+      {
+        "name": "7.2L V8",
+        "sourceVehicle": "Ford Mustang RTR",
+        "powerHp": 1000,
+        "torqueLbFt": 737,
+        "aspiration": "na",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "1015": [
+      {
+        "name": "Racing 4.0L V6TT",
+        "sourceVehicle": "Formula Drift #64 Nissan 370Z",
+        "powerHp": 1015,
+        "torqueLbFt": 845,
+        "aspiration": "2t",
+        "priceCredits": 40000,
+        "added": "Series 0"
+      }
+    ],
+    "1036": [
+      {
+        "name": "6.3L V12 Hybrid",
+        "sourceVehicle": "Ferrari FXX K",
+        "powerHp": 1036,
+        "torqueLbFt": 664,
+        "aspiration": "na",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "1042": [
+      {
+        "name": "3.0L V6-TT",
+        "sourceVehicle": "Aston Martin Valhalla Concept Car",
+        "powerHp": 1042,
+        "torqueLbFt": 995,
+        "aspiration": "2t",
+        "priceCredits": 75000,
+        "added": "Series 9"
+      }
+    ],
+    "1080": [
+      {
+        "name": "12.8L I6T Diesel",
+        "sourceVehicle": "Mercedes-Benz #24 Tankpool24 Racing Truck",
+        "powerHp": 1080,
+        "torqueLbFt": 3688,
+        "aspiration": "1t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "1140": [
+      {
+        "name": "6.5L V12",
+        "sourceVehicle": "Aston Martin Valkyrie",
+        "powerHp": 1140,
+        "torqueLbFt": 663,
+        "aspiration": "na",
+        "priceCredits": 100000,
+        "added": "Series 29"
+      }
+    ],
+    "1183": [
+      {
+        "name": "8.0L W16 - Quad Turbo",
+        "sourceVehicle": "Bugatti Veyron Super Sport",
+        "powerHp": 1183,
+        "torqueLbFt": 1105,
+        "aspiration": "4t",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "1341": [
+      {
+        "name": "5.1L V8 TT",
+        "sourceVehicle": "Koenigsegg One:1",
+        "powerHp": 1341,
+        "torqueLbFt": 1010,
+        "aspiration": "2t",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "1350": [
+      {
+        "name": "8.2L V10 FD",
+        "sourceVehicle": "Formula Drift #43 Dodge Viper SRT10",
+        "powerHp": 1350,
+        "torqueLbFt": 1400,
+        "aspiration": "2t",
+        "priceCredits": 50000,
+        "added": "Series 0"
+      }
+    ],
+    "1500": [
+      {
+        "name": "8.9L V8 DSC",
+        "sourceVehicle": "Hot Wheels Monster Trucks Bone Shaker",
+        "powerHp": 1500,
+        "torqueLbFt": 1100,
+        "aspiration": "ps",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "1750": [
+      {
+        "name": "7.4L V8TT",
+        "sourceVehicle": "Funco Motorsports F9",
+        "powerHp": 1750,
+        "torqueLbFt": 1475,
+        "aspiration": "2t",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ],
+    "1893": [
+      {
+        "name": "1893BHP Motor",
+        "sourceVehicle": "Rimac Nevera",
+        "powerHp": 1893,
+        "torqueLbFt": 1739,
+        "aspiration": "e",
+        "priceCredits": 100000,
+        "added": "Series 21"
+      }
+    ],
+    "2400": [
+      {
+        "name": "12.8L I6T Diesel",
+        "sourceVehicle": "Volvo Iron Knight",
+        "powerHp": 2400,
+        "torqueLbFt": 4422,
+        "aspiration": "1t",
+        "priceCredits": 75000,
+        "added": "Series 0"
+      }
+    ]
+  }
+}

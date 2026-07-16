@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { EmptyState } from '../shared/EmptyState'
 import {
   PART_CATEGORIES,
@@ -6,6 +6,34 @@ import {
 } from '../../data/parts'
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets'
 import { useTuneManager, FIX_PARAM_MAP } from '../../hooks/useTuneManager'
+
+function VehicleSearchSelect({ id, value, options, onChange, style, placeholder = '输入品牌、年份或车型搜索' }) {
+  const selected = options.find(option => String(option.id) === String(value))
+  const [query, setQuery] = useState(selected?.name || '')
+
+  useEffect(() => {
+    setQuery(options.find(option => String(option.id) === String(value))?.name || '')
+  }, [value, options])
+
+  return <>
+    <input
+      list={`${id}-options`}
+      value={query}
+      placeholder={placeholder}
+      onChange={event => {
+        const next = event.target.value
+        setQuery(next)
+        const matched = options.find(option => option.name === next)
+        if (matched) onChange(String(matched.id))
+        else if (!next) onChange('')
+      }}
+      style={style}
+    />
+    <datalist id={`${id}-options`}>
+      {options.map(option => <option key={option.id} value={option.name} />)}
+    </datalist>
+  </>
+}
 
 export function TuneManagerPage({ onNavigate, navIntent }) {
   const {
@@ -51,10 +79,20 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setCollapsedSections,
     targetPi,
     setTargetPi,
+    solutionPi,
+    setSolutionPi,
     basePi,
     setBasePi,
-    autoUpgradeLoading,
-    setAutoUpgradeLoading,
+    wizardStep,
+    setWizardStep,
+    buildMode,
+    setBuildMode,
+    selectVehicleForDraft,
+    chooseBuildMode,
+    aiRaceType,
+    setAiRaceType,
+    aiDriveType,
+    setAiDriveType,
     drivingProblemsOpen,
     setDrivingProblemsOpen,
     selectedProblem,
@@ -77,6 +115,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setTuneSessionStats,
     partsPiDelta,
     totalPi,
+    totalPiUpper,
+    unknownPiSelectionCount,
+    piIsVerified,
     currentVehicleStats,
     handleAutoUpgrade,
     applyProblemFix,
@@ -117,6 +158,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     resetAllToDefaults,
     updatePartSelection,
     tuneConstraints,
+    upgradeShop,
+    visiblePartCategories,
     exportTune,
     uint8ToBase64,
     base64ToUint8,
@@ -133,6 +176,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setTelemetrySuggestions,
     applyTelemetrySuggestions
   } = useTuneManager({ onNavigate, navIntent });
+  const hasAiOption = (slotId, optionId) => upgradeShop?.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === optionId && option.aiEligible === true && Number.isFinite(Number(option.piUpperEstimate)))
+  const aiRaceAvailability = {
+    road: true,
+    dirt: hasAiOption('tires_compound', 'rally') && hasAiOption('suspension', 'rally'),
+    cross_country: hasAiOption('tires_compound', 'offroad') && hasAiOption('suspension', 'offroad'),
+    drift: hasAiOption('suspension', 'drift') && hasAiOption('differential', 'drift')
+  }
   return (
     <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8, padding: '0 6px' }}>
@@ -182,16 +232,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           placeholder="按名称搜索..."
           style={{ ...inputStyle, width: 180, marginBottom: 0 }}
         />
-        <select
-          value={vehicleFilter}
-          onChange={e => setVehicleFilter(e.target.value)}
-          style={{ ...inputStyle, width: 160, marginBottom: 0 }}
-        >
-          <option value="">全部车辆</option>
-          {vehicleOptions.map(v => (
-            <option key={v.id} value={v.id}>{v.name}</option>
-          ))}
-        </select>
+        <VehicleSearchSelect id="vehicle-filter" value={vehicleFilter} options={vehicleOptions} onChange={setVehicleFilter} placeholder="筛选车辆" style={{ ...inputStyle, width: 180, marginBottom: 0 }} />
         <select
           value={tagFilter}
           onChange={e => setTagFilter(e.target.value)}
@@ -470,6 +511,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               }}>
                 <span style={{ color: 'var(--text-muted)' }}>适用车辆:</span>
                 <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{getVehicleName(tune.vehicleId)}</span>
+                {Number.isFinite(Number(tune.totalPi)) && (
+                  <span style={{ marginLeft: 'auto', fontWeight: 800, color: '#d29922', fontFamily: 'monospace' }}>
+                    PI {tune.totalPi}
+                  </span>
+                )}
               </div>
 
               {/* Round 6: 调校与比赛关联统计 */}
@@ -591,10 +637,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <ParamItem label="前胎压" value={tune.tires?.frontPressure} unit="PSI" defaultValue={tuneDefaultsForView['tires.frontPressure']} />
                       <ParamItem label="后胎压" value={tune.tires?.rearPressure} unit="PSI" defaultValue={tuneDefaultsForView['tires.rearPressure']} />
-                      <ParamItem label="前外倾角" value={tune.tires?.frontCamber} unit="deg" defaultValue={tuneDefaultsForView['tires.frontCamber']} />
-                      <ParamItem label="后外倾角" value={tune.tires?.rearCamber} unit="deg" defaultValue={tuneDefaultsForView['tires.rearCamber']} />
-                      <ParamItem label="前束角" value={tune.tires?.frontToe} unit="deg" defaultValue={tuneDefaultsForView['tires.frontToe']} />
-                      <ParamItem label="后束角" value={tune.tires?.rearToe} unit="deg" defaultValue={tuneDefaultsForView['tires.rearToe']} />
+                      <ParamItem label="前外倾角" value={tune.tires?.frontCamber} unit="°" defaultValue={tuneDefaultsForView['tires.frontCamber']} />
+                      <ParamItem label="后外倾角" value={tune.tires?.rearCamber} unit="°" defaultValue={tuneDefaultsForView['tires.rearCamber']} />
+                      <ParamItem label="前束角" value={tune.tires?.frontToe} unit="°" defaultValue={tuneDefaultsForView['tires.frontToe']} />
+                      <ParamItem label="后束角" value={tune.tires?.rearToe} unit="°" defaultValue={tuneDefaultsForView['tires.rearToe']} />
+                      <ParamItem label="主销后倾角" value={tune.tires?.frontCaster} unit="°" defaultValue={tuneDefaultsForView['tires.frontCaster']} />
                     </div>
                   </div>
 
@@ -606,8 +653,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <ParamItem label="前弹簧硬度" value={tune.suspension?.frontSpring} defaultValue={tuneDefaultsForView['suspension.frontSpring']} />
                       <ParamItem label="后弹簧硬度" value={tune.suspension?.rearSpring} defaultValue={tuneDefaultsForView['suspension.rearSpring']} />
-                      <ParamItem label="前阻尼" value={tune.suspension?.frontDamping} defaultValue={tuneDefaultsForView['suspension.frontDamping']} />
-                      <ParamItem label="后阻尼" value={tune.suspension?.rearDamping} defaultValue={tuneDefaultsForView['suspension.rearDamping']} />
+                      <ParamItem label="前回弹阻尼" value={tune.suspension?.frontRebound} defaultValue={tuneDefaultsForView['suspension.frontRebound']} />
+                      <ParamItem label="后回弹阻尼" value={tune.suspension?.rearRebound} defaultValue={tuneDefaultsForView['suspension.rearRebound']} />
+                      <ParamItem label="前压缩阻尼" value={tune.suspension?.frontBump} defaultValue={tuneDefaultsForView['suspension.frontBump']} />
+                      <ParamItem label="后压缩阻尼" value={tune.suspension?.rearBump} defaultValue={tuneDefaultsForView['suspension.rearBump']} />
                       <ParamItem label="前防倾杆" value={tune.suspension?.frontARB} defaultValue={tuneDefaultsForView['suspension.frontARB']} />
                       <ParamItem label="后防倾杆" value={tune.suspension?.rearARB} defaultValue={tuneDefaultsForView['suspension.rearARB']} />
                       <ParamItem label="前车身高度" value={tune.suspension?.frontRideHeight} unit="cm" defaultValue={tuneDefaultsForView['suspension.frontRideHeight']} />
@@ -621,8 +670,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       传动系统
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <ParamItem label="差速器加速" value={tune.drivetrain?.diffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.diffAccel']} />
-                      <ParamItem label="差速器减速" value={tune.drivetrain?.diffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.diffDecel']} />
+                      <ParamItem label="前差速器加速" value={tune.drivetrain?.frontDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffAccel']} />
+                      <ParamItem label="前差速器减速" value={tune.drivetrain?.frontDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffDecel']} />
+                      <ParamItem label="后差速器加速" value={tune.drivetrain?.rearDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffAccel']} />
+                      <ParamItem label="后差速器减速" value={tune.drivetrain?.rearDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffDecel']} />
                       <ParamItem label="中央差速器" value={tune.drivetrain?.diffCenter} unit="%" defaultValue={tuneDefaultsForView['drivetrain.diffCenter']} />
                       <ParamItem label="终传比" value={tune.drivetrain?.finalDrive} defaultValue={tuneDefaultsForView['drivetrain.finalDrive']} />
                     </div>
@@ -633,6 +684,15 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       <ParamItem label="4档齿比" value={tune.drivetrain?.gear4} defaultValue={tuneDefaultsForView['drivetrain.gear4']} />
                       <ParamItem label="5档齿比" value={tune.drivetrain?.gear5} defaultValue={tuneDefaultsForView['drivetrain.gear5']} />
                       <ParamItem label="6档齿比" value={tune.drivetrain?.gear6} defaultValue={tuneDefaultsForView['drivetrain.gear6']} />
+                      {[7, 8, 9, 10].map(gear => <ParamItem key={gear} label={`${gear}档齿比`} value={tune.drivetrain?.[`gear${gear}`]} defaultValue={tuneDefaultsForView[`drivetrain.gear${gear}`]} />)}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 12, borderLeft: '3px solid #f85149', paddingLeft: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f85149', marginBottom: 8 }}>制动系统</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <ParamItem label="制动力平衡" value={tune.brakes?.balance} unit="%" defaultValue={tuneDefaultsForView['brakes.balance']} />
+                      <ParamItem label="制动力压力" value={tune.brakes?.pressure} unit="%" defaultValue={tuneDefaultsForView['brakes.pressure']} />
                     </div>
                   </div>
 
@@ -740,6 +800,59 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </button>
             </div>
 
+            {!editingTune && (
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {['选择车辆', '选择方式', '改装配件', '填写调教'].map((label, index) => {
+                  const step = index + 1
+                  return <div key={label} style={{ flex: 1, padding: '6px 4px', textAlign: 'center', borderRadius: 4, fontSize: 10, fontWeight: 600, background: wizardStep === step ? 'var(--accent)' : (wizardStep > step ? 'rgba(63,185,80,.2)' : 'var(--bg-tertiary)'), color: wizardStep >= step ? '#fff' : 'var(--text-muted)' }}>{step}. {label}</div>
+                })}
+              </div>
+            )}
+
+            {!editingTune && wizardStep === 1 && (
+              <div style={{ padding: 16, border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>先选择车辆</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 12 }}>后续只会展示这台车在资料库中可用的改装项目。</div>
+                <VehicleSearchSelect id="create-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={selectVehicleForDraft} style={inputStyle} />
+                <button onClick={() => setWizardStep(2)} disabled={!formData.vehicleId} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12 }}>下一步</button>
+              </div>
+            )}
+
+            {!editingTune && wizardStep === 2 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>选择改装方式</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button onClick={() => chooseBuildMode('manual')} style={{ ...btnSmallStyle, padding: 16, textAlign: 'left', borderColor: buildMode === 'manual' ? 'var(--accent)' : 'var(--border)' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>自己改装</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>逐项选择这台车可用的改装件。</div>
+                  </button>
+                  <button onClick={() => chooseBuildMode('ai')} style={{ ...btnSmallStyle, padding: 16, textAlign: 'left', borderColor: buildMode === 'ai' ? '#3fb950' : 'var(--border)' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>AI 生成改装</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>按目标 PI 与用途生成后仍可手动调整。</div>
+                  </button>
+                </div>
+                {buildMode === 'ai' && <div style={{ marginTop: 12, padding: 12, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6 }}>
+                  <label style={labelStyle}>用途</label>
+                  <select value={aiRaceType} onChange={e => setAiRaceType(e.target.value)} style={inputStyle}>
+                    <option value="road">公路赛</option>
+                    <option value="dirt" disabled={!aiRaceAvailability.dirt}>泥地赛{!aiRaceAvailability.dirt ? '：当前车辆资料不足' : ''}</option>
+                    <option value="cross_country" disabled={!aiRaceAvailability.cross_country}>越野赛{!aiRaceAvailability.cross_country ? '：当前车辆资料不足' : ''}</option>
+                    <option value="drift" disabled={!aiRaceAvailability.drift}>漂移{!aiRaceAvailability.drift ? '：当前车辆资料不足' : ''}</option>
+                  </select>
+                  <label style={{ ...labelStyle, marginTop: 8 }}>驱动形式</label>
+                  <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
+                    <option value="fwd">前轮驱动</option>
+                    <option value="rwd">后轮驱动</option>
+                    <option value="awd">四轮驱动</option>
+                  </select>
+                  <label style={{ ...labelStyle, marginTop: 8 }}>目标等级</label>
+                  <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={inputStyle}>
+                    <option value="500">D 500</option><option value="600">C 600</option><option value="700">B 700</option><option value="800">A 800</option><option value="900">S1 900</option><option value="998">S2 998</option><option value="999">X 999</option>
+                  </select>
+                  <button onClick={async () => { const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType }); if (generated) { setFormData(prev => ({ ...prev, tags: prev.tags || aiRaceType })); setWizardStep(3) } }} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636' }}>生成方案</button>
+                </div>}
+                <button onClick={() => setWizardStep(1)} style={{ ...btnSmallStyle, width: '100%', marginTop: 10 }}>上一步</button>
+              </div>
+            )}
+
             {telemetrySuggestions && (
               <div style={{
                 background: 'rgba(210, 153, 34, 0.08)',
@@ -825,7 +938,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             )}
 
             {/* 基本信息 */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, display: (editingTune || wizardStep === 4) ? 'block' : 'none' }}>
               <label style={labelStyle}>调校名称</label>
               <input
                 value={formData.name}
@@ -835,7 +948,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div style={{ display: (editingTune || wizardStep === 4) ? 'grid' : 'none', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
                 <label style={labelStyle}>标签（用逗号分隔）</label>
                 <input
@@ -847,21 +960,12 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
               <div>
                 <label style={labelStyle}>适用车辆</label>
-                <select
-                  value={formData.vehicleId}
-                  onChange={e => setFormData(prev => ({ ...prev, vehicleId: e.target.value }))}
-                  style={inputStyle}
-                >
-                  <option value="">未指定</option>
-                  {vehicleOptions.map(v => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
+                <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
               </div>
             </div>
 
             {/* Round 5: 调校笔记 */}
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16, display: (editingTune || wizardStep === 4) ? 'block' : 'none' }}>
               <label style={labelStyle}>调校笔记</label>
               <textarea
                 value={formData.notes || ''}
@@ -878,7 +982,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             </div>
 
             {/* 自由改装模式与智能改装向导 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', background: 'rgba(56, 139, 253, 0.1)', border: '1px solid rgba(56, 139, 253, 0.3)', borderRadius: 6 }}>
+            <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', background: 'rgba(56, 139, 253, 0.1)', border: '1px solid rgba(56, 139, 253, 0.3)', borderRadius: 6 }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#58a6ff' }}>自由改装模式</span>
                 <span style={{ fontSize: 9, color: '#8b949e' }}>开启后解除配件解锁限制，直接开启全部调校参数（原厂参数直接调校）</span>
@@ -891,7 +995,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               />
             </div>
 
-            <div style={{
+            <div style={{ display: 'none',
               background: 'rgba(35, 134, 54, 0.08)',
               border: '1px solid rgba(35, 134, 54, 0.3)',
               borderRadius: 8,
@@ -906,7 +1010,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 <div>
                   <label style={{ ...labelStyle, marginBottom: 2, fontSize: 9 }}>赛事类型</label>
                   <select id="presetRaceType" style={{ ...inputStyle, padding: '4px 6px', fontSize: 10, height: 26 }} defaultValue="road">
-                    <option value="road">公路赛/街头赛 (高下压力/硬避震)</option>
+                    <option value="road">公路赛与街头赛</option>
                     <option value="dirt">泥地赛 (拉力避震/拉力胎/AWD)</option>
                     <option value="cross_country">越野赛 (最大高度/软避震/AWD)</option>
                     <option value="drift">漂移赛 (大前外倾/双100%锁/漂移避震)</option>
@@ -941,7 +1045,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             </div>
 
             {/* Round 7: 配件推荐引擎 */}
-            {formData.vehicleId && (
+            {formData.vehicleId && (editingTune || wizardStep >= 3) && (
               <div style={{
                 background: 'var(--bg-primary)',
                 borderRadius: 8,
@@ -970,7 +1074,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     // 基于驱动类型的推荐
                     if (driveType === 'FWD') {
                       recommendations.push({ cat: ' diffs', text: '前驱车推荐较硬前弹簧和高前防倾杆，减少转向不足', color: '#58a6ff' });
-                      recommendations.push({ cat: ' tires', text: '前驱车前轮承载更多，建议略高前胎压(32-34PSI)', color: '#58a6ff' });
+                      recommendations.push({ cat: ' tires', text: '前驱车前轮承载更多，建议将前胎压设为 32 至 34 PSI', color: '#58a6ff' });
                     } else if (driveType === 'RWD') {
                       recommendations.push({ cat: ' diffs', text: '后驱车推荐较低的差速器减速设定(15-30%)，增强弯中稳定性', color: '#3fb950' });
                       recommendations.push({ cat: ' diffs', text: '后驱车建议后弹簧比前弹簧略软，提升后轮抓地力', color: '#3fb950' });
@@ -979,7 +1083,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     }
                     // 基于等级的推荐
                     if (vClass >= 5) {
-                      recommendations.push({ cat: ' aero', text: '高等级(S1/S2)车辆建议加大下压力，优先增加后下压力', color: '#bc8cff' });
+                      recommendations.push({ cat: ' aero', text: 'S1 与 S2 等级车辆建议加大下压力，优先增加后下压力', color: '#bc8cff' });
                       recommendations.push({ cat: ' brakes', text: '高速赛道建议升级刹车套件至赛用级别', color: '#f85149' });
                     } else if (vClass <= 2) {
                       recommendations.push({ cat: ' power', text: '低等级车辆建议优先升级引擎和进气，提升基础马力', color: '#3fb950' });
@@ -1002,8 +1106,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
             )}
 
-            {/* PI锁定区域 */}
-            <div style={{
+            {/* 当前方案 PI；只有 AI 模式需要目标等级约束。 */}
+            {(editingTune || wizardStep === 3) && <div style={{
               background: 'var(--bg-primary)',
               borderRadius: 8,
               padding: 12,
@@ -1019,31 +1123,38 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span>PI 锁定区域</span>
+                <span>{buildMode === 'ai' ? (piIsVerified ? 'PI 等级控制' : 'PI 预估区域') : '当前方案 PI'}</span>
                 <span style={{
                   fontSize: 11,
                   fontWeight: 800,
                   fontFamily: 'monospace',
-                  color: totalPi > targetPi ? '#da3633' : 'var(--success)'
+                  color: buildMode === 'ai' && totalPi > targetPi ? '#da3633' : 'var(--success)'
                 }}>
-                  总PI: {totalPi} / {targetPi}
+                  {buildMode === 'ai'
+                    ? `${piIsVerified ? '总PI' : '预估PI'}：${totalPi} / ${targetPi}`
+                    : `当前 PI：${solutionPi === null ? totalPi : solutionPi}`}
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              {buildMode === 'ai' && totalPiUpper !== totalPi && (
+                <div style={{ marginBottom: 8, textAlign: 'right', fontSize: 10, color: totalPiUpper > targetPi ? '#da3633' : '#d29922' }}>
+                  AI 保守 PI 上界：{totalPiUpper} / {targetPi}
+                </div>
+              )}
+              {buildMode === 'ai' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>基础PI</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>官方原厂 PI</div>
                   <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
                     {basePi}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>配件PI增量</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{piIsVerified ? '配件PI增量' : '预估配件增量'}</div>
                   <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', color: partsPiDelta > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                     +{partsPiDelta}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>总PI</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{piIsVerified ? '总PI' : '预估PI'}</div>
                   <div style={{
                     fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
                     color: totalPi > targetPi ? '#da3633' : 'var(--text-primary)'
@@ -1051,47 +1162,20 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     {totalPi}
                   </div>
                 </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={labelStyle}>目标PI上限</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="range"
-                      min={basePi}
-                      max={1000}
-                      step={1}
-                      value={targetPi}
-                      onChange={e => setTargetPi(parseInt(e.target.value))}
-                      style={{ flex: 1, accentColor: '#d29922' }}
-                    />
-                    <input
-                      type="number"
-                      min={basePi}
-                      max={1000}
-                      value={targetPi}
-                      onChange={e => {
-                        const val = parseInt(e.target.value)
-                        if (val >= basePi && val <= 1000) setTargetPi(val)
-                      }}
-                      style={{ ...inputStyle, width: 70, textAlign: 'center' }}
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={handleAutoUpgrade}
-                  disabled={autoUpgradeLoading || totalPi >= targetPi}
-                  style={{
-                    ...btnPrimaryStyle,
-                    background: autoUpgradeLoading ? '#484f58' : (totalPi >= targetPi ? '#484f58' : '#d29922'),
-                    whiteSpace: 'nowrap',
-                    marginTop: 14
-                  }}
-                >
-                  {autoUpgradeLoading ? '升级中...' : (totalPi >= targetPi ? '已达上限' : '一键升级')}
-                </button>
-              </div>
-              {totalPi > targetPi && (
+              </div>}
+              {buildMode === 'ai' && <div>
+                <label style={labelStyle}>目标 PI 等级</label>
+                <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }}>
+                  <option value="500" disabled={basePi > 500}>D 500</option>
+                  <option value="600" disabled={basePi > 600}>C 600</option>
+                  <option value="700" disabled={basePi > 700}>B 700</option>
+                  <option value="800" disabled={basePi > 800}>A 800</option>
+                  <option value="900" disabled={basePi > 900}>S1 900</option>
+                  <option value="998" disabled={basePi > 998}>S2 998</option>
+                  <option value="999" disabled={basePi > 999}>X 999</option>
+                </select>
+              </div>}
+              {buildMode === 'ai' && totalPi > targetPi && (
                 <div style={{
                   marginTop: 8,
                   padding: '6px 10px',
@@ -1100,13 +1184,33 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   fontSize: 10,
                   color: '#da3633'
                 }}>
-                  当前PI已超出目标上限 {totalPi - targetPi} 点，请降低配件等级或提高PI上限
+                  {piIsVerified ? '当前PI' : '当前预估PI'}已超出目标上限 {totalPi - targetPi} 点，请降低配件等级或提高PI上限
                 </div>
               )}
-            </div>
+              <div style={{ marginTop: buildMode === 'ai' ? 10 : 0 }}>
+                <label style={labelStyle}>{buildMode === 'ai' ? '保存方案 PI' : '当前 PI'}</label>
+                <input
+                  type="number"
+                  min="100"
+                  max="999"
+                  step="1"
+                  value={solutionPi === null ? totalPi : solutionPi}
+                  onChange={e => setSolutionPi(e.target.value)}
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                />
+                <div style={{ marginTop: 5, fontSize: 9, color: 'var(--text-muted)' }}>
+                  系统按配件预估为 {totalPi} PI；请按游戏内最终结果修改，保存后记录在这套方案上。
+                </div>
+              </div>
+              {unknownPiSelectionCount > 0 && (
+                <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(188,140,255,0.1)', borderRadius: 4, fontSize: 10, color: '#bc8cff' }}>
+                  当前有 {unknownPiSelectionCount} 个车辆专属配件缺少 PI 数据，未计入系统预估。请按游戏内最终 PI 填写上方数值。
+                </div>
+              )}
+            </div>}
 
             {/* 配件改装区域 */}
-            <div style={{
+            {(editingTune || wizardStep === 3) && <div style={{
               background: 'var(--bg-primary)',
               borderRadius: 8,
               padding: 12,
@@ -1124,30 +1228,61 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               }}>
                 <span>改装配件</span>
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
-                  {PART_CATEGORIES.filter(c => {
+                  {visiblePartCategories.filter(c => {
                     const p = formData.parts[c.id]
                     if (c.tierSystem) return p?.tier && p.tier !== 'stock'
                     return p?.optionId && p.optionId !== 'stock'
                   }).length} 项改装
                 </span>
               </div>
+              {!editingTune && buildMode === 'ai' && (
+                <div style={{ gridColumn: '1 / -1', marginBottom: 10, padding: '8px 10px', background: 'rgba(35,134,54,0.1)', border: '1px solid rgba(35,134,54,0.3)', borderRadius: 5, color: '#3fb950', fontSize: 10 }}>
+                  这是 AI 生成的配件草稿。请按游戏内实际选项逐项确认或修改；进入下一步后，调教项目会以最终确认的配件为准重新生成。
+                </div>
+              )}
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 8
               }}>
-                {PART_CATEGORIES.map(cat => {
-                  const selectedPart = formData.parts[cat.id]
-                  return <PartSelector
-                    key={cat.id}
-                    category={cat}
-                    selected={selectedPart}
-                    onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
-                  />
-                })}
+                {upgradeShop?.status === 'unverified' ? (
+                  <div style={{ gridColumn: '1 / -1', padding: '18px 12px', border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>
+                    {upgradeShop.message || '请先选择一辆已有改装资料的车辆。'}
+                  </div>
+                ) : Object.entries(visiblePartCategories.reduce((groups, category) => {
+                  const group = category.group || '其他改装'
+                  ;(groups[group] ||= []).push(category)
+                  return groups
+                }, {})).map(([group, categories]) => (
+                  <React.Fragment key={group}>
+                    <div style={{ gridColumn: '1 / -1', marginTop: 4, padding: '4px 2px', borderBottom: '1px solid var(--border)', color: group === '车辆专属' ? '#bc8cff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 700 }}>
+                      {group}
+                    </div>
+                    {categories.map(cat => {
+                      const selectedPart = formData.parts[cat.id]
+                      return <PartSelector
+                        key={cat.id}
+                        category={cat}
+                        selected={selectedPart}
+                        onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
+                      />
+                    })}
+                  </React.Fragment>
+                ))}
               </div>
-            </div>
+            </div>}
 
+            {(editingTune || wizardStep === 4) && <>
+            {(!editingTune && !upgradeShop?.tuneParameters?.length) ? (
+              <div style={{ padding: 14, border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, marginBottom: 12 }}>
+                该车的可调教参数与游戏范围仍在补充中。为避免显示错误的通用参数，当前不展示未验证的调教项。
+              </div>
+            ) : <>
+            {(upgradeShop?.tuneParameters || []).some(parameter => parameter.rangeConfidence === 'vehicle_specific_unknown') && (
+              <div style={{ padding: '8px 10px', marginBottom: 10, background: 'rgba(188,140,255,0.08)', border: '1px solid rgba(188,140,255,0.25)', borderRadius: 5, color: '#bc8cff', fontSize: 10 }}>
+                弹簧、车高、逐挡齿比或下压力中的部分范围需要按当前车辆在游戏内核对。手动模式可以填写；AI 会保留为空，避免生成超出该车范围的数值。
+              </div>
+            )}
             {/* 轮胎参数 */}
             <div style={formSectionStyle}>
               <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('tires')}>
@@ -1225,6 +1360,17 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   locked={tuneConstraints['tires.rearToe']?.locked}
                   {...ni('tires', 'rearToe')}
                 />
+                <NumberInput
+                  label="主销后倾角"
+                  value={formData.tires.frontCaster}
+                  onChange={v => updateFormField('tires', 'frontCaster', v)}
+                  min={tuneConstraints['tires.frontCaster']?.min ?? 1}
+                  max={tuneConstraints['tires.frontCaster']?.max ?? 7}
+                  step={tuneConstraints['tires.frontCaster']?.step ?? 0.1}
+                  unit="°"
+                  locked={tuneConstraints['tires.frontCaster']?.locked}
+                  {...ni('tires', 'frontCaster')}
+                />
               </div>}
             </div>
 
@@ -1259,26 +1405,22 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   locked={tuneConstraints['suspension.rearSpring']?.locked}
                   {...ni('suspension', 'rearSpring')}
                 />
-                <NumberInput
-                  label="前阻尼"
-                  value={formData.suspension.frontDamping}
-                  onChange={v => updateFormField('suspension', 'frontDamping', v)}
-                  min={tuneConstraints['suspension.frontDamping']?.min ?? 1}
-                  max={tuneConstraints['suspension.frontDamping']?.max ?? 20}
-                  step={tuneConstraints['suspension.frontDamping']?.step ?? 1}
-                  locked={tuneConstraints['suspension.frontDamping']?.locked}
-                  {...ni('suspension', 'frontDamping')}
-                />
-                <NumberInput
-                  label="后阻尼"
-                  value={formData.suspension.rearDamping}
-                  onChange={v => updateFormField('suspension', 'rearDamping', v)}
-                  min={tuneConstraints['suspension.rearDamping']?.min ?? 1}
-                  max={tuneConstraints['suspension.rearDamping']?.max ?? 20}
-                  step={tuneConstraints['suspension.rearDamping']?.step ?? 1}
-                  locked={tuneConstraints['suspension.rearDamping']?.locked}
-                  {...ni('suspension', 'rearDamping')}
-                />
+                {[
+                  ['frontRebound', '前回弹阻尼'], ['rearRebound', '后回弹阻尼'],
+                  ['frontBump', '前压缩阻尼'], ['rearBump', '后压缩阻尼']
+                ].map(([field, label]) => (
+                  <NumberInput
+                    key={field}
+                    label={label}
+                    value={formData.suspension[field]}
+                    onChange={v => updateFormField('suspension', field, v)}
+                    min={tuneConstraints[`suspension.${field}`]?.min ?? 1}
+                    max={tuneConstraints[`suspension.${field}`]?.max ?? 20}
+                    step={tuneConstraints[`suspension.${field}`]?.step ?? 0.1}
+                    locked={tuneConstraints[`suspension.${field}`]?.locked}
+                    {...ni('suspension', field)}
+                  />
+                ))}
                 <NumberInput
                   label="前防倾杆"
                   value={formData.suspension.frontARB}
@@ -1336,28 +1478,23 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
               {!collapsedSections.has('drivetrain') && <>
                 <div style={formGridStyle}>
-                <NumberInput
-                  label="差速器加速"
-                  value={formData.drivetrain.diffAccel}
-                  onChange={v => updateFormField('drivetrain', 'diffAccel', v)}
-                  min={tuneConstraints['drivetrain.diffAccel']?.min ?? 0}
-                  max={tuneConstraints['drivetrain.diffAccel']?.max ?? 100}
-                  step={tuneConstraints['drivetrain.diffAccel']?.step ?? 1}
-                  unit="%"
-                  locked={tuneConstraints['drivetrain.diffAccel']?.locked}
-                  {...ni('drivetrain', 'diffAccel')}
-                />
-                <NumberInput
-                  label="差速器减速"
-                  value={formData.drivetrain.diffDecel}
-                  onChange={v => updateFormField('drivetrain', 'diffDecel', v)}
-                  min={tuneConstraints['drivetrain.diffDecel']?.min ?? 0}
-                  max={tuneConstraints['drivetrain.diffDecel']?.max ?? 100}
-                  step={tuneConstraints['drivetrain.diffDecel']?.step ?? 1}
-                  unit="%"
-                  locked={tuneConstraints['drivetrain.diffDecel']?.locked}
-                  {...ni('drivetrain', 'diffDecel')}
-                />
+                {[
+                  ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
+                  ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
+                ].map(([field, label]) => (
+                  <NumberInput
+                    key={field}
+                    label={label}
+                    value={formData.drivetrain[field]}
+                    onChange={v => updateFormField('drivetrain', field, v)}
+                    min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
+                    max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
+                    step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
+                    unit="%"
+                    locked={tuneConstraints[`drivetrain.${field}`]?.locked}
+                    {...ni('drivetrain', field)}
+                  />
+                ))}
                 <NumberInput
                   label="中央差速器"
                   value={formData.drivetrain.diffCenter}
@@ -1441,8 +1578,52 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   locked={tuneConstraints['drivetrain.gear6']?.locked}
                   {...ni('drivetrain', 'gear6')}
                 />
+                {[7, 8, 9, 10].map(gear => (
+                  <NumberInput
+                    key={gear}
+                    label={`${gear}档齿比`}
+                    value={formData.drivetrain[`gear${gear}`]}
+                    onChange={v => updateFormField('drivetrain', `gear${gear}`, v)}
+                    min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5}
+                    max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6}
+                    step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01}
+                    locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked}
+                    {...ni('drivetrain', `gear${gear}`)}
+                  />
+                ))}
               </div>
               </>}
+            </div>
+
+            {/* 制动系统 */}
+            <div style={formSectionStyle}>
+              <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('brakes')}>
+                <span>{collapsedSections.has('brakes') ? '▶ ' : '▼ '}制动系统</span>
+              </div>
+              {!collapsedSections.has('brakes') && <div style={formGridStyle}>
+                <NumberInput
+                  label="制动力平衡"
+                  value={formData.brakes.balance}
+                  onChange={v => updateFormField('brakes', 'balance', v)}
+                  min={tuneConstraints['brakes.balance']?.min ?? 0}
+                  max={tuneConstraints['brakes.balance']?.max ?? 100}
+                  step={tuneConstraints['brakes.balance']?.step ?? 1}
+                  unit="%"
+                  locked={tuneConstraints['brakes.balance']?.locked}
+                  {...ni('brakes', 'balance')}
+                />
+                <NumberInput
+                  label="制动力压力"
+                  value={formData.brakes.pressure}
+                  onChange={v => updateFormField('brakes', 'pressure', v)}
+                  min={tuneConstraints['brakes.pressure']?.min ?? 20}
+                  max={tuneConstraints['brakes.pressure']?.max ?? 200}
+                  step={tuneConstraints['brakes.pressure']?.step ?? 1}
+                  unit="%"
+                  locked={tuneConstraints['brakes.pressure']?.locked}
+                  {...ni('brakes', 'pressure')}
+                />
+              </div>}
             </div>
 
             {/* 空气动力学 */}
@@ -1837,9 +2018,21 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
             </div>
 
-            <button onClick={saveTune} disabled={loading} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 8 }}>
-              {loading ? '保存中...' : (editingTune ? '保存修改' : '创建调校')}
-            </button>
+            </>}
+            </>}
+
+            {!editingTune && wizardStep === 3 && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button onClick={() => setWizardStep(2)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>
+                <button onClick={() => setWizardStep(4)} style={{ ...btnPrimaryStyle, flex: 1 }}>{buildMode === 'ai' ? '确认配件并填写调教' : '下一步：填写调教'}</button>
+              </div>
+            )}
+            {(editingTune || wizardStep === 4) && <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              {!editingTune && <button onClick={() => setWizardStep(3)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>}
+              <button onClick={saveTune} disabled={loading} style={{ ...btnPrimaryStyle, flex: 2 }}>
+                {loading ? '保存中...' : (editingTune ? '保存修改' : '创建调校')}
+              </button>
+            </div>}
             {/* Round 9: 快捷键提示 */}
             <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', lineHeight: 1.6 }}>
               <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Esc</span> 关闭 &nbsp;
@@ -2110,7 +2303,8 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
 
   const selectedTier = category.tierSystem && selected?.tier ? selected.tier : null
   const selectedColor = selectedTier ? (TIER_LABELS[selectedTier]?.color || 'var(--accent)') : 'var(--accent)'
-  const selectedLabel = selectedTier ? (TIER_LABELS[selectedTier]?.zh || selectedTier) : ''
+  const selectedOption = !category.tierSystem ? category.options?.find(option => option.id === selected?.optionId) : null
+  const selectedLabel = selectedTier ? (TIER_LABELS[selectedTier]?.zh || selectedTier) : (selectedOption?.label || '')
 
   const handleSelect = (tier, optionId) => {
     onChange(tier, optionId)
@@ -2147,7 +2341,10 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
         }}>
           {category.label}
         </span>
-        {selectedTier && (
+        <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 3, background: category.scope === 'vehicle_specific' ? 'rgba(188,140,255,0.15)' : 'rgba(88,166,255,0.12)', color: category.scope === 'vehicle_specific' ? '#bc8cff' : '#58a6ff' }}>
+          {category.scope === 'vehicle_specific' ? '专属' : category.scope === 'state_dependent' ? '联动' : category.availability === 'inferred_common' ? '通用候选' : '通用'}
+        </span>
+        {!isStock && selectedLabel && (
           <span style={{
             fontSize: 8,
             padding: '1px 5px',
@@ -2259,6 +2456,8 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
               {(category.options || []).map(opt => {
                 const isActive = selected?.optionId === opt.id
                 const color = opt.color || '#8b949e'
+                const rawPi = opt.piEstimate ?? opt.piBonus
+                const hasKnownPi = rawPi !== null && rawPi !== '' && Number.isFinite(Number(rawPi))
                 return (
                   <button
                     key={opt.id}
@@ -2284,9 +2483,8 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
                       background: isActive ? color : 'var(--border)'
                     }} />
                     <span style={{ flex: 1 }}>{opt.label}</span>
-                    {opt.piBonus > 0 && (
-                      <span style={{ fontSize: 8, color }}>+{opt.piBonus}PI</span>
-                    )}
+                    {hasKnownPi && Number(rawPi) !== 0 && <span style={{ fontSize: 8, color }}>{Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI</span>}
+                    {!hasKnownPi && opt.id !== 'stock' && <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>PI 待确认</span>}
                   </button>
                 )
               })}
