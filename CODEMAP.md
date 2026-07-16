@@ -91,10 +91,16 @@
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json) 
   - 📄 [package.json](file:///forza-telemetry/server/package.json) 
+  - 📂 **scripts/**
+    - 📄 [import-fh5-engine-names.mjs](file:///forza-telemetry/server/scripts/import-fh5-engine-names.mjs) 
+    - 📄 [import-fh5-vehicle-sheet.mjs](file:///forza-telemetry/server/scripts/import-fh5-vehicle-sheet.mjs) 
   - 📂 **src/**
     - 📂 **config/**
+      - 📄 [VEHICLE_UPGRADE_CATALOG.md](file:///forza-telemetry/server/src/config/VEHICLE_UPGRADE_CATALOG.md) 
       - 📄 [cars-database.json](file:///forza-telemetry/server/src/config/cars-database.json) 
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)   *(常量/方法: `DATA_DIR`)*
+      - 📄 [engine-swap-catalog.json](file:///forza-telemetry/server/src/config/engine-swap-catalog.json) 
+      - 📄 [vehicle-upgrades.json](file:///forza-telemetry/server/src/config/vehicle-upgrades.json) 
     - 📄 [index.js](file:///forza-telemetry/server/src/index.js) 
     - 📂 **routes/**
       - 📄 [analysis.js](file:///forza-telemetry/server/src/routes/analysis.js)   *(默认导出: `router`)*
@@ -121,6 +127,7 @@
         - 📄 [track-math.js](file:///forza-telemetry/server/src/services/track/track-math.js)   *(函数/组件: `simplifyRDP`)*
         - 📄 [track-turns.js](file:///forza-telemetry/server/src/services/track/track-turns.js)   *(函数/组件: `detectTurnsEnhanced`, 函数/组件: `calculateTurnAttributes`, 函数/组件: `mapOldTurnsToNewCenterline`, 函数/组件: `remapLockedTurns`)*
         - 📄 [trajectory-cleaner.js](file:///forza-telemetry/server/src/services/track/trajectory-cleaner.js)   *(函数/组件: `correctTrajectoryDrivingLine`)*
+      - 📄 [upgrade-catalog.js](file:///forza-telemetry/server/src/services/upgrade-catalog.js)   *(函数/组件: `isConditionMet`, 函数/组件: `resolveUpgradeProfile`, 函数/组件: `validateBuild`, 函数/组件: `validateTunePayload`)*
     - 📂 **storage/**
       - 📄 [atomic-writer.js](file:///forza-telemetry/server/src/storage/atomic-writer.js)   *(常量/方法: `atomicWriter`)*
       - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`)*

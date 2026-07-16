@@ -53,48 +53,35 @@ function convertFixesToSuggestedChanges(fixes) {
   return result
 }
 
-const defaultFormData = {
+const createDefaultFormData = () => ({
   name: '',
   tags: '',
   vehicleId: '',
   tires: {
-    frontPressure: 30.0,
-    rearPressure: 30.0,
-    frontCamber: -1.0,
-    rearCamber: -1.0,
-    frontToe: 0.0,
-    rearToe: 0.0
+    frontPressure: '', rearPressure: '', frontCamber: '', rearCamber: '', frontToe: '', rearToe: '', frontCaster: ''
   },
   suspension: {
-    frontSpring: 10.0,
-    rearSpring: 10.0,
-    frontDamping: 5.0,
-    rearDamping: 5.0,
-    frontARB: 20.0,
-    rearARB: 20.0,
-    frontRideHeight: 10.0,
-    rearRideHeight: 10.0
+    frontSpring: '', rearSpring: '', frontDamping: '', rearDamping: '',
+    frontRebound: '', rearRebound: '', frontBump: '', rearBump: '',
+    frontARB: '', rearARB: '', frontRideHeight: '', rearRideHeight: ''
   },
   drivetrain: {
-    diffAccel: 50,
-    diffDecel: 50,
-    diffCenter: 50,
-    finalDrive: 4.0,
-    gear1: 3.5,
-    gear2: 2.5,
-    gear3: 1.8,
-    gear4: 1.4,
-    gear5: 1.1,
-    gear6: 0.9
+    diffAccel: '', diffDecel: '', frontDiffAccel: '', frontDiffDecel: '', rearDiffAccel: '', rearDiffDecel: '', diffCenter: '',
+    finalDrive: '', gear1: '', gear2: '', gear3: '', gear4: '', gear5: '', gear6: '', gear7: '', gear8: '', gear9: '', gear10: ''
   },
+  brakes: { balance: '', pressure: '' },
   aero: {
-    frontDownforce: 100,
-    rearDownforce: 200
+    frontDownforce: '', rearDownforce: ''
   },
   parts: getDefaultParts(),
   freeMode: false,
   notes: ''
-}
+})
+
+const defaultFormData = createDefaultFormData()
+
+const PI_CLASS_CAPS = [500, 600, 700, 800, 900, 998, 999]
+const nextPiClassCap = basePi => PI_CLASS_CAPS.find(cap => cap > Number(basePi)) || 999
 
 export function useTuneManager({ onNavigate, navIntent }) {
   const [tunes, setTunes] = useState([])
@@ -107,7 +94,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [vehicleFilter, setVehicleFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
-  const [formData, setFormData] = useState(defaultFormData)
+  const [formData, setFormData] = useState(createDefaultFormData)
   const [compareMode, setCompareMode] = useState(false)
   const [compareSelected, setCompareSelected] = useState([])
   const [compareResult, setCompareResult] = useState(null)
@@ -117,6 +104,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // Round 4: 导入预览状态
   const [importPreview, setImportPreview] = useState(null)
   const importFileRef = useRef(null)
+  const upgradeRequestRef = useRef(0)
+  const draftVersionRef = useRef(0)
 
   // Round 2: 记录用户手动修改过的参数（嵌套路径如 "tires.frontPressure"）
   const dirtyParamsRef = useRef(new Set())
@@ -127,7 +116,15 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // PI锁定与自动升级相关
   const [targetPi, setTargetPi] = useState(800)
   const [basePi, setBasePi] = useState(500)
+  // 留空时跟随配件预估；用户输入后作为这套已保存方案的实际 PI。
+  const [solutionPi, setSolutionPi] = useState(null)
   const [autoUpgradeLoading, setAutoUpgradeLoading] = useState(false)
+  // 游戏内改装资料只按车辆加载；未建档车辆不得回退到全局通用配件。
+  const [upgradeShop, setUpgradeShop] = useState(null)
+  const [wizardStep, setWizardStep] = useState(1)
+  const [buildMode, setBuildMode] = useState(null)
+  const [aiRaceType, setAiRaceType] = useState('road')
+  const [aiDriveType, setAiDriveType] = useState('awd')
 
   // 常用驾驶问题面板
   const [drivingProblemsOpen, setDrivingProblemsOpen] = useState(false)
@@ -156,6 +153,46 @@ export function useTuneManager({ onNavigate, navIntent }) {
     loadTuneSessionStats()
   }, [])
 
+  const refreshUpgradeShop = async (vehicleId, parts = {}, driveType = null) => {
+    const requestId = ++upgradeRequestRef.current
+    if (!vehicleId) {
+      setUpgradeShop(null)
+      return
+    }
+    try {
+      const encodedSelections = encodeURIComponent(JSON.stringify(parts))
+      const driveQuery = driveType ? `&driveType=${encodeURIComponent(driveType)}` : ''
+      const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicleId)}/upgrades?selections=${encodedSelections}${driveQuery}`)
+      if (!res.ok) throw new Error('无法读取改装资料')
+      const resolved = await res.json()
+      if (requestId !== upgradeRequestRef.current) return
+      setUpgradeShop(resolved)
+      if (resolved.invalidated?.length && resolved.effectiveSelections) {
+        setFormData(prev => ({ ...prev, parts: resolved.effectiveSelections }))
+        setUnlockToast(`已清除 ${resolved.invalidated.length} 个不再兼容的下游改装`)
+        setTimeout(() => setUnlockToast(null), 4000)
+      }
+    } catch (_) {
+      if (requestId !== upgradeRequestRef.current) return
+      setUpgradeShop({ status: 'unverified', message: '无法读取该车辆的改装资料。', slots: [], tuneParameters: [] })
+    }
+  }
+
+  useEffect(() => {
+    refreshUpgradeShop(formData.vehicleId, formData.parts)
+  }, [formData.vehicleId])
+
+  useEffect(() => {
+    if (upgradeShop?.baseDriveType) setAiDriveType(upgradeShop.baseDriveType)
+  }, [upgradeShop?.baseDriveType])
+
+  useEffect(() => {
+    const officialBasePi = Number(upgradeShop?.basePi)
+    if (!Number.isFinite(officialBasePi)) return
+    setBasePi(officialBasePi)
+    if (!editingTune) setTargetPi(nextPiClassCap(officialBasePi))
+  }, [upgradeShop?.basePi, formData.vehicleId, editingTune])
+
   useEffect(() => {
     if (navIntent) {
       if (navIntent.vehicleId) {
@@ -172,15 +209,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }
 
       if (navIntent.action === 'create' && navIntent.vehicleId) {
-        const targetVehicle = vehicles[navIntent.vehicleId]
-        const baseCarPi = targetVehicle?.pi || 500
-        setFormData({
-          ...defaultFormData,
-          vehicleId: String(navIntent.vehicleId),
-          parts: getDefaultParts()
-        })
-        setBasePi(baseCarPi)
-        setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+        setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
+        setBasePi(500)
+        setTargetPi(800)
+        setSolutionPi(null)
         setEditingTune(null)
         setShowModal(true)
         setDrivingProblemsOpen(false)
@@ -196,15 +228,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
             startEdit(found)
           } else if (navIntent.vehicleId) {
             // 没有对应的tuneId，降级为为该车创建调校
-            const targetVehicle = vehicles[navIntent.vehicleId]
-            const baseCarPi = targetVehicle?.pi || 500
-            setFormData({
-              ...defaultFormData,
-              vehicleId: String(navIntent.vehicleId),
-              parts: getDefaultParts()
-            })
-            setBasePi(baseCarPi)
-            setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+            setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
+            setBasePi(500)
+            setTargetPi(800)
+            setSolutionPi(null)
             setEditingTune(null)
             setShowModal(true)
             setDrivingProblemsOpen(false)
@@ -216,15 +243,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
           }
         } else if (navIntent.vehicleId) {
           // 没有 tuneId，降级为创建
-          const targetVehicle = vehicles[navIntent.vehicleId]
-          const baseCarPi = targetVehicle?.pi || 500
-          setFormData({
-            ...defaultFormData,
-            vehicleId: String(navIntent.vehicleId),
-            parts: getDefaultParts()
-          })
-          setBasePi(baseCarPi)
-          setTargetPi(Math.min(998, Math.max(100, Math.ceil(baseCarPi / 100) * 100)))
+          setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
+          setBasePi(500)
+          setTargetPi(800)
+          setSolutionPi(null)
           setEditingTune(null)
           setShowModal(true)
           setDrivingProblemsOpen(false)
@@ -240,17 +262,46 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   // 根据配件计算PI增量
   const partsPiDelta = useMemo(() => {
+    // 车辆档案中的 piEstimate 是“从该车原厂状态开始”的估算增量。
+    // 它优先于旧的全局等级表，避免不同车辆共用同一套假定增量。
+    if (upgradeShop?.slots?.length) {
+      return upgradeShop.slots.reduce((total, slot) => {
+        const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
+        const option = slot.options?.find(item => item.id === optionId)
+        return total + (Number.isFinite(Number(option?.piEstimate)) ? Number(option.piEstimate) : 0)
+      }, 0)
+    }
     try {
       const total = calculateTotalPi(basePi, formData.parts);
       return total - basePi;
     } catch (e) {
       return 0
     }
-  }, [formData.parts, basePi])
+  }, [formData.parts, basePi, upgradeShop])
 
   const totalPi = useMemo(() => {
     return basePi + partsPiDelta
   }, [basePi, partsPiDelta])
+
+  const totalPiUpper = useMemo(() => {
+    if (!upgradeShop?.slots?.length) return totalPi
+    return basePi + upgradeShop.slots.reduce((total, slot) => {
+      const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
+      const option = slot.options?.find(item => item.id === optionId)
+      const value = Number.isFinite(Number(option?.piUpperEstimate)) ? Number(option.piUpperEstimate) : Number(option?.piEstimate)
+      return total + (Number(value) || 0)
+    }, 0)
+  }, [basePi, formData.parts, totalPi, upgradeShop])
+
+  const unknownPiSelectionCount = useMemo(() => {
+    if (!upgradeShop?.slots?.length) return 0
+    return upgradeShop.slots.reduce((count, slot) => {
+      const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
+      if (optionId === 'stock') return count
+      const option = slot.options?.find(item => item.id === optionId)
+      return count + (Number.isFinite(Number(option?.piEstimate)) ? 0 : 1)
+    }, 0)
+  }, [formData.parts, upgradeShop])
 
   // 获取当前车辆的基础属性（用于getTuneDefaults）
   const currentVehicleStats = useMemo(() => {
@@ -267,10 +318,15 @@ export function useTuneManager({ onNavigate, navIntent }) {
     tire_camber_rear: ['tires', 'rearCamber'],
     tire_toe_front: ['tires', 'frontToe'],
     tire_toe_rear: ['tires', 'rearToe'],
+    caster_front: ['tires', 'frontCaster'],
     spring_front: ['suspension', 'frontSpring'],
     spring_rear: ['suspension', 'rearSpring'],
     damping_front: ['suspension', 'frontDamping'],
     damping_rear: ['suspension', 'rearDamping'],
+    rebound_front: ['suspension', 'frontRebound'],
+    rebound_rear: ['suspension', 'rearRebound'],
+    bump_front: ['suspension', 'frontBump'],
+    bump_rear: ['suspension', 'rearBump'],
     arb_front: ['suspension', 'frontARB'],
     arb_rear: ['suspension', 'rearARB'],
     ride_height_front: ['suspension', 'frontRideHeight'],
@@ -278,6 +334,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
     diff_accel: ['drivetrain', 'diffAccel'],
     diff_decel: ['drivetrain', 'diffDecel'],
     diff_center: ['drivetrain', 'diffCenter'],
+    diff_front_accel: ['drivetrain', 'frontDiffAccel'],
+    diff_front_decel: ['drivetrain', 'frontDiffDecel'],
+    diff_rear_accel: ['drivetrain', 'rearDiffAccel'],
+    diff_rear_decel: ['drivetrain', 'rearDiffDecel'],
     final_drive: ['drivetrain', 'finalDrive'],
     gear_1: ['drivetrain', 'gear1'],
     gear_2: ['drivetrain', 'gear2'],
@@ -285,18 +345,52 @@ export function useTuneManager({ onNavigate, navIntent }) {
     gear_4: ['drivetrain', 'gear4'],
     gear_5: ['drivetrain', 'gear5'],
     gear_6: ['drivetrain', 'gear6'],
+    gear_7: ['drivetrain', 'gear7'], gear_8: ['drivetrain', 'gear8'], gear_9: ['drivetrain', 'gear9'], gear_10: ['drivetrain', 'gear10'],
+    brake_balance: ['brakes', 'balance'], brake_pressure: ['brakes', 'pressure'],
     downforce_front: ['aero', 'frontDownforce'],
     downforce_rear: ['aero', 'rearDownforce'],
   };
 
   // 配件变更时自动更新推荐调校默认值（Round 2: 跳过用户手动修改过的参数）
   useEffect(() => {
-    if (!formData.parts) return
+    if (!formData.parts || buildMode !== 'ai') return
     try {
-      const defaults = getTuneDefaults(formData.parts, currentVehicleStats)
-      if (defaults) {
+      const defaults = getTuneDefaults(formData.parts, currentVehicleStats) || {}
+      const allowedTuneIds = new Set((upgradeShop?.tuneParameters || []).map(parameter => parameter.id))
+      for (const key of Object.keys(defaults)) {
+        if (!allowedTuneIds.has(key)) delete defaults[key]
+      }
+      for (const parameter of upgradeShop?.tuneParameters || []) {
+        if (parameter.rangeConfidence === 'vehicle_specific_unknown') delete defaults[parameter.id]
+      }
+      const recommended = {
+        tire_pressure_front: 28, tire_pressure_rear: 28,
+        tire_camber_front: aiRaceType === 'drift' ? -4 : -2,
+        tire_camber_rear: aiRaceType === 'drift' ? -1.5 : -1.2,
+        tire_toe_front: 0, tire_toe_rear: 0, caster_front: aiRaceType === 'drift' ? 7 : 5.5,
+        rebound_front: 10, rebound_rear: 10, bump_front: 6, bump_rear: 6,
+        arb_front: aiRaceType === 'drift' ? 35 : 25, arb_rear: aiRaceType === 'drift' ? 45 : 20,
+        diff_front_accel: 30, diff_front_decel: 10,
+        diff_rear_accel: aiRaceType === 'drift' ? 100 : 60, diff_rear_decel: aiRaceType === 'drift' ? 100 : 20,
+        diff_center: aiRaceType === 'drift' ? 80 : 65,
+        final_drive: 3.7,
+        brake_balance: 50, brake_pressure: 100
+      }
+      ;(upgradeShop?.tuneParameters || []).forEach(parameter => {
+        if (defaults[parameter.id] != null) return
+        if (parameter.rangeConfidence === 'vehicle_specific_unknown') return
+        const range = parameter.range || {}
+        let value = recommended[parameter.id]
+        const gear = parameter.id.match(/^gear_(\d+)$/)?.[1]
+        if (gear) value = Math.max(0.65, Number((4.2 / Math.pow(Number(gear), 0.72)).toFixed(2)))
+        if (parameter.id.startsWith('spring_')) value = Number(((range.min + range.max) * 0.4).toFixed(1))
+        if (parameter.id.startsWith('ride_height_')) value = Number((range.min + (range.max - range.min) * (aiRaceType === 'cross_country' ? 0.75 : 0.2)).toFixed(1))
+        if (parameter.id.startsWith('downforce_')) value = Number((range.min + (range.max - range.min) * 0.55).toFixed(0))
+        if (value != null) defaults[parameter.id] = Math.min(range.max, Math.max(range.min, value))
+      })
+      if (Object.keys(defaults).length) {
         // 将扁平 key 映射为嵌套结构后 merge 到 formData
-        const mapped = { tires: {}, suspension: {}, drivetrain: {}, aero: {} };
+        const mapped = { tires: {}, suspension: {}, drivetrain: {}, brakes: {}, aero: {} };
         for (const [flatKey, value] of Object.entries(defaults)) {
           if (value == null) continue;
           const path = TUNE_DEFAULT_KEY_MAP[flatKey];
@@ -312,49 +406,146 @@ export function useTuneManager({ onNavigate, navIntent }) {
           tires: { ...prev.tires, ...mapped.tires },
           suspension: { ...prev.suspension, ...mapped.suspension },
           drivetrain: { ...prev.drivetrain, ...mapped.drivetrain },
+          brakes: { ...prev.brakes, ...mapped.brakes },
           aero: { ...prev.aero, ...mapped.aero }
         }))
       }
     } catch (e) {
       // getTuneDefaults 可能尚未就绪或参数不匹配，静默忽略
     }
-  }, [formData.parts, currentVehicleStats])
+  }, [formData.parts, currentVehicleStats, buildMode, upgradeShop, aiRaceType])
 
-  // 一键升级到目标PI
-  const handleAutoUpgrade = () => {
+  // 一键升级：只从当前车辆档案允许的选项中挑选，并在预估 PI 下留出安全余量。
+  const handleAutoUpgrade = async ({ preferredDriveType, raceType } = {}) => {
+    if (!formData.vehicleId || !upgradeShop || upgradeShop.status === 'unverified') {
+      alert('请先选择一辆已录入改装资料的车辆。')
+      return false
+    }
+    if (unknownPiSelectionCount > 0) {
+      alert('当前已有缺少 PI 数据的配件。AI 无法保证等级上限，请先恢复这些配件为原厂后再生成。')
+      return false
+    }
+    const unsafeExisting = (upgradeShop.slots || []).find(slot => {
+      const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
+      if (optionId === 'stock') return false
+      return slot.options?.find(option => option.id === optionId)?.aiEligible !== true
+    })
+    if (unsafeExisting) {
+      alert(`当前已选择的“${unsafeExisting.label}”仅供手动核对，AI 不会基于低置信配件继续生成。`)
+      return false
+    }
+    const essentialByRace = {
+      dirt: [['tires_compound', 'rally'], ['suspension', 'rally']],
+      cross_country: [['tires_compound', 'offroad'], ['suspension', 'offroad']],
+      drift: [['suspension', 'drift'], ['differential', 'drift']]
+    }
+    const missingEssential = (essentialByRace[raceType] || []).find(([slotId, optionId]) => {
+      const option = upgradeShop.slots?.find(slot => slot.id === slotId)?.options?.find(item => item.id === optionId)
+      return !option || option.aiEligible !== true || !Number.isFinite(Number(option.piUpperEstimate))
+    })
+    if (missingEssential) {
+      alert('该车辆缺少此用途所需核心配件的高置信资料。AI 为避免给出错误方案不会强行生成，请使用手动改装并对照游戏。')
+      return false
+    }
+    const draftVersion = draftVersionRef.current
     try {
       setAutoUpgradeLoading(true)
-      const result = autoUpgradeToPi(formData.parts, basePi, targetPi)
-      if (result && result.parts) {
+      const safetyMargin = Math.max(10, Math.ceil(targetPi * 0.02))
+      const safeLimit = targetPi - safetyMargin
+      let nextParts = JSON.parse(JSON.stringify(formData.parts || {}))
+      let currentShop = upgradeShop
+      let currentPi = basePi
+
+      const declaredDriveType = preferredDriveType || currentShop.baseDriveType
+      const encodedInitialSelections = encodeURIComponent(JSON.stringify(nextParts))
+      const initialResponse = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encodedInitialSelections}&driveType=${encodeURIComponent(declaredDriveType)}`)
+      if (!initialResponse.ok) throw new Error('无法应用用户选择的驱动形式')
+      currentShop = await initialResponse.json()
+      nextParts = currentShop.effectiveSelections || nextParts
+
+      const estimatePi = (shop, parts) => basePi + (shop.slots || []).reduce((total, slot) => {
+        const optionId = parts[slot.id]?.optionId || 'stock'
+        const option = slot.options?.find(item => item.id === optionId)
+        const conservativePi = Number.isFinite(Number(option?.piUpperEstimate)) ? Number(option.piUpperEstimate) : Number(option?.piEstimate)
+        return total + (Number(conservativePi) || 0)
+      }, 0)
+
+      const isRaceCompatible = (slotId, optionId) => {
+        const specialized = {
+          dirt: { tires_compound: ['rally'], suspension: ['rally'], differential: ['rally'] },
+          cross_country: { tires_compound: ['offroad'], suspension: ['offroad'], differential: ['offroad'] },
+          drift: { tires_compound: ['drift'], suspension: ['drift'], differential: ['drift'], transmission: ['drift_4'] }
+        }
+        const allowed = specialized[raceType]?.[slotId]
+        return !allowed || allowed.includes(optionId)
+      }
+
+      currentPi = estimatePi(currentShop, nextParts)
+      for (let step = 0; step < 60; step++) {
+        const candidates = currentShop.slots.flatMap(slot => {
+          const selectedId = nextParts[slot.id]?.optionId || 'stock'
+          const selectedOption = slot.options?.find(option => option.id === selectedId)
+          const selectedScore = Number(selectedOption?.performanceScore) || Number(selectedOption?.piEstimate) || 0
+          return (slot.options || []).filter(option => {
+            const optionScore = Number(option.performanceScore) || Number(option.piEstimate) || 0
+            return option.id !== selectedId && option.aiEligible === true && isRaceCompatible(slot.id, option.id) && Number.isFinite(Number(option.piEstimate)) && optionScore > selectedScore
+          }).map(option => ({ slot, option }))
+        }).map(candidate => {
+          const candidateParts = { ...nextParts, [candidate.slot.id]: { optionId: candidate.option.id } }
+          const priorities = {
+            road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'suspension', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'weight_reduction'],
+            dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes'],
+            cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction'],
+            drift: ['suspension', 'differential', 'tires_width_rear', 'transmission', 'engine_camshaft']
+          }
+          const priority = priorities[raceType]?.indexOf(candidate.slot.id) ?? -1
+          return { ...candidate, priority, parts: candidateParts, pi: estimatePi(currentShop, candidateParts) }
+        }).filter(candidate => candidate.pi <= safeLimit)
+
+        if (candidates.length === 0) break
+        candidates.sort((a, b) => {
+          if (a.priority >= 0 || b.priority >= 0) {
+            if (a.priority < 0) return 1
+            if (b.priority < 0) return -1
+            if (a.priority !== b.priority) return a.priority - b.priority
+          }
+          return (Number(b.option.performanceScore) || Number(b.option.piEstimate)) - (Number(a.option.performanceScore) || Number(a.option.piEstimate))
+        })
+        const best = candidates[0]
+        nextParts = best.parts
+        currentPi = best.pi
+        const encoded = encodeURIComponent(JSON.stringify(nextParts))
+        const res = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encoded}&driveType=${encodeURIComponent(declaredDriveType)}`)
+        if (!res.ok) break
+        currentShop = await res.json()
+        nextParts = currentShop.effectiveSelections || nextParts
+        currentPi = estimatePi(currentShop, nextParts)
+      }
+
+      if (currentPi > safeLimit) {
+        if (draftVersion !== draftVersionRef.current) return false
+        alert('当前已选配件的预估 PI 已超过安全上限，请先降低已有改装。')
+        return false
+      } else {
+        if (draftVersion !== draftVersionRef.current) return false
         setFormData(prev => ({
           ...prev,
-          parts: result.parts
+          parts: nextParts
         }))
-      } else {
-        alert('无法在目标PI限制内找到升级方案')
+        setUpgradeShop(currentShop)
+        if (currentPi < safeLimit - 20) {
+          alert(`AI 已生成保守方案，PI 上界约为 ${currentPi}。由于其余配件缺少足够置信度，没有继续强行堆到目标等级。`)
+        }
+        return true
       }
     } catch (e) { /* 一键升级失败 */
+      if (draftVersionRef.current !== draftVersion) return false
       alert('一键升级失败: ' + e.message)
+      return false
     } finally {
       setAutoUpgradeLoading(false)
     }
   }
-
-  // 选择车辆时更新basePi和初始配件
-  useEffect(() => {
-    if (formData.vehicleId && vehicles[formData.vehicleId]) {
-      const v = vehicles[formData.vehicleId]
-      if (v.basePi) setBasePi(v.basePi)
-      if (v.pi) setBasePi(v.pi)
-      // 尝试从车辆数据获取初始配件
-      if (v.parts) {
-        setFormData(prev => ({
-          ...prev,
-          parts: { ...getDefaultParts(), ...v.parts }
-        }))
-      }
-    }
-  }, [formData.vehicleId, vehicles])
 
   // 应用驾驶问题建议
   const applyProblemFix = (problem) => {
@@ -640,16 +831,47 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
 
+    if (!formData.vehicleId || upgradeShop?.status === 'unverified') {
+      alert('请先选择一辆已录入游戏内改装资料的车辆。')
+      return
+    }
+
+    try {
+      const validation = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parts: formData.parts })
+      })
+      if (!validation.ok) {
+        const result = await validation.json()
+        alert(result.errors?.join('\n') || '所选改装件不适用于当前车辆。')
+        return
+      }
+    } catch (_) {
+      alert('无法验证当前车辆的改装件。')
+      return
+    }
+
+    const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
+    if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
+      alert('方案 PI 必须是 100 到 999 之间的整数。')
+      return
+    }
+
     const payload = {
       name: formData.name.trim(),
       tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
       vehicleId: formData.vehicleId || null,
       basePi,
-      targetPi,
-      totalPi,
+      targetPi: buildMode === 'ai' ? targetPi : null,
+      totalPi: confirmedPi,
+      generationMode: buildMode === 'ai' ? 'ai' : 'manual',
+      raceType: buildMode === 'ai' ? aiRaceType : null,
+      driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
       tires: { ...formData.tires },
       suspension: { ...formData.suspension },
       drivetrain: { ...formData.drivetrain },
+      brakes: { ...formData.brakes },
       aero: { ...formData.aero },
       parts: { ...formData.parts },
       freeMode: !!formData.freeMode,
@@ -665,11 +887,14 @@ export function useTuneManager({ onNavigate, navIntent }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('保存失败')
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}))
+        throw new Error(result.errors?.join('\n') || result.error || '保存失败')
+      }
       await loadTunes()
       closeModal()
     } catch (e) { /* 保存调校失败 */
-      alert('保存失败，请检查网络连接')
+      alert(`保存失败：${e.message}`)
     } finally {
       setLoading(false)
     }
@@ -693,9 +918,16 @@ export function useTuneManager({ onNavigate, navIntent }) {
         name: (tune.name || '未命名调校') + ' (副本)',
         tags: [...(tune.tags || [])],
         vehicleId: tune.vehicleId || null,
+        basePi: tune.basePi || null,
+        targetPi: tune.generationMode === 'ai' ? tune.targetPi : null,
+        totalPi: tune.totalPi ?? tune.estimatedPi ?? null,
+        generationMode: tune.generationMode === 'ai' ? 'ai' : 'manual',
+        raceType: tune.raceType || null,
+        driveType: tune.driveType || null,
         tires: { ...tune.tires },
         suspension: { ...tune.suspension },
         drivetrain: { ...tune.drivetrain },
+        brakes: { ...tune.brakes },
         aero: { ...tune.aero },
         parts: { ...tune.parts },
         freeMode: !!tune.freeMode
@@ -732,22 +964,20 @@ export function useTuneManager({ onNavigate, navIntent }) {
       tires: { ...defaultFormData.tires, ...(tune.tires || {}) },
       suspension: { ...defaultFormData.suspension, ...(tune.suspension || {}) },
       drivetrain: { ...defaultFormData.drivetrain, ...(tune.drivetrain || {}) },
+      brakes: { ...defaultFormData.brakes, ...(tune.brakes || {}) },
       aero: { ...defaultFormData.aero, ...(tune.aero || {}) },
       parts: { ...getDefaultParts(), ...(tune.parts || {}) },
       freeMode: !!tune.freeMode,
       notes: tune.notes || ''
     })
-    // 设置PI相关
-    if (tune.vehicleId && vehicles[tune.vehicleId]) {
-      const v = vehicles[tune.vehicleId]
-      const pi = v.basePi || v.pi || 500
-      setBasePi(pi)
-      setTargetPi(pi + 300)
-    } else {
-      setBasePi(tune.basePi || 500)
-      setTargetPi(tune.targetPi || 800)
-    }
+    // 已保存方案的 basePi 由服务端按车辆原厂档案计算；加载档案后还会再次校正。
+    setBasePi(tune.basePi || 500)
+    setSolutionPi(Number.isFinite(Number(tune.totalPi)) ? String(tune.totalPi) : null)
+    const savedTargetPi = Number(tune.targetPi)
+    setTargetPi(PI_CLASS_CAPS.includes(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
+    setWizardStep(4)
+    setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
     setShowModal(true)
     setDrivingProblemsOpen(false)
     setSelectedProblem(null)
@@ -758,11 +988,18 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   const startCreate = () => {
-    setFormData({ ...defaultFormData })
+    draftVersionRef.current += 1
+    setFormData(createDefaultFormData())
     setEditingTune(null)
+    setWizardStep(1)
+    setBuildMode(null)
+    setAiRaceType('road')
+    setAiDriveType('awd')
     setShowModal(true)
     setBasePi(500)
     setTargetPi(800)
+    setSolutionPi(null)
+    setUpgradeShop(null)
     setDrivingProblemsOpen(false)
     setSelectedProblem(null)
     setTelemetryPanelOpen(false)
@@ -772,12 +1009,43 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   const closeModal = () => {
+    draftVersionRef.current += 1
     setShowModal(false)
     setEditingTune(null)
-    setFormData({ ...defaultFormData })
+    setFormData(createDefaultFormData())
+    setWizardStep(1)
+    setBuildMode(null)
+    setSolutionPi(null)
+    setUpgradeShop(null)
     dirtyParamsRef.current.clear()
     setTelemetrySuggestions(null)
     setHighlightedParams([])
+  }
+
+  const selectVehicleForDraft = (vehicleId) => {
+    draftVersionRef.current += 1
+    setFormData({ ...createDefaultFormData(), vehicleId })
+    setBuildMode(null)
+    setSolutionPi(null)
+    setUpgradeShop(null)
+    dirtyParamsRef.current.clear()
+  }
+
+  const chooseBuildMode = mode => {
+    draftVersionRef.current += 1
+    setFormData(prev => ({
+      ...createDefaultFormData(),
+      vehicleId: prev.vehicleId,
+      name: prev.name,
+      tags: prev.tags,
+      notes: prev.notes
+    }))
+    setSolutionPi(null)
+    setUpgradeShop(null)
+    dirtyParamsRef.current.clear()
+    setBuildMode(mode)
+    refreshUpgradeShop(formData.vehicleId, {})
+    if (mode === 'manual') setWizardStep(3)
   }
 
   const applyTelemetrySuggestions = (suggestions) => {
@@ -945,7 +1213,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     if (Object.keys(tuneDefaults).length === 0) return
     setFormData(prev => {
       const updated = { ...prev }
-      for (const category of ['tires', 'suspension', 'drivetrain', 'aero']) {
+      for (const category of ['tires', 'suspension', 'drivetrain', 'brakes', 'aero']) {
         if (!updated[category]) continue
         updated[category] = { ...updated[category] }
         for (const field of Object.keys(updated[category])) {
@@ -964,13 +1232,20 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const TUNE_PARAM_LABELS = {
     'tire_camber_front': '前外倾角', 'tire_camber_rear': '后外倾角',
     'tire_toe_front': '前束角', 'tire_toe_rear': '后束角',
+    'caster_front': '主销后倾角',
     'spring_front': '前弹簧硬度', 'spring_rear': '后弹簧硬度',
     'damping_front': '前阻尼', 'damping_rear': '后阻尼',
+    'rebound_front': '前回弹阻尼', 'rebound_rear': '后回弹阻尼',
+    'bump_front': '前压缩阻尼', 'bump_rear': '后压缩阻尼',
     'arb_front': '前防倾杆', 'arb_rear': '后防倾杆',
     'ride_height_front': '前车身高度', 'ride_height_rear': '后车身高度',
     'diff_accel': '差速器加速', 'diff_decel': '差速器减速', 'diff_center': '中央差速器',
+    'diff_front_accel': '前差速器加速', 'diff_front_decel': '前差速器减速',
+    'diff_rear_accel': '后差速器加速', 'diff_rear_decel': '后差速器减速',
     'gear_1': '1档齿比', 'gear_2': '2档齿比', 'gear_3': '3档齿比',
     'gear_4': '4档齿比', 'gear_5': '5档齿比', 'gear_6': '6档齿比',
+    'gear_7': '7档齿比', 'gear_8': '8档齿比', 'gear_9': '9档齿比', 'gear_10': '10档齿比',
+    'brake_balance': '制动力平衡', 'brake_pressure': '制动力压力',
     'downforce_front': '前下压力', 'downforce_rear': '后下压力'
   }
 
@@ -1013,6 +1288,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       ...prev,
       parts: newParts
     }))
+    refreshUpgradeShop(formData.vehicleId, newParts, buildMode === 'ai' ? aiDriveType : null)
   }
 
   // 根据当前配件计算调校参数约束
@@ -1027,6 +1303,26 @@ export function useTuneManager({ onNavigate, navIntent }) {
     }
 
     const rawConstraints = getTuneConstraints(currentParts, formData.freeMode);
+    // 调校范围以车辆档案为唯一真值。未建档时全部锁定；已建档时也只
+    // 解锁档案明确给出的项目，不能回退到旧的通用范围表。
+    if (!upgradeShop || upgradeShop.status === 'unverified') {
+      Object.keys(rawConstraints).forEach(key => {
+        rawConstraints[key] = { locked: true, min: null, max: null, step: null, reason: '该车辆的调校资料尚未录入' }
+      })
+    } else {
+      Object.keys(rawConstraints).forEach(key => {
+        rawConstraints[key] = { locked: true, min: null, max: null, step: null, reason: '当前改装配置未解锁该调校项' }
+      })
+      ;(upgradeShop.tuneParameters || []).forEach(parameter => {
+        if (!parameter?.id || !parameter.range) return
+        rawConstraints[parameter.id] = {
+          locked: false,
+          min: parameter.range.min,
+          max: parameter.range.max,
+          step: parameter.range.step || null
+        }
+      })
+    }
 
     // getTuneConstraints 返回扁平 key（如 tire_pressure_front），
     // UI 使用嵌套路径（如 tires.frontPressure），这里做映射转换
@@ -1037,21 +1333,34 @@ export function useTuneManager({ onNavigate, navIntent }) {
       'tire_camber_rear': 'tires.rearCamber',
       'tire_toe_front': 'tires.frontToe',
       'tire_toe_rear': 'tires.rearToe',
+      'caster_front': 'tires.frontCaster',
       'spring_front': 'suspension.frontSpring',
       'spring_rear': 'suspension.rearSpring',
       'damping_front': 'suspension.frontDamping',
       'damping_rear': 'suspension.rearDamping',
+      'rebound_front': 'suspension.frontRebound',
+      'rebound_rear': 'suspension.rearRebound',
+      'bump_front': 'suspension.frontBump',
+      'bump_rear': 'suspension.rearBump',
       'arb_front': 'suspension.frontARB',
       'arb_rear': 'suspension.rearARB',
       'ride_height_front': 'suspension.frontRideHeight',
       'ride_height_rear': 'suspension.rearRideHeight',
       'diff_accel': 'drivetrain.diffAccel',
       'diff_decel': 'drivetrain.diffDecel',
+      'diff_front_accel': 'drivetrain.frontDiffAccel',
+      'diff_front_decel': 'drivetrain.frontDiffDecel',
+      'diff_rear_accel': 'drivetrain.rearDiffAccel',
+      'diff_rear_decel': 'drivetrain.rearDiffDecel',
       'diff_center': 'drivetrain.diffCenter',
       'final_drive': 'drivetrain.finalDrive',
       'gear_1': 'drivetrain.gear1', 'gear_2': 'drivetrain.gear2',
       'gear_3': 'drivetrain.gear3', 'gear_4': 'drivetrain.gear4',
       'gear_5': 'drivetrain.gear5', 'gear_6': 'drivetrain.gear6',
+      'gear_7': 'drivetrain.gear7', 'gear_8': 'drivetrain.gear8',
+      'gear_9': 'drivetrain.gear9', 'gear_10': 'drivetrain.gear10',
+      'brake_balance': 'brakes.balance',
+      'brake_pressure': 'brakes.pressure',
       'downforce_front': 'aero.frontDownforce',
       'downforce_rear': 'aero.rearDownforce'
     };
@@ -1081,7 +1390,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }
     }
     return mapped;
-  }, [formData.parts, formData.freeMode])
+  }, [formData.parts, formData.freeMode, upgradeShop])
 
   // 导出调校为JSON文件
   const exportTune = (tune) => {
@@ -1384,9 +1693,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     }));
 
     setTargetPi(targetPiVal);
-    if (formData.vehicleId && vehicles[formData.vehicleId]) {
-      setBasePi(vehicles[formData.vehicleId].pi || 500);
-    }
+    if (Number.isFinite(Number(upgradeShop?.basePi))) setBasePi(Number(upgradeShop.basePi));
   };
 
   useEffect(() => {
@@ -1451,10 +1758,22 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setCollapsedSections,
     targetPi,
     setTargetPi,
+    solutionPi,
+    setSolutionPi,
     basePi,
     setBasePi,
     autoUpgradeLoading,
     setAutoUpgradeLoading,
+    wizardStep,
+    setWizardStep,
+    buildMode,
+    setBuildMode,
+    selectVehicleForDraft,
+    chooseBuildMode,
+    aiRaceType,
+    setAiRaceType,
+    aiDriveType,
+    setAiDriveType,
     drivingProblemsOpen,
     setDrivingProblemsOpen,
     selectedProblem,
@@ -1477,6 +1796,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setTuneSessionStats,
     partsPiDelta,
     totalPi,
+    totalPiUpper,
+    unknownPiSelectionCount,
+    canAutoUpgrade: Boolean(formData.vehicleId && upgradeShop && upgradeShop.status !== 'unverified'),
+    piIsVerified: upgradeShop?.piStatus === 'verified',
     currentVehicleStats,
     handleAutoUpgrade,
     applyProblemFix,
@@ -1517,6 +1840,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     resetAllToDefaults,
     updatePartSelection,
     tuneConstraints,
+    upgradeShop,
+    visiblePartCategories: upgradeShop?.slots || [],
     exportTune,
     uint8ToBase64,
     base64ToUint8,

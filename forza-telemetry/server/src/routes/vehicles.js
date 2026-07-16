@@ -4,6 +4,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { resolveUpgradeProfile, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
@@ -12,6 +13,12 @@ const router = express.Router();
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
+const upgradesDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/vehicle-upgrades.json');
+
+function loadUpgradeProfiles() {
+  const database = fs.existsSync(upgradesDbPath) ? loadJSON(upgradesDbPath) : {};
+  return database?.profiles || {};
+}
 
 function getManufacturer(name) {
   const withoutYear = String(name || '').replace(/^\d{4}\s+/, '').trim();
@@ -41,12 +48,38 @@ router.get('/', (req, res) => {
 // 游戏内完整车辆目录：客户端据此区分已接收与尚未接收的车辆。
 router.get('/catalog', (req, res) => {
   const cars = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+  const profiles = loadUpgradeProfiles();
   const catalog = Object.entries(cars).map(([ordinal, name]) => ({
     ordinal: String(ordinal),
     name,
-    manufacturer: getManufacturer(name)
+    manufacturer: getManufacturer(name),
+    basePi: Number.isFinite(Number(profiles[String(ordinal)]?.basePi)) && Number(profiles[String(ordinal)]?.basePi) > 0
+      ? Number(profiles[String(ordinal)].basePi)
+      : null
   }));
   res.json(catalog);
+});
+
+// 选择车辆后解析“通用模板 + 车辆覆盖 + 专属选项 + 当前选择联动”。
+router.get('/:id/upgrades', (req, res) => {
+  const profiles = loadUpgradeProfiles();
+  const profile = profiles[String(req.params.id)] || null;
+  let selections = {};
+  try {
+    selections = req.query.selections ? JSON.parse(req.query.selections) : {};
+  } catch (_) {
+    return res.status(400).json({ error: '改装选择参数格式无效。' });
+  }
+  const driveType = ['fwd', 'rwd', 'awd'].includes(req.query.driveType) ? req.query.driveType : null;
+  res.json({ vehicleId: String(req.params.id), ...resolveUpgradeProfile(profile, selections, { driveType }) });
+});
+
+router.post('/:id/upgrades/validate', express.json(), (req, res) => {
+  const profile = loadUpgradeProfiles()[String(req.params.id)] || null;
+  const body = req.body || {};
+  const hasTunePayload = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero', 'generationMode', 'targetPi'].some(key => body[key] !== undefined);
+  const result = hasTunePayload ? validateTunePayload(profile, body) : validateBuild(profile, body.parts || {});
+  res.status(result.valid ? 200 : 422).json(result);
 });
 
 // 更新车辆信息
