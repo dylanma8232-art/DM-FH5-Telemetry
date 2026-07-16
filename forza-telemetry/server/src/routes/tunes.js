@@ -161,6 +161,9 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     tags: body.tags || [],
     carOrdinal: body.carOrdinal || body.vehicleId || null,
     vehicleId: body.vehicleId || null,
+    basePi: body.basePi || 0,
+    targetPi: body.targetPi || 0,
+    totalPi: body.totalPi || 0,
     createdAt: now,
     updatedAt: now,
     params: body.params || {},
@@ -207,6 +210,9 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
     tune.vehicleId = body.vehicleId;
     tune.carOrdinal = body.vehicleId;
   }
+  if (body.basePi !== undefined) tune.basePi = body.basePi;
+  if (body.targetPi !== undefined) tune.targetPi = body.targetPi;
+  if (body.totalPi !== undefined) tune.totalPi = body.totalPi;
   if (body.params !== undefined) tune.params = body.params;
   if (body.tires !== undefined) tune.tires = body.tires;
   if (body.suspension !== undefined) tune.suspension = body.suspension;

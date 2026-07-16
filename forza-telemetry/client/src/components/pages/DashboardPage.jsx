@@ -79,6 +79,8 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
   // 输入控制条
   const throttlePct = controls.accel ? (controls.accel / 255) * 100 : 0;
   const brakePct = controls.brake ? (controls.brake / 255) * 100 : 0;
+  const handBrakePct = controls.handBrake ? (controls.handBrake / 255) * 100 : 0;
+  const steerPct = controls.steer ? Math.max(-100, Math.min(100, (controls.steer / 127) * 100)) : 0;
 
   return (
     <Suspense fallback={<div style={{ padding: 20, textAlign: 'center', color: '#8b949e' }}>加载中...</div>}>
@@ -93,9 +95,9 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
         boxSizing: 'border-box'
       }}>
 
-        {/* ========== COLUMN 1 (左侧): 预警播报 / 车辆信息 / 驾驶HUD ========== */}
+        {/* ========== COLUMN 1 (左侧): 预警播报 / 主驾驶HUD / 驾驶输入 ========== */}
         <div style={{
-          flex: '0 0 300px',
+          flex: '0 0 340px',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
@@ -108,80 +110,39 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
             </ErrorBoundary>
           </div>
 
-          {/* Row 2: 车辆信息 — 紧凑版，只显示名称 / ID / PI / 级别 / 驱动 */}
-          <div style={{ ...cardBaseStyle, flex: '0 0 auto', padding: '8px 12px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#484f58', letterSpacing: 0.5, marginBottom: 5 }}>
-              车辆信息
-            </div>
-
-            {/* 车辆名称 */}
-            <div style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: '#c9d1d9',
-              marginBottom: 6,
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              lineHeight: 1.2
-            }}>
-              {carName}
-              {ordinal && (
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: '#8b949e',
-                  marginLeft: 6,
-                  fontFamily: 'monospace',
-                  opacity: 0.8
-                }}>
-                  #{ordinal}
-                </span>
-              )}
-            </div>
-
-            {/* 三枚徽章：级别 / PI / 驱动 */}
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              <span style={{ ...badgeBase, color: classColor, background: `${classColor}18`, border: `1px solid ${classColor}40` }}>
-                {carClassLabel}
-              </span>
-              <span style={{ ...badgeBase, color: '#c9d1d9', background: '#0d1117', border: '1px solid #30363d' }}>
-                PI {pi}
-              </span>
-              <span style={{ ...badgeBase, color: '#58a6ff', background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)' }}>
-                {drivetrainLabel}
-              </span>
-            </div>
-          </div>
-
-          {/* Row 3: 驾驶 HUD（档位焦点） */}
-          <div style={{ ...cardBaseStyle, flex: '1 1 auto', justifyContent: 'space-between', padding: '6px 12px', minHeight: 0 }}>
+          {/* Row 2: 驾驶 HUD（车速与档位为主视觉） */}
+          <div style={{ ...cardBaseStyle, flex: '0 0 176px', justifyContent: 'center', padding: '12px 16px', minHeight: 0 }}>
             {/* 档位 + 时速 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 48, fontWeight: 900, fontFamily: 'monospace', color: gearColor, lineHeight: 1 }}>
+                <span style={{ fontSize: 76, fontWeight: 900, fontFamily: 'monospace', color: gearColor, lineHeight: 0.9 }}>
                   {gearDisplay}
                 </span>
-                <span style={{ fontSize: 9, color: '#8b949e', fontWeight: 600, alignSelf: 'flex-end', marginBottom: 4 }}>档</span>
+                <span style={{ fontSize: 10, color: '#8b949e', fontWeight: 600, alignSelf: 'flex-end', marginBottom: 7 }}>档位</span>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 1 }}>
+                <div style={{ fontSize: 52, fontWeight: 900, color: '#c9d1d9', fontFamily: 'monospace', lineHeight: 0.9 }}>
                   {telemetryData.speedKmh ? Math.round(telemetryData.speedKmh) : 0}
                 </div>
-                <div style={{ fontSize: 8, color: '#8b949e', fontWeight: 600 }}>公里/小时</div>
+                <div style={{ marginTop: 5, fontSize: 9, color: '#8b949e', fontWeight: 600 }}>公里/小时</div>
               </div>
             </div>
 
-            {/* 转速条 */}
+          </div>
+
+          {/* Row 3: 驾驶输入 */}
+          <div style={{ ...cardBaseStyle, flex: '1 1 auto', gap: 10, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#8b949e' }}>驾驶输入</span>
+              <span style={{ fontSize: 10, color: rpmColor, fontFamily: 'monospace', fontWeight: 700 }}>{Math.round(engineRpm)} 转/分</span>
+            </div>
             <div style={{ width: '100%' }}>
-              <div style={{ height: 6, background: '#21262d', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+              <div style={{ height: 7, background: '#21262d', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '10%', background: 'rgba(248,81,73,0.2)' }} />
-                <div style={{ width: `${rpmPercent}%`, height: '100%', background: rpmColor, borderRadius: 3, transition: 'width 0.08s linear' }} />
+                <div style={{ width: `${rpmPercent}%`, height: '100%', background: rpmColor, borderRadius: 4, transition: 'width 0.08s linear' }} />
               </div>
             </div>
-
-            {/* 油门 / 刹车条 */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#8b949e' }}>
                   <span>油门</span>
@@ -199,6 +160,16 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
                 <div style={{ height: 5, background: '#21262d', borderRadius: 2.5, overflow: 'hidden' }}>
                   <div style={{ width: `${brakePct}%`, height: '100%', background: '#f85149', borderRadius: 2.5 }} />
                 </div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#8b949e', marginBottom: 3 }}><span>方向</span><strong style={{ color: '#58a6ff', fontFamily: 'monospace' }}>{steerPct.toFixed(0)}%</strong></div>
+                <div style={{ height: 5, background: '#21262d', borderRadius: 3, position: 'relative', overflow: 'hidden' }}><div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: '#484f58' }} /><div style={{ position: 'absolute', top: 0, bottom: 0, left: steerPct < 0 ? `${50 + steerPct / 2}%` : '50%', width: `${Math.abs(steerPct) / 2}%`, background: '#58a6ff' }} /></div>
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#8b949e', marginBottom: 3 }}><span>手刹</span><strong style={{ color: handBrakePct > 0 ? '#d29922' : '#8b949e', fontFamily: 'monospace' }}>{handBrakePct.toFixed(0)}%</strong></div>
+                <div style={{ height: 5, background: '#21262d', borderRadius: 3, overflow: 'hidden' }}><div style={{ width: `${handBrakePct}%`, height: '100%', background: '#d29922' }} /></div>
               </div>
             </div>
           </div>
@@ -236,7 +207,7 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           </div>
         </div>
 
-        {/* ========== COLUMN 3 (右侧): 圈速 & 计时 ========== */}
+        {/* ========== COLUMN 3 (右侧): 车辆信息 / 圈速 & 计时 ========== */}
         <div style={{
           flex: '0 0 320px',
           display: 'flex',
@@ -244,6 +215,26 @@ export function DashboardPage({ data, socket, connected, packetCount }) {
           gap: '8px',
           minHeight: 0
         }}>
+          <div style={{ ...cardBaseStyle, flex: '0 0 118px', padding: '10px 12px' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#58a6ff', letterSpacing: 0.5, marginBottom: 6 }}>
+              当前车辆
+            </div>
+            <div style={{
+              fontSize: 14, fontWeight: 700, color: '#e6edf3', lineHeight: 1.3,
+              minHeight: 36, overflow: 'hidden', display: '-webkit-box',
+              WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+            }}>
+              {carName}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: 6 }}>
+              <span style={{ fontSize: 9, color: '#8b949e', fontFamily: 'monospace' }}>编号 #{ordinal ?? '-'}</span>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <span style={{ ...badgeBase, color: classColor, background: `${classColor}18`, border: `1px solid ${classColor}40` }}>{carClassLabel}</span>
+                <span style={{ ...badgeBase, color: '#c9d1d9', background: '#0d1117', border: '1px solid #30363d' }}>PI {pi}</span>
+                <span style={{ ...badgeBase, color: '#58a6ff', background: 'rgba(88,166,255,0.1)', border: '1px solid rgba(88,166,255,0.3)' }}>{drivetrainLabel}</span>
+              </div>
+            </div>
+          </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ErrorBoundary name="圈速与计时">
               <RacePerformanceTimingPanel data={telemetryData} trackData={trackData} isRaceOn={telemetryData.isRaceOn} />

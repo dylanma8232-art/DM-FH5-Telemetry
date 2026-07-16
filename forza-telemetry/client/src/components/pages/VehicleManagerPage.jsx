@@ -1,6 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { calculateTotalPi } from '../../data/parts';
 
 const CLASS_LABELS = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
+const MANUFACTURER_ALIASES = {
+  'Alfa Romeo': '阿尔法罗密欧', Aston: '阿斯顿马丁', Audi: '奥迪', Bentley: '宾利', BMW: '宝马',
+  Chevrolet: '雪佛兰', Dodge: '道奇', Ferrari: '法拉利', Ford: '福特', Honda: '本田',
+  Hyundai: '现代', Jaguar: '捷豹', Koenigsegg: '科尼赛克', Lamborghini: '兰博基尼', Lexus: '雷克萨斯',
+  Maserati: '玛莎拉蒂', Mazda: '马自达', McLaren: '迈凯伦', Mercedes: '梅赛德斯', Mitsubishi: '三菱',
+  Nissan: '日产', Porsche: '保时捷', Subaru: '斯巴鲁', Toyota: '丰田', Volkswagen: '大众', Volvo: '沃尔沃'
+};
+
+function getManufacturer(name) {
+  const withoutYear = String(name || '').replace(/^\d{4}\s+/, '').trim();
+  if (withoutYear.startsWith('Alfa Romeo ')) return 'Alfa Romeo';
+  if (withoutYear.startsWith('Mercedes-Benz ')) return 'Mercedes-Benz';
+  return withoutYear.split(/\s+/)[0] || '其他';
+}
+
+function getManufacturerSearchText(manufacturer) {
+  return `${manufacturer} ${MANUFACTURER_ALIASES[manufacturer] || ''}`.toLowerCase();
+}
+
+function getTunePi(tune, vehiclePi) {
+  if (Number.isFinite(Number(tune.totalPi))) return Number(tune.totalPi);
+  try {
+    return calculateTotalPi(Number(tune.basePi) || Number(vehiclePi) || 0, tune.parts || {});
+  } catch {
+    return Number(vehiclePi) || 0;
+  }
+}
 
 // ============================================================
 // Toast 通知组件
@@ -62,9 +90,9 @@ function InlineConfirm({ message, onConfirm, onCancel }) {
 
 export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const [vehicles, setVehicles] = useState({});
+  const [catalog, setCatalog] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [tunesList, setTunesList] = useState([]);
-  const [subTabMap, setSubTabMap] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [formData, setFormData] = useState({
@@ -78,6 +106,8 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   // Round 6: 搜索和排序
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('raceCount');
+  const [vehicleTab, setVehicleTab] = useState('received');
+  const [expandedManufacturers, setExpandedManufacturers] = useState({});
   const [toast, setToast] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -121,7 +151,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([loadVehicles(), loadSessions(), loadTunes()]);
+    await Promise.all([loadVehicles(), loadCatalog(), loadSessions(), loadTunes()]);
     setLoading(false);
   };
 
@@ -132,6 +162,18 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       setVehicles(data);
     } catch (e) {
       showToast('加载车辆失败', 'error');
+    }
+  };
+
+  const loadCatalog = async () => {
+    try {
+      const res = await fetch('/api/vehicles/catalog');
+      if (res.ok) {
+        const data = await res.json();
+        setCatalog(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      showToast('加载游戏车辆目录失败', 'error');
     }
   };
 
@@ -184,6 +226,26 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       showToast('车辆已删除', 'success');
     } catch (e) {
       showToast('删除失败', 'error');
+    }
+  };
+
+  const toggleFavorite = async (card) => {
+    const current = vehicles[card.ord] || {};
+    try {
+      const res = await fetch('/api/vehicles/' + card.ord, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...current,
+          ordinal: Number(card.ord),
+          name: current.name || card.name,
+          favorite: !card.favorite
+        })
+      });
+      if (!res.ok) throw new Error('保存失败');
+      await loadVehicles();
+    } catch (e) {
+      showToast('收藏状态保存失败', 'error');
     }
   };
 
@@ -247,17 +309,29 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   }, [sessions]);
 
   const vehicleCards = useMemo(() => {
-    const allOrdinals = new Set([...Object.keys(vehicles), ...Object.keys(statsByOrdinal)]);
+    const catalogByOrdinal = new Map(catalog.map(item => [String(item.ordinal), item]));
+    const allOrdinals = new Set([...catalogByOrdinal.keys(), ...Object.keys(vehicles), ...Object.keys(statsByOrdinal)]);
     return Array.from(allOrdinals).map(ord => {
       const v = vehicles[ord];
+      const catalogVehicle = catalogByOrdinal.get(String(ord));
+      const savedName = v?.name && !v.name.startsWith('Car #') ? v.name : null;
       const stat = statsByOrdinal[ord] || { count: 0, bestLap: 0, avgLap: 0, lastUsed: 0, trackCount: 0, trackList: [], tracks: new Set(), recentSessions: [] };
+      const basePi = Number(v?.pi) || 0;
+      const cardTunes = tunesList
+        .filter(tune => String(tune.vehicleId || tune.carOrdinal) === String(ord))
+        .map(tune => ({ ...tune, calculatedPi: getTunePi(tune, basePi) }))
+        .sort((a, b) => b.calculatedPi - a.calculatedPi);
       return {
         ord,
-        name: v ? v.name : 'Car #' + ord,
+        name: savedName || catalogVehicle?.name || v?.name || 'Car #' + ord,
+        manufacturer: catalogVehicle?.manufacturer || getManufacturer(savedName || v?.name),
         class: v ? v.class : null,
-        pi: v ? v.pi : null,
+        pi: basePi || null,
         drivetrain: v ? v.drivetrain : null,
         isAuto: !v,
+        isReceived: Boolean(v?.autoDetected || stat.count > 0),
+        favorite: Boolean(v?.favorite),
+        tunes: cardTunes,
         stat: {
           count: stat.count,
           bestLap: stat.bestLap,
@@ -269,17 +343,23 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         }
       };
     });
-  }, [vehicles, statsByOrdinal]);
+  }, [catalog, vehicles, statsByOrdinal, tunesList]);
 
   // Round 6: 搜索过滤
   const filteredCards = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return vehicleCards;
-    return vehicleCards.filter(card =>
+    const tabCards = vehicleCards.filter(card => {
+      if (vehicleTab === 'received') return card.isReceived;
+      if (vehicleTab === 'unreceived') return !card.isReceived;
+      return card.favorite;
+    });
+    if (!q) return tabCards;
+    return tabCards.filter(card =>
       card.name.toLowerCase().includes(q) ||
-      String(card.ord).includes(q)
+      String(card.ord).includes(q) ||
+      getManufacturerSearchText(card.manufacturer).includes(q)
     );
-  }, [vehicleCards, searchQuery]);
+  }, [vehicleCards, searchQuery, vehicleTab]);
 
   // Round 6: 排序
   const sortedCards = useMemo(() => {
@@ -299,6 +379,20 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     });
     return sorted;
   }, [filteredCards, sortBy]);
+
+  const groupedCards = useMemo(() => {
+    const groups = new Map();
+    sortedCards.forEach(card => {
+      const manufacturer = card.manufacturer || '其他';
+      if (!groups.has(manufacturer)) groups.set(manufacturer, []);
+      groups.get(manufacturer).push(card);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b, 'zh-CN'));
+  }, [sortedCards]);
+
+  const setAllManufacturersExpanded = (expanded) => {
+    setExpandedManufacturers(Object.fromEntries(groupedCards.map(([manufacturer]) => [manufacturer, expanded])));
+  };
 
   // Round 3: 车辆对比相关
   const toggleCompareMode = () => {
@@ -370,26 +464,28 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   };
 
   return (
-    <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
+    <div className="vehicle-page">
       {toast && (
         <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '0 6px' }}>
-        <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>车辆管理</h2>
-          <div style={{ fontSize: 9, color: '#484f58', marginTop: 2 }}>
-            {vehicleCards.length} 辆车 / {sessions.length} 场比赛
+      <header className="vehicle-header">
+        <div className="vehicle-heading">
+          <div>
+            <p className="vehicle-eyebrow">车库</p>
+            <h2>车辆管理</h2>
+          </div>
+          <div className="vehicle-summary" aria-label="车辆库统计">
+            <div><strong>{vehicleCards.filter(card => card.isReceived).length}</strong><span>已接收</span></div>
+            <div><strong>{catalog.length}</strong><span>游戏车辆</span></div>
+            <div><strong>{tunesList.length}</strong><span>改装方案</span></div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="vehicle-header-actions">
           {/* Round 3: 车辆对比按钮 */}
           <button
             onClick={toggleCompareMode}
-            style={compareMode
-              ? { ...btnSmallStyle, background: '#58a6ff', color: '#fff', borderColor: '#58a6ff' }
-              : btnSmallStyle
-            }
+            style={compareMode ? { ...btnSmallStyle, background: '#58a6ff', color: '#fff', borderColor: '#58a6ff' } : btnSmallStyle}
           >
             {compareMode ? '退出对比' : '对比'}
           </button>
@@ -399,15 +495,36 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
               setEditingVehicle(null);
               setShowAddModal(true);
             }}
-            style={{ ...btnPrimaryStyle, padding: '4px 12px', fontSize: 11 }}
+            style={{ ...btnPrimaryStyle, padding: '6px 12px', fontSize: 11 }}
           >
             + 添加
           </button>
         </div>
+      </header>
+
+      <div className="vehicle-filter-tabs">
+        {[
+          { id: 'received', label: '已接收', count: vehicleCards.filter(card => card.isReceived).length },
+          { id: 'unreceived', label: '未接收', count: vehicleCards.filter(card => !card.isReceived).length },
+          { id: 'favorites', label: '收藏', count: vehicleCards.filter(card => card.favorite).length }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => { setVehicleTab(tab.id); setExpandedCard(null); }}
+            style={{
+              padding: '8px 12px', background: vehicleTab === tab.id ? 'rgba(88, 166, 255, 0.1)' : 'transparent', border: 'none',
+              borderBottom: vehicleTab === tab.id ? '2px solid #58a6ff' : '2px solid transparent',
+              color: vehicleTab === tab.id ? '#58a6ff' : '#8b949e', cursor: 'pointer', fontSize: 11,
+              fontWeight: vehicleTab === tab.id ? 700 : 400
+            }}
+          >
+            {tab.label} <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{tab.count}</span>
+          </button>
+        ))}
       </div>
 
       {/* Round 6: 搜索和排序 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '0 6px', alignItems: 'center' }}>
+      <div className="vehicle-toolbar">
         <div style={{ flex: 1, position: 'relative' }}>
           <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#484f58' }}>
             &#128269;
@@ -415,11 +532,11 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="搜索车辆名称 / ID..."
+            placeholder="搜索车辆、车厂或编号..."
             style={{
-              width: '100%', padding: '5px 8px 5px 24px',
-              background: '#161b22', border: '1px solid #21262d',
-              borderRadius: 4, color: '#c9d1d9', fontSize: 11, outline: 'none'
+              width: '100%', padding: '8px 10px 8px 28px',
+              background: '#0d1117', border: '1px solid #30363d',
+              borderRadius: 5, color: '#c9d1d9', fontSize: 12, outline: 'none'
             }}
           />
         </div>
@@ -427,15 +544,25 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
           style={{
-            padding: '5px 8px', background: '#161b22',
-            border: '1px solid #21262d', borderRadius: 4,
-            color: '#c9d1d9', fontSize: 10, cursor: 'pointer'
+            padding: '8px 10px', background: '#0d1117',
+            border: '1px solid #30363d', borderRadius: 5,
+            color: '#c9d1d9', fontSize: 11, cursor: 'pointer'
           }}
         >
           {SORT_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>排序: {opt.label}</option>
           ))}
         </select>
+      </div>
+
+      <div className="vehicle-directory-meta">
+        <span style={{ fontSize: 10, color: '#8b949e' }}>
+          {searchQuery.trim() ? `找到 ${sortedCards.length} 辆车，分属 ${groupedCards.length} 个车厂` : `共 ${groupedCards.length} 个车厂`}
+        </span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => setAllManufacturersExpanded(true)} style={{ ...btnSmallStyle, padding: '2px 7px', fontSize: 9 }}>展开全部</button>
+          <button onClick={() => setAllManufacturersExpanded(false)} style={{ ...btnSmallStyle, padding: '2px 7px', fontSize: 9 }}>收起全部</button>
+        </div>
       </div>
 
       {/* Round 3: 对比模式提示栏 */}
@@ -593,18 +720,41 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           加载中...
         </div>
       ) : sortedCards.length === 0 ? (
-        <EmptyState icon="&#x1F697;" title="暂无车辆数据" description="开始比赛后会自动识别车辆，或点击添加车辆手动创建。" />
+        <div style={{ padding: '48px 16px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+          {vehicleTab === 'favorites' ? '还没有收藏的车辆' : '没有符合条件的车辆'}
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>
-          {sortedCards.map(card => (
+        <div className="manufacturer-directory">
+          {groupedCards.map(([manufacturer, cards]) => {
+            const isExpanded = expandedManufacturers[manufacturer] ?? Boolean(searchQuery.trim());
+            return (
+            <section key={manufacturer} className="manufacturer-section">
+              <button
+                onClick={() => setExpandedManufacturers(prev => ({ ...prev, [manufacturer]: !prev[manufacturer] }))}
+                aria-expanded={isExpanded}
+                style={{
+                  display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '11px 12px',
+                  background: isExpanded ? '#1a222d' : '#161b22', border: '1px solid #30363d', borderRadius: 6, color: '#c9d1d9',
+                  cursor: 'pointer', textAlign: 'left'
+                }}
+              >
+                <span style={{ width: 14, color: '#58a6ff', fontSize: 14 }}>{isExpanded ? '⌄' : '›'}</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{manufacturer}</span>
+                {MANUFACTURER_ALIASES[manufacturer] && <span style={{ color: '#8b949e', fontSize: 10 }}>{MANUFACTURER_ALIASES[manufacturer]}</span>}
+                <span style={{ marginLeft: 'auto', padding: '2px 7px', color: '#a9c7e8', background: 'rgba(88, 166, 255, 0.12)', borderRadius: 10, fontFamily: 'monospace', fontSize: 10 }}>{cards.length} 辆</span>
+              </button>
+              {isExpanded && (
+              <div className="vehicle-card-grid">
+          {cards.map(card => (
             <div key={card.ord} style={{
               background: '#161b22',
               border: compareMode
                 ? `2px solid ${compareSelected.includes(card.ord) ? '#58a6ff' : (compareSelected.length < 2 ? 'rgba(88, 166, 255, 0.2)' : '#21262d')}`
                 : (card.isAuto ? '1px dashed #21262d' : '1px solid #21262d'),
-              borderRadius: 6, padding: 8, transition: 'all 0.2s', position: 'relative',
+              borderRadius: 6, padding: 10, transition: 'border-color 0.2s, background 0.2s', position: 'relative',
               cursor: compareMode ? 'pointer' : 'default'
             }}
+            className="vehicle-card"
             onClick={compareMode ? () => toggleSelectForCompare(card.ord) : undefined}
             >
               {/* Round 3: 对比模式选中指示 */}
@@ -639,7 +789,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                 <div
                   style={{ flex: 1, minWidth: 0, paddingRight: card.isAuto ? 40 : 0, cursor: 'pointer' }}
                   onClick={(e) => { if (!compareMode) { e.stopPropagation(); setExpandedCard(expandedCard === card.ord ? null : card.ord); } }}
-                  title="点击展开最近比赛"
+                  title="查看改装方案"
                 >
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {card.name}
@@ -657,168 +807,54 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10, marginBottom: 4 }}>
+              <div className="vehicle-build-summary">
+                <div><span>车辆记录 PI</span><strong>{card.pi || '-'}</strong></div>
+                <div><span>驱动</span><strong>{card.drivetrain || '-'}</strong></div>
                 <div>
-                  <div style={{ fontSize: 8, color: '#484f58' }}>PI</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#58a6ff', fontFamily: 'monospace' }}>{card.pi || '-'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 8, color: '#484f58' }}>驱动</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#c9d1d9', fontFamily: 'monospace' }}>{card.drivetrain || '-'}</div>
+                  <span>改装方案</span>
+                  <strong>{card.tunes.length ? `${Math.min(...card.tunes.map(t => t.calculatedPi))}-${Math.max(...card.tunes.map(t => t.calculatedPi))}` : '暂无'}</strong>
                 </div>
               </div>
 
-              {/* Round 3: 统计信息 - 增加平均圈速 */}
-              <div style={{ background: '#0d1117', borderRadius: 4, padding: 6, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 4 }}>
-                <Stat label="比赛" value={card.stat.count} />
-                <Stat label="赛道" value={card.stat.trackCount} />
-                <Stat label="最佳" value={formatTime(card.stat.bestLap)} small />
-                <Stat label="均速" value={formatTime(card.stat.avgLap)} small />
-              </div>
-
-              {/* Round 3: 赛道适配标签 */}
-              {card.stat.trackList.length > 0 && (
-                <div style={{ marginBottom: 4, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  {card.stat.trackList.slice(0, 4).map((track, idx) => (
-                    <span key={idx} style={{
-                      fontSize: 7, padding: '1px 4px', borderRadius: 2,
-                      background: '#0d1117', color: '#8b949e',
-                      border: '1px solid #21262d'
-                    }}>
-                      {track.length > 8 ? track.slice(0, 8) + '...' : track}
-                    </span>
+              {card.tunes.length > 0 && (
+                <div className="vehicle-tune-preview">
+                  {card.tunes.slice(0, 2).map(tune => (
+                    <span key={tune.id}><b>{tune.calculatedPi}</b> {tune.name || '未命名方案'}</span>
                   ))}
-                  {card.stat.trackList.length > 4 && (
-                    <span style={{ fontSize: 7, color: '#484f58', padding: '1px 2px' }}>
-                      +{card.stat.trackList.length - 4}
-                    </span>
-                  )}
+                  {card.tunes.length > 2 && <span>另有 {card.tunes.length - 2} 套</span>}
                 </div>
               )}
 
-              {/* Round 7: 展开显示最近比赛和改装方案 */}
               {expandedCard === card.ord && (
-                <div style={{ background: '#0d1117', borderRadius: 4, padding: 6, marginBottom: 4, fontSize: 9 }}>
-                  {(() => {
-                    const carTunes = tunesList.filter(t => String(t.vehicleId) === String(card.ord));
-                    const currentSubTab = subTabMap[card.ord] || 'races';
-                    
-                    return (
-                      <>
-                        {/* 子 Tab 头部 */}
-                        <div style={{ display: 'flex', borderBottom: '1px solid #21262d', marginBottom: 6, gap: 4 }}>
-                          <div
-                            onClick={(e) => { e.stopPropagation(); setSubTabMap(prev => ({ ...prev, [card.ord]: 'races' })) }}
-                            style={{
-                              padding: '2px 8px', cursor: 'pointer', fontSize: 9,
-                              color: currentSubTab === 'races' ? '#58a6ff' : '#8b949e',
-                              borderBottom: currentSubTab === 'races' ? '2px solid #58a6ff' : '2px solid transparent',
-                              fontWeight: currentSubTab === 'races' ? 600 : 400
-                            }}
-                          >
-                            最近比赛
-                          </div>
-                          <div
-                            onClick={(e) => { e.stopPropagation(); setSubTabMap(prev => ({ ...prev, [card.ord]: 'tunes' })) }}
-                            style={{
-                              padding: '2px 8px', cursor: 'pointer', fontSize: 9,
-                              color: currentSubTab === 'tunes' ? '#58a6ff' : '#8b949e',
-                              borderBottom: currentSubTab === 'tunes' ? '2px solid #58a6ff' : '2px solid transparent',
-                              fontWeight: currentSubTab === 'tunes' ? 600 : 400
-                            }}
-                          >
-                            改装调校方案 ({carTunes.length})
-                          </div>
-                        </div>
-
-                        {/* 最近比赛列表 */}
-                        {currentSubTab === 'races' && (
-                          <div>
-                            {card.stat.recentSessions.length === 0 ? (
-                              <div style={{ color: '#484f58', padding: '6px 0', textAlign: 'center' }}>暂无比赛记录</div>
-                            ) : (
-                              card.stat.recentSessions.map((s, idx) => (
-                                <div key={idx} style={{
-                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                  padding: '2px 0',
-                                  borderBottom: idx < card.stat.recentSessions.length - 1 ? '1px solid #161b22' : 'none'
-                                }}>
-                                  <span style={{ color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
-                                    {s.trackName || '未知赛道'}
-                                  </span>
-                                  <span style={{ color: '#58a6ff', fontFamily: 'monospace', fontSize: 8, flexShrink: 0, marginLeft: 4 }}>
-                                    {formatTime(s.laps && s.laps.best ? s.laps.best : 0)}
-                                  </span>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-
-                        {/* 改装调校方案列表 */}
-                        {currentSubTab === 'tunes' && (
-                          <div>
-                            {carTunes.length === 0 ? (
-                              <div style={{ color: '#484f58', padding: '6px 0', textAlign: 'center' }}>暂无改装方案，点击下方「工坊」新建</div>
-                            ) : (
-                              carTunes.map((tune, idx) => {
-                                const tuneSessions = sessions.filter(s => String(s.vehicle?.ordinal) === String(card.ord) && s.tuneId === tune.id && s.laps?.best > 0);
-                                const bestTuneLap = tuneSessions.length > 0 ? Math.min(...tuneSessions.map(s => s.laps.best)) : 0;
-                                
-                                return (
-                                  <div key={tune.id} style={{
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    padding: '4px 0',
-                                    borderBottom: idx < carTunes.length - 1 ? '1px solid #161b22' : 'none'
-                                  }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                                      <span style={{ color: '#e6edf3', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {tune.name || '未命名调校'}
-                                      </span>
-                                      <span style={{ color: '#8b949e', fontSize: 7, marginTop: 1 }}>
-                                        PI: {tune.targetPi || 800} | {(tune.tags || []).join(', ') || '无标签'}
-                                      </span>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                      <span style={{ color: bestTuneLap > 0 ? '#3fb950' : '#484f58', fontFamily: 'monospace', fontSize: 8 }}>
-                                        {bestTuneLap > 0 ? `🏆 ${formatTime(bestTuneLap)}` : '未跑圈'}
-                                      </span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onNavigate('tunes', { tuneId: tune.id, action: 'edit' });
-                                        }}
-                                        style={{
-                                          padding: '1px 6px',
-                                          background: '#21262d',
-                                          color: '#58a6ff',
-                                          border: '1px solid #30363d',
-                                          borderRadius: 3,
-                                          fontSize: 8,
-                                          cursor: 'pointer',
-                                          marginLeft: 6
-                                        }}
-                                        title="去工坊编辑"
-                                      >
-                                        编辑
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                <div className="vehicle-tune-list">
+                  <div className="vehicle-tune-list-title">改装调校方案 <span>{card.tunes.length} 套</span></div>
+                  {card.tunes.length === 0 ? (
+                    <div className="vehicle-tune-empty">还没有改装方案，可从下方进入工坊新建。</div>
+                  ) : card.tunes.map(tune => (
+                    <div key={tune.id} className="vehicle-tune-row">
+                      <div>
+                        <strong>{tune.name || '未命名方案'}</strong>
+                        <span>{(tune.tags || []).join(' · ') || '未添加标签'}</span>
+                      </div>
+                      <div className="vehicle-tune-pi">PI {tune.calculatedPi}</div>
+                      <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit' }); }} style={{ ...btnSmallStyle, padding: '3px 7px', fontSize: 9 }}>编辑</button>
+                    </div>
+                  ))}
                 </div>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#484f58', borderTop: '1px solid #21262d', paddingTop: 4 }}>
-                <span>{formatRelative(card.stat.lastUsed)}</span>
+                <span>车辆编号 #{card.ord}</span>
                 {!compareMode && (
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(card); }}
+                      style={{ ...btnSmallStyle, width: 25, padding: '2px 0', color: card.favorite ? '#d29922' : '#8b949e', borderColor: card.favorite ? 'rgba(210, 153, 34, 0.55)' : '#30363d' }}
+                      title={card.favorite ? '取消收藏' : '收藏车辆'}
+                      aria-label={card.favorite ? '取消收藏' : '收藏车辆'}
+                    >
+                      {card.favorite ? '★' : '☆'}
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -859,6 +895,11 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
               </div>
             </div>
           ))}
+              </div>
+              )}
+            </section>
+            );
+          })}
         </div>
       )}
 
@@ -939,16 +980,60 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes toastSlideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .vehicle-page {
+          min-height: 100%; padding: 16px; background: #0d1117; color: #c9d1d9;
+        }
+        .vehicle-header {
+          display: flex; justify-content: space-between; align-items: center; gap: 16px;
+          padding: 14px 16px; margin-bottom: 12px; background: #161b22;
+          border: 1px solid #30363d; border-radius: 7px;
+        }
+        .vehicle-heading { display: flex; align-items: center; gap: 28px; min-width: 0; }
+        .vehicle-heading h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 0; }
+        .vehicle-eyebrow { margin: 0 0 3px; color: #58a6ff; font-size: 10px; font-weight: 700; }
+        .vehicle-summary { display: flex; border-left: 1px solid #30363d; }
+        .vehicle-summary div { display: flex; flex-direction: column; min-width: 66px; padding: 0 14px; border-right: 1px solid #30363d; }
+        .vehicle-summary strong { color: #e6edf3; font: 700 16px monospace; }
+        .vehicle-summary span { margin-top: 3px; color: #8b949e; font-size: 9px; }
+        .vehicle-header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .vehicle-filter-tabs { display: flex; gap: 4px; margin-bottom: 12px; padding: 0 2px; border-bottom: 1px solid #30363d; }
+        .vehicle-toolbar { display: flex; gap: 8px; margin-bottom: 7px; align-items: center; }
+        .vehicle-directory-meta { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 12px; min-height: 24px; }
+        .manufacturer-directory { display: flex; flex-direction: column; gap: 8px; }
+        .manufacturer-section > button:hover { border-color: #58a6ff !important; background: #1a222d !important; }
+        .vehicle-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; padding: 6px 2px 4px; }
+        .vehicle-card:hover { background: #1b222c !important; border-color: #3b5168 !important; }
+        .vehicle-build-summary { display: grid; grid-template-columns: 0.85fr 0.75fr 1.4fr; gap: 1px; margin: 10px 0 7px; border: 1px solid #21262d; border-radius: 5px; overflow: hidden; background: #21262d; }
+        .vehicle-build-summary > div { min-width: 0; padding: 7px 8px; background: #0d1117; }
+        .vehicle-build-summary span { display: block; margin-bottom: 3px; color: #8b949e; font-size: 8px; }
+        .vehicle-build-summary strong { display: block; overflow: hidden; color: #e6edf3; font: 700 12px monospace; text-overflow: ellipsis; white-space: nowrap; }
+        .vehicle-build-summary > div:first-child strong { color: #79c0ff; }
+        .vehicle-build-summary > div:last-child strong { color: #3fb950; }
+        .vehicle-tune-preview { display: flex; flex-wrap: wrap; gap: 4px; min-height: 23px; margin-bottom: 7px; }
+        .vehicle-tune-preview span { max-width: 100%; overflow: hidden; padding: 3px 5px; border: 1px solid #253649; border-radius: 3px; color: #a9c7e8; background: rgba(88, 166, 255, 0.07); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+        .vehicle-tune-preview b { color: #79c0ff; font-family: monospace; }
+        .vehicle-tune-list { margin: 8px 0; padding: 8px; border: 1px solid #30363d; border-radius: 5px; background: #0d1117; }
+        .vehicle-tune-list-title { display: flex; justify-content: space-between; margin-bottom: 6px; color: #c9d1d9; font-size: 10px; font-weight: 700; }
+        .vehicle-tune-list-title span { color: #8b949e; font-family: monospace; font-weight: 400; }
+        .vehicle-tune-empty { padding: 6px 0; color: #8b949e; font-size: 9px; text-align: center; }
+        .vehicle-tune-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid #21262d; }
+        .vehicle-tune-row strong, .vehicle-tune-row span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .vehicle-tune-row strong { color: #e6edf3; font-size: 10px; }
+        .vehicle-tune-row span { margin-top: 2px; color: #8b949e; font-size: 8px; }
+        .vehicle-tune-pi { color: #3fb950; font: 700 10px monospace; white-space: nowrap; }
+        @media (max-width: 700px) {
+          .vehicle-page { padding: 10px; }
+          .vehicle-header, .vehicle-heading { align-items: flex-start; flex-direction: column; }
+          .vehicle-header { padding: 12px; }
+          .vehicle-heading { gap: 12px; }
+          .vehicle-summary { width: 100%; border-top: 1px solid #30363d; border-left: 0; padding-top: 10px; }
+          .vehicle-summary div { flex: 1; min-width: 0; padding: 0 10px; }
+          .vehicle-toolbar { align-items: stretch; flex-wrap: wrap; }
+          .vehicle-toolbar > div { min-width: 100%; }
+          .vehicle-directory-meta { align-items: flex-start; gap: 8px; flex-direction: column; }
+          .vehicle-build-summary { grid-template-columns: 1fr 1fr 1.2fr; }
+        }
       `}</style>
-    </div>
-  );
-}
-
-function Stat({ label, value, small = false }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: small ? 11 : 14, fontWeight: 700, fontFamily: 'monospace', color: '#c9d1d9' }}>{value}</div>
     </div>
   );
 }
