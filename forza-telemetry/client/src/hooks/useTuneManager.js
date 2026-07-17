@@ -8,6 +8,7 @@ import {
 } from '../data/parts'
 import { DRIVING_PROBLEMS, diagnoseFromTelemetry, PROBLEM_CATEGORIES } from '../data/tunePresets'
 import { api } from '../services/api'
+import { useTuneStore } from '../stores/useTuneStore'
 import { useTuneUpgrade } from './useTuneUpgrade'
 import { useTuneDiagnosis } from './useTuneDiagnosis'
 
@@ -85,9 +86,22 @@ const PI_CLASS_CAPS = [500, 600, 700, 800, 900, 998, 999]
 const nextPiClassCap = basePi => PI_CLASS_CAPS.find(cap => cap > Number(basePi)) || 999
 
 export function useTuneManager({ onNavigate, navIntent }) {
-  const [tunes, setTunes] = useState([])
-  const [vehicles, setVehicles] = useState({})
-  const [tracks, setTracks] = useState([])
+  const {
+    tunes,
+    vehicles,
+    tracks,
+    activeTune,
+    activeTuneLoading,
+    tuneSessionStats,
+    loadTunes,
+    loadVehicles,
+    loadTracks,
+    loadTuneSessionStats,
+    loadActiveTune,
+    setActiveTuneById,
+    clearActiveTune
+  } = useTuneStore()
+
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingTune, setEditingTune] = useState(null)
@@ -231,12 +245,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     editingTune
   })
 
-  // Round 4: 活跃调校
-  const [activeTune, setActiveTune] = useState(null)
-  const [activeTuneLoading, setActiveTuneLoading] = useState(false)
 
-  // Round 6: 调校与比赛关联
-  const [tuneSessionStats, setTuneSessionStats] = useState({})
 
   useEffect(() => {
     loadTunes()
@@ -471,81 +480,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
 
 
-  const loadTunes = async () => {
-    try {
-      const data = await api.tunes.list();
-      setTunes(Array.isArray(data) ? data : [])
-    } catch (e) {
-      setTunes([])
-    }
-  }
 
-  const loadVehicles = async () => {
-    try {
-      const data = await api.vehicles.list();
-      setVehicles(data || {})
-    } catch (e) { /* 加载车辆失败 */ }
-  }
-
-  const loadTracks = async () => {
-    try {
-      const data = await api.tracks.list();
-      setTracks(Array.isArray(data) ? data : Object.values(data || {}))
-    } catch (e) { /* 加载赛道失败 */ }
-  }
-
-  // Round 6: 加载调校与比赛关联统计
-  const loadTuneSessionStats = async () => {
-    try {
-      const data = await api.sessions.list();
-      const allSessions = Array.isArray(data) ? data : []
-      const stats = {}
-      allSessions.forEach(s => {
-        if (!s.tuneId) return
-        if (!stats[s.tuneId]) {
-          stats[s.tuneId] = { count: 0, bestLap: Infinity, totalLaps: 0, sessions: [] }
-        }
-        const st = stats[s.tuneId]
-        st.count++
-        st.totalLaps += s.laps?.count || 0
-        if (s.laps?.best > 0 && s.laps.best < st.bestLap) {
-          st.bestLap = s.laps.best
-        }
-        st.sessions.push(s)
-      })
-      setTuneSessionStats(stats)
-    } catch (e) { /* 加载统计失败 */ }
-  }
-
-  // Round 4: 加载活跃调校
-  const loadActiveTune = async () => {
-    try {
-      const data = await api.tunes.getActive();
-      setActiveTune(data.tune || null)
-    } catch (e) { /* 加载活跃调校失败 */ }
-  }
-
-  // Round 4: 设置活跃调校
-  const setActiveTuneById = async (tuneId) => {
-    setActiveTuneLoading(true)
-    try {
-      await api.tunes.setActive({ tuneId });
-      await loadActiveTune()
-      alert('已设为当前活跃调校')
-    } catch (e) { /* 设置活跃调校失败 */
-      alert('设置活跃调校失败')
-    } finally {
-      setActiveTuneLoading(false)
-    }
-  }
-
-  // Round 4: 取消活跃调校
-  const clearActiveTune = async () => {
-    try {
-      await api.tunes.setActive({ tuneId: null });
-      setActiveTune(null)
-    } catch (e) { /* 取消活跃调校失败 */ }
-  }
 
   const saveTune = async () => {
     if (!formData.name.trim()) {

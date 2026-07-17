@@ -1,0 +1,219 @@
+[
+  {
+    "id": "body_roll",
+    "name": "弯道侧倾过大",
+    "primaryMetric": "maxRollAngle",
+    "rules": [
+      {
+        "condition": "maxRollAngle > 4.5",
+        "severity": "high",
+        "details": "弯道中最大车身侧倾角 {maxRollAngle}°，侧倾严重影响轮胎外倾角补偿与贴地力",
+        "fix": {
+          "frontARB": { "delta": 5, "reason": "增加前防倾杆硬度限制弯中前轴侧倾" },
+          "rearARB": { "delta": 5, "reason": "增加后防倾杆硬度配合前部稳定车身" },
+          "frontSpring": { "delta": 3, "reason": "增加前弹簧硬度提供更强的侧向支撑" },
+          "rearSpring": { "delta": 3, "reason": "增加后弹簧硬度" },
+          "frontRideHeight": { "delta": -2, "reason": "适当降低前部车身重心减少侧倾力矩" },
+          "rearRideHeight": { "delta": -2, "reason": "降低后部车身高度" }
+        }
+      },
+      {
+        "condition": "maxRollAngle > 3.0",
+        "severity": "medium",
+        "details": "弯道中最大车身侧倾角 {maxRollAngle}°，侧倾幅度稍大，车身侧向支撑力有待提升",
+        "fix": {
+          "frontARB": { "delta": 3, "reason": "适当增加前防倾杆硬度提供弯中支撑" },
+          "rearARB": { "delta": 3, "reason": "适当增加后防倾杆硬度限制车身侧倾" },
+          "frontSpring": { "delta": 2, "reason": "增加前弹簧硬度提升弯中侧倾刚度" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "slip_accel",
+    "name": "出弯打滑/甩尾",
+    "primaryMetric": "slipRatio",
+    "rules": [
+      {
+        "condition": "slipRatio > 0.25",
+        "severity": "high",
+        "details": "加速时打滑帧占比 {slipRatioPct}%，出弯加速时轮胎严重打滑，失控倾向明显",
+        "fix": {
+          "diffAccel": { "delta": -15, "reason": "大幅降低加速差速锁分配比例允许更多差速，防范双轮同时打滑" },
+          "rearARB": { "delta": -3, "reason": "减小后防倾杆硬度以增加车尾外侧车轮在出弯时的接地重力" },
+          "rearSpring": { "delta": -2, "reason": "减小后弹簧硬度增加重心转移后的车尾接地抓地力" },
+          "rearTirePressure": { "delta": -2, "reason": "降低后胎压增加出弯时后胎面接地宽度" }
+        }
+      },
+      {
+        "condition": "slipRatio > 0.10",
+        "severity": "medium",
+        "details": "加速时打滑帧占比 {slipRatioPct}%，出弯时偶发动力性轮胎打滑",
+        "fix": {
+          "diffAccel": { "delta": -10, "reason": "适当减小加速差速锁百分比让动力输出更平稳" },
+          "rearARB": { "delta": -2, "reason": "适当减小后防倾杆增加出弯尾部机械抓地" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "brake_lock",
+    "name": "刹车容易锁死",
+    "primaryMetric": "lockRatio",
+    "rules": [
+      {
+        "condition": "lockRatio > 0.30",
+        "severity": "high",
+        "details": "重刹时疑似锁死帧占比 {lockRatioPct}%，重制动极易抱死失控，严重影响刹车效能",
+        "fix": {
+          "brakeBias": { "delta": -3, "reason": "前移刹车偏置（偏向车头），避免载荷前移时后轮率先锁死" },
+          "frontTirePressure": { "delta": -1, "reason": "适当降低前胎压增加前轮接地面积防范抱死" },
+          "rearTirePressure": { "delta": -1, "reason": "降低后胎压增加抓地容错" }
+        }
+      },
+      {
+        "condition": "lockRatio > 0.15",
+        "severity": "medium",
+        "details": "重刹时疑似锁死帧占比 {lockRatioPct}%，重制动有偶发抱死轮胎打滑倾向",
+        "fix": {
+          "brakeBias": { "delta": -2, "reason": "稍微前移刹车偏置均衡制动力" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "straight_unstable",
+    "name": "直线不稳定",
+    "primaryMetric": "yawStdDev",
+    "rules": [
+      {
+        "condition": "yawStdDev > 5.0",
+        "severity": "high",
+        "details": "高速段偏航标准差 {yawStdDev}°/s，最大偏航 {maxYaw}°/s，高速直道尾部极不稳定",
+        "fix": {
+          "frontToe": { "delta": -0.1, "reason": "微调前轮前束为负值以引入高速直线安定阻尼" },
+          "rearDownforce": { "delta": 8, "reason": "增加后下压力以紧压车尾" },
+          "rearARB": { "delta": 2, "reason": "增加后防倾杆硬度抑制高速摆动" },
+          "rearSpring": { "delta": 2, "reason": "增加后弹簧提升车尾支撑" }
+        }
+      },
+      {
+        "condition": "yawStdDev > 3.0 || maxYaw > 10.0",
+        "severity": "medium",
+        "details": "高速段偏航标准差 {yawStdDev}°/s，最大偏航 {maxYaw}°/s，高速段行驶时有微幅蛇行震荡",
+        "fix": {
+          "frontToe": { "delta": -0.05, "reason": "微调前轮前束增强稳定性" },
+          "rearDownforce": { "delta": 5, "reason": "适当增加后部下压力" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "snap_oversteer",
+    "name": "突然甩尾",
+    "primaryMetric": "snapCount",
+    "rules": [
+      {
+        "condition": "snapCount > 8",
+        "severity": "high",
+        "details": "检测到 {snapCount} 次偏航角急剧突变，尾部摆动极其剧烈且难以修正",
+        "fix": {
+          "diffDecel": { "delta": 15, "reason": "大幅提高减速差速锁，限制收油/刹车入弯时的内轮速差，抑制滑行甩尾" },
+          "diffAccel": { "delta": 10, "reason": "增加加速差速锁提升动力输出稳定性" },
+          "rearARB": { "delta": -3, "reason": "降低后防倾杆让后轴在侧向滑动发生时反应更温和" },
+          "rearDamping": { "delta": -1, "reason": "减小后阻尼改善后悬挂动态响应" }
+        }
+      },
+      {
+        "condition": "snapCount > 3",
+        "severity": "medium",
+        "details": "检测到 {snapCount} 次偏航角突变，弯中有偶发性尾部失稳偏航",
+        "fix": {
+          "diffDecel": { "delta": 10, "reason": "适当提高减速差速锁抑制收油甩尾" },
+          "rearARB": { "delta": -2, "reason": "稍微减小后防倾杆增加车尾宽容度" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "launch_spin",
+    "name": "起步打滑",
+    "primaryMetric": "spinRatio",
+    "rules": [
+      {
+        "condition": "spinRatio > 0.50",
+        "severity": "high",
+        "details": "起步加速阶段打滑帧占比 {spinRatioPct}%，起步驱动轮过度空转，严重阻碍弹射加速",
+        "fix": {
+          "diffAccel": { "delta": 20, "reason": "大幅提高加速差速锁限制起步单轮空转造成的动力流失" },
+          "rearTirePressure": { "delta": -2, "reason": "降低后胎压增加静止起步接地面积" },
+          "rearSpring": { "delta": 3, "reason": "增加后弹簧硬度抑制起步时的重心过度下蹲" }
+        }
+      },
+      {
+        "condition": "spinRatio > 0.30",
+        "severity": "medium",
+        "details": "起步加速阶段打滑帧占比 {spinRatioPct}%，起步时有可感知的轮胎空转",
+        "fix": {
+          "diffAccel": { "delta": 10, "reason": "适当提高加速差速锁" },
+          "rearTirePressure": { "delta": -1, "reason": "轻微降低后胎压增加抓地" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "body_roll_wobble",
+    "name": "过弯后车身摇摆",
+    "primaryMetric": "wobbleCount",
+    "rules": [
+      {
+        "condition": "wobbleCount > 15",
+        "severity": "high",
+        "details": "检测到 {wobbleCount} 次侧倾方向摆动交替，车身出现严重的多余摆动",
+        "fix": {
+          "frontARB": { "delta": 3, "reason": "增加前防倾杆硬度抑制左右晃动" },
+          "rearARB": { "delta": 3, "reason": "增加后防倾杆硬度稳定车身" },
+          "frontDamping": { "delta": 2, "reason": "增加前回弹阻尼快速抑制并消耗悬挂多余伸缩动能" },
+          "rearDamping": { "delta": 2, "reason": "增加后回弹阻尼" }
+        }
+      },
+      {
+        "condition": "wobbleCount > 5",
+        "severity": "medium",
+        "details": "检测到 {wobbleCount} 次侧倾方向摆动交替，出弯车身有轻微左右摇摆晃动",
+        "fix": {
+          "frontDamping": { "delta": 1, "reason": "稍微提高前回弹阻尼稳定出弯姿态" },
+          "rearDamping": { "delta": 1, "reason": "稍微提高后回弹阻尼" }
+        }
+      }
+    ]
+  },
+  {
+    "id": "tire_overheat",
+    "name": "轮胎温度过高/磨损过快",
+    "primaryMetric": "overheatRatio",
+    "rules": [
+      {
+        "condition": "overheatRatio > 0.25 || overallMaxTemp > 95.0",
+        "severity": "high",
+        "details": "过热帧占比 {overheatRatioPct}%，最高胎温达 {overallMaxTemp}°C，胎温过高极易加剧抓地力断崖衰减",
+        "fix": {
+          "frontTirePressure": { "delta": 2, "reason": "提高前胎压增加胎体刚度，减少高载荷侧倾下的变形生热" },
+          "rearTirePressure": { "delta": 2, "reason": "提高后胎压减少胎面生热" },
+          "frontCamber": { "delta": 0.3, "reason": "减小前轮负外倾角（使趋向0），让前胎面在直线和刹车时接地更均匀，降低内侧过热" },
+          "rearCamber": { "delta": 0.3, "reason": "减小后轮负外倾角减少内侧生热" },
+          "frontARB": { "delta": -2, "reason": "减小前防倾杆降低前轮抓地负荷" }
+        }
+      },
+      {
+        "condition": "overheatRatio > 0.10",
+        "severity": "medium",
+        "details": "过热帧占比 {overheatRatioPct}%，最高胎温 {overallMaxTemp}°C，轮胎局部发热偏高，影响长期耐磨性",
+        "fix": {
+          "frontTirePressure": { "delta": 1, "reason": "稍微提高前胎压减少变形生热" },
+          "rearTirePressure": { "delta": 1, "reason": "稍微提高后胎压" }
+        }
+      }
+    ]
+  }
+]

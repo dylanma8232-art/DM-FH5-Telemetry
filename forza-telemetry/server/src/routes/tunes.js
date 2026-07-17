@@ -2,6 +2,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { stateManager } from '../services/state-manager.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import { validateTunePayload } from '../services/upgrade-catalog.js';
+import { saveTuneSchema, formatZodError } from '../utils/schemas.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -163,10 +164,11 @@ router.get('/compare', asyncHandler(async (req, res) => {
 // 创建新调校
 router.post('/', express.json(), asyncHandler(async (req, res) => {
 
-  const body = req.body || {};
-  if (!body.name) {
-    return res.status(400).json({ error: 'name is required' });
+  const parsed = saveTuneSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: '数据格式校验失败', errors: formatZodError(parsed.error) });
   }
+  const body = parsed.data;
   const validation = validateTunePayload(loadUpgradeProfile(body.vehicleId), body);
   if (!validation.valid) return res.status(422).json({ error: '改装或调教校验失败', errors: validation.errors, warnings: validation.warnings });
 
@@ -228,7 +230,11 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   if (!tune) {
     return res.status(404).json({ error: 'Tune not found' });
   }
-  const body = req.body || {};
+  const parsed = saveTuneSchema.partial().safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: '数据格式校验失败', errors: formatZodError(parsed.error) });
+  }
+  const body = parsed.data;
   const candidate = mergeTunePayload(tune, body);
   const validation = validateTunePayload(loadUpgradeProfile(candidate.vehicleId), candidate);
   if (!validation.valid) return res.status(422).json({ error: '改装或调教校验失败', errors: validation.errors, warnings: validation.warnings });

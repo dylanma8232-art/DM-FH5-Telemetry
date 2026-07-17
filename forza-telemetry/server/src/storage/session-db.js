@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { writeJsonAsync, writeBrotliAsync } from './file-db.js';
+import { sqliteDb } from './sqlite-db.js';
 import { detectTurnsEnhanced, generateSectors, buildRouteBook, validateTrackQuality } from '../track-builder.js';
 
 // 获取数据根目录 (相对于此文件)
@@ -148,6 +149,21 @@ export function loadSession(sessionId, tracks) {
       Object.defineProperty(summary, 'data', {
         get() {
           if (this._data) return this._data;
+          
+          // 1. 优先从 SQLite 读取
+          try {
+            const row = sqliteDb.getSessionDetail(sessionId);
+            if (row && row.hifi_data_br) {
+              const decompressed = zlib.brotliDecompressSync(row.hifi_data_br);
+              const detail = JSON.parse(decompressed.toString('utf8'));
+              this._data = detail.data || [];
+              return this._data;
+            }
+          } catch (sqliteErr) {
+            console.error(`[loadSession] 从 SQLite 读取 ${sessionId} 数据失败:`, sqliteErr.message);
+          }
+
+          // 2. 降级从本地 Brotli 压缩包读取，并自动迁移至 SQLite
           const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
           const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
           const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
@@ -173,6 +189,15 @@ export function loadSession(sessionId, tracks) {
               const decompressed = isBrotli ? zlib.brotliDecompressSync(buffer) : zlib.gunzipSync(buffer);
               const detail = JSON.parse(decompressed.toString('utf8'));
               this._data = detail.data || [];
+              
+              // 自动异步迁回 SQLite，以便下次闪电读取
+              if (isBrotli && targetPath === hifiPath) {
+                let lowfiBr = null;
+                if (fs.existsSync(lowfiPath)) {
+                  lowfiBr = fs.readFileSync(lowfiPath);
+                }
+                sqliteDb.saveSessionDetail(sessionId, buffer, lowfiBr || buffer);
+              }
             } catch (e) {
               console.error(`[loadSession] 解压 ${sessionId} 细节数据失败:`, e.message);
               this._data = [];
@@ -192,6 +217,19 @@ export function loadSession(sessionId, tracks) {
       Object.defineProperty(summary, 'positions', {
         get() {
           if (this._positions) return this._positions;
+          
+          // 1. 优先从 SQLite 读取
+          try {
+            const row = sqliteDb.getSessionDetail(sessionId);
+            if (row && row.hifi_data_br) {
+              const decompressed = zlib.brotliDecompressSync(row.hifi_data_br);
+              const detail = JSON.parse(decompressed.toString('utf8'));
+              this._positions = detail.positions || [];
+              return this._positions;
+            }
+          } catch (sqliteErr) {}
+
+          // 2. 降级从本地 Brotli 压缩包读取
           const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
           const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
           const brPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
