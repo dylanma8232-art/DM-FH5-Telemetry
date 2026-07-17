@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js",
     "debug-udp": "node src/utils/listen-and-classify.js",
     "recompress": "node recompress-background.js"
   },

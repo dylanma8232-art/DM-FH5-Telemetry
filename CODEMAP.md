@@ -1040,6 +1040,8 @@
       - 📄 [asyncHandler.js](file:///forza-telemetry/server/src/utils/asyncHandler.js)   *(常量/方法: `asyncHandler`)*
       - 📄 [helpers.js](file:///forza-telemetry/server/src/utils/helpers.js)   *(函数/组件: `getLocalIPs`, 函数/组件: `loadJSON`, 函数/组件: `saveJSON`)*
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
+  - 📂 **test/**
+    - 📄 [pi-model.test.js](file:///forza-telemetry/server/test/pi-model.test.js) 
 
 ---
 
