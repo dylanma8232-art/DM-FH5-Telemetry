@@ -401,7 +401,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
     // 使用 ref 读取最新 buildMode，避免异步 state 闭包竞争导致在手动模式下误触发
     if (!formData.parts || buildModeRef.current !== 'ai') return
     try {
-      const defaults = getTuneDefaults(formData.parts, currentVehicleStats) || {}
+      // 旧的 getTuneDefaults 使用 PSI 作为胎压单位，而调校管理和服务端都
+      // 以 bar 保存。AI 不能再复用它，否则会把 30 之类的 PSI 数值写入 bar
+      // 字段并在保存时被拒绝。
+      const defaults = {}
       const allowedTuneIds = new Set((upgradeShop?.tuneParameters || []).map(parameter => parameter.id))
       for (const key of Object.keys(defaults)) {
         if (!allowedTuneIds.has(key)) delete defaults[key]
@@ -597,6 +600,29 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
 
+    // 以车辆档案返回的范围为保存时的唯一准则。除了防止异步改装联动留下
+    // 旧范围的值，也会把旧版方案遗留的 PSI 胎压迁移为 bar。
+    const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
+      const constraint = tuneConstraints[`${category}.${field}`]
+      if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
+      let value = Number(raw)
+      if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
+        value *= 0.0689476
+      }
+      const step = Number(constraint.step)
+      if (step > 0) value = constraint.min + Math.round((value - constraint.min) / step) * step
+      value = Math.min(constraint.max, Math.max(constraint.min, value))
+      return [field, Number(value.toFixed(6))]
+    }))
+    const normalizedTune = {
+      tires: normalizeGroup('tires', formData.tires),
+      suspension: normalizeGroup('suspension', formData.suspension),
+      drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
+      brakes: normalizeGroup('brakes', formData.brakes),
+      aero: normalizeGroup('aero', formData.aero)
+    }
+    setFormData(prev => ({ ...prev, ...normalizedTune }))
+
     const payload = {
       name: formData.name.trim(),
       tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -607,11 +633,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       generationMode: buildMode === 'ai' ? 'ai' : 'manual',
       raceType: buildMode === 'ai' ? aiRaceType : null,
       driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
-      tires: { ...formData.tires },
-      suspension: { ...formData.suspension },
-      drivetrain: { ...formData.drivetrain },
-      brakes: { ...formData.brakes },
-      aero: { ...formData.aero },
+      ...normalizedTune,
       parts: { ...formData.parts },
       freeMode: !!formData.freeMode,
       notes: formData.notes || ''
@@ -928,7 +950,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
       for (const [flatKey, value] of Object.entries(raw)) {
         const path = TUNE_DEFAULT_KEY_MAP[flatKey]
         if (path) {
-          mapped[`${path[0]}.${path[1]}`] = value
+          // 旧推荐表的胎压是 PSI；调校表单统一使用 bar。
+          const isTirePressure = flatKey === 'tire_pressure_front' || flatKey === 'tire_pressure_rear'
+          mapped[`${path[0]}.${path[1]}`] = isTirePressure && Number.isFinite(Number(value))
+            ? Number((Number(value) * 0.0689476).toFixed(2))
+            : value
         }
       }
       return mapped
