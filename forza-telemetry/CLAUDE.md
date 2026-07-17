@@ -715,3 +715,55 @@ toast('合并成功', 'success');
    - **优化**：
      - 在 `routes/tracks.js` 的 `/merge` 接口中，将现有的赛道弯道数据（`oldTurns` 等）作为选项传递给 `buildTrackFromTrajectories`。
      - 在 `mapOldTurnsToNewCenterline` 中增加了对 `isLoop` 环路特性的检查（通过 `isLoopCrossing` 判断是否跨数组首尾），并确保新构建的弯道对象保留了用户已锁定的属性值，避免了赛道合并后用户手修路书丢失的问题。
+
+---
+
+### 11.6 调校改装中心体验与一键升级逻辑深度重构（2026-07-17 优化）
+
+1. **AI 改装逻辑彻底解锁与余量释放**：
+   - **安全余量精细化**：将 AI 自动改装时的预估安全余量从原来保守的 `Math.max(10, targetPi * 0.02)`（对 S2 998 级别强制留出 20 PI 空余，限制到 978）缩减为固定值 `2` 点 PI。现在 AI 能把 S2 级车升到 `996`，S1 级车升到 `898`，大幅增加了高端配件的推荐几率，拒绝保守升级。
+   - **解锁核心限制**：移除了前端对缺少 PI、AI 不推荐（`aiEligible !== true`）的现有改装件的阻断弹窗与强制中断限制，大模型智能诊断时直接静默输出改装方案，移除弹窗打扰。
+
+2. **界面视觉与原厂标记优化**：
+   - 彻底移除了“专属”、“通用”、“通用候选”等徽章和配件前的 Emoji 图标，收起时默认对未更改项展示灰色“原厂”徽章。
+   - **驱动原厂动态比对**：在 `PartSelector` 中动态获取原厂驱动，并在选择项中将 stock 标识为 `原厂（后驱/四驱/前驱）`。同时过滤掉冗余的重复驱动项，且原厂或匹配原厂驱动的 PI 增量严格设为 `0`。
+
+3. **保存机制及服务稳定性**：
+   - **解决组件崩溃**：修正了 `currentVehicleStats` 与 `partsPiDelta` 在 Hook 中的声明顺序，修复了进入调校管理页面时由于变量未初始化导致的 React `ReferenceError` 页面崩溃。
+   - **绕过限制保存**：移除了后端对 AI 改装时 `vehicle_specific_unknown`（无法精确知晓底盘参数物理范围）的强制拦截保存校验，对未解锁/已锁定的字段采取“忽略并放行”策略，确保用户生成的 AI 改装能顺利保存进数据库。
+   - **脚本开发模式支持**：将 `启动.command` 中的后端 Node 启动命令改为 `npm run dev` 侦听模式，实现了前后端完全一致的实时热更体验。
+
+---
+
+### 11.7 改装中心四项 Bug 修复（2026-07-17）
+
+#### Bug 1：配件 PI 变化未完整显示
+
+- **原因 A**：`PartSelector` 中非原厂但 `piEstimate === 0` 的选项（如空气动力学固定件/可调件），因条件 `Number(rawPi) !== 0` 导致既不显示 PI pill 也不显示"PI 待确认"，用户看不到任何反馈。
+- **原因 B**：`drivetrain_swap` 的客户端特殊处理中，错误读取 `opt.piBonus`（服务端不存在该字段，实际是 `opt.piEstimate`），导致驱动变速配件的 PI 全部丢失，显示"PI 待确认"。
+- **修复**：
+  - `piEstimate === 0` 的非原厂选项，统一显示 `±0 PI` 灰色标记。
+  - `drivetrain_swap` 客户端逻辑改为读取 `opt.piEstimate`。
+  - 新增 `sizeDisplay: true` 标记（服务端槽位标记）：对轮胎宽度、轮毂尺寸、轮距等尺寸型配件，在选项右侧显示紫色"尺寸"标记 + PI 变化，区分尺寸调整与性能提升。
+
+#### Bug 2：车辆原厂驱动取错来源
+
+- **原因**：`PartSelector` 的 `defaultDrivetrain` 和 AI 模式驱动下拉框，使用 `currentVehicleStats?.drivetrain`（来自遥测动态数据 `stateManager.vehicles`），该字段反映当前改装状态，不是原厂出厂驱动。
+- **修复**：完全改为仅使用 `upgradeShop?.baseDriveType`（来自 `upgrades-metadata.json` 静态库），彻底移除遥测数据 fallback。原厂驱动以静态库为准。
+
+#### Bug 3：自主改装模式仍自动填写调教参数
+
+- **原因**：`chooseBuildMode('manual')` 后，`refreshUpgradeShop` 异步完成时通过 `setFormData(parts)` 更新配件，触发自动填参 `useEffect`。该 effect 读取 React 状态 `buildMode`，存在异步闭包竞争窗口，极端情况下可能在 `manual` 模式下误触发 AI 填参逻辑。
+- **修复**：引入 `buildModeRef`（`useRef`），所有 `setBuildMode(mode)` 改为 `_setBuildMode(mode)` 同步写入 ref。自动填参 effect 改为读 `buildModeRef.current` 而非 React 状态，确保切换模式时立即生效，不受异步批处理影响。
+
+#### Bug 4：调教参数单位不一致
+
+| 参数 | 原单位 | 正确单位 | 修改位置 |
+|------|--------|----------|----------|
+| 胎压 | PSI (范围 15~55) | **bar** (范围 1.0~3.8) | 前端 `TUNE_FIELDS_SCHEMA` + 服务端 `buildTuneParameters` |
+| 弹簧硬度 | 无单位 (1~100) | **kgf/mm** (0.1~200) | 前端 `TUNE_FIELDS_SCHEMA` |
+| 下压力 | kg (0~500) | **kgf** (0~1000) | 前端 `TUNE_FIELDS_SCHEMA` |
+| AI 胎压默认值 | 28 (PSI) | **1.9** (bar) | `useTuneManager.js` recommended 对象 |
+
+> [!NOTE]
+> 车身高度 `cm` 单位原本已正确，本次无需修改。

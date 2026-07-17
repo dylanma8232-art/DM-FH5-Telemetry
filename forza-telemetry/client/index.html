@@ -196,11 +196,22 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // 注册Service Worker（PWA支持）
+      // 彻底注销 Service Worker 并清理 CacheStorage 缓存（防止局域网 IP 缓存旧页面）
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('[SW] 已注册'))
-            .catch(err => console.log('[SW] 注册失败:', err));
+        if (window.caches) {
+          caches.keys().then(keys => {
+            keys.forEach(key => caches.delete(key));
+          });
+        }
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister().then(success => {
+              if (success) {
+                console.log('[SW] 已成功注销 Service Worker，刷新页面...');
+                window.location.reload();
+              }
+            });
+          }
         });
       }
     </script>

@@ -123,6 +123,18 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const [upgradeShop, setUpgradeShop] = useState(null)
   const [wizardStep, setWizardStep] = useState(1)
   const [buildMode, setBuildMode] = useState(null)
+  // Ref to always read the latest buildMode in async/effect contexts
+  const buildModeRef = useRef(null)
+  const _setBuildMode = (mode) => {
+    buildModeRef.current = mode
+    setBuildMode(mode)
+  }
+
+  const currentVehicleStats = useMemo(() => {
+    if (!formData.vehicleId || !vehicles[formData.vehicleId]) return null
+    const v = vehicles[formData.vehicleId]
+    return v.stats || v.carStats || { drivetrain: v.drivetrain }
+  }, [formData.vehicleId, vehicles])
 
   const partsPiDelta = useMemo(() => {
     // 车辆档案中的 piEstimate 是“从该车原厂状态开始”的估算增量。
@@ -135,12 +147,12 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }, 0)
     }
     try {
-      const total = calculateTotalPi(basePi, formData.parts);
+      const total = calculateTotalPi(basePi, formData.parts, currentVehicleStats?.drivetrain);
       return total - basePi;
     } catch (e) {
       return 0
     }
-  }, [formData.parts, basePi, upgradeShop])
+  }, [formData.parts, basePi, upgradeShop, currentVehicleStats])
 
   const totalPi = useMemo(() => {
     return basePi + partsPiDelta
@@ -165,13 +177,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return count + (Number.isFinite(Number(option?.piEstimate)) ? 0 : 1)
     }, 0)
   }, [formData.parts, upgradeShop])
-
-  const currentVehicleStats = useMemo(() => {
-    if (!formData.vehicleId || !vehicles[formData.vehicleId]) return null
-    const v = vehicles[formData.vehicleId]
-    return v.stats || v.carStats || null
-  }, [formData.vehicleId, vehicles])
-
   // 引用改装子 Hook
   const {
     autoUpgradeLoading,
@@ -391,19 +396,22 @@ export function useTuneManager({ onNavigate, navIntent }) {
   };
 
   // 配件变更时自动更新推荐调校默认值（Round 2: 跳过用户手动修改过的参数）
+  // 仅 AI 改装模式下生效；自主改装模式严禁自动填参。
   useEffect(() => {
-    if (!formData.parts || buildMode !== 'ai') return
+    // 使用 ref 读取最新 buildMode，避免异步 state 闭包竞争导致在手动模式下误触发
+    if (!formData.parts || buildModeRef.current !== 'ai') return
     try {
       const defaults = getTuneDefaults(formData.parts, currentVehicleStats) || {}
       const allowedTuneIds = new Set((upgradeShop?.tuneParameters || []).map(parameter => parameter.id))
       for (const key of Object.keys(defaults)) {
         if (!allowedTuneIds.has(key)) delete defaults[key]
       }
-      for (const parameter of upgradeShop?.tuneParameters || []) {
-        if (parameter.rangeConfidence === 'vehicle_specific_unknown') delete defaults[parameter.id]
-      }
+      // Allow defaults to be populated for vehicle_specific_unknown parameters in AI mode
+      // for (const parameter of upgradeShop?.tuneParameters || []) {
+      //   if (parameter.rangeConfidence === 'vehicle_specific_unknown') delete defaults[parameter.id]
+      // }
       const recommended = {
-        tire_pressure_front: 28, tire_pressure_rear: 28,
+        tire_pressure_front: 1.9, tire_pressure_rear: 1.9,
         tire_camber_front: aiRaceType === 'drift' ? -4 : -2,
         tire_camber_rear: aiRaceType === 'drift' ? -1.5 : -1.2,
         tire_toe_front: 0, tire_toe_rear: 0, caster_front: aiRaceType === 'drift' ? 7 : 5.5,
@@ -417,7 +425,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }
       ;(upgradeShop?.tuneParameters || []).forEach(parameter => {
         if (defaults[parameter.id] != null) return
-        if (parameter.rangeConfidence === 'vehicle_specific_unknown') return
+        // Allow fallback midpoint values for unknown ranges in AI mode
+        // if (parameter.rangeConfidence === 'vehicle_specific_unknown') return
         const range = parameter.range || {}
         let value = recommended[parameter.id]
         const gear = parameter.id.match(/^gear_(\d+)$/)?.[1]
@@ -707,7 +716,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setTargetPi(PI_CLASS_CAPS.includes(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
     setWizardStep(4)
-    setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
+    _setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
     setShowModal(true)
     setDrivingProblemsOpen(false)
     setSelectedProblem(null)
@@ -722,7 +731,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setFormData(createDefaultFormData())
     setEditingTune(null)
     setWizardStep(1)
-    setBuildMode(null)
+    _setBuildMode(null)
     setAiRaceType('road')
     setAiDriveType('awd')
     setShowModal(true)
@@ -744,7 +753,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setEditingTune(null)
     setFormData(createDefaultFormData())
     setWizardStep(1)
-    setBuildMode(null)
+    _setBuildMode(null)
     setSolutionPi(null)
     setUpgradeShop(null)
     dirtyParamsRef.current.clear()
@@ -755,7 +764,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const selectVehicleForDraft = (vehicleId) => {
     draftVersionRef.current += 1
     setFormData({ ...createDefaultFormData(), vehicleId })
-    setBuildMode(null)
+    _setBuildMode(null)
     setSolutionPi(null)
     setUpgradeShop(null)
     dirtyParamsRef.current.clear()
@@ -773,7 +782,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setSolutionPi(null)
     setUpgradeShop(null)
     dirtyParamsRef.current.clear()
-    setBuildMode(mode)
+    _setBuildMode(mode)  // 同步更新 ref，防止异步 effect 竞争
     refreshUpgradeShop(formData.vehicleId, {})
     if (mode === 'manual') setWizardStep(3)
   }
@@ -1355,7 +1364,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       newParts.aero_front = { tier: 'race' };
       newParts.aero_rear = { tier: 'race' };
       newParts.weight_reduction = { tier: targetPiVal >= 800 ? 'race' : 'sport' };
-    } else if (raceType === 'dirt') {
+    } else if (raceType === 'dirt' || raceType === 'rally') {
       newParts.tires_compound = { tier: 'sport' };
       newParts.aero_front = { tier: 'stock' };
       newParts.aero_rear = { tier: 'stock' };
@@ -1384,14 +1393,14 @@ export function useTuneManager({ onNavigate, navIntent }) {
     };
 
     const newSuspension = {
-      frontSpring: raceType === 'cross_country' ? 45.0 : raceType === 'dirt' ? 60.0 : 95.0,
-      rearSpring: raceType === 'cross_country' ? 40.0 : raceType === 'dirt' ? 50.0 : 80.0,
-      frontDamping: raceType === 'cross_country' ? 4.5 : raceType === 'dirt' ? 5.5 : 8.5,
-      rearDamping: raceType === 'cross_country' ? 4.0 : raceType === 'dirt' ? 5.0 : 7.5,
-      frontARB: raceType === 'cross_country' ? 8.0 : raceType === 'dirt' ? 10.0 : 15.0,
-      rearARB: raceType === 'cross_country' ? 30.0 : raceType === 'dirt' ? 35.0 : 40.0,
-      frontRideHeight: raceType === 'cross_country' ? 18.0 : raceType === 'dirt' ? 15.0 : 8.0,
-      rearRideHeight: raceType === 'cross_country' ? 18.5 : raceType === 'dirt' ? 15.5 : 8.5
+      frontSpring: raceType === 'cross_country' ? 45.0 : (raceType === 'dirt' || raceType === 'rally') ? 60.0 : 95.0,
+      rearSpring: raceType === 'cross_country' ? 40.0 : (raceType === 'dirt' || raceType === 'rally') ? 50.0 : 80.0,
+      frontDamping: raceType === 'cross_country' ? 4.5 : (raceType === 'dirt' || raceType === 'rally') ? 5.5 : 8.5,
+      rearDamping: raceType === 'cross_country' ? 4.0 : (raceType === 'dirt' || raceType === 'rally') ? 5.0 : 7.5,
+      frontARB: raceType === 'cross_country' ? 8.0 : (raceType === 'dirt' || raceType === 'rally') ? 10.0 : 15.0,
+      rearARB: raceType === 'cross_country' ? 30.0 : (raceType === 'dirt' || raceType === 'rally') ? 35.0 : 40.0,
+      frontRideHeight: raceType === 'cross_country' ? 18.0 : (raceType === 'dirt' || raceType === 'rally') ? 15.0 : 8.0,
+      rearRideHeight: raceType === 'cross_country' ? 18.5 : (raceType === 'dirt' || raceType === 'rally') ? 15.5 : 8.5
     };
 
     const newDrivetrain = {

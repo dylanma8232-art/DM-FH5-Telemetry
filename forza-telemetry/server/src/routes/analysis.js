@@ -377,6 +377,8 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
     avgTorque: Math.round(data.torqueSum / data.count * 10) / 10
   }));
 
+  const tireStats = calculateTireAnalysisStats(rawData);
+
   res.json({
     lapCount: lapInfos.length,
     numSectors,
@@ -394,7 +396,17 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
     consistency: { lapTimeStd, sectorStd },
     lossTime,
     lapSectorDetails,
-    powerCurve
+    powerCurve,
+    tempStats: {
+      avgFL: tireStats.avgTempFL,
+      avgFR: tireStats.avgTempFR,
+      avgRL: tireStats.avgTempRL,
+      avgRR: tireStats.avgTempRR,
+      maxFL: tireStats.maxTempFL,
+      maxFR: tireStats.maxTempFR,
+      maxRL: tireStats.maxTempRL,
+      maxRR: tireStats.maxTempRR
+    }
   });
 
 

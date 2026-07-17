@@ -496,6 +496,8 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     if (!selectedSession) return;
     if (activeTab === 'overview') {
       loadTelemetryChannels();
+      loadAdvancedAnalysis(); // 总览需要：理论最佳圈、圈速趋势、分段对比
+      loadTurnsData();         // 总览需要：本场重点弯道
     } else if (activeTab === 'professional_review') {
       loadTurnsData();
       loadTelemetryChannels();

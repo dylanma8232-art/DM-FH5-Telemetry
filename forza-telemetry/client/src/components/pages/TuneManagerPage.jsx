@@ -12,8 +12,8 @@ const TUNE_FIELDS_SCHEMA = [
     category: 'tires',
     title: '轮胎参数',
     fields: [
-      { id: 'frontPressure', label: '前胎压', min: 20, max: 40, step: 0.1, unit: 'PSI' },
-      { id: 'rearPressure', label: '后胎压', min: 20, max: 40, step: 0.1, unit: 'PSI' },
+      { id: 'frontPressure', label: '前胎压', min: 1.4, max: 2.8, step: 0.01, unit: 'bar' },
+      { id: 'rearPressure', label: '后胎压', min: 1.4, max: 2.8, step: 0.01, unit: 'bar' },
       { id: 'frontCamber', label: '前外倾角', min: -5, max: 0, step: 0.1, unit: '°' },
       { id: 'rearCamber', label: '后外倾角', min: -5, max: 0, step: 0.1, unit: '°' },
       { id: 'frontToe', label: '前束角', min: -0.5, max: 0.5, step: 0.1, unit: '°' },
@@ -25,8 +25,8 @@ const TUNE_FIELDS_SCHEMA = [
     category: 'suspension',
     title: '悬挂参数',
     fields: [
-      { id: 'frontSpring', label: '前弹簧硬度', min: 1, max: 100, step: 1, unit: '' },
-      { id: 'rearSpring', label: '后弹簧硬度', min: 1, max: 100, step: 1, unit: '' },
+      { id: 'frontSpring', label: '前弹簧硬度', min: 0.1, max: 200, step: 0.1, unit: 'kgf/mm' },
+      { id: 'rearSpring', label: '后弹簧硬度', min: 0.1, max: 200, step: 0.1, unit: 'kgf/mm' },
       { id: 'frontRebound', label: '前回弹阻尼', min: 1, max: 20, step: 0.1, unit: '' },
       { id: 'rearRebound', label: '后回弹阻尼', min: 1, max: 20, step: 0.1, unit: '' },
       { id: 'frontBump', label: '前压缩阻尼', min: 1, max: 20, step: 0.1, unit: '' },
@@ -54,8 +54,8 @@ const TUNE_FIELDS_SCHEMA = [
     category: 'aero',
     title: '空气动力学',
     fields: [
-      { id: 'frontDownforce', label: '前下压力', min: 0, max: 500, step: 1, unit: 'kg' },
-      { id: 'rearDownforce', label: '后下压力', min: 0, max: 500, step: 1, unit: 'kg' }
+      { id: 'frontDownforce', label: '前下压力', min: 0, max: 1000, step: 1, unit: 'kgf' },
+      { id: 'rearDownforce', label: '后下压力', min: 0, max: 1000, step: 1, unit: 'kgf' }
     ]
   }
 ]
@@ -87,6 +87,69 @@ function VehicleSearchSelect({ id, value, options, onChange, style, placeholder 
     </datalist>
   </>
 }
+
+const PARAM_NAMES_ZH = {
+  frontTirePressure: '前胎压',
+  rearTirePressure: '后胎压',
+  frontCamber: '前外倾角',
+  rearCamber: '后外倾角',
+  frontToe: '前束角',
+  rearToe: '后束角',
+  frontCaster: '主销后倾角',
+  frontSpring: '前弹簧刚度',
+  rearSpring: '后弹簧刚度',
+  frontDamping: '前避震阻尼',
+  rearDamping: '后避震阻尼',
+  frontRebound: '前回弹阻尼',
+  rebound_front: '前回弹阻尼',
+  rebound_rear: '后回弹阻尼',
+  bump_front: '前阻尼压缩',
+  bump_rear: '后阻尼压缩',
+  rearRebound: '后回弹阻尼',
+  frontBump: '前阻尼压缩',
+  rearBump: '后阻尼压缩',
+  frontARB: '前防倾杆',
+  rearARB: '后防倾杆',
+  frontRideHeight: '前车身高度',
+  rearRideHeight: '后车身高度',
+  diffAccel: '差速器加速锁',
+  diffDecel: '差速器减速锁',
+  diffCenter: '中央差速偏置',
+  frontDiffAccel: '前部差速器加速',
+  frontDiffDecel: '前部差速器减速',
+  rearDiffAccel: '后部差速器加速',
+  rearDiffDecel: '后部差速器减速',
+  finalDrive: '终传比',
+  frontDownforce: '前下压力',
+  rearDownforce: '后下压力',
+  brakeBias: '刹车偏置',
+  gear1: '1挡齿比', gear2: '2挡齿比', gear3: '3挡齿比', gear4: '4挡齿比', gear5: '5挡齿比', gear6: '6挡齿比', gear7: '7挡齿比', gear8: '8挡齿比', gear9: '9挡齿比', gear10: '10挡齿比',
+  tire_pressure_front: '前胎压',
+  tire_pressure_rear: '后胎压',
+  tire_camber_front: '前外倾角',
+  tire_camber_rear: '后外倾角',
+  tire_toe_front: '前束角',
+  tire_toe_rear: '后束角',
+  caster_front: '主销后倾角',
+  spring_front: '前弹簧',
+  spring_rear: '后弹簧',
+  damping_front: '前避震阻尼',
+  damping_rear: '后避震阻尼',
+  arb_front: '前防倾杆',
+  arb_rear: '后防倾杆',
+  ride_height_front: '前车身高度',
+  ride_height_rear: '后车身高度',
+  diff_accel: '差速器加速锁',
+  diff_decel: '差速器减速锁',
+  diff_center: '中央差速偏置',
+  diff_front_accel: '前差速器加速',
+  diff_front_decel: '前差速器减速',
+  diff_rear_accel: '后差速器加速',
+  diff_rear_decel: '后差速器减速',
+  final_drive: '终传比',
+  downforce_front: '前下压力',
+  downforce_rear: '后下压力'
+};
 
 export function TuneManagerPage({ onNavigate, navIntent }) {
   const {
@@ -1001,23 +1064,36 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>AI 生成改装</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>按目标 PI 与用途生成后仍可手动调整。</div>
                   </button>
                 </div>
+
                 {buildMode === 'ai' && <div style={{ marginTop: 12, padding: 12, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6 }}>
                   <label style={labelStyle}>用途</label>
                   <select value={aiRaceType} onChange={e => setAiRaceType(e.target.value)} style={inputStyle}>
                     <option value="road">公路赛</option>
-                    <option value="dirt" disabled={!aiRaceAvailability.dirt}>泥地赛{!aiRaceAvailability.dirt ? '：当前车辆资料不足' : ''}</option>
-                    <option value="cross_country" disabled={!aiRaceAvailability.cross_country}>越野赛{!aiRaceAvailability.cross_country ? '：当前车辆资料不足' : ''}</option>
-                    <option value="drift" disabled={!aiRaceAvailability.drift}>漂移{!aiRaceAvailability.drift ? '：当前车辆资料不足' : ''}</option>
+                    <option value="dirt">泥地赛</option>
+                    <option value="rally">拉力赛</option>
+                    <option value="cross_country">越野赛</option>
+                    <option value="drift">漂移</option>
                   </select>
                   <label style={{ ...labelStyle, marginTop: 8 }}>驱动形式</label>
-                  <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
-                    <option value="fwd">前轮驱动</option>
-                    <option value="rwd">后轮驱动</option>
-                    <option value="awd">四轮驱动</option>
-                  </select>
+                  {(() => {
+                    const stock = (upgradeShop?.baseDriveType || '').toUpperCase();
+                    return (
+                      <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
+                        <option value="fwd">前轮驱动{stock === 'FWD' ? ' (原厂)' : ''}</option>
+                        <option value="rwd">后轮驱动{stock === 'RWD' ? ' (原厂)' : ''}</option>
+                        <option value="awd">四轮驱动{stock === 'AWD' ? ' (原厂)' : ''}</option>
+                      </select>
+                    );
+                  })()}
                   <label style={{ ...labelStyle, marginTop: 8 }}>目标等级</label>
                   <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={inputStyle}>
-                    <option value="500">D 500</option><option value="600">C 600</option><option value="700">B 700</option><option value="800">A 800</option><option value="900">S1 900</option><option value="998">S2 998</option><option value="999">X 999</option>
+                    {basePi <= 500 && <option value="500">D 500</option>}
+                    {basePi <= 600 && <option value="600">C 600</option>}
+                    {basePi <= 700 && <option value="700">B 700</option>}
+                    {basePi <= 800 && <option value="800">A 800</option>}
+                    {basePi <= 900 && <option value="900">S1 900</option>}
+                    {basePi <= 998 && <option value="998">S2 998</option>}
+                    <option value="999">X 无上限</option>
                   </select>
                   <button onClick={async () => { const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType }); if (generated) { setFormData(prev => ({ ...prev, tags: prev.tags || aiRaceType })); setWizardStep(3) } }} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636' }}>生成方案</button>
                 </div>}
@@ -1109,49 +1185,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
             )}
 
-            {/* 基本信息 */}
-            <div style={{ marginBottom: 16, display: (editingTune || wizardStep === 4) ? 'block' : 'none' }}>
-              <label style={labelStyle}>调校名称</label>
-              <input
-                value={formData.name}
-                onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="例如: 公路赛高速调校"
-                style={inputStyle}
-              />
-            </div>
 
-            <div style={{ display: (editingTune || wizardStep === 4) ? 'grid' : 'none', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>标签（用逗号分隔）</label>
-                <input
-                  value={formData.tags}
-                  onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                  placeholder="公路, 漂移, 拉力..."
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>适用车辆</label>
-                <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
-              </div>
-            </div>
-
-            {/* Round 5: 调校笔记 */}
-            <div style={{ marginBottom: 16, display: (editingTune || wizardStep === 4) ? 'block' : 'none' }}>
-              <label style={labelStyle}>调校笔记</label>
-              <textarea
-                value={formData.notes || ''}
-                onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="记录这个调校的特点、适用场景、调校思路等..."
-                rows={3}
-                style={{
-                  ...inputStyle,
-                  resize: 'vertical',
-                  lineHeight: 1.6,
-                  fontFamily: 'inherit'
-                }}
-              />
-            </div>
 
             {/* 自由改装模式与智能改装向导 */}
             <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', background: 'rgba(56, 139, 253, 0.1)', border: '1px solid rgba(56, 139, 253, 0.3)', borderRadius: 6 }}>
@@ -1216,67 +1250,6 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
             </div>
 
-            {/* Round 7: 配件推荐引擎 */}
-            {formData.vehicleId && (editingTune || wizardStep >= 3) && (
-              <div style={{
-                background: 'var(--bg-primary)',
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 12,
-                border: '1px solid var(--border)'
-              }}>
-                <div style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: '#bc8cff',
-                  marginBottom: 10,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span>配件推荐</span>
-                  <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}>基于车辆类型和赛道特性</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10 }}>
-                  {(() => {
-                    const v = vehicles[formData.vehicleId];
-                    const driveType = v?.driveType || v?.drivetrain || 'AWD';
-                    const vClass = v?.class || 3;
-                    const recommendations = [];
-                    // 基于驱动类型的推荐
-                    if (driveType === 'FWD') {
-                      recommendations.push({ cat: ' diffs', text: '前驱车推荐较硬前弹簧和高前防倾杆，减少转向不足', color: '#58a6ff' });
-                      recommendations.push({ cat: ' tires', text: '前驱车前轮承载更多，建议将前胎压设为 32 至 34 PSI', color: '#58a6ff' });
-                    } else if (driveType === 'RWD') {
-                      recommendations.push({ cat: ' diffs', text: '后驱车推荐较低的差速器减速设定(15-30%)，增强弯中稳定性', color: '#3fb950' });
-                      recommendations.push({ cat: ' diffs', text: '后驱车建议后弹簧比前弹簧略软，提升后轮抓地力', color: '#3fb950' });
-                    } else if (driveType === 'AWD') {
-                      recommendations.push({ cat: ' diffs', text: '全驱车推荐中等差速器设定(40-60%)，平衡加速和弯道表现', color: '#d29922' });
-                    }
-                    // 基于等级的推荐
-                    if (vClass >= 5) {
-                      recommendations.push({ cat: ' aero', text: 'S1 与 S2 等级车辆建议加大下压力，优先增加后下压力', color: '#bc8cff' });
-                      recommendations.push({ cat: ' brakes', text: '高速赛道建议升级刹车套件至赛用级别', color: '#f85149' });
-                    } else if (vClass <= 2) {
-                      recommendations.push({ cat: ' power', text: '低等级车辆建议优先升级引擎和进气，提升基础马力', color: '#3fb950' });
-                    }
-                    // 通用推荐
-                    recommendations.push({ cat: ' general', text: '大多数赛道推荐中等偏硬的弹簧设定(6-14)，兼顾弯道支撑和路面颠簸吸收', color: 'var(--text-secondary)' });
-                    return recommendations.map((r, i) => (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 8,
-                        padding: '6px 8px', background: r.color + '08',
-                        border: `1px solid ${r.color}22`,
-                        borderRadius: 4
-                      }}>
-                        <span style={{ color: r.color, fontWeight: 700, flexShrink: 0 }}>{r.cat}</span>
-                        <span style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>{r.text}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            )}
 
             {/* 当前方案 PI；只有 AI 模式需要目标等级约束。 */}
             {(editingTune || wizardStep === 3) && <div style={{
@@ -1338,13 +1311,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               {buildMode === 'ai' && <div>
                 <label style={labelStyle}>目标 PI 等级</label>
                 <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }}>
-                  <option value="500" disabled={basePi > 500}>D 500</option>
-                  <option value="600" disabled={basePi > 600}>C 600</option>
-                  <option value="700" disabled={basePi > 700}>B 700</option>
-                  <option value="800" disabled={basePi > 800}>A 800</option>
-                  <option value="900" disabled={basePi > 900}>S1 900</option>
-                  <option value="998" disabled={basePi > 998}>S2 998</option>
-                  <option value="999" disabled={basePi > 999}>X 999</option>
+                  {basePi <= 500 && <option value="500">D 500</option>}
+                  {basePi <= 600 && <option value="600">C 600</option>}
+                  {basePi <= 700 && <option value="700">B 700</option>}
+                  {basePi <= 800 && <option value="800">A 800</option>}
+                  {basePi <= 900 && <option value="900">S1 900</option>}
+                  {basePi <= 998 && <option value="998">S2 998</option>}
+                  <option value="999">X 无上限</option>
                 </select>
               </div>}
               {buildMode === 'ai' && totalPi > targetPi && (
@@ -1437,6 +1410,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         category={cat}
                         selected={selectedPart}
                         onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
+                        defaultDrivetrain={upgradeShop?.baseDriveType}
                       />
                     })}
                   </React.Fragment>
@@ -1561,7 +1535,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             })}
 
             {/* 常用驾驶问题面板 + 遥测诊断面板 - 并排显示 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            {editingTune && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               {/* 常用驾驶问题面板 */}
               <div style={{
                 background: 'var(--bg-primary)',
@@ -1784,11 +1759,16 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         style={inputStyle}
                       >
                         <option value="">-- 请选择 --</option>
-                        {availableSessions.map(session => (
-                          <option key={session.id} value={session.id}>
-                            {session.track || '未知赛道'} - {session.car || '未知车辆'} ({formatDate(session.date || session.createdAt)})
-                          </option>
-                        ))}
+                        {availableSessions.map(session => {
+                          const track = session.trackName || session.track || '未知赛道';
+                          const car = session.vehicle?.name || (typeof session.vehicle === 'string' ? session.vehicle : null) || session.car || '未知车辆';
+                          const dateVal = session.savedAt || session.date || session.createdAt;
+                          return (
+                            <option key={session.id} value={session.id}>
+                              {track} - {car} ({dateVal ? formatDate(dateVal) : '未知时间'})
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -1861,18 +1841,22 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>建议的参数修改</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
                               {Object.entries(diagnosisResult.suggestedChanges).map(([cat, params]) =>
-                                Object.entries(params).map(([key, val]) => (
-                                  <div key={`${cat}.${key}`} style={{
-                                    padding: '2px 6px',
-                                    background: 'var(--bg-primary)',
-                                    borderRadius: 3,
-                                    fontSize: 8,
-                                    fontFamily: 'monospace',
-                                    color: 'var(--accent)'
-                                  }}>
-                                    {key}: {val}
-                                  </div>
-                                ))
+                                Object.entries(params).map(([key, val]) => {
+                                  const name = PARAM_NAMES_ZH[key] || key;
+                                  const formattedVal = val > 0 ? `+${val}` : `${val}`;
+                                  return (
+                                    <div key={`${cat}.${key}`} style={{
+                                      padding: '2px 6px',
+                                      background: 'var(--bg-primary)',
+                                      borderRadius: 3,
+                                      fontSize: 8,
+                                      fontFamily: 'monospace',
+                                      color: 'var(--accent)'
+                                    }}>
+                                      {name}: {formattedVal}
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
                           </div>
@@ -1914,10 +1898,59 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 )}
               </div>
-            </div>
+              </div>
+            )}
 
             </>}
             </>}
+
+            {(editingTune || wizardStep === 4) && (
+              <div style={{ marginTop: 16 }}>
+                {/* 基本信息 */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>调校名称</label>
+                  <input
+                    value={formData.name}
+                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="例如: 公路赛高速调校"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>标签（用逗号分隔）</label>
+                    <input
+                      value={formData.tags}
+                      onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                      placeholder="公路, 漂移, 拉力..."
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>适用车辆</label>
+                    <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
+                  </div>
+                </div>
+
+                {/* 调校笔记 */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>调校笔记</label>
+                  <textarea
+                    value={formData.notes || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="记录这个调校的特点、适用场景、调校思路等..."
+                    rows={3}
+                    style={{
+                      ...inputStyle,
+                      resize: 'vertical',
+                      lineHeight: 1.6,
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             {!editingTune && wizardStep === 3 && (
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -2173,8 +2206,32 @@ const NumberInput = React.memo(function NumberInput({ label, value, onChange, mi
 // ============================================================
 // 配件选择器组件
 // ============================================================
-const PartSelector = React.memo(function PartSelector({ category, selected, onChange }) {
+const PartSelector = React.memo(function PartSelector({ category: rawCategory, selected, onChange, defaultDrivetrain = null }) {
   const [expanded, setExpanded] = useState(false)
+
+  const category = React.useMemo(() => {
+    if (rawCategory.id === 'drivetrain_swap') {
+      const stockType = defaultDrivetrain ? defaultDrivetrain.toUpperCase() : null;
+      const zhMap = { FWD: '前驱', RWD: '后驱', AWD: '四驱' };
+      const zhName = stockType ? (zhMap[stockType] || stockType) : '原厂';
+      
+      const nextOptions = rawCategory.options?.filter(opt => {
+        // Filter out the swap option that matches the stock drivetrain (redundant with 'stock')
+        if (!stockType) return true;
+        return opt.id === 'stock' || opt.id !== stockType.toLowerCase();
+      }).map(opt => {
+        let label = opt.label;
+        if (opt.id === 'stock') {
+          label = stockType ? `原厂（${zhName}）` : '原厂';
+        }
+        // Use piEstimate from server data (not piBonus which doesn't exist server-side)
+        const piEstimate = opt.id === 'stock' ? 0 : (opt.piEstimate ?? null);
+        return { ...opt, label, piEstimate };
+      });
+      return { ...rawCategory, options: nextOptions };
+    }
+    return rawCategory;
+  }, [rawCategory, defaultDrivetrain]);
 
   // 若 tierSystem 类别缺少 tiers 数组（仅有 piSteps），自动从 piSteps 合成
   const effectiveTiers = React.useMemo(() => {
@@ -2211,7 +2268,6 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
   // 根据 scope 决定标签颜色
   const scopeBadgeClass = category.scope === 'vehicle_specific' ? 'badge-exclusive' : category.scope === 'state_dependent' ? 'badge-state' : category.availability === 'inferred_common' ? 'badge-inferred' : 'badge-common';
   const scopeBadgeText = category.scope === 'vehicle_specific' ? '专属' : category.scope === 'state_dependent' ? '联动' : category.availability === 'inferred_common' ? '通用候选' : '通用';
-
   return (
     <div 
       className={`part-card ${isStock ? '' : 'active'}`}
@@ -2219,29 +2275,21 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
     >
       {/* 头部 - 点击展开/收起 */}
       <div className="part-header" onClick={() => setExpanded(!expanded)}>
-        <span style={{ fontSize: 13 }}>{category.icon}</span>
         <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)' }}>
           {category.label}
         </span>
-        <span className={`badge-pill ${scopeBadgeClass}`}>
-          {scopeBadgeText}
+        <span 
+          className="badge-selected"
+          style={{ 
+            borderColor: (isStock ? '#8b949e' : selectedColor) + '33', 
+            background: (isStock ? '#8b949e' : selectedColor) + '16', 
+            color: isStock ? '#8b949e' : selectedColor 
+          }}
+        >
+          {isStock ? '原厂' : selectedLabel}
         </span>
-        {!isStock && selectedLabel && (
-          <span 
-            className="badge-selected"
-            style={{ 
-              borderColor: selectedColor + '33', 
-              background: selectedColor + '16', 
-              color: selectedColor 
-            }}
-          >
-            {selectedLabel}
-          </span>
-        )}
         <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 2 }}>{expanded ? '▲' : '▼'}</span>
       </div>
-
-      {/* 展开的选项列表 */}
       {expanded && (
         <div style={{ padding: '4px 8px 8px' }}>
           <div style={{ fontSize: 8.5, color: 'var(--text-muted)', marginBottom: 6, paddingLeft: 2, lineHeight: 1.3 }}>
@@ -2348,7 +2396,7 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
             /* 选项制配件（如引擎swap） */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {(category.options || []).map(opt => {
-                const isActive = selected?.optionId === opt.id
+                const isActive = selected?.optionId === opt.id || (!selected?.optionId && opt.id === 'stock')
                 const color = opt.color || '#8b949e'
                 const rawPi = opt.piEstimate ?? opt.piBonus
                 const hasKnownPi = rawPi !== null && rawPi !== '' && Number.isFinite(Number(rawPi))
@@ -2368,13 +2416,33 @@ const PartSelector = React.memo(function PartSelector({ category, selected, onCh
                       background: isActive ? color : 'rgba(255,255,255,0.15)'
                     }} />
                     <span style={{ flex: 1 }}>{opt.label}</span>
-                    {hasKnownPi && Number(rawPi) !== 0 && (
-                      <span className={`part-pi-pill ${Number(rawPi) < 0 ? 'negative' : ''}`}>
-                        {Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI
+                    {category.sizeDisplay && opt.id !== 'stock' ? (
+                      /* 尺寸型配件（轮胎宽度/轮毅尺寸/轮距）：小背景尺寸标记＋加装 PI */
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ fontSize: 8, color: '#bc8cff', padding: '1px 4px', borderRadius: 3, background: 'rgba(188,140,255,0.08)', border: '1px solid rgba(188,140,255,0.2)' }}>尺寸</span>
+                        {hasKnownPi && Number(rawPi) !== 0 && (
+                          <span className={`part-pi-pill ${Number(rawPi) < 0 ? 'negative' : ''}`}>
+                            {Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI
+                          </span>
+                        )}
+                        {hasKnownPi && Number(rawPi) === 0 && (
+                          <span style={{ fontSize: 8, color: '#8b949e', padding: '1px 4px', borderRadius: 3 }}>±0 PI</span>
+                        )}
                       </span>
-                    )}
-                    {!hasKnownPi && opt.id !== 'stock' && (
-                      <span style={{ fontSize: 8, color: 'var(--text-muted)', padding: '1px 4px' }}>PI 待确认</span>
+                    ) : (
+                      <>
+                        {hasKnownPi && Number(rawPi) !== 0 && (
+                          <span className={`part-pi-pill ${Number(rawPi) < 0 ? 'negative' : ''}`}>
+                            {Number(rawPi) > 0 ? '+' : ''}{Number(rawPi)}PI
+                          </span>
+                        )}
+                        {hasKnownPi && Number(rawPi) === 0 && opt.id !== 'stock' && (
+                          <span style={{ fontSize: 8, color: '#8b949e', padding: '1px 4px', borderRadius: 3, background: 'rgba(139,148,158,0.08)', border: '1px solid rgba(139,148,158,0.15)' }}>±0 PI</span>
+                        )}
+                        {!hasKnownPi && opt.id !== 'stock' && (
+                          <span style={{ fontSize: 8, color: 'var(--text-muted)', padding: '1px 4px' }}>PI 待确认</span>
+                        )}
+                      </>
                     )}
                   </button>
                 )
