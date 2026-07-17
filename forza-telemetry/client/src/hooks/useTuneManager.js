@@ -4,11 +4,10 @@ import {
   TIER_LABELS,
   getDefaultParts,
   getTuneConstraints,
-  getTuneDefaults,
-  autoUpgradeToPi,
-  calculateTotalPi
+  getTuneDefaults
 } from '../data/parts'
 import { DRIVING_PROBLEMS, diagnoseFromTelemetry, PROBLEM_CATEGORIES } from '../data/tunePresets'
+import { api } from '../services/api'
 import { useTuneUpgrade } from './useTuneUpgrade'
 import { useTuneDiagnosis } from './useTuneDiagnosis'
 
@@ -149,12 +148,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         return total + (Number.isFinite(Number(option?.piEstimate)) ? Number(option.piEstimate) : 0)
       }, 0)
     }
-    try {
-      const total = calculateTotalPi(basePi, formData.parts, currentVehicleStats?.drivetrain);
-      return total - basePi;
-    } catch (e) {
-      return 0
-    }
+    return 0;
   }, [formData.parts, basePi, upgradeShop, currentVehicleStats])
 
   const totalPi = useMemo(() => {
@@ -259,11 +253,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
     try {
-      const encodedSelections = encodeURIComponent(JSON.stringify(parts))
-      const driveQuery = driveType ? `&driveType=${encodeURIComponent(driveType)}` : ''
-      const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicleId)}/upgrades?selections=${encodedSelections}${driveQuery}`)
-      if (!res.ok) throw new Error('无法读取改装资料')
-      const resolved = await res.json()
+      const resolved = await api.vehicles.getUpgrades(vehicleId, {
+        selections: JSON.stringify(parts),
+        ...(driveType ? { driveType } : {})
+      })
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop(resolved)
       if (resolved.effectiveSelections) {
@@ -480,12 +473,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   const loadTunes = async () => {
     try {
-      const res = await fetch('/api/tunes')
-      if (!res.ok) {
-        setTunes([])
-        return
-      }
-      const data = await res.json()
+      const data = await api.tunes.list();
       setTunes(Array.isArray(data) ? data : [])
     } catch (e) {
       setTunes([])
@@ -494,19 +482,14 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   const loadVehicles = async () => {
     try {
-      const res = await fetch('/api/vehicles')
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await api.vehicles.list();
       setVehicles(data || {})
     } catch (e) { /* 加载车辆失败 */ }
   }
 
   const loadTracks = async () => {
     try {
-      const res = await fetch('/api/tracks')
-      if (!res.ok) return
-      const data = await res.json()
-      // tracks 可能是数组或对象
+      const data = await api.tracks.list();
       setTracks(Array.isArray(data) ? data : Object.values(data || {}))
     } catch (e) { /* 加载赛道失败 */ }
   }
@@ -514,9 +497,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // Round 6: 加载调校与比赛关联统计
   const loadTuneSessionStats = async () => {
     try {
-      const res = await fetch('/api/sessions')
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await api.sessions.list();
       const allSessions = Array.isArray(data) ? data : []
       const stats = {}
       allSessions.forEach(s => {
@@ -539,9 +520,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // Round 4: 加载活跃调校
   const loadActiveTune = async () => {
     try {
-      const res = await fetch('/api/tunes/active')
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await api.tunes.getActive();
       setActiveTune(data.tune || null)
     } catch (e) { /* 加载活跃调校失败 */ }
   }
@@ -550,12 +529,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const setActiveTuneById = async (tuneId) => {
     setActiveTuneLoading(true)
     try {
-      const res = await fetch('/api/tunes/active', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tuneId })
-      })
-      if (!res.ok) throw new Error('设置失败')
+      await api.tunes.setActive({ tuneId });
       await loadActiveTune()
       alert('已设为当前活跃调校')
     } catch (e) { /* 设置活跃调校失败 */
@@ -568,11 +542,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // Round 4: 取消活跃调校
   const clearActiveTune = async () => {
     try {
-      await fetch('/api/tunes/active', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tuneId: null })
-      })
+      await api.tunes.setActive({ tuneId: null });
       setActiveTune(null)
     } catch (e) { /* 取消活跃调校失败 */ }
   }
@@ -589,19 +559,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
     }
 
     try {
-      const validation = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parts: formData.parts })
-      })
-      if (!validation.ok) {
-        const result = await validation.json()
-        alert(result.errors?.join('\n') || '所选改装件不适用于当前车辆。')
-        return
-      }
-    } catch (_) {
-      alert('无法验证当前车辆的改装件。')
-      return
+      await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
+    } catch (e) {
+      alert(e.message || '所选改装件不适用于当前车辆。');
+      return;
     }
 
     const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
@@ -610,8 +571,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
 
-    // 以车辆档案返回的范围为保存时的唯一准则。除了防止异步改装联动留下
-    // 旧范围的值，也会把旧版方案遗留的 PSI 胎压迁移为 bar。
     const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
       const constraint = tuneConstraints[`${category}.${field}`]
       if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
@@ -651,16 +610,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
     setLoading(true)
     try {
-      const url = editingTune ? '/api/tunes/' + editingTune : '/api/tunes'
-      const method = editingTune ? 'PUT' : 'POST'
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) {
-        const result = await res.json().catch(() => ({}))
-        throw new Error(result.errors?.join('\n') || result.error || '保存失败')
+      if (editingTune) {
+        await api.tunes.update(editingTune, payload);
+      } else {
+        await api.tunes.create(payload);
       }
       await loadTunes()
       closeModal()
@@ -674,7 +627,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const deleteTune = async (id) => {
     if (!confirm('确定删除此调校方案？此操作不可恢复。')) return
     try {
-      await fetch('/api/tunes/' + id, { method: 'DELETE' })
+      await api.tunes.delete(id);
       await loadTunes()
       if (expandedTune === id) setExpandedTune(null)
     } catch (e) { /* 删除调校失败 */
@@ -703,18 +656,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
         parts: { ...tune.parts },
         freeMode: !!tune.freeMode
       }
-      const res = await fetch('/api/tunes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) throw new Error('复制失败')
+      const newTune = await api.tunes.create(payload);
       await loadTunes()
-      // 获取新建调校的ID，打开编辑
-      const newTune = await res.json()
       if (newTune && newTune.id) {
-        // 加载最新列表后找到新调校并进入编辑
-        const updatedTunes = await fetch('/api/tunes').then(r => r.ok ? r.json() : [])
+        const updatedTunes = await api.tunes.list();
         const found = Array.isArray(updatedTunes) && updatedTunes.find(t => t.id === newTune.id)
         if (found) {
           await loadVehicles()
@@ -726,6 +671,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       alert('复制失败')
     }
   }
+
 
   const startEdit = (tune) => {
     setFormData({
@@ -875,9 +821,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setCompareLoading(true)
     try {
       const [tuneA, tuneB] = compareSelected
-      const res = await fetch(`/api/tunes/compare?tuneIdA=${tuneA}&tuneIdB=${tuneB}&trackId=${encodeURIComponent(compareTrackId)}`)
-      if (!res.ok) throw new Error('对比失败')
-      const data = await res.json()
+      const data = await api.tunes.compare({
+        tuneIdA: tuneA,
+        tuneIdB: tuneB,
+        trackId: compareTrackId
+      })
       setCompareResult(data)
     } catch (e) { /* 调校对比失败 */
       alert('对比失败，请检查网络连接')
@@ -1305,12 +1253,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         aero: tune.aero || {},
         parts: tune.parts || {}
       }
-      const res = await fetch('/api/tunes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) throw new Error('导入失败')
+      await api.tunes.create(payload);
       await loadTunes()
       alert('调校导入成功')
     } catch (err) { /* 导入失败 */
@@ -1328,12 +1271,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
     try {
-      const res = await fetch('/api/tunes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tune)
-      })
-      if (!res.ok) throw new Error('导入失败')
+      await api.tunes.create(tune);
       await loadTunes()
       setShareCodeModal(null)
       setImportPreview(null)

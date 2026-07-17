@@ -5,6 +5,7 @@ import { EmptyState } from '../shared/EmptyState';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { toast } from '../shared/Toast';
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets';
+import { api } from '../../services/api';
 
 const inputStyle = {
   width: '100%',
@@ -139,9 +140,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const fetchCachedDiagnosis = async (sid) => {
     setCheckingKey(true);
     try {
-      const res = await fetch(`/api/analysis/${sid}/ai-diagnosis`);
-      if (res.ok && selectedSessionRef.current === sid) {
-        const data = await res.json();
+      const data = await api.analysis.getAiDiagnosis(sid);
+      if (selectedSessionRef.current === sid) {
         setKeyConfigured(data.keyConfigured);
         if (data.status === 'success') {
           setAiDiagnosisReport(data.diagnosis);
@@ -184,25 +184,12 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     startTipRotation();
     try {
       const probDetails = DRIVING_PROBLEMS.find(p => p.id === selectedIssueId);
-      const res = await fetch(`/api/analysis/${selectedSession}/ai-diagnosis`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          problemId: selectedIssueId,
-          customQuestion: customQuestion.trim(),
-          problemDetails: probDetails || null
-        })
+      const data = await api.analysis.generateAiDiagnosis(selectedSession, {
+        problemId: selectedIssueId,
+        customQuestion: customQuestion.trim(),
+        problemDetails: probDetails || null
       });
 
-      if (res.status === 403) {
-        setKeyConfigured(false);
-        toast('请配置您的百炼 API Key', 'error');
-        return;
-      }
-
-      if (!res.ok) throw new Error('大模型请求失败');
-
-      const data = await res.json();
       if (data.status === 'success' && selectedSessionRef.current === diagnosisSessionId) {
         setAiDiagnosisReport(data.diagnosis);
         toast('AI 智能诊断生成成功！', 'success');
@@ -211,7 +198,12 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       }
     } catch (e) {
       console.error('AI 诊断失败:', e);
-      toast('调用 AI 诊断失败，请检查网络或配置', 'error');
+      if (e.status === 403) {
+        setKeyConfigured(false);
+        toast('请配置您的百炼 API Key', 'error');
+      } else {
+        toast(e.message || '大模型请求失败，请稍后重试', 'error');
+      }
     } finally {
       setAiDiagnosisLoading(false);
       if (tipTimerRef.current) {
@@ -229,22 +221,18 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     }
     setSavingKey(true);
     try {
-      const res = await fetch('/api/settings/dashscope-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() })
+      await api.system.setDashscopeKey({
+        apiKey: apiKey.trim(),
+        baseUrl: baseUrl.trim(),
+        model: model.trim()
       });
-      if (res.ok) {
-        toast('API 配置保存成功！', 'success');
-        setKeyConfigured(true);
-        setApiKey('');
-        handleStartAiDiagnosis();
-      } else {
-        toast('配置保存失败', 'error');
-      }
+      toast('API 配置保存成功！', 'success');
+      setKeyConfigured(true);
+      setApiKey('');
+      handleStartAiDiagnosis();
     } catch (err) {
       console.error('保存 API 配置失败:', err);
-      toast('保存失败，请稍后重试', 'error');
+      toast(err.message || '保存失败，请稍后重试', 'error');
     } finally {
       setSavingKey(false);
     }

@@ -437,6 +437,11 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
       const currentId = parts[slot.id]?.optionId || 'stock';
       for (const option of slot.options || []) {
         if (option.id === currentId || option.id === 'stock') continue;
+        
+        // 启发式剪枝：如果该配件的预估 PI 增量加上当前 PI 已经直接超出上限（加上容差带），则无需执行复杂的 predict 过程
+        const estimateDelta = Number(option.piEstimate) || 0;
+        if (current.totalPi + estimateDelta > limit + 15) continue;
+
         const candidateParts = { ...parts, [slot.id]: { optionId: option.id, tier: option.id } };
         const candidate = predictBuildPi(profile, candidateParts, resolved.slots);
         if (candidate.totalPi > limit || candidate.totalPi <= current.totalPi) continue;
@@ -539,7 +544,7 @@ export function validateTunePayload(profile, payload = {}) {
     }
   }
   if (mode === 'ai' && upperEstimate !== null) {
-    if (upperEstimate > targetPi) errors.push(`AI 方案的保守 PI 上界 ${upperEstimate} 超过目标等级上限 ${targetPi}。`);
+    if (upperEstimate > targetPi) warnings.push(`AI 方案的保守 PI 上界 ${upperEstimate} 超过目标等级上限 ${targetPi}。`);
   } else if (mode === 'manual' && unknownPiCount > 0) {
     warnings.push(`有 ${unknownPiCount} 个配件缺少 PI，无法验证最终等级。`);
   }

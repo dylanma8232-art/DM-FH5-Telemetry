@@ -1,6 +1,7 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useDashboardData } from '../../hooks/useDashboardData';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
+import { useTelemetrySubscription } from '../../hooks/useSocket';
 
 // Lazy load dashboard components
 const BrakingGripDynamicsPanel = lazy(() => import('../dashboard/BrakingGripDynamicsPanel').then(m => ({ default: m.BrakingGripDynamicsPanel })));
@@ -8,8 +9,9 @@ const RacePerformanceTimingPanel = lazy(() => import('../dashboard/RacePerforman
 const PaceNotesPanel = lazy(() => import('../dashboard/PaceNotesPanel').then(m => ({ default: m.PaceNotesPanel })));
 const AlertAdvicePanel = lazy(() => import('../dashboard/AlertAdvicePanel').then(m => ({ default: m.AlertAdvicePanel })));
 
-export function DashboardPage({ data, socket, connected, packetCount }) {
-  const telemetryData = data || {};
+export function DashboardPage({ socket, connected, packetCount }) {
+  const [telemetryData, setTelemetryData] = useState({});
+  useTelemetrySubscription(setTelemetryData);
   const controls = telemetryData.controls || {};
 
   const { trackData, setTrackData, vehiclesList } = useDashboardData(socket);
