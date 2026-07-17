@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1984 Honda Civic CRX Mugen",
   "basePi": 499,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 120,
+    "torqueNm": 125,
+    "massKg": 825,
+    "topSpeedKph": 217,
+    "rearTireWidthMm": 205
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

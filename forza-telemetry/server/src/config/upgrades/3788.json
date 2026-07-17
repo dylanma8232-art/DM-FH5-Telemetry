@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2022 Lynk & Co 02 Hatchback",
   "basePi": 637,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 251,
+    "torqueNm": 350,
+    "massKg": 1580,
+    "topSpeedKph": 248,
+    "frontTireWidthMm": 245,
+    "rearTireWidthMm": 245
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.006Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

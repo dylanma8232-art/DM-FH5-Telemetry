@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2020 Hyundai I30 N",
   "basePi": 670,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 271,
+    "torqueNm": 378,
+    "massKg": 1429,
+    "topSpeedKph": 239,
+    "frontTireWidthMm": 235,
+    "rearTireWidthMm": 235
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

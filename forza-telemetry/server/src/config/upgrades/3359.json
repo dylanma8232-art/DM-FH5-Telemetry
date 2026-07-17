@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2021 Audi RS e-tron GT",
   "basePi": 770,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 637,
+    "torqueNm": 830,
+    "massKg": 2347,
+    "topSpeedKph": 276,
+    "rearTireWidthMm": 285
+  },
   "commonTemplate": "electric_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

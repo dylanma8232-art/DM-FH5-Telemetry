@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2016 BMW M4 GTS",
   "basePi": 814,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 493,
+    "torqueNm": 599,
+    "massKg": 1510,
+    "topSpeedKph": 317,
+    "rearTireWidthMm": 285
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

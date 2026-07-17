@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2015 Audi S1",
   "basePi": 644,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 228,
+    "torqueNm": 370,
+    "massKg": 1315,
+    "topSpeedKph": 249,
+    "rearTireWidthMm": 225
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1949 Hot Wheels Ford F-5 Dually Custom Hot Rod",
   "basePi": 630,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 400,
+    "torqueNm": 931,
+    "massKg": 2114,
+    "topSpeedKph": 208,
+    "rearTireWidthMm": 475
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

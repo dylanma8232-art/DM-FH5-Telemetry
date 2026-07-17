@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1993 Nissan Skyline GT-R V-Spec",
   "basePi": 626,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 320,
+    "torqueNm": 354,
+    "massKg": 1500,
+    "topSpeedKph": 253,
+    "rearTireWidthMm": 225
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.080Z"
     }
   ],
   "slots": [

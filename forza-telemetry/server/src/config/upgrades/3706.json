@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1970 Hot Wheels Pontiac Firebird Trans Am Custom",
   "basePi": 894,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1062,
+    "torqueNm": 830,
+    "massKg": 1418,
+    "topSpeedKph": 282,
+    "rearTireWidthMm": 305
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

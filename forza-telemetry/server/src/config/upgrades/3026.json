@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1929 Mercedes-Benz SSK",
   "basePi": 256,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 200,
+    "torqueNm": 450,
+    "massKg": 1690,
+    "topSpeedKph": 183,
+    "rearTireWidthMm": 175
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

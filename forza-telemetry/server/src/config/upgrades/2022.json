@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2013 MINI X-Raid ALL4 Racing Countryman",
   "basePi": 632,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 307,
+    "torqueNm": 700,
+    "massKg": 1950,
+    "topSpeedKph": 153,
+    "rearTireWidthMm": 245
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

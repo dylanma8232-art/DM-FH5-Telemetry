@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2018 Hot Wheels 2JetZ",
   "basePi": 854,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 639,
+    "torqueNm": 862,
+    "massKg": 789,
+    "topSpeedKph": 296,
+    "rearTireWidthMm": 275
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [],

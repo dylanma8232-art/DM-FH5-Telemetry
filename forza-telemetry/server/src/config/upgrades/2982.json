@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1977 Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
   "basePi": 896,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 914,
+    "torqueNm": 952,
+    "massKg": 1456,
+    "topSpeedKph": 278,
+    "rearTireWidthMm": 315
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.005Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

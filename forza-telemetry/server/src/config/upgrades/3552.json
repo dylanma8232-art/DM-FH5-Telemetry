@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2020 Lynk & Co #100 Cyan Racing 03",
   "basePi": 800,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 340,
+    "torqueNm": 423,
+    "massKg": 1320,
+    "topSpeedKph": 246,
+    "rearTireWidthMm": 265
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.006Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

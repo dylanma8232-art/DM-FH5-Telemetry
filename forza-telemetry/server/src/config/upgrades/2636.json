@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1993 Toyota #1 T100 Baja Truck",
   "basePi": 693,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 360,
+    "torqueNm": 359,
+    "massKg": 1814,
+    "topSpeedKph": 210,
+    "frontTireWidthMm": 315,
+    "rearTireWidthMm": 315
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +35,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.009Z"
+      "importedAt": "2026-07-17T09:52:24.081Z"
     }
   ],
   "slots": [

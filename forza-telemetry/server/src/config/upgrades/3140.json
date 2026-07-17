@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2019 Rimac Concept Two",
   "basePi": 963,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 1887,
+    "torqueNm": 2298,
+    "massKg": 1950,
+    "topSpeedKph": 421,
+    "frontTireWidthMm": 275,
+    "rearTireWidthMm": 315
+  },
   "commonTemplate": "electric_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.008Z"
+      "importedAt": "2026-07-17T09:52:24.081Z"
     }
   ],
   "slots": [

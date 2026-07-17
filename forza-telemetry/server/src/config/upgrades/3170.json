@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1994 Ford Supervan 3",
   "basePi": 820,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 295,
+    "torqueNm": 384,
+    "massKg": 890,
+    "topSpeedKph": 235,
+    "rearTireWidthMm": 335
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.004Z"
+      "importedAt": "2026-07-17T09:52:24.077Z"
     }
   ],
   "slots": [

@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2002 Ferrari 575M Maranello",
   "basePi": 747,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 508,
+    "torqueNm": 588,
+    "massKg": 1730,
+    "topSpeedKph": 330,
+    "rearTireWidthMm": 295
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.003Z"
+      "importedAt": "2026-07-17T09:52:24.076Z"
     }
   ],
   "slots": [

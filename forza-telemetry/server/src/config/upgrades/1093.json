@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1960 Chevrolet Corvette",
   "basePi": 541,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 290,
+    "torqueNm": 393,
+    "massKg": 1397,
+    "topSpeedKph": 238,
+    "rearTireWidthMm": 165
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.002Z"
+      "importedAt": "2026-07-17T09:52:24.076Z"
     }
   ],
   "slots": [

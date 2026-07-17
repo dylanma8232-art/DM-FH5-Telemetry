@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2021 SIERRA Cars RX3",
   "basePi": 737,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 194,
+    "torqueNm": 155,
+    "massKg": 420,
+    "topSpeedKph": 194,
+    "frontTireWidthMm": 205,
+    "rearTireWidthMm": 205
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.009Z"
+      "importedAt": "2026-07-17T09:52:24.081Z"
     }
   ],
   "slots": [

@@ -1296,7 +1296,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span>{buildMode === 'ai' ? (piIsVerified ? 'PI 等级控制' : 'PI 预估区域') : '当前方案 PI'}</span>
+                <span>{buildMode === 'ai' ? '公式预测 PI' : '当前方案 PI'}</span>
                 <span style={{
                   fontSize: 11,
                   fontWeight: 800,
@@ -1304,13 +1304,18 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   color: buildMode === 'ai' && totalPi > targetPi ? '#da3633' : 'var(--success)'
                 }}>
                   {buildMode === 'ai'
-                    ? `${piIsVerified ? '总PI' : '预估PI'}：${totalPi} / ${targetPi}`
-                    : `当前 PI：${solutionPi === null ? totalPi : solutionPi}`}
+                    ? `预计 PI：${totalPi} / ${targetPi}`
+                    : `预计 PI：${solutionPi === null ? totalPi : solutionPi}`}
                 </span>
               </div>
               {buildMode === 'ai' && totalPiUpper !== totalPi && (
                 <div style={{ marginBottom: 8, textAlign: 'right', fontSize: 10, color: totalPiUpper > targetPi ? '#da3633' : '#d29922' }}>
-                  AI 保守 PI 上界：{totalPiUpper} / {targetPi}
+                  预测区间上限：{totalPiUpper} / {targetPi}
+                </div>
+              )}
+              {upgradeShop?.prediction && (
+                <div style={{ marginBottom: 8, textAlign: 'right', fontSize: 9, color: 'var(--text-muted)' }}>
+                  公式推算 · 输入覆盖率 {upgradeShop.prediction.featureCoverage}% · 误差带 ±{upgradeShop.prediction.uncertainty} PI
                 </div>
               )}
               {buildMode === 'ai' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -1321,13 +1326,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{piIsVerified ? '配件PI增量' : '预估配件增量'}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>公式配件增量</div>
                   <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', color: partsPiDelta > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                     +{partsPiDelta}
                   </div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{piIsVerified ? '总PI' : '预估PI'}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>预计总 PI</div>
                   <div style={{
                     fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
                     color: totalPi > targetPi ? '#da3633' : 'var(--text-primary)'
@@ -1357,7 +1362,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   fontSize: 10,
                   color: '#da3633'
                 }}>
-                  {piIsVerified ? '当前PI' : '当前预估PI'}已超出目标上限 {totalPi - targetPi} 点，请降低配件等级或提高PI上限
+                  预计 PI 已超出目标上限 {totalPi - targetPi} 点，请降低配件等级或提高 PI 上限
                 </div>
               )}
               <div style={{ marginTop: buildMode === 'ai' ? 10 : 0 }}>
@@ -1372,7 +1377,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   style={{ ...inputStyle, marginBottom: 0 }}
                 />
                 <div style={{ marginTop: 5, fontSize: 9, color: 'var(--text-muted)' }}>
-                  系统按配件预估为 {totalPi} PI；请按游戏内最终结果修改，保存后记录在这套方案上。
+                  公式模型预计为 {totalPi} PI；配件数值会随当前组合重新计算。
                 </div>
               </div>
               {unknownPiSelectionCount > 0 && (
@@ -2416,14 +2421,12 @@ const PartSelector = React.memo(function PartSelector({ category: rawCategory, s
               {(category.options || []).map(opt => {
                 const isActive = selected?.optionId === opt.id || (!selected?.optionId && opt.id === 'stock')
                 const color = opt.color || '#8b949e'
-                const rawPi = opt.piEstimate ?? opt.piBonus
+                const rawPi = opt.piDeltaFromCurrent ?? opt.piEstimate ?? opt.piBonus
                 const hasKnownPi = rawPi !== null && rawPi !== '' && Number.isFinite(Number(rawPi))
-                const isModelPi = opt.piConfidence === 'model_estimate'
-                const piLabel = `${Number(rawPi) > 0 ? '+' : ''}${Number(rawPi)}PI${isModelPi ? '（估）' : ''}`
-                // 只有车辆实测或原厂基准才能称为“实测 ±0”；通用目录的 0
-                // 只是当前估算，不能让用户误以为已在游戏内验证。
-                const isVerifiedZero = hasKnownPi && Number(rawPi) === 0 && opt.piConfidence === 'exact'
-                const zeroPiLabel = isVerifiedZero ? '实测 ±0 PI' : '估算 0 PI'
+                const isModelPi = opt.piSource === 'formula_v1' || opt.piConfidence === 'model_estimate'
+                const piLabel = `${isModelPi ? '预测 ' : ''}${Number(rawPi) > 0 ? '+' : ''}${Number(rawPi)} PI`
+                const isVerifiedZero = hasKnownPi && Number(rawPi) === 0 && opt.id === 'stock'
+                const zeroPiLabel = isModelPi ? '预测 +0 PI' : '原厂 +0 PI'
                 return (
                   <button
                     key={opt.id}
@@ -2464,7 +2467,7 @@ const PartSelector = React.memo(function PartSelector({ category: rawCategory, s
                           <span style={{ fontSize: 8, color: isVerifiedZero ? '#8b949e' : '#d29922', padding: '1px 4px', borderRadius: 3, background: isVerifiedZero ? 'rgba(139,148,158,0.08)' : 'rgba(210,153,34,0.08)', border: `1px solid ${isVerifiedZero ? 'rgba(139,148,158,0.15)' : 'rgba(210,153,34,0.22)'}` }}>{zeroPiLabel}</span>
                         )}
                         {!hasKnownPi && opt.id !== 'stock' && (
-                          <span style={{ fontSize: 8, color: 'var(--text-muted)', padding: '1px 4px' }}>PI 待确认</span>
+                          <span style={{ fontSize: 8, color: 'var(--text-muted)', padding: '1px 4px' }}>公式推算中</span>
                         )}
                       </>
                     )}

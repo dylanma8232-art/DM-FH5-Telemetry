@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2018 Chevrolet Hot Wheels COPO Camaro",
   "basePi": 867,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1100,
+    "torqueNm": 1152,
+    "massKg": 1474,
+    "topSpeedKph": 310,
+    "rearTireWidthMm": 280
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.002Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

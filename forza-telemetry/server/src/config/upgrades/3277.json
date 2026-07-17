@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2020 Ford Mustang Shelby GT500",
   "basePi": 836,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 760,
+    "torqueNm": 847,
+    "massKg": 1892,
+    "topSpeedKph": 337,
+    "rearTireWidthMm": 315
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.003Z"
+      "importedAt": "2026-07-17T09:52:24.077Z"
     }
   ],
   "slots": [

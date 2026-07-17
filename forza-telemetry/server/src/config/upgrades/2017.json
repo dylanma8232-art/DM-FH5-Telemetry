@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1968 Abarth 595 esseesse",
   "basePi": 100,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 28,
+    "torqueNm": 46,
+    "massKg": 570,
+    "topSpeedKph": 119,
+    "rearTireWidthMm": 125
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:02.998Z"
+      "importedAt": "2026-07-17T09:52:24.073Z"
     }
   ],
   "slots": [

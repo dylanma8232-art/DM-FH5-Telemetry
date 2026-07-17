@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2019 Casey Currie Motorsports #4402 Ultra 4 'Trophy Jeep'",
   "basePi": 745,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 850,
+    "torqueNm": 881,
+    "massKg": 2200,
+    "topSpeedKph": 226,
+    "rearTireWidthMm": 345
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.001Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [
