@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '../../services/api';
+import { toast } from '../shared/Toast';
+import { InlineConfirm } from '../shared/InlineConfirm';
 
 const CLASS_LABELS = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
 const MANUFACTURER_ALIASES = {
@@ -26,64 +29,6 @@ function getTunePi(tune) {
   return null;
 }
 
-// ============================================================
-// Toast 通知组件
-// ============================================================
-function Toast({ message, type = 'info', onClose }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 2500);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const bgColor = type === 'success' ? 'rgba(35, 134, 54, 0.95)'
-    : type === 'error' ? 'rgba(218, 54, 51, 0.95)'
-    : 'rgba(56, 139, 253, 0.95)';
-
-  return (
-    <div style={{
-      position: 'fixed', top: 70, right: 20, zIndex: 9999,
-      background: bgColor, color: '#fff',
-      padding: '8px 16px', borderRadius: 6,
-      fontSize: 12, fontWeight: 600,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-      animation: 'toastSlideIn 0.3s ease-out'
-    }}>
-      {message}
-      <span onClick={onClose} style={{ marginLeft: 10, cursor: 'pointer', opacity: 0.7 }}>&times;</span>
-    </div>
-  );
-}
-
-// ============================================================
-// 内联确认组件
-// ============================================================
-function InlineConfirm({ message, onConfirm, onCancel }) {
-  return (
-    <div style={{
-      position: 'absolute', top: '100%', right: 0,
-      background: '#1c2128', border: '1px solid #da3633',
-      borderRadius: 4, padding: '6px 8px', zIndex: 10,
-      display: 'flex', flexDirection: 'column', gap: 4,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-      minWidth: 120
-    }}>
-      <div style={{ fontSize: 10, color: '#f85149', fontWeight: 600 }}>{message}</div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <button onClick={onConfirm} style={{
-          flex: 1, padding: '3px 8px', fontSize: 9,
-          background: '#da3633', color: '#fff', border: 'none',
-          borderRadius: 3, cursor: 'pointer', fontWeight: 600
-        }}>确定</button>
-        <button onClick={onCancel} style={{
-          flex: 1, padding: '3px 8px', fontSize: 9,
-          background: '#30363d', color: '#c9d1d9',
-          border: '1px solid #484f58', borderRadius: 3, cursor: 'pointer'
-        }}>取消</button>
-      </div>
-    </div>
-  );
-}
-
 export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const [vehicles, setVehicles] = useState({});
   const [catalog, setCatalog] = useState([]);
@@ -99,19 +44,15 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     drivetrain: 'AWD'
   });
 
-  // Round 6: 搜索和排序
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('raceCount');
   const [vehicleTab, setVehicleTab] = useState('received');
   const [expandedManufacturers, setExpandedManufacturers] = useState({});
-  const [toast, setToast] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Round 7: 展开的车辆卡片
   const [expandedCard, setExpandedCard] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Round 3: 车辆对比模式
   const [compareMode, setCompareMode] = useState(false);
   const [compareSelected, setCompareSelected] = useState([]);
 
@@ -135,11 +76,8 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
 
   const loadTunes = async () => {
     try {
-      const res = await fetch('/api/tunes');
-      if (res.ok) {
-        const data = await res.json();
-        setTunesList(Array.isArray(data) ? data : []);
-      }
+      const data = await api.tunes.list();
+      setTunesList(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('加载调校方案失败', e);
     }
@@ -153,95 +91,77 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
 
   const loadVehicles = async () => {
     try {
-      const res = await fetch('/api/vehicles');
-      const data = await res.json();
-      setVehicles(data);
+      const data = await api.vehicles.list();
+      setVehicles(data || {});
     } catch (e) {
-      showToast('加载车辆失败', 'error');
+      toast('加载车辆失败', 'error');
     }
   };
 
   const loadCatalog = async () => {
     try {
-      const res = await fetch('/api/vehicles/catalog');
-      if (res.ok) {
-        const data = await res.json();
-        setCatalog(Array.isArray(data) ? data : []);
-      }
+      const data = await api.vehicles.getCatalog();
+      setCatalog(Array.isArray(data) ? data : []);
     } catch (e) {
-      showToast('加载游戏车辆目录失败', 'error');
+      toast('加载游戏车辆目录失败', 'error');
     }
   };
 
   const loadSessions = async () => {
     try {
-      const res = await fetch('/api/sessions');
-      const data = await res.json();
-      setSessions(data);
+      const data = await api.sessions.list();
+      setSessions(data || []);
     } catch (e) {
-      showToast('加载比赛失败', 'error');
+      toast('加载比赛失败', 'error');
     }
-  };
-
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
   };
 
   const saveVehicle = async () => {
     if (!formData.ordinal || !formData.name) {
-      showToast('请输入车辆ID和名称', 'error');
+      toast('请输入车辆ID和名称', 'error');
       return;
     }
     try {
-      await fetch('/api/vehicles/' + formData.ordinal, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ordinal: parseInt(formData.ordinal),
-          name: formData.name,
-          class: parseInt(formData.class),
-          originalPi: parseInt(formData.pi) || null,
-          drivetrain: formData.drivetrain
-        })
+      await api.vehicles.save(formData.ordinal, {
+        ordinal: parseInt(formData.ordinal),
+        name: formData.name,
+        class: parseInt(formData.class),
+        originalPi: parseInt(formData.pi) || null,
+        drivetrain: formData.drivetrain
       });
       loadVehicles();
       setShowAddModal(false);
       setEditingVehicle(null);
       setFormData({ ordinal: '', name: '', class: 3, pi: '', drivetrain: 'AWD' });
-      showToast(editingVehicle ? '车辆已更新' : '车辆已添加', 'success');
+      toast(editingVehicle ? '车辆已更新' : '车辆已添加', 'success');
     } catch (e) {
-      showToast('保存失败', 'error');
+      toast(e.message || '保存失败', 'error');
     }
   };
 
   const deleteVehicle = async (id) => {
     try {
-      await fetch('/api/vehicles/' + id, { method: 'DELETE' });
+      await api.vehicles.delete(id);
       loadVehicles();
       setDeleteConfirmId(null);
-      showToast('车辆已删除', 'success');
+      toast('车辆已删除', 'success');
     } catch (e) {
-      showToast('删除失败', 'error');
+      toast(e.message || '删除失败', 'error');
     }
   };
 
   const toggleFavorite = async (card) => {
     const current = vehicles[card.ord] || {};
     try {
-      const res = await fetch('/api/vehicles/' + card.ord, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...current,
-          ordinal: Number(card.ord),
-          name: current.name || card.name,
-          favorite: !card.favorite
-        })
+      await api.vehicles.save(card.ord, {
+        ...current,
+        ordinal: Number(card.ord),
+        name: current.name || card.name,
+        favorite: !card.favorite
       });
-      if (!res.ok) throw new Error('保存失败');
       await loadVehicles();
     } catch (e) {
-      showToast('收藏状态保存失败', 'error');
+      toast(e.message || '收藏状态保存失败', 'error');
     }
   };
 
@@ -262,7 +182,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     setShowAddModal(true);
   };
 
-  // Round 3: 按 ordinal 聚合 session 统计（增加 avgLap 和 trackList）
   const statsByOrdinal = useMemo(() => {
     const stats = {};
     sessions.forEach(s => {
@@ -276,7 +195,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       if (s.laps && s.laps.best > 0 && (st.bestLap === 0 || s.laps.best < st.bestLap)) {
         st.bestLap = s.laps.best;
       }
-      // Round 3: 统计平均圈速
       if (s.laps && s.laps.total && s.laps.total > 0) {
         st.totalLapCount += s.laps.total;
       }
@@ -290,17 +208,14 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       }
       st.recentSessions.push(s);
     });
-    // Round 3: 计算平均圈速
     Object.values(stats).forEach(st => {
       if (st.totalLapCount > 0 && st.bestLap > 0) {
-        // 使用最近5场比赛的加权平均作为近似
         const recentWithLaps = st.recentSessions.filter(s => s.laps && s.laps.best > 0);
         if (recentWithLaps.length > 0) {
           const sum = recentWithLaps.reduce((acc, s) => acc + s.laps.best, 0);
           st.avgLap = sum / recentWithLaps.length;
         }
       }
-      // 按 savedAt 排序获取最近 5 场
       st.recentSessions.sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
       st.recentSessions = st.recentSessions.slice(0, 5);
     });
@@ -315,7 +230,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
       const catalogVehicle = catalogByOrdinal.get(String(ord));
       const savedName = v?.name && !v.name.startsWith('Car #') ? v.name : null;
       const stat = statsByOrdinal[ord] || { count: 0, bestLap: 0, avgLap: 0, lastUsed: 0, trackCount: 0, trackList: [], tracks: new Set(), recentSessions: [] };
-      // 车辆管理只展示资料库中的官方原厂 PI，不使用游戏遥测中的当前改装 PI。
       const officialBasePi = Number(catalogVehicle?.basePi) > 0
         ? Number(catalogVehicle.basePi)
         : (Number(v?.originalPi) > 0 ? Number(v.originalPi) : null);
@@ -349,7 +263,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     });
   }, [catalog, vehicles, statsByOrdinal, tunesList]);
 
-  // Round 6: 搜索过滤
   const filteredCards = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const tabCards = vehicleCards.filter(card => {
@@ -365,7 +278,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     );
   }, [vehicleCards, searchQuery, vehicleTab]);
 
-  // Round 6: 排序
   const sortedCards = useMemo(() => {
     const sorted = [...filteredCards];
     sorted.sort((a, b) => {
@@ -398,7 +310,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     setExpandedManufacturers(Object.fromEntries(groupedCards.map(([manufacturer]) => [manufacturer, expanded])));
   };
 
-  // Round 3: 车辆对比相关
   const toggleCompareMode = () => {
     setCompareMode(prev => !prev);
     setCompareSelected([]);
@@ -416,7 +327,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     });
   };
 
-  // Round 3: 获取对比数据
   const compareData = useMemo(() => {
     if (compareSelected.length !== 2) return null;
     const [ordA, ordB] = compareSelected;
@@ -424,12 +334,10 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     const cardB = vehicleCards.find(c => c.ord === ordB);
     if (!cardA || !cardB) return null;
 
-    // 找到两辆车都跑过的赛道
     const tracksA = new Set(cardA.stat.trackList);
     const tracksB = new Set(cardB.stat.trackList);
     const commonTracks = [...tracksA].filter(t => tracksB.has(t));
 
-    // 统计各自在共同赛道的表现
     const trackPerformance = {};
     commonTracks.forEach(track => {
       const sessionsA = sessions.filter(s => s.vehicle?.ordinal === parseInt(ordA) && s.trackName === track && s.laps?.best > 0);
@@ -469,10 +377,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
 
   return (
     <div className="vehicle-page">
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
-
       <header className="vehicle-header">
         <div className="vehicle-heading">
           <div>
@@ -486,10 +390,9 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           </div>
         </div>
         <div className="vehicle-header-actions">
-          {/* Round 3: 车辆对比按钮 */}
           <button
             onClick={toggleCompareMode}
-            style={compareMode ? { ...btnSmallStyle, background: '#58a6ff', color: '#fff', borderColor: '#58a6ff' } : btnSmallStyle}
+            className={`btn-action-sm ${compareMode ? 'active' : ''}`}
           >
             {compareMode ? '退出对比' : '对比'}
           </button>
@@ -499,7 +402,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
               setEditingVehicle(null);
               setShowAddModal(true);
             }}
-            style={{ ...btnPrimaryStyle, padding: '6px 12px', fontSize: 11 }}
+            className="btn-action-primary btn-action-header"
           >
             + 添加
           </button>
@@ -527,7 +430,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         ))}
       </div>
 
-      {/* Round 6: 搜索和排序 */}
       <div className="vehicle-toolbar">
         <div style={{ flex: 1, position: 'relative' }}>
           <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#484f58' }}>
@@ -564,12 +466,11 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           {searchQuery.trim() ? `找到 ${sortedCards.length} 辆车，分属 ${groupedCards.length} 个车厂` : `共 ${groupedCards.length} 个车厂`}
         </span>
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={() => setAllManufacturersExpanded(true)} style={{ ...btnSmallStyle, padding: '2px 7px', fontSize: 9 }}>展开全部</button>
-          <button onClick={() => setAllManufacturersExpanded(false)} style={{ ...btnSmallStyle, padding: '2px 7px', fontSize: 9 }}>收起全部</button>
+          <button onClick={() => setAllManufacturersExpanded(true)} className="btn-action-sm" style={{ padding: '2px 7px', fontSize: 9 }}>展开全部</button>
+          <button onClick={() => setAllManufacturersExpanded(false)} className="btn-action-sm" style={{ padding: '2px 7px', fontSize: 9 }}>收起全部</button>
         </div>
       </div>
 
-      {/* Round 3: 对比模式提示栏 */}
       {compareMode && (
         <div style={{
           background: compareSelected.length === 2 ? 'rgba(35, 134, 54, 0.15)' : 'rgba(210, 153, 34, 0.12)',
@@ -587,14 +488,13 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
             )}
           </div>
           {compareSelected.length > 0 && (
-            <button onClick={() => setCompareSelected([])} style={{ ...btnSmallStyle, fontSize: 9, padding: '2px 8px' }}>
+            <button onClick={() => setCompareSelected([])} className="btn-action-sm" style={{ fontSize: 9, padding: '2px 8px' }}>
               清除选择
             </button>
           )}
         </div>
       )}
 
-      {/* Round 3: 车辆对比结果面板 */}
       {compareMode && compareData && (
         <div style={{
           background: '#161b22', border: '1px solid #30363d',
@@ -604,7 +504,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
             <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>车辆对比</h3>
           </div>
 
-          {/* 基础信息对比 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 11, marginBottom: 12 }}>
             <div style={{ fontWeight: 700, color: '#8b949e', fontSize: 9 }}>指标</div>
             <div style={{ fontWeight: 700, color: '#58a6ff', textAlign: 'center' }}>{compareData.cardA.name}</div>
@@ -639,7 +538,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
             <div style={{ textAlign: 'center', fontFamily: 'monospace' }}>{compareData.cardB.stat.trackCount}</div>
           </div>
 
-          {/* 共同赛道圈速对比 */}
           {compareData.commonTracks.length > 0 && (
             <div style={{ borderTop: '1px solid #21262d', paddingTop: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#8b949e', marginBottom: 6 }}>
@@ -677,7 +575,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
             </div>
           )}
 
-          {/* 各自独占赛道 */}
           {(compareData.allTracksA.length > 0 || compareData.allTracksB.length > 0) && (
             <div style={{ borderTop: '1px solid #21262d', paddingTop: 10, marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {compareData.allTracksA.length > 0 && (
@@ -713,18 +610,13 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         </div>
       )}
 
-      {/* Round 7: 加载状态 */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: '#484f58', fontSize: 12 }}>
-          <div style={{
-            width: 24, height: 24, border: '2px solid #21262d',
-            borderTopColor: '#58a6ff', borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite', marginRight: 8
-          }} />
+        <div className="loading-container">
+          <div className="loading-spinner" />
           加载中...
         </div>
       ) : sortedCards.length === 0 ? (
-        <div style={{ padding: '48px 16px', textAlign: 'center', color: '#8b949e', fontSize: 12 }}>
+        <div className="empty-placeholder">
           {vehicleTab === 'favorites' ? '还没有收藏的车辆' : '没有符合条件的车辆'}
         </div>
       ) : (
@@ -732,218 +624,201 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
           {groupedCards.map(([manufacturer, cards]) => {
             const isExpanded = expandedManufacturers[manufacturer] ?? Boolean(searchQuery.trim());
             return (
-            <section key={manufacturer} className="manufacturer-section">
-              <button
-                onClick={() => setExpandedManufacturers(prev => ({ ...prev, [manufacturer]: !prev[manufacturer] }))}
-                aria-expanded={isExpanded}
-                style={{
-                  display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '11px 12px',
-                  background: isExpanded ? '#1a222d' : '#161b22', border: '1px solid #30363d', borderRadius: 6, color: '#c9d1d9',
-                  cursor: 'pointer', textAlign: 'left'
-                }}
-              >
-                <span style={{ width: 14, color: '#58a6ff', fontSize: 14 }}>{isExpanded ? '⌄' : '›'}</span>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{manufacturer}</span>
-                {MANUFACTURER_ALIASES[manufacturer] && <span style={{ color: '#8b949e', fontSize: 10 }}>{MANUFACTURER_ALIASES[manufacturer]}</span>}
-                <span style={{ marginLeft: 'auto', padding: '2px 7px', color: '#a9c7e8', background: 'rgba(88, 166, 255, 0.12)', borderRadius: 10, fontFamily: 'monospace', fontSize: 10 }}>{cards.length} 辆</span>
-              </button>
-              {isExpanded && (
-              <div className="vehicle-card-grid">
-          {cards.map(card => (
-            <div key={card.ord} style={{
-              background: '#161b22',
-              border: compareMode
-                ? `2px solid ${compareSelected.includes(card.ord) ? '#58a6ff' : (compareSelected.length < 2 ? 'rgba(88, 166, 255, 0.2)' : '#21262d')}`
-                : (card.isAuto ? '1px dashed #21262d' : '1px solid #21262d'),
-              borderRadius: 6, padding: 10, transition: 'border-color 0.2s, background 0.2s', position: 'relative',
-              cursor: compareMode ? 'pointer' : 'default'
-            }}
-            className="vehicle-card"
-            onClick={compareMode ? () => toggleSelectForCompare(card.ord) : undefined}
-            >
-              {/* Round 3: 对比模式选中指示 */}
-              {compareMode && compareSelected.includes(card.ord) && (
-                <div style={{
-                  position: 'absolute', top: 4, left: 4,
-                  width: 16, height: 16, borderRadius: '50%',
-                  background: '#58a6ff', color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, zIndex: 2
-                }}>
-                  {compareSelected.indexOf(card.ord) + 1}
-                </div>
-              )}
-
-              {/* Round 7: 未配置标签可点击打开编辑 */}
-              {card.isAuto && (
-                <div
-                  onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }}
+              <section key={manufacturer} className="manufacturer-section">
+                <button
+                  onClick={() => setExpandedManufacturers(prev => ({ ...prev, [manufacturer]: !prev[manufacturer] }))}
+                  aria-expanded={isExpanded}
+                  className="manufacturer-section-btn"
                   style={{
-                    position: 'absolute', top: 4, right: 4,
-                    fontSize: 8, padding: '1px 6px', borderRadius: 2,
-                    background: '#d29922', color: '#000', fontWeight: 600,
-                    cursor: 'pointer'
+                    background: isExpanded ? '#1a222d' : '#161b22'
                   }}
                 >
-                  未配置
-                </div>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <div
-                  style={{ flex: 1, minWidth: 0, paddingRight: card.isAuto ? 40 : 0, cursor: 'pointer' }}
-                  onClick={(e) => { if (!compareMode) { e.stopPropagation(); setExpandedCard(expandedCard === card.ord ? null : card.ord); } }}
-                  title="查看改装方案"
-                >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {card.name}
-                  </div>
-                </div>
-                {card.class !== null && (
-                  <div style={{
-                    fontSize: 13, fontWeight: 700, padding: '2px 8px', borderRadius: 3,
-                    background: card.class >= 4 ? '#d29922' : '#0d1117',
-                    color: card.class >= 4 ? '#000' : '#c9d1d9',
-                    fontFamily: 'monospace'
-                  }}>
-                    {CLASS_LABELS[card.class] || '?'}
-                  </div>
-                )}
-              </div>
-
-              <div className="vehicle-build-summary">
-                <div><span>官方原厂 PI</span><strong>{card.pi || '-'}</strong></div>
-                <div><span>驱动</span><strong>{card.drivetrain || '-'}</strong></div>
-                <div>
-                  <span>改装方案</span>
-                  <strong>{card.tunePiSummary}</strong>
-                </div>
-              </div>
-
-              {card.tunes.length > 0 && (
-                <div className="vehicle-tune-preview">
-                  {card.tunes.slice(0, 2).map(tune => (
-                    <span key={tune.id}><b>{tune.calculatedPi ?? 'PI 未知'}</b> {tune.name || '未命名方案'}</span>
-                  ))}
-                  {card.tunes.length > 2 && <span>另有 {card.tunes.length - 2} 套</span>}
-                </div>
-              )}
-
-              {expandedCard === card.ord && (
-                <div className="vehicle-tune-list">
-                  <div className="vehicle-tune-list-title">改装调校方案 <span>{card.tunes.length} 套</span></div>
-                  {card.tunes.length === 0 ? (
-                    <div className="vehicle-tune-empty">还没有改装方案，可从下方进入工坊新建。</div>
-                  ) : card.tunes.map(tune => (
-                    <div key={tune.id} className="vehicle-tune-row">
-                      <div>
-                        <strong>{tune.name || '未命名方案'}</strong>
-                        <span>{(tune.tags || []).join(' · ') || '未添加标签'}</span>
-                      </div>
-                      <div className="vehicle-tune-pi">PI {tune.calculatedPi ?? '未知'}</div>
-                      <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit' }); }} style={{ ...btnSmallStyle, padding: '3px 7px', fontSize: 9 }}>编辑</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#484f58', borderTop: '1px solid #21262d', paddingTop: 4 }}>
-                <span>车辆编号 #{card.ord}</span>
-                {!compareMode && (
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(card); }}
-                      style={{ ...btnSmallStyle, width: 25, padding: '2px 0', color: card.favorite ? '#d29922' : '#8b949e', borderColor: card.favorite ? 'rgba(210, 153, 34, 0.55)' : '#30363d' }}
-                      title={card.favorite ? '取消收藏' : '收藏车辆'}
-                      aria-label={card.favorite ? '取消收藏' : '收藏车辆'}
-                    >
-                      {card.favorite ? '★' : '☆'}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onNavigate('tunes', { vehicleId: card.ord, action: 'create' });
+                  <span style={{ width: 14, color: '#58a6ff', fontSize: 14 }}>{isExpanded ? '⌄' : '›'}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{manufacturer}</span>
+                  {MANUFACTURER_ALIASES[manufacturer] && <span style={{ color: '#8b949e', fontSize: 10 }}>{MANUFACTURER_ALIASES[manufacturer]}</span>}
+                  <span style={{ marginLeft: 'auto', padding: '2px 7px', color: '#a9c7e8', background: 'rgba(88, 166, 255, 0.12)', borderRadius: 10, fontFamily: 'monospace', fontSize: 10 }}>{cards.length} 辆</span>
+                </button>
+                {isExpanded && (
+                  <div className="vehicle-card-grid">
+                    {cards.map(card => (
+                      <div key={card.ord} style={{
+                        background: '#161b22',
+                        border: compareMode
+                          ? `2px solid ${compareSelected.includes(card.ord) ? '#58a6ff' : (compareSelected.length < 2 ? 'rgba(88, 166, 255, 0.2)' : '#21262d')}`
+                          : (card.isAuto ? '1px dashed #21262d' : '1px solid #21262d'),
+                        cursor: compareMode ? 'pointer' : 'default'
                       }}
-                      style={{
-                        ...btnSmallStyle,
-                        fontSize: 9,
-                        padding: '2px 6px',
-                        background: 'rgba(56, 139, 253, 0.1)',
-                        borderColor: 'rgba(56, 139, 253, 0.3)',
-                        color: '#58a6ff'
-                      }}
-                      title="为此车辆新建改装与调校方案"
-                    >
-                      🔧 工坊
-                    </button>
-                    {!card.isAuto && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }} style={{ ...btnSmallStyle, fontSize: 9, padding: '2px 6px' }}>&#9998;</button>
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deleteConfirmId === card.ord ? null : card.ord); }}
-                            style={{ ...btnDangerSmallStyle, fontSize: 9, padding: '2px 6px' }}
-                          >&#10005;</button>
-                          {deleteConfirmId === card.ord && (
-                            <InlineConfirm
-                              message="确定删除此车辆？"
-                              onConfirm={() => deleteVehicle(card.ord)}
-                              onCancel={() => setDeleteConfirmId(null)}
-                            />
+                      className="vehicle-card"
+                      onClick={compareMode ? () => toggleSelectForCompare(card.ord) : undefined}
+                      >
+                        {compareMode && compareSelected.includes(card.ord) && (
+                          <div className="compare-badge">
+                            {compareSelected.indexOf(card.ord) + 1}
+                          </div>
+                        )}
+
+                        {card.isAuto && (
+                          <div
+                            onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }}
+                            className="unconfigured-badge"
+                          >
+                            未配置
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <div
+                            style={{ flex: 1, minWidth: 0, paddingRight: card.isAuto ? 40 : 0, cursor: 'pointer' }}
+                            onClick={(e) => { if (!compareMode) { e.stopPropagation(); setExpandedCard(expandedCard === card.ord ? null : card.ord); } }}
+                            title="查看改装方案"
+                          >
+                            <div style={{ fontSize: 12, fontWeight: 600, color: '#c9d1d9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {card.name}
+                            </div>
+                          </div>
+                          {card.class !== null && (
+                            <div style={{
+                              fontSize: 13, fontWeight: 700, padding: '2px 8px', borderRadius: 3,
+                              background: card.class >= 4 ? '#d29922' : '#0d1117',
+                              color: card.class >= 4 ? '#000' : '#c9d1d9',
+                              fontFamily: 'monospace'
+                            }}>
+                              {CLASS_LABELS[card.class] || '?'}
+                            </div>
                           )}
                         </div>
-                      </>
-                    )}
+
+                        <div className="vehicle-build-summary">
+                          <div><span>官方原厂 PI</span><strong>{card.pi || '-'}</strong></div>
+                          <div><span>驱动</span><strong>{card.drivetrain || '-'}</strong></div>
+                          <div>
+                            <span>改装方案</span>
+                            <strong>{card.tunePiSummary}</strong>
+                          </div>
+                        </div>
+
+                        {card.tunes.length > 0 && (
+                          <div className="vehicle-tune-preview">
+                            {card.tunes.slice(0, 2).map(tune => (
+                              <span key={tune.id}><b>{tune.calculatedPi ?? 'PI 未知'}</b> {tune.name || '未命名方案'}</span>
+                            ))}
+                            {card.tunes.length > 2 && <span>另有 {card.tunes.length - 2} 套</span>}
+                          </div>
+                        )}
+
+                        {expandedCard === card.ord && (
+                          <div className="vehicle-tune-list">
+                            <div className="vehicle-tune-list-title">改装调校方案 <span>{card.tunes.length} 套</span></div>
+                            {card.tunes.length === 0 ? (
+                              <div className="vehicle-tune-empty">还没有改装方案，可从下方进入工坊新建。</div>
+                            ) : card.tunes.map(tune => (
+                              <div key={tune.id} className="vehicle-tune-row">
+                                <div>
+                                  <strong>{tune.name || '未命名方案'}</strong>
+                                  <span>{(tune.tags || []).join(' · ') || '未添加标签'}</span>
+                                </div>
+                                <div className="vehicle-tune-pi">PI {tune.calculatedPi ?? '未知'}</div>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit' }); }} className="btn-action-sm" style={{ padding: '3px 7px', fontSize: 9 }}>编辑</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9, color: '#484f58', borderTop: '1px solid #21262d', paddingTop: 4 }}>
+                          <span>车辆编号 #{card.ord}</span>
+                          {!compareMode && (
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleFavorite(card); }}
+                                className="btn-action-sm"
+                                style={{
+                                  width: 25, padding: '2px 0',
+                                  color: card.favorite ? '#d29922' : '#8b949e',
+                                  borderColor: card.favorite ? 'rgba(210, 153, 34, 0.55)' : '#30363d'
+                                }}
+                                title={card.favorite ? '取消收藏' : '收藏车辆'}
+                                aria-label={card.favorite ? '取消收藏' : '收藏车辆'}
+                              >
+                                {card.favorite ? '★' : '☆'}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onNavigate('tunes', { vehicleId: card.ord, action: 'create' });
+                                }}
+                                className="btn-action-sm btn-action-workshop"
+                                title="为此车辆新建改装与调校方案"
+                              >
+                                🔧 工坊
+                              </button>
+                              {!card.isAuto && (
+                                <>
+                                  <button onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }} className="btn-action-sm" style={{ padding: '2px 6px' }}>&#9998;</button>
+                                  <div style={{ position: 'relative' }}>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deleteConfirmId === card.ord ? null : card.ord); }}
+                                      className="btn-action-danger-sm"
+                                      style={{ padding: '2px 6px' }}
+                                    >&#10005;</button>
+                                    {deleteConfirmId === card.ord && (
+                                      <InlineConfirm
+                                        message="确定删除此车辆？"
+                                        onConfirm={() => deleteVehicle(card.ord)}
+                                        onCancel={() => setDeleteConfirmId(null)}
+                                      />
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-              </div>
-            </div>
-          ))}
-              </div>
-              )}
-            </section>
+              </section>
             );
           })}
         </div>
       )}
 
-      {/* 添加/编辑车辆弹窗 */}
       {showAddModal && (
-        <div style={modalOverlayStyle}>
-          <div style={modalContentStyle}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600 }}>{editingVehicle ? '编辑车辆' : '添加车辆'}</h2>
               <button onClick={() => { setShowAddModal(false); setEditingVehicle(null); }} style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', fontSize: 18 }}>&times;</button>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>车辆ID</label>
+              <label className="label-ctrl">车辆ID</label>
               <input
                 value={formData.ordinal}
                 onChange={e => setFormData({...formData, ordinal: e.target.value})}
                 placeholder="输入车辆ID（数字）"
-                style={inputStyle}
+                className="input-ctrl"
                 disabled={!!editingVehicle}
               />
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>车辆名称</label>
+              <label className="label-ctrl">车辆名称</label>
               <input
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
                 placeholder="例如: Porsche 911 GT3 RS"
-                style={inputStyle}
+                className="input-ctrl"
               />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>等级</label>
+                <label className="label-ctrl">等级</label>
                 <select
                   value={formData.class}
                   onChange={e => setFormData({...formData, class: e.target.value})}
-                  style={inputStyle}
+                  className="input-ctrl"
                 >
                   {CLASS_LABELS.map((cls, i) => (
                     <option key={i} value={i}>{cls}</option>
@@ -951,23 +826,23 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>官方原厂 PI</label>
+                <label className="label-ctrl">官方原厂 PI</label>
                 <input
                   value={formData.pi}
                   onChange={e => setFormData({...formData, pi: e.target.value})}
                   placeholder="100-999"
-                  style={inputStyle}
+                  className="input-ctrl"
                   disabled={Number(catalog.find(item => String(item.ordinal) === String(formData.ordinal))?.basePi) > 0}
                 />
               </div>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>驱动类型</label>
+              <label className="label-ctrl">驱动类型</label>
               <select
                 value={formData.drivetrain}
                 onChange={e => setFormData({...formData, drivetrain: e.target.value})}
-                style={inputStyle}
+                className="input-ctrl"
               >
                 <option value="FWD">前驱</option>
                 <option value="RWD">后驱</option>
@@ -975,7 +850,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
               </select>
             </div>
 
-            <button onClick={saveVehicle} style={btnPrimaryStyle}>
+            <button onClick={saveVehicle} className="btn-action-primary">
               {editingVehicle ? '保存修改' : '添加车辆'}
             </button>
           </div>
@@ -1007,6 +882,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         .manufacturer-directory { display: flex; flex-direction: column; gap: 8px; }
         .manufacturer-section > button:hover { border-color: #58a6ff !important; background: #1a222d !important; }
         .vehicle-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; padding: 6px 2px 4px; }
+        .vehicle-card { position: relative; border-radius: 6px; padding: 10px; transition: border-color 0.2s, background 0.2s; }
         .vehicle-card:hover { background: #1b222c !important; border-color: #3b5168 !important; }
         .vehicle-build-summary { display: grid; grid-template-columns: 0.85fr 0.75fr 1.4fr; gap: 1px; margin: 10px 0 7px; border: 1px solid #21262d; border-radius: 5px; overflow: hidden; background: #21262d; }
         .vehicle-build-summary > div { min-width: 0; padding: 7px 8px; background: #0d1117; }
@@ -1026,6 +902,99 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         .vehicle-tune-row strong { color: #e6edf3; font-size: 10px; }
         .vehicle-tune-row span { margin-top: 2px; color: #8b949e; font-size: 8px; }
         .vehicle-tune-pi { color: #3fb950; font: 700 10px monospace; white-space: nowrap; }
+
+        .btn-action-primary {
+          padding: 8px 16px; background: #238636; color: #fff;
+          border: none; border-radius: 6px; cursor: pointer; fontSize: 12px; fontWeight: 600;
+          display: inline-block; text-align: center;
+        }
+        .btn-action-primary:hover { background: #2ea043; }
+        .btn-action-primary:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
+        .btn-action-header { padding: 6px 12px; fontSize: 11px; }
+
+        .btn-action-sm {
+          padding: 4px 10px; background: #21262d; color: #c9d1d9;
+          border: 1px solid #30363d; border-radius: 4px; cursor: pointer; fontSize: 10px;
+          display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-action-sm:hover { border-color: #8b949e; color: #fff; }
+        .btn-action-sm.active { background: #58a6ff !important; color: #fff !important; border-color: #58a6ff !important; }
+
+        .btn-action-danger-sm {
+          padding: 4px 10px; background: #da3633; color: #fff;
+          border: none; border-radius: 4px; cursor: pointer; fontSize: 10px;
+          display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn-action-danger-sm:hover { background: #f85149; }
+
+        .btn-action-workshop {
+          font-size: 9px; padding: 2px 6px; background: rgba(56, 139, 253, 0.1);
+          borderColor: rgba(56, 139, 253, 0.3); color: #58a6ff;
+        }
+        .btn-action-workshop:hover { background: rgba(56, 139, 253, 0.2); }
+
+        .input-ctrl {
+          width: 100%; padding: 8px; background: #0d1117; box-sizing: border-box;
+          border: 1px solid #30363d; borderRadius: 6px; color: #c9d1d9; fontSize: 11px;
+          outline: none;
+        }
+        .input-ctrl:focus { border-color: #58a6ff; }
+        .input-ctrl:disabled { background: #161b22; color: #8b949e; cursor: not-allowed; }
+
+        .label-ctrl {
+          display: block; fontSize: 10px; color: #8b949e;
+          marginBottom: 4px; textTransform: uppercase; letterSpacing: 1px;
+          font-weight: 600;
+        }
+
+        .modal-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: 'rgba(0,0,0,0.8)'; zIndex: 1000;
+          display: flex; justifyContent: center; alignItems: center;
+          backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+          background: #161b22; borderRadius: 10px; padding: 20px;
+          maxWidth: 500px; width: 90%; border: 1px solid #30363d;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .manufacturer-section-btn {
+          display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px 12px;
+          border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9;
+          cursor: pointer; text-align: left; transition: border-color 0.2s, background-color 0.2s;
+          outline: none;
+        }
+
+        .loading-container {
+          display: flex; justify-content: center; alignItems: center; height: 60vh; color: #484f58; fontSize: 12px;
+        }
+        .loading-spinner {
+          width: 24px; height: 24px; border: 2px solid #21262d;
+          border-top-color: '#58a6ff'; borderRadius: 50%;
+          animation: spin 0.8s linear infinite; marginRight: 8px;
+        }
+
+        .empty-placeholder {
+          padding: 48px 16px; text-align: center; color: '#8b949e'; fontSize: 12px;
+        }
+
+        .compare-badge {
+          position: absolute; top: 4px; left: 4px;
+          width: 16px; height: 16px; borderRadius: 50%;
+          background: #58a6ff; color: #fff;
+          display: flex; alignItems: center; justifyContent: center;
+          fontSize: 10px; fontWeight: 700; zIndex: 2;
+        }
+
+        .unconfigured-badge {
+          position: absolute; top: 4px; right: 4px;
+          fontSize: 8px; padding: 1px 6px; borderRadius: 2px;
+          background: #d29922; color: #000; fontWeight: 600;
+          cursor: pointer;
+        }
+
         @media (max-width: 700px) {
           .vehicle-page { padding: 10px; }
           .vehicle-header, .vehicle-heading { align-items: flex-start; flex-direction: column; }
@@ -1042,39 +1011,3 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     </div>
   );
 }
-
-const btnPrimaryStyle = {
-  padding: '8px 16px', background: '#238636', color: '#fff',
-  border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600
-};
-
-const btnSmallStyle = {
-  padding: '4px 10px', background: '#21262d', color: '#c9d1d9',
-  border: '1px solid #30363d', borderRadius: 4, cursor: 'pointer', fontSize: 10
-};
-
-const btnDangerSmallStyle = {
-  padding: '4px 10px', background: '#da3633', color: '#fff',
-  border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10
-};
-
-const inputStyle = {
-  width: '100%', padding: 8, background: '#0d1117',
-  border: '1px solid #30363d', borderRadius: 6, color: '#c9d1d9', fontSize: 11
-};
-
-const labelStyle = {
-  display: 'block', fontSize: 10, color: '#8b949e',
-  marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1
-};
-
-const modalOverlayStyle = {
-  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-  background: 'rgba(0,0,0,0.8)', zIndex: 1000,
-  display: 'flex', justifyContent: 'center', alignItems: 'center'
-};
-
-const modalContentStyle = {
-  background: '#161b22', borderRadius: 10, padding: 20,
-  maxWidth: 500, width: '90%', border: '1px solid #30363d'
-};

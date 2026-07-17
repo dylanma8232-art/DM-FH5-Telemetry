@@ -30,12 +30,10 @@ function PageLoader() {
 }
 
 export default function App() {
-  const { data, throttledData, connected, packetCount, packetsPerSecond, socket } = useSocket();
+  const { data: initialData, connected, packetCount, packetsPerSecond, lowFreqState, socket } = useSocket();
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [navIntent, setNavIntent] = useState(null);
-  
-  const displayData = throttledData || data;
 
   const tabs = [
     { id: 'dashboard', label: '仪表盘' },
@@ -88,10 +86,10 @@ export default function App() {
         connected={connected}
         packetCount={packetCount}
         packetsPerSecond={packetsPerSecond}
-        isRaceOn={displayData?.isRaceOn}
-        lapNumber={displayData?.lapNumber}
-        racePosition={displayData?.racePosition}
-        currentRaceTime={displayData?.currentRaceTime}
+        isRaceOn={lowFreqState.isRaceOn}
+        lapNumber={lowFreqState.lapNumber}
+        racePosition={lowFreqState.racePosition}
+        currentRaceTime={null}
         onSettingsClick={() => setShowSettings(true)}
         socket={socket}
       />
@@ -122,7 +120,7 @@ export default function App() {
         ))}
       </div>
 
-      {!data && activeTab === 'dashboard' && (
+      {!initialData && activeTab === 'dashboard' && (
         <div style={{
           padding: '8px 16px',
           background: 'var(--bg-secondary)',
@@ -152,7 +150,7 @@ export default function App() {
         <ErrorBoundary key={activeTab} name={tabs.find(t => t.id === activeTab)?.label || activeTab}>
           <Suspense fallback={<PageLoader />}>
             {activeTab === 'dashboard' && (
-              <DashboardPage data={displayData} socket={socket} connected={connected} packetCount={packetCount} />
+              <DashboardPage socket={socket} connected={connected} packetCount={packetCount} />
             )}
             {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
             {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}

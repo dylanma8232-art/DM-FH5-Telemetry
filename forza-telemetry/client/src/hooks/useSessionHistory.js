@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from '../components/shared/Toast';
+import { api } from '../services/api';
 
 const inputStyle = {
   width: '100%',
@@ -215,8 +216,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   
   useEffect(() => {
-    fetch('/api/vehicles')
-      .then(r => r.json())
+    api.vehicles.list()
       .then(data => setVehiclesList(data))
       .catch(console.error);
   }, []);
@@ -262,7 +262,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const batchDelete = async () => {
     try {
       const ids = Array.from(selectedSessionIds);
-      await Promise.all(ids.map(id => fetch('/api/sessions/' + id, { method: 'DELETE' })));
+      await Promise.all(ids.map(id => api.sessions.delete(id)));
       setSessions(prev => prev.filter(s => !selectedSessionIds.has(s.id)));
       if (selectedSessionIds.has(selectedSession)) {
         setSelectedSession(null);
@@ -339,8 +339,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   const loadSessions = async () => {
     try {
-      const res = await fetch('/api/sessions');
-      const data = await res.json();
+      const data = await api.sessions.list();
       setSessions(data);
     } catch (e) {
       toast('加载比赛记录失败', 'error');
@@ -349,9 +348,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   const loadTunes = async () => {
     try {
-      const res = await fetch('/api/tunes');
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await api.tunes.list();
       const map = {};
       (Array.isArray(data) ? data : []).forEach(t => {
         if (t.id) map[t.id] = t;
@@ -365,8 +362,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   // Round 1: 删除session功能
   const deleteSession = async (id) => {
     try {
-      const res = await fetch('/api/sessions/' + id, { method: 'DELETE' });
-      if (!res.ok) throw new Error('删除失败');
+      await api.sessions.delete(id);
       setSessions(prev => prev.filter(s => s.id !== id));
       if (selectedSession === id) {
         setSelectedSession(null);
@@ -388,12 +384,10 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const loadAnalysis = async (sessionId) => {
     setLoading(true);
     try {
-      const [analysisRes, diagnosisRes] = await Promise.all([
-        fetch('/api/analysis/' + sessionId),
-        fetch('/api/analysis/' + sessionId + '/diagnosis')
+      const [analysisData, diagnosisData] = await Promise.all([
+        api.analysis.getOverview(sessionId),
+        api.analysis.getDiagnosis(sessionId)
       ]);
-      const analysisData = await analysisRes.json();
-      const diagnosisData = await diagnosisRes.json();
       setAnalysis(analysisData);
       setDiagnosis(diagnosisData);
       setSelectedSession(sessionId);
@@ -401,13 +395,8 @@ export function useSessionHistory({ onNavigate, navIntent }) {
       // 加载关联的调校方案
       if (diagnosisData?.tuneId) {
         try {
-          const tuneRes = await fetch('/api/tunes/' + diagnosisData.tuneId);
-          if (tuneRes.ok) {
-            const tuneData = await tuneRes.json();
-            setSessionTune(tuneData);
-          } else {
-            setSessionTune(null);
-          }
+          const tuneData = await api.tunes.get(diagnosisData.tuneId);
+          setSessionTune(tuneData);
         } catch (err) {
           setSessionTune(null);
         }
@@ -433,9 +422,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const loadSessionDetail = async (sessionId) => {
     if (detailLoaded) return;
     try {
-      const res = await fetch('/api/sessions/' + sessionId);
-      if (!res.ok) throw new Error('加载失败');
-      const detailData = await res.json();
+      const detailData = await api.sessions.get(sessionId);
       setSessionDetail(detailData);
       setDetailLoaded(true);
     } catch (e) {
@@ -448,9 +435,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     if (channelsData && channelsData.sessionId === selectedSession) return;
     setChannelsLoading(true);
     try {
-      const res = await fetch(`/api/analysis/${selectedSession}/telemetry-channels?downsampleStep=4`);
-      if (!res.ok) throw new Error('Failed to fetch channels');
-      const data = await res.json();
+      const data = await api.analysis.getChannels(selectedSession, 4);
       setChannelsData(data);
     } catch (e) {
       toast('加载遥测数据失败', 'error');
@@ -464,9 +449,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     if (advancedData && advancedData.sessionId === selectedSession) return;
     setAdvancedLoading(true);
     try {
-      const res = await fetch(`/api/analysis/${selectedSession}/advanced?sectors=10`);
-      if (!res.ok) throw new Error('Failed to fetch advanced');
-      const data = await res.json();
+      const data = await api.analysis.getAdvanced(selectedSession, 10);
       data.sessionId = selectedSession;
       setAdvancedData(data);
     } catch (e) {
@@ -481,9 +464,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     if (turnsData && turnsData.sessionId === selectedSession) return;
     setTurnsLoading(true);
     try {
-      const res = await fetch(`/api/analysis/${selectedSession}/turns`);
-      if (!res.ok) throw new Error('Failed to fetch turns');
-      const data = await res.json();
+      const data = await api.analysis.getTurns(selectedSession);
       setTurnsData(data);
     } catch (e) {
       toast('加载弯道数据失败', 'error');
@@ -526,8 +507,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     // 加载最近一场session的弯道数据用于弯道演进对比
     const latestSession = [...trackSessions].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))[0];
     if (latestSession?.id) {
-      fetch(`/api/analysis/${latestSession.id}/turns`)
-        .then(r => r.ok ? r.json() : null)
+      api.analysis.getTurns(latestSession.id)
         .then(data => setTrackTurnsData(data))
         .catch(() => setTrackTurnsData(null));
     } else {
@@ -539,9 +519,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const loadLeaderboard = async () => {
     setLbLoading(true);
     try {
-      const res = await fetch('/api/leaderboard');
-      if (!res.ok) throw new Error('加载失败');
-      const data = await res.json();
+      const data = await api.leaderboard.getOverview();
       setLbEntries(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('加载排行榜失败:', e);
@@ -563,9 +541,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     setLbTrendLoading(true);
     lbTrendLoadingSetRef.current.add(key);
     try {
-      const res = await fetch(`/api/leaderboard/trend?trackId=${encodeURIComponent(trackId)}&vehicleOrdinal=${encodeURIComponent(vehicleOrdinal)}`);
-      if (!res.ok) throw new Error('加载失败');
-      const data = await res.json();
+      const data = await api.leaderboard.getTrend(trackId, vehicleOrdinal);
       // Round 6: 写入缓存
       lbTrendCacheRef.current.set(key, data);
       setLbTrendData(data);
@@ -655,9 +631,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const exportEnhancedCSV = async (sessionId) => {
     try {
       toast('正在生成增强版CSV...', 'info');
-      const res = await fetch('/api/sessions/' + sessionId);
-      if (!res.ok) throw new Error('加载失败');
-      const detail = await res.json();
+      const detail = await api.sessions.get(sessionId);
       const positions = detail.positions || detail.data || [];
       if (positions.length === 0) {
         toast('无遥测数据可导出', 'error');
