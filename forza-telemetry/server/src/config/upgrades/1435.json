@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1963 Volkswagen Beetle",
   "basePi": 100,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 40,
+    "torqueNm": 88,
+    "massKg": 798,
+    "topSpeedKph": 133,
+    "frontTireWidthMm": 165,
+    "rearTireWidthMm": 165
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.010Z"
+      "importedAt": "2026-07-17T09:52:24.082Z"
     }
   ],
   "slots": [

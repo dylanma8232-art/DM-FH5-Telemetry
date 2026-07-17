@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2554 AMG Transport Dynamics M12S Warthog CST",
   "basePi": 719,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 720,
+    "torqueNm": 1159,
+    "massKg": 2300,
+    "topSpeedKph": 188,
+    "rearTireWidthMm": 420
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.074Z"
     }
   ],
   "slots": [

@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1995 Volkswagen Corrado VR6",
   "basePi": 533,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 178,
+    "torqueNm": 240,
+    "massKg": 1240,
+    "topSpeedKph": 239,
+    "frontTireWidthMm": 205,
+    "rearTireWidthMm": 205
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.010Z"
+      "importedAt": "2026-07-17T09:52:24.082Z"
     }
   ],
   "slots": [

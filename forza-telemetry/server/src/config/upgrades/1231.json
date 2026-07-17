@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2010 Volkswagen Golf R",
   "basePi": 645,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 267,
+    "torqueNm": 344,
+    "massKg": 1446,
+    "topSpeedKph": 260,
+    "frontTireWidthMm": 235,
+    "rearTireWidthMm": 235
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.010Z"
+      "importedAt": "2026-07-17T09:52:24.082Z"
     }
   ],
   "slots": [

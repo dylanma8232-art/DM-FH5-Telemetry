@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2013 McLaren P1",
   "basePi": 928,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 903,
+    "torqueNm": 926,
+    "massKg": 1495,
+    "topSpeedKph": 407,
+    "rearTireWidthMm": 315
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

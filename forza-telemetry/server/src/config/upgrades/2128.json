@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2013 Cadillac XTS Limousine",
   "basePi": 492,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 304,
+    "torqueNm": 358,
+    "massKg": 2495,
+    "topSpeedKph": 232,
+    "rearTireWidthMm": 255
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.001Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2004 Saleen S7",
   "basePi": 855,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 575,
+    "torqueNm": 773,
+    "massKg": 1250,
+    "topSpeedKph": 350,
+    "frontTireWidthMm": 275,
+    "rearTireWidthMm": 345
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.008Z"
+      "importedAt": "2026-07-17T09:52:24.081Z"
     }
   ],
   "slots": [

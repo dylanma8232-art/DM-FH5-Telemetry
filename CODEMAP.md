@@ -1017,6 +1017,7 @@
         - 📄 [scoring.js](file:///forza-telemetry/server/src/services/physics/scoring.js)   *(函数/组件: `calculateDrivingLineAnalysis`, 函数/组件: `calculateDrivingScore`, 函数/组件: `getBestLapNum`)*
         - 📄 [telemetry-stats.js](file:///forza-telemetry/server/src/services/physics/telemetry-stats.js)   *(函数/组件: `calculateDrivingStyle`, 函数/组件: `calculateDetailedStats`, 函数/组件: `calculateGearingAnalysis`, 函数/组件: `calculateSuspensionAnalysis`, 函数/组件: `calculateDifferentialAnalysis`, 函数/组件: `calculateSectorAnalysis`, 函数/组件: `analyzeSectors`)*
       - 📄 [physics-analyzer.js](file:///forza-telemetry/server/src/services/physics-analyzer.js) 
+      - 📄 [pi-model.js](file:///forza-telemetry/server/src/services/pi-model.js)   *(函数/组件: `predictBuildPi`, 函数/组件: `applyPiPredictions`)*
       - 📄 [retention.js](file:///forza-telemetry/server/src/services/retention.js)   *(函数/组件: `runSessionRetentionCleanup`)*
       - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)   *(常量/方法: `stateManager`)*
       - 📂 **track/**
@@ -1026,7 +1027,7 @@
         - 📄 [track-turns.js](file:///forza-telemetry/server/src/services/track/track-turns.js)   *(函数/组件: `detectTurnsEnhanced`, 函数/组件: `calculateTurnAttributes`, 函数/组件: `mapOldTurnsToNewCenterline`, 函数/组件: `remapLockedTurns`)*
         - 📄 [trajectory-cleaner.js](file:///forza-telemetry/server/src/services/track/trajectory-cleaner.js)   *(函数/组件: `correctTrajectoryDrivingLine`)*
       - 📄 [track-service.js](file:///forza-telemetry/server/src/services/track-service.js)   *(函数/组件: `getEnrichedTracks`, 函数/组件: `writeTrackDetail`, 函数/组件: `healTrackIfNeeded`, 函数/组件: `getTrackDetail`, 函数/组件: `createTrack`, 函数/组件: `deleteTrack`)*
-      - 📄 [upgrade-catalog.js](file:///forza-telemetry/server/src/services/upgrade-catalog.js)   *(函数/组件: `isConditionMet`, 函数/组件: `resolveUpgradeProfile`, 函数/组件: `validateBuild`, 函数/组件: `validateTunePayload`)*
+      - 📄 [upgrade-catalog.js](file:///forza-telemetry/server/src/services/upgrade-catalog.js)   *(函数/组件: `isConditionMet`, 函数/组件: `resolveUpgradeProfile`, 函数/组件: `validateBuild`, 函数/组件: `solveFormulaBuild`, 函数/组件: `validateTunePayload`)*
     - 📂 **storage/**
       - 📄 [atomic-writer.js](file:///forza-telemetry/server/src/storage/atomic-writer.js)   *(常量/方法: `atomicWriter`)*
       - 📄 [file-db.js](file:///forza-telemetry/server/src/storage/file-db.js)   *(函数/组件: `readJsonAsync`, 函数/组件: `writeJsonAsync`, 函数/组件: `writeBrotliAsync`)*

@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2009 Formula Drift #99 Mazda RX-8",
   "basePi": 829,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1000,
+    "torqueNm": 767,
+    "massKg": 1281,
+    "topSpeedKph": 290,
+    "rearTireWidthMm": 275
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.004Z"
+      "importedAt": "2026-07-17T09:52:24.077Z"
     }
   ],
   "slots": [

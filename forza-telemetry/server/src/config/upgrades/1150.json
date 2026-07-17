@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1965 Alfa Romeo Giulia Sprint GTA Stradale",
   "basePi": 486,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 115,
+    "torqueNm": 142,
+    "massKg": 760,
+    "topSpeedKph": 184,
+    "rearTireWidthMm": 165
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:02.999Z"
+      "importedAt": "2026-07-17T09:52:24.074Z"
     }
   ],
   "slots": [

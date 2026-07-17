@@ -4,7 +4,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { resolveUpgradeProfile, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
+import { resolveUpgradeProfile, solveFormulaBuild, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
@@ -93,6 +93,21 @@ router.get('/:id/upgrades', (req, res) => {
     vehicleId,
     ...resolveUpgradeProfile(profile, selections, { driveType, basePi })
   });
+});
+
+// 使用与改装卡片完全相同的公式模型求解，避免客户端按静态 PI 自行相加。
+router.post('/:id/upgrades/solve', express.json(), (req, res) => {
+  const vehicleId = String(req.params.id);
+  const profile = loadSingleUpgradeProfile(vehicleId);
+  if (!profile) return res.status(404).json({ error: '该车辆缺少改装资料，暂不能自动生成公式方案。' });
+  const body = req.body || {};
+  const driveType = ['fwd', 'rwd', 'awd'].includes(body.driveType) ? body.driveType : profile.baseDriveType;
+  const result = solveFormulaBuild(profile, body.parts || {}, {
+    targetPi: body.targetPi,
+    raceType: body.raceType || 'road',
+    driveType
+  });
+  res.json({ vehicleId, ...result });
 });
 
 router.post('/:id/upgrades/validate', express.json(), (req, res) => {

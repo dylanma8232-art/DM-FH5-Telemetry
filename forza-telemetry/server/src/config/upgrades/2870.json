@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2018 Honda Civic Type R",
   "basePi": 727,
   "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 306,
+    "torqueNm": 400,
+    "massKg": 1414,
+    "topSpeedKph": 298,
+    "rearTireWidthMm": 245
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.004Z"
+      "importedAt": "2026-07-17T09:52:24.077Z"
     }
   ],
   "slots": [

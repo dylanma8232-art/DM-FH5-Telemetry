@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1990 Mercedes-Benz 190E 2.5-16 Evolution II",
   "basePi": 579,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 235,
+    "torqueNm": 245,
+    "massKg": 1340,
+    "topSpeedKph": 271,
+    "rearTireWidthMm": 245
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

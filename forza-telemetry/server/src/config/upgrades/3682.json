@@ -1,9 +1,15 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2018 Apollo Intensa Emozione 'Welcome Pack'",
   "basePi": 998,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 930,
+    "torqueNm": 860,
+    "massKg": 1125,
+    "topSpeedKph": 340
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +27,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.074Z"
     }
   ],
   "slots": [

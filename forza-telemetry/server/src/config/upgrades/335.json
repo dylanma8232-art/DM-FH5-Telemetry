@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2002 Lotus Esprit V8",
   "basePi": 731,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 350,
+    "torqueNm": 400,
+    "massKg": 1293,
+    "topSpeedKph": 299,
+    "frontTireWidthMm": 235,
+    "rearTireWidthMm": 285
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.006Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

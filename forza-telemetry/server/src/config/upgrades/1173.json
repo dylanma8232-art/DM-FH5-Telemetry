@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2010 Lamborghini Murcielago LP 670-4 SV",
   "basePi": 818,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 661,
+    "torqueNm": 660,
+    "massKg": 1746,
+    "topSpeedKph": 345,
+    "rearTireWidthMm": 335
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.006Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [

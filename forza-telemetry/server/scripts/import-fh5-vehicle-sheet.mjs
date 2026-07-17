@@ -44,6 +44,11 @@ const column = name => header.indexOf(name);
 const ordinalIndex = column('Ordinal');
 const piIndex = column('PI');
 const hpIndex = column('HP');
+const torqueIndex = column('T');
+const weightIndex = column('Wt');
+const topSpeedIndex = column('Top Speed');
+const frontTireIndex = column('F Tire');
+const rearTireIndex = column('R Tire');
 const driveIndex = column('Drive');
 const stockAspirationIndex = column('Aspiration');
 const nameIndex = 1;
@@ -60,6 +65,8 @@ for (const row of rows) {
   if (!ordinal || !/^\d+$/.test(ordinal)) continue;
   const slots = [];
   const stockHp = Number(row[hpIndex]) || 0;
+  const stockTorque = Number(row[torqueIndex]) || 0;
+  const stockWeightLbs = Number(row[weightIndex]) || 0;
   const sourceDrive = String(row[driveIndex] || '').trim().toLowerCase();
   const sourceAspiration = String(row[stockAspirationIndex] || '').trim().toLowerCase();
   const stockAspiration = sourceAspiration === 'na' ? 'na' : sourceAspiration || null;
@@ -145,7 +152,15 @@ for (const row of rows) {
     commonSlotOverrides.track_width_rear = { availability: 'verified_absent' };
   }
   profiles[ordinal] = {
-    status: 'partial', piStatus: 'unverified', name: row[nameIndex] || '', basePi: Number(row[piIndex]) || null, baseDriveType,
+    status: 'partial', piStatus: 'formula_v1', name: row[nameIndex] || '', basePi: Number(row[piIndex]) || null, baseDriveType,
+    stockSpecs: {
+      powerHp: stockHp || undefined,
+      torqueNm: stockTorque ? Math.round(stockTorque * 1.35582) : undefined,
+      massKg: stockWeightLbs ? Math.round(stockWeightLbs * 0.453592) : undefined,
+      topSpeedKph: Number(row[topSpeedIndex]) ? Math.round(Number(row[topSpeedIndex]) * 1.60934) : undefined,
+      frontTireWidthMm: Number.parseInt(row[frontTireIndex], 10) || undefined,
+      rearTireWidthMm: Number.parseInt(row[rearTireIndex], 10) || undefined
+    },
     commonTemplate, commonSlotOverrides, stockAspiration,
     stockAdjustableAeroFront: stockAdjustableAero,
     stockAdjustableAeroRear: stockAdjustableAero,

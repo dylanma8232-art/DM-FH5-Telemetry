@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2018 Mercedes-AMG E 63 S",
   "basePi": 778,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 603,
+    "torqueNm": 849,
+    "massKg": 2048,
+    "topSpeedKph": 335,
+    "rearTireWidthMm": 295
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.007Z"
+      "importedAt": "2026-07-17T09:52:24.079Z"
     }
   ],
   "slots": [

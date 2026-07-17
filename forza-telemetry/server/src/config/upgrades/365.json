@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2005 SUBARU Impreza WRX STi",
   "basePi": 669,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 311,
+    "torqueNm": 422,
+    "massKg": 1594,
+    "topSpeedKph": 271,
+    "frontTireWidthMm": 235,
+    "rearTireWidthMm": 235
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.009Z"
+      "importedAt": "2026-07-17T09:52:24.081Z"
     }
   ],
   "slots": [

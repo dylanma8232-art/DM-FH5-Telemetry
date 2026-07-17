@@ -1,9 +1,17 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2022 Ford Supervan 4",
   "basePi": 953,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 1878,
+    "torqueNm": 1599,
+    "massKg": 1989,
+    "topSpeedKph": 356,
+    "frontTireWidthMm": 300,
+    "rearTireWidthMm": 300
+  },
   "commonTemplate": "electric_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +29,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.003Z"
+      "importedAt": "2026-07-17T09:52:24.077Z"
     }
   ],
   "slots": [],

@@ -137,6 +137,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [formData.vehicleId, vehicles])
 
   const partsPiDelta = useMemo(() => {
+    if (upgradeShop?.prediction && Number.isFinite(Number(upgradeShop.prediction.deltaFromStock))) {
+      return Number(upgradeShop.prediction.deltaFromStock)
+    }
     // 车辆档案中的 piEstimate 是“从该车原厂状态开始”的估算增量。
     // 它优先于旧的全局等级表，避免不同车辆共用同一套假定增量。
     if (upgradeShop?.slots?.length) {
@@ -155,10 +158,16 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [formData.parts, basePi, upgradeShop, currentVehicleStats])
 
   const totalPi = useMemo(() => {
+    if (upgradeShop?.prediction && Number.isFinite(Number(upgradeShop.prediction.totalPi))) {
+      return Number(upgradeShop.prediction.totalPi)
+    }
     return basePi + partsPiDelta
-  }, [basePi, partsPiDelta])
+  }, [basePi, partsPiDelta, upgradeShop])
 
   const totalPiUpper = useMemo(() => {
+    if (upgradeShop?.prediction && Number.isFinite(Number(upgradeShop.prediction.maxPi))) {
+      return Number(upgradeShop.prediction.maxPi)
+    }
     if (!upgradeShop?.slots?.length) return totalPi
     return basePi + upgradeShop.slots.reduce((total, slot) => {
       const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
@@ -169,6 +178,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [basePi, formData.parts, totalPi, upgradeShop])
 
   const unknownPiSelectionCount = useMemo(() => {
+    if (upgradeShop?.prediction) return 0
     if (!upgradeShop?.slots?.length) return 0
     return upgradeShop.slots.reduce((count, slot) => {
       const optionId = formData.parts?.[slot.id]?.optionId || 'stock'

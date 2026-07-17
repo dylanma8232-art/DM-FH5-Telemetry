@@ -1,3 +1,5 @@
+import { applyPiPredictions, predictBuildPi } from './pi-model.js';
+
 const option = (id, label, piEstimate = 0, extra = {}) => ({ id, label, piEstimate, ...extra });
 const levels = (street = 2, sport = 4, race = 7) => [
   option('stock', '原厂', 0), option('street', '街道级', street), option('sport', '运动级', sport), option('race', '竞赛级', race)
@@ -278,14 +280,16 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
         effectiveSelections[slot.id] = { optionId: 'stock' };
       }
     }
+    const formula = applyPiPredictions(defaultProfile, effectiveSelections, commonSlots);
 
     return {
       status: 'unverified',
       message: '该车辆的游戏内改装资料尚未录入，显示通用猜测配件。',
-      piStatus: 'bounded_generic_estimate',
+      piStatus: 'formula_v1',
       basePi: defaultProfile.basePi,
       baseDriveType: defaultProfile.baseDriveType,
-      slots: commonSlots,
+      prediction: formula.prediction,
+      slots: formula.slots,
       tuneParameters,
       effectiveSelections
     };
@@ -375,6 +379,11 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   const selectedDriveType = slots.find(slot => slot.id === 'drivetrain_swap')?.options
     ?.find(option => option.id === effectiveSelections.drivetrain_swap?.optionId)?.driveType;
 
+  // 公式模型只在所有联动、无效选项和原厂默认项完成解析后运行。它以整车
+  // 预测为真源，并为每个候选项计算“相对当前构型”的反事实 PI 差值。
+  const formulaProfile = { ...profile, baseDriveType: finalBaseDriveType };
+  const formula = applyPiPredictions(formulaProfile, effectiveSelections, slots);
+
   return {
     status: profile.status || 'draft',
     source: profile.source || [],
@@ -383,8 +392,9 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     baseDriveType: profile.baseDriveType || null,
     effectiveDriveType: selectedDriveType || context.driveType || profile.baseDriveType || null,
     commonTemplate: profile.commonTemplate || 'combustion_road',
-    piStatus: profile.piStatus || 'unverified',
-    slots,
+    piStatus: 'formula_v1',
+    prediction: formula.prediction,
+    slots: formula.slots,
     tuneParameters,
     effectiveSelections,
     invalidated
@@ -404,6 +414,42 @@ export function validateBuild(profile, selections = {}) {
     }
   }
   return { valid: errors.length === 0, errors, resolved };
+}
+
+/**
+ * 公式模型的一键改装求解器。每轮都以完整构建重算 PI，避免旧版把动态边际
+ * PI 静态相加造成的双算；同时反复 resolve，以处理增压等会解锁新插槽的联动。
+ */
+export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, driveType, raceType = 'road' } = {}) {
+  const priority = {
+    road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'weight_reduction', 'suspension', 'brakes'],
+    dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction'],
+    cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction'],
+    drift: ['suspension', 'differential', 'tires_width_rear', 'transmission', 'engine_camshaft']
+  };
+  let parts = { ...selections };
+  let resolved = resolveUpgradeProfile(profile, parts, { driveType });
+  const limit = Math.min(999, Number(targetPi) || 800);
+  for (let pass = 0; pass < 80; pass++) {
+    const current = resolved.prediction;
+    let best = null;
+    for (const slot of resolved.slots || []) {
+      const currentId = parts[slot.id]?.optionId || 'stock';
+      for (const option of slot.options || []) {
+        if (option.id === currentId || option.id === 'stock') continue;
+        const candidateParts = { ...parts, [slot.id]: { optionId: option.id, tier: option.id } };
+        const candidate = predictBuildPi(profile, candidateParts, resolved.slots);
+        if (candidate.totalPi > limit || candidate.totalPi <= current.totalPi) continue;
+        const rank = priority[raceType]?.indexOf(slot.id);
+        const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 8 : 0) - candidate.uncertainty * 0.25;
+        if (!best || utility > best.utility) best = { slotId: slot.id, optionId: option.id, utility };
+      }
+    }
+    if (!best) break;
+    parts = { ...parts, [best.slotId]: { optionId: best.optionId, tier: best.optionId } };
+    resolved = resolveUpgradeProfile(profile, parts, { driveType });
+  }
+  return { parts: resolved.effectiveSelections, prediction: resolved.prediction, slots: resolved.slots };
 }
 
 const TUNE_FIELD_PATHS = {
@@ -466,28 +512,16 @@ export function validateTunePayload(profile, payload = {}) {
     }
   }
 
-  let estimate = Number(profile.basePi) || null;
-  let upperEstimate = estimate;
-  let unknownPiCount = 0;
-  for (const slot of resolved.slots || []) {
-    const optionId = parts[slot.id]?.optionId || 'stock';
-    if (optionId === 'stock') continue;
-    const selected = slot.options?.find(option => option.id === optionId);
-    if (!selected) continue;
-    // 移除 AI 不允许选择低置信配件的校验，改为直接放行
-    if (!Number.isFinite(Number(selected.piEstimate))) {
-      unknownPiCount++;
-      if (mode === 'ai') errors.push(`AI 不能选择 PI 未知的配件：${slot.label}/${selected.label}`);
-      continue;
-    }
-    estimate = estimate === null ? null : estimate + Number(selected.piEstimate);
-    const upper = Number.isFinite(Number(selected.piUpperEstimate)) ? Number(selected.piUpperEstimate) : Number(selected.piEstimate);
-    upperEstimate = upperEstimate === null ? null : upperEstimate + upper;
-  }
+  // 预测总 PI 必须来自同一次完整构建计算；候选配件上的 piEstimate 是
+  // “相对当前构型”的边际值，不能再逐项相加。
+  const formulaPrediction = resolved.prediction || predictBuildPi(profile, parts, resolved.slots || []);
+  const estimate = Number(formulaPrediction.totalPi);
+  const upperEstimate = Number(formulaPrediction.maxPi);
+  const unknownPiCount = 0;
 
   const targetPi = Number(payload.targetPi);
   const hasConfirmedPi = payload.totalPi !== '' && payload.totalPi !== null && payload.totalPi !== undefined;
-  const confirmedPi = hasConfirmedPi ? Number(payload.totalPi) : (unknownPiCount ? null : estimate);
+  const confirmedPi = hasConfirmedPi ? Number(payload.totalPi) : estimate;
   if (hasConfirmedPi && (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999)) {
     errors.push('方案 PI 必须是 100 到 999 之间的整数。');
   }
@@ -520,6 +554,6 @@ export function validateTunePayload(profile, payload = {}) {
       if (selection.optionId === 'stock') return false;
       return resolved.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === selection.optionId);
     })),
-    computed: { basePi: Number(profile.basePi) || null, estimate, upperEstimate, unknownPiCount, confirmedPi, status: hasConfirmedPi ? 'user_confirmed' : (unknownPiCount ? 'unknown' : profile.piStatus || 'estimated') }
+    computed: { basePi: Number(profile.basePi) || null, estimate, upperEstimate, unknownPiCount, confirmedPi, status: hasConfirmedPi ? 'user_confirmed' : 'formula_v1', modelVersion: formulaPrediction.modelVersion, featureCoverage: formulaPrediction.featureCoverage, uncertainty: formulaPrediction.uncertainty }
   };
 }

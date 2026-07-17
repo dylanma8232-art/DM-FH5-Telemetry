@@ -1,9 +1,15 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2024 Chevrolet Corvette E-Ray",
   "basePi": 834,
   "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 645,
+    "torqueNm": 801,
+    "massKg": 1764,
+    "topSpeedKph": 322
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +27,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.001Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [

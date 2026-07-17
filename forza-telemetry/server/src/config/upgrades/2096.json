@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "1939 Auto Union Type D",
   "basePi": 675,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 485,
+    "torqueNm": 560,
+    "massKg": 1280,
+    "topSpeedKph": 367,
+    "rearTireWidthMm": 200
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "front_aero": {
@@ -27,7 +34,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.000Z"
+      "importedAt": "2026-07-17T09:52:24.075Z"
     }
   ],
   "slots": [],

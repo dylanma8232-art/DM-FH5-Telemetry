@@ -1,9 +1,16 @@
 {
   "status": "partial",
-  "piStatus": "unverified",
+  "piStatus": "formula_v1",
   "name": "2016 Koenigsegg Regera",
   "basePi": 966,
   "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1500,
+    "torqueNm": 1998,
+    "massKg": 1628,
+    "topSpeedKph": 398,
+    "rearTireWidthMm": 345
+  },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
     "track_width_front": {
@@ -21,7 +28,7 @@
     {
       "type": "公开车辆表",
       "url": "https://www.manteomax.com/",
-      "importedAt": "2026-07-16T10:09:03.006Z"
+      "importedAt": "2026-07-17T09:52:24.078Z"
     }
   ],
   "slots": [],

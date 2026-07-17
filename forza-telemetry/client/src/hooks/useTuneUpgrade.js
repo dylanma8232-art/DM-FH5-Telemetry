@@ -30,6 +30,29 @@ export function useTuneUpgrade({
     const draftVersion = draftVersionRef.current
     try {
       setAutoUpgradeLoading(true)
+      // 公式模型是非线性的：候选卡片的 PI 是相对“当前构型”的差值，不能再
+      // 用旧的前端动态规划相加。统一交由服务端的整车预测器求解。
+      const formulaResponse = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades/solve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parts: formData.parts || {}, targetPi,
+          raceType: raceType || aiRaceType,
+          driveType: preferredDriveType || aiDriveType
+        })
+      })
+      if (!formulaResponse.ok) throw new Error('公式改装方案生成失败')
+      const formula = await formulaResponse.json()
+      if (draftVersion !== draftVersionRef.current) return false
+      const refreshed = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encodeURIComponent(JSON.stringify(formula.parts || {}))}&driveType=${encodeURIComponent(preferredDriveType || aiDriveType)}`)
+      if (!refreshed.ok) throw new Error('无法读取公式改装结果')
+      const resolvedShop = await refreshed.json()
+      setFormData(prev => ({ ...prev, parts: resolvedShop.effectiveSelections || formula.parts || {} }))
+      setUpgradeShop(resolvedShop)
+      return true
+
+      /* legacy static-PI solver retained below for source history; unreachable once
+         formula solver is available. */
       const targetLimit = targetPi
       let nextParts = JSON.parse(JSON.stringify(formData.parts || {}))
       let currentShop = upgradeShop
