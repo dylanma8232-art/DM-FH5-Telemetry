@@ -380,7 +380,7 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     ?.find(option => option.id === effectiveSelections.drivetrain_swap?.optionId)?.driveType;
 
   // 公式模型只在所有联动、无效选项和原厂默认项完成解析后运行。它以整车
-  // 预测为真源，并为每个候选项计算“相对当前构型”的反事实 PI 差值。
+  // 预测为真源，并为每个候选项计算本车型固定 PI；最终总 PI 直接求和。
   const formulaProfile = { ...profile, baseDriveType: finalBaseDriveType };
   const formula = applyPiPredictions(formulaProfile, effectiveSelections, slots);
 

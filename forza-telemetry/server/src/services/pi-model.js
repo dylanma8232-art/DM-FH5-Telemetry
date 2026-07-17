@@ -2,8 +2,8 @@
  * 公式 PI 预测器。
  *
  * FH5 没有公开逐件 PI 表；这里以官方原厂 PI 为锚点，先将完整改装方案投影为
- * 车辆状态，再计算相对原厂的能力变化。所有候选件的 PI 均由反事实差分得出，
- * 因此会随当前构型改变，而不是一张固定加分表。
+ * 车辆状态，再计算相对原厂的能力变化。每个“车型 × 配件”只从原厂状态
+ * 计算一次固定 PI，最终 PI 就是官方原厂 PI 加上所有已选固定值。
  */
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -117,26 +117,20 @@ function scoreState(state, stock) {
     + driveGrip;
 }
 
-function stateForSelections(profile, selections, slots, stock) {
-  let state = { ...stock };
-  for (const slot of slots) {
-    const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
-    const option = slot.options?.find(item => item.id === optionId);
-    state = applyOption(state, slot.id, option, stock);
-  }
-  return state;
+function fixedOptionDelta(stock, slotId, option) {
+  if (!option || option.id === 'stock') return 0;
+  // 产品规则：同一辆车上同一个配件的 PI 固定，不受其它已装配件影响。
+  // 公式仅负责把车型原厂规格投影成该固定值；整套改装随后直接求和。
+  return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock));
 }
 
 export function predictBuildPi(profile, selections, slots) {
   const stock = makeStockState(profile);
-  const state = stateForSelections(profile, selections, slots, stock);
   const basePi = finite(profile.basePi, 500);
-  const hasNonStockOption = (slots || []).some(slot => {
+  const deltaFromStock = (slots || []).reduce((total, slot) => {
     const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
-    return optionId !== 'stock';
-  });
-  // 原厂锚点必须严格等于公开原厂 PI，不能因浮点舍入漂移一分。
-  const deltaFromStock = hasNonStockOption ? Math.round(scoreState(state, stock)) : 0;
+    return total + fixedOptionDelta(stock, slot.id, slot.options?.find(item => item.id === optionId));
+  }, 0);
   const totalPi = clamp(Math.round(basePi + deltaFromStock), 100, 999);
   const coverage = Math.round((stock.knownFields / 6) * 100);
   const uncertainty = clamp(Math.round(7 + (100 - coverage) * 0.16 + Math.abs(deltaFromStock) * 0.045), 7, 30);
@@ -148,18 +142,18 @@ export function predictBuildPi(profile, selections, slots) {
 
 export function applyPiPredictions(profile, selections, slots) {
   const prediction = predictBuildPi(profile, selections, slots);
+  const stock = makeStockState(profile);
   const scoredSlots = slots.map(slot => ({ ...slot, options: (slot.options || []).map(option => {
-    const nextSelections = { ...selections, [slot.id]: { optionId: option.id, tier: option.id } };
-    const candidate = predictBuildPi(profile, nextSelections, slots);
-    const delta = candidate.totalPi - prediction.totalPi;
+    const delta = fixedOptionDelta(stock, slot.id, option);
+    const optionUncertainty = clamp(Math.round(3 + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.08 + Math.abs(delta) * 0.035), 3, 16);
     return {
       ...option,
       piEstimate: delta,
       piDeltaFromCurrent: delta,
-      piDeltaFromStock: candidate.deltaFromStock,
-      piUpperEstimate: delta + candidate.uncertainty,
+      piDeltaFromStock: delta,
+      piUpperEstimate: delta + optionUncertainty,
       piSource: 'formula_v1', piConfidence: 'model_estimate',
-      piPrediction: { point: delta, min: delta - candidate.uncertainty, max: delta + candidate.uncertainty, basis: '公式推算', contextDependent: true, ruleVersion: candidate.modelVersion }
+      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: '车型固定公式', contextDependent: false, ruleVersion: prediction.modelVersion }
     };
   }) }));
   return { prediction, slots: scoredSlots };

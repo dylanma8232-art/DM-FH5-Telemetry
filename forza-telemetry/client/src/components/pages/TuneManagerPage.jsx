@@ -1377,7 +1377,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   style={{ ...inputStyle, marginBottom: 0 }}
                 />
                 <div style={{ marginTop: 5, fontSize: 9, color: 'var(--text-muted)' }}>
-                  公式模型预计为 {totalPi} PI；配件数值会随当前组合重新计算。
+                  公式模型预计为 {totalPi} PI；本车每个配件的预测 PI 为固定值，最终 PI 按原厂 PI 加已选配件求和。
                 </div>
               </div>
               {unknownPiSelectionCount > 0 && (
