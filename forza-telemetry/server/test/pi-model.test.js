@@ -24,13 +24,17 @@ test('公式模型严格锚定原厂 PI，并为每个候选项返回有限区�
   }
 });
 
-test('卡片边际 PI 等于完整构型的反事实差分', () => {
+test('同一车辆的配件 PI 为固定值，整车 PI 等于原厂 PI 加已选配件', () => {
   const profile = readProfile('1264');
   const original = resolveUpgradeProfile(profile, {});
   const tireSlot = original.slots.find(slot => slot.id === 'tires_compound');
   const sport = tireSlot.options.find(option => option.id === 'sport');
   const changed = resolveUpgradeProfile(profile, { tires_compound: { optionId: 'sport' } });
-  assert.equal(sport.piDeltaFromCurrent, changed.prediction.totalPi - original.prediction.totalPi);
+  assert.equal(sport.piDeltaFromCurrent, sport.piDeltaFromStock);
+  assert.equal(changed.prediction.totalPi, original.prediction.totalPi + sport.piDeltaFromCurrent);
+  const withWeightReduction = resolveUpgradeProfile(profile, { tires_compound: { optionId: 'sport' }, weight_reduction: { optionId: 'race' } });
+  const sameSport = withWeightReduction.slots.find(slot => slot.id === 'tires_compound').options.find(option => option.id === 'sport');
+  assert.equal(sameSport.piDeltaFromCurrent, sport.piDeltaFromCurrent);
 });
 
 test('公式自动改装不会超过点预测目标 PI', () => {
