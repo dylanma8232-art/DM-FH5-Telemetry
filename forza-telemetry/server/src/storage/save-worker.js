@@ -5,11 +5,8 @@ import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
 import { simplifyRDP } from '../utils/rdp.js';
-import {
-  buildTrackFromTrajectories,
-  buildRouteBook,
-  generateSectors
-} from '../track-builder.js';
+import { buildTrackFromTrajectories, buildRouteBook, generateSectors } from '../track-builder.js';
+import { sqliteDb } from './sqlite-db.js';
 
 const brotliCompress = promisify(zlib.brotliCompress);
 
@@ -358,18 +355,31 @@ async function main() {
     positions: lowfiPositions
   };
 
-  // 写入 Session 概要和详情文件包 (使用 Brotli quality=4 提速)
+  // 写入 Session 概要文件 (1KB)，时序数据细节通过 SQLite 事务写入以防崩档
   const summaryPath = path.join(sessionsDir, `${sessionId}_summary.json`);
+  await fs.writeFile(summaryPath, JSON.stringify(summaryData, null, 2), 'utf8');
+
+  try {
+    const hifiJsonStr = JSON.stringify(hifiPayload);
+    const lowfiJsonStr = JSON.stringify(lowfiPayload);
+    
+    // 执行后台线程中 Brotli 压缩以提速
+    const hifiBr = zlib.brotliCompressSync(Buffer.from(hifiJsonStr));
+    const lowfiBr = zlib.brotliCompressSync(Buffer.from(lowfiJsonStr));
+    
+    sqliteDb.saveSessionDetail(sessionId, hifiBr, lowfiBr);
+    console.log(`[Worker] SQLite 写入时序细节成功: ${sessionId}`);
+  } catch (dbErr) {
+    console.error(`[Worker] SQLite 写入 ${sessionId} 细节失败:`, dbErr.message);
+  }
+
+  // 清除本地遗存的细节包
   const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
   const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
-
-  await fs.writeFile(summaryPath, JSON.stringify(summaryData, null, 2), 'utf8');
-  await writeBrotliAsync(hifiPath, hifiPayload, 4);
-  await writeBrotliAsync(lowfiPath, lowfiPayload, 4);
-
-  // 清除旧详情包格式
   const oldBrPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
   const oldGzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+  await fs.unlink(hifiPath).catch(() => {});
+  await fs.unlink(lowfiPath).catch(() => {});
   await fs.unlink(oldBrPath).catch(() => {});
   await fs.unlink(oldGzPath).catch(() => {});
 

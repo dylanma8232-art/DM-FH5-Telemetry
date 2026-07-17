@@ -141,7 +141,7 @@ export function DashboardPage({ socket, connected, packetCount }) {
             <div style={{ width: '100%' }}>
               <div style={{ height: 7, background: '#21262d', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                 <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '10%', background: 'rgba(248,81,73,0.2)' }} />
-                <div style={{ width: `${rpmPercent}%`, height: '100%', background: rpmColor, borderRadius: 4, transition: 'width 0.08s linear' }} />
+                <div style={{ width: '100%', height: '100%', background: rpmColor, borderRadius: 4, transform: `scaleX(${rpmPercent / 100})`, transformOrigin: 'left', willChange: 'transform', transition: 'transform 0.08s linear' }} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -151,7 +151,7 @@ export function DashboardPage({ socket, connected, packetCount }) {
                   <strong style={{ color: '#3fb950', fontFamily: 'monospace' }}>{throttlePct.toFixed(0)}%</strong>
                 </div>
                 <div style={{ height: 5, background: '#21262d', borderRadius: 2.5, overflow: 'hidden' }}>
-                  <div style={{ width: `${throttlePct}%`, height: '100%', background: '#3fb950', borderRadius: 2.5 }} />
+                  <div style={{ width: '100%', height: '100%', background: '#3fb950', borderRadius: 2.5, transform: `scaleX(${throttlePct / 100})`, transformOrigin: 'left', willChange: 'transform' }} />
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -160,7 +160,7 @@ export function DashboardPage({ socket, connected, packetCount }) {
                   <strong style={{ color: '#f85149', fontFamily: 'monospace' }}>{brakePct.toFixed(0)}%</strong>
                 </div>
                 <div style={{ height: 5, background: '#21262d', borderRadius: 2.5, overflow: 'hidden' }}>
-                  <div style={{ width: `${brakePct}%`, height: '100%', background: '#f85149', borderRadius: 2.5 }} />
+                  <div style={{ width: '100%', height: '100%', background: '#f85149', borderRadius: 2.5, transform: `scaleX(${brakePct / 100})`, transformOrigin: 'left', willChange: 'transform' }} />
                 </div>
               </div>
             </div>
@@ -171,7 +171,7 @@ export function DashboardPage({ socket, connected, packetCount }) {
               </div>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#8b949e', marginBottom: 3 }}><span>手刹</span><strong style={{ color: handBrakePct > 0 ? '#d29922' : '#8b949e', fontFamily: 'monospace' }}>{handBrakePct.toFixed(0)}%</strong></div>
-                <div style={{ height: 5, background: '#21262d', borderRadius: 3, overflow: 'hidden' }}><div style={{ width: `${handBrakePct}%`, height: '100%', background: '#d29922' }} /></div>
+                <div style={{ height: 5, background: '#21262d', borderRadius: 3, overflow: 'hidden' }}><div style={{ width: '100%', height: '100%', background: '#d29922', transform: `scaleX(${handBrakePct / 100})`, transformOrigin: 'left', willChange: 'transform' }} /></div>
               </div>
             </div>
           </div>

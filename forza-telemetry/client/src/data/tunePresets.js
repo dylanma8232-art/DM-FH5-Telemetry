@@ -582,144 +582,259 @@ function applyProblemFix(problemId, currentTune, paramConstraints) {
   }
 }
 
-// ============================================================
-// 遥测数据诊断 → 调校建议
-// ============================================================
+// 引入声明式诊断规则配置
+import diagnoseRules from './diagnoseRules.json'
 
-/**
- * 分析遥测帧数据，检测问题并返回调校建议
- *
- * @param {Array} frames - 遥测帧数据数组，每帧包含:
- *   - timestamp: 时间戳
- *   - speed: 当前速度(km/h)
- *   - throttle: 油门开度(0-1)
- *   - brake: 刹车力度(0-1)
- *   - steerAngle: 转向角(度，正值为左转)
- *   - lateralG: 横向G力
- *   - longitudinalG: 纵向G力
- *   - suspension: { frontLeft, frontRight, rearLeft, rearRight } 悬挂压缩量(0-1)
- *   - tireTemp: { frontLeft, frontRight, rearLeft, rearRight } 轮胎温度(°C)
- *   - rpm: 引擎转速
- *   - gear: 当前档位
- *   - yawRate: 偏航角速率(度/秒)
- *   - pitchAngle: 俯仰角(度)
- *   - rollAngle: 侧倾角(度)
- * @param {Object} currentTune - 当前调校参数
- * @returns {Array} 建议列表，每项包含: { problem, severity, fix, details }
- */
-export function diagnoseFromTelemetry(frames, currentTune = {}) {
-  if (!frames || frames.length === 0) return []
-
-  const suggestions = []
-
-  // ----------------------------------------------------------
-  // 1. 悬挂触底检测
-  // ----------------------------------------------------------
-  const suspensionFrames = frames.filter(f => f.suspension)
-  if (suspensionFrames.length > 0) {
-    const totalSuspFrames = suspensionFrames.length
-    const bottomOuts = suspensionFrames.filter(
-      f =>
-        f.suspension.frontLeft < 0.15 ||
-        f.suspension.frontRight < 0.15 ||
-        f.suspension.rearLeft < 0.15 ||
-        f.suspension.rearRight < 0.15
-    ).length
-
-    const bottomOutRatio = bottomOuts / totalSuspFrames
-    if (bottomOutRatio > 0.05) {
-      const severity = bottomOutRatio > 0.15 ? 'high' : 'medium'
-      const springDelta = severity === 'high' ? 8 : 5
-      suggestions.push({
-        problem: '悬挂频繁触底',
-        severity,
-        details: `触底率 ${(bottomOutRatio * 100).toFixed(1)}%，${severity === 'high' ? '严重影响抓地力和稳定性' : '可能影响弯道表现'}`,
-        fix: {
-          frontSpring: { delta: springDelta, reason: `悬挂触底率${(bottomOutRatio * 100).toFixed(1)}%，增加前弹簧硬度防止触底` },
-          rearSpring: { delta: Math.round(springDelta * 0.8), reason: '同步增加后弹簧硬度，保持前后平衡' },
-          frontRideHeight: { delta: 2, reason: '适当增加前部车身高度，提供更多悬挂行程' },
-          rearRideHeight: { delta: 1, reason: '适当增加后部车身高度' }
-        }
-      })
-    }
+// 提取遥测帧的时序物理指标
+function calculateMetrics(frames) {
+  const metrics = {
+    bottomOutRatio: 0,
+    understeerRatio: 0,
+    avgPitch: 0,
+    maxRollAngle: 0,
+    slipRatio: 0,
+    lockRatio: 0,
+    yawStdDev: 0,
+    maxYaw: 0,
+    snapCount: 0,
+    spinRatio: 0,
+    wobbleCount: 0,
+    overheatRatio: 0,
+    overallMaxTemp: 0,
+    avgFL: 0, avgFR: 0, avgRL: 0, avgRR: 0
   }
 
-  // ----------------------------------------------------------
-  // 2. 入弯转向不足检测 (横向G和转向角的比值异常)
-  // ----------------------------------------------------------
+  // 1. 悬挂触底
+  const suspensionFrames = frames.filter(f => f.suspension)
+  if (suspensionFrames.length > 0) {
+    const bottomOuts = suspensionFrames.filter(
+      f => f.suspension.frontLeft < 0.15 || f.suspension.frontRight < 0.15 || f.suspension.rearLeft < 0.15 || f.suspension.rearRight < 0.15
+    ).length
+    metrics.bottomOutRatio = bottomOuts / suspensionFrames.length
+  }
+
+  // 2. 转向不足
   const corneringFrames = frames.filter(
     f => f.lateralG && Math.abs(f.lateralG) > 0.3 && f.steerAngle !== undefined
   )
   if (corneringFrames.length > 10) {
-    // 计算转向效率 = 横向G / 期望转向G (期望值基于转向角)
     const understeerEvents = corneringFrames.filter(f => {
       const steerInput = Math.abs(f.steerAngle)
-      const lateralAccel = Math.abs(f.lateralG)
-      // 如果转向角很大但横向G力没有成比例增大，说明转向不足
-      const expectedG = steerInput * 0.015 // 经验系数: 每度转向约产生0.015G
-      return steerInput > 5 && lateralAccel < expectedG * 0.6
+      const expectedG = steerInput * 0.015
+      return steerInput > 5 && Math.abs(f.lateralG) < expectedG * 0.6
     })
-
-    const understeerRatio = understeerEvents.length / corneringFrames.length
-    if (understeerRatio > 0.3) {
-      suggestions.push({
-        problem: '入弯转向不足',
-        severity: understeerRatio > 0.5 ? 'high' : 'medium',
-        details: `转向效率低下帧占比 ${(understeerRatio * 100).toFixed(1)}%，${understeerRatio > 0.5 ? '转向不足严重' : '转向效率偏低'}`,
-        fix: {
-          frontTirePressure: { delta: -2, reason: '降低前胎压增加接地面积' },
-          frontCamber: { delta: -0.5, reason: '增加前轮负外倾角增强弯道抓地' },
-          frontARB: { delta: -3, reason: '减小前防倾杆让前轮更灵活接地' },
-          frontSpring: { delta: -1, reason: '降低前弹簧硬度，增加前轮弯道载荷' }
-        }
-      })
-    }
+    metrics.understeerRatio = understeerEvents.length / corneringFrames.length
   }
 
-  // ----------------------------------------------------------
-  // 3. 刹车点头检测 (悬挂前后行程差)
-  // ----------------------------------------------------------
+  // 3. 刹车点头
   const brakingFrames = frames.filter(f => f.brake > 0.5 && f.suspension)
   if (brakingFrames.length > 5) {
-    let totalPitch = 0
-    for (const f of brakingFrames) {
+    const totalPitch = brakingFrames.reduce((sum, f) => {
       const frontAvg = (f.suspension.frontLeft + f.suspension.frontRight) / 2
       const rearAvg = (f.suspension.rearLeft + f.suspension.rearRight) / 2
-      totalPitch += rearAvg - frontAvg // 后伸展前压缩 = 点头 (1.0 - 0.0)
-    }
-    const avgPitch = totalPitch / brakingFrames.length
+      return sum + (rearAvg - frontAvg)
+    }, 0)
+    metrics.avgPitch = totalPitch / brakingFrames.length
+  }
 
-    if (avgPitch > 0.35) {
-      suggestions.push({
-        problem: '刹车点头严重',
-        severity: avgPitch > 0.55 ? 'high' : 'medium',
-        details: `刹车时前后悬挂差值 ${avgPitch.toFixed(2)}，${avgPitch > 0.55 ? '点头严重需要重点改善' : '点头偏大影响刹车后恢复'}`,
-        fix: {
-          frontSpring: { delta: 5, reason: `刹车点头值${avgPitch.toFixed(2)}，增加前弹簧硬度抵抗下沉` },
-          frontDamping: { delta: 2, reason: '增加前压缩阻尼减缓点头速度' },
-          rearDamping: { delta: 1, reason: '增加后回弹阻尼防止后部过度抬起' },
-          frontRideHeight: { delta: 1, reason: '增加前部高度提供更多行程余量' }
+  // 5. 侧倾角度
+  const rollFrames = frames.filter(f => f.rollAngle !== undefined && f.lateralG && Math.abs(f.lateralG) > 0.2)
+  if (rollFrames.length > 10) {
+    metrics.maxRollAngle = Math.max(...rollFrames.map(f => Math.abs(f.rollAngle)))
+  }
+
+  // 6. 出弯打滑
+  const accelFrames = frames.filter(f => f.throttle > 0.7 && f.yawRate !== undefined)
+  if (accelFrames.length > 10) {
+    const slipEvents = accelFrames.filter(f => Math.abs(f.yawRate) > 15 && f.lateralG !== undefined && Math.abs(f.lateralG) < 0.5)
+    metrics.slipRatio = slipEvents.length / accelFrames.length
+  }
+
+  // 7. 刹车锁死
+  const hardBrakeFrames = frames.filter(f => f.brake > 0.8)
+  if (hardBrakeFrames.length > 5) {
+    let lockEvents = 0
+    for (let i = 1; i < hardBrakeFrames.length; i++) {
+      const prev = hardBrakeFrames[i - 1]
+      const curr = hardBrakeFrames[i]
+      const speedDiff = Math.abs(prev.speed - curr.speed)
+      const dt = (curr.timestamp - prev.timestamp) / 1000
+      if (dt > 0) {
+        const decel = speedDiff / dt / 3.6
+        if (decel > 15 && Math.abs(curr.longitudinalG || 0) > 1.5) {
+          lockEvents++
         }
+      }
+    }
+    metrics.lockRatio = lockEvents / hardBrakeFrames.length
+  }
+
+  // 8. 直线不稳定
+  const highSpeedFrames = frames.filter(f => f.speed > 200 && f.yawRate !== undefined)
+  if (highSpeedFrames.length > 10) {
+    const yawRates = highSpeedFrames.map(f => Math.abs(f.yawRate))
+    const avgYaw = yawRates.reduce((a, b) => a + b, 0) / yawRates.length
+    metrics.maxYaw = Math.max(...yawRates)
+    const variance = yawRates.reduce((sum, v) => sum + Math.pow(v - avgYaw, 2), 0) / yawRates.length
+    metrics.yawStdDev = Math.sqrt(variance)
+  }
+
+  // 9. 突然甩尾
+  if (frames.length > 20) {
+    let snapCount = 0
+    for (let i = 2; i < frames.length; i++) {
+      if (frames[i].yawRate === undefined) continue
+      const prevRate = Math.abs(frames[i - 2].yawRate || 0)
+      const currRate = Math.abs(frames[i].yawRate || 0)
+      if (currRate - prevRate > 20 && currRate > 25) {
+        snapCount++
+      }
+    }
+    metrics.snapCount = snapCount
+  }
+
+  // 10. 起步打滑
+  const launchFrames = frames.filter(f => f.speed < 60 && f.throttle > 0.9 && f.speed !== undefined)
+  if (launchFrames.length > 10) {
+    let slowAccelCount = 0
+    for (let i = 1; i < launchFrames.length; i++) {
+      const prev = launchFrames[i - 1]
+      const curr = launchFrames[i]
+      const dt = (curr.timestamp - prev.timestamp) / 1000
+      if (dt > 0 && dt < 0.5) {
+        const accel = (curr.speed - prev.speed) / dt
+        if (accel < 30) {
+          slowAccelCount++
+        }
+      }
+    }
+    metrics.spinRatio = slowAccelCount / launchFrames.length
+  }
+
+  // 11. 过弯后摇摆
+  if (frames.length > 30) {
+    let wobbleCount = 0
+    for (let i = 4; i < frames.length; i++) {
+      if (frames[i].yawRate === undefined) continue
+      const r1 = frames[i - 3].yawRate || 0
+      const r2 = frames[i - 1].yawRate || 0
+      const r3 = frames[i].yawRate || 0
+      if (Math.abs(r2) > 2 && Math.abs(r3) > 2) {
+        if ((r1 > 0 && r2 < 0 && r3 > 0) || (r1 < 0 && r2 > 0 && r3 < 0)) {
+          wobbleCount++
+        }
+      }
+    }
+    metrics.wobbleCount = wobbleCount
+  }
+
+  // 12. 轮胎温度与过热度
+  const tireTempFrames = frames.filter(f => f.tireTemp)
+  if (tireTempFrames.length > 30) {
+    const warmFrames = tireTempFrames.slice(Math.floor(tireTempFrames.length * 0.3))
+    let overheatCount = 0
+    let tempFL = 0, tempFR = 0, tempRL = 0, tempRR = 0
+
+    for (const f of warmFrames) {
+      tempFL += f.tireTemp.frontLeft
+      tempFR += f.tireTemp.frontRight
+      tempRL += f.tireTemp.rearLeft
+      tempRR += f.tireTemp.rearRight
+      if (f.tireTemp.frontLeft > 90) overheatCount++
+      if (f.tireTemp.frontRight > 90) overheatCount++
+      if (f.tireTemp.rearLeft > 90) overheatCount++
+      if (f.tireTemp.rearRight > 90) overheatCount++
+    }
+
+    const totalTirePoints = warmFrames.length * 4
+    metrics.overheatRatio = overheatCount / totalTirePoints
+    metrics.avgFL = tempFL / warmFrames.length
+    metrics.avgFR = tempFR / warmFrames.length
+    metrics.avgRL = tempRL / warmFrames.length
+    metrics.avgRR = tempRR / warmFrames.length
+    metrics.overallMaxTemp = Math.max(
+      ...warmFrames.flatMap(f => [
+        f.tireTemp.frontLeft, f.tireTemp.frontRight,
+        f.tireTemp.rearLeft, f.tireTemp.rearRight
+      ])
+    )
+  }
+
+  return metrics
+}
+
+// 表达式安全计算
+function evaluateCondition(condition, metrics) {
+  try {
+    const keys = Object.keys(metrics)
+    const fn = new Function(...keys, `return (${condition});`)
+    const values = keys.map(k => metrics[k])
+    return fn(...values)
+  } catch (e) {
+    return false
+  }
+}
+
+// 格式化文本中的插值
+function formatDetails(template, metrics) {
+  if (!template) return ''
+  return template.replace(/\{(\w+)\}/g, (_, key) => {
+    const val = metrics[key]
+    if (val === undefined) return ''
+    if (key.endsWith('Ratio')) return (val * 100).toFixed(1)
+    if (key.endsWith('Pct')) return (metrics[key.replace('Pct', 'Ratio')] * 100).toFixed(1)
+    return typeof val === 'number' ? val.toFixed(1).replace(/\.0$/, '') : val
+  })
+}
+
+// ============================================================
+// 遥测数据诊断 → 调校建议
+// ============================================================
+export function diagnoseFromTelemetry(frames, currentTune = {}) {
+  if (!frames || frames.length === 0) return []
+
+  const metrics = calculateMetrics(frames)
+  const suggestions = []
+
+  // 1. 运行 JSON 配置的 8 大通用规则
+  for (const group of diagnoseRules) {
+    let matchedRule = null
+    for (const rule of group.rules) {
+      if (evaluateCondition(rule.condition, metrics)) {
+        matchedRule = rule
+        break
+      }
+    }
+
+    if (matchedRule) {
+      const formattedFix = {}
+      for (const [param, fixVal] of Object.entries(matchedRule.fix)) {
+        formattedFix[param] = {
+          delta: fixVal.delta,
+          reason: formatDetails(fixVal.reason, metrics)
+        }
+      }
+
+      suggestions.push({
+        problem: group.name,
+        severity: matchedRule.severity,
+        details: formatDetails(matchedRule.details, metrics),
+        fix: formattedFix
       })
     }
   }
 
-  // ----------------------------------------------------------
-  // 4. 轮胎温度不均检测
-  // ----------------------------------------------------------
+  // 2. 轮胎温度不均检测（多路分支特例保留）
   const tireTempFrames = frames.filter(f => f.tireTemp)
   if (tireTempFrames.length > 20) {
-    // 取后半段帧的平均温度(排除冷胎阶段)
     const warmFrames = tireTempFrames.slice(Math.floor(tireTempFrames.length * 0.5))
     const avgTemps = { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 }
-
     for (const f of warmFrames) {
       avgTemps.frontLeft += f.tireTemp.frontLeft
       avgTemps.frontRight += f.tireTemp.frontRight
       avgTemps.rearLeft += f.tireTemp.rearLeft
       avgTemps.rearRight += f.tireTemp.rearRight
     }
-
     const n = warmFrames.length
     for (const k of Object.keys(avgTemps)) avgTemps[k] /= n
 
@@ -761,278 +876,7 @@ export function diagnoseFromTelemetry(frames, currentTune = {}) {
     }
   }
 
-  // ----------------------------------------------------------
-  // 5. 侧倾角度过大检测
-  // ----------------------------------------------------------
-  const rollFrames = frames.filter(f => f.rollAngle !== undefined && f.lateralG && Math.abs(f.lateralG) > 0.2)
-  if (rollFrames.length > 10) {
-    const maxRoll = Math.max(...rollFrames.map(f => Math.abs(f.rollAngle)))
-    const avgRollAtCorner = rollFrames.reduce((sum, f) => sum + Math.abs(f.rollAngle), 0) / rollFrames.length
-
-    if (maxRoll > 3.5 || avgRollAtCorner > 2.0) {
-      suggestions.push({
-        problem: '弯道侧倾过大',
-        severity: maxRoll > 5.0 ? 'high' : 'medium',
-        details: `最大侧倾角 ${maxRoll.toFixed(1)}°，平均弯道侧倾 ${avgRollAtCorner.toFixed(1)}°，${maxRoll > 5.0 ? '侧倾严重需要大幅增加刚性' : '侧倾偏大影响弯道响应'}`,
-        fix: {
-          frontARB: { delta: maxRoll > 5.0 ? 6 : 4, reason: `最大侧倾${maxRoll.toFixed(1)}°，增加前防倾杆直接抵抗侧倾` },
-          rearARB: { delta: maxRoll > 5.0 ? 6 : 4, reason: '增加后防倾杆整体减少侧倾' },
-          frontSpring: { delta: maxRoll > 5.0 ? 4 : 2, reason: '增加前弹簧硬度提升侧倾刚度' },
-          rearSpring: { delta: maxRoll > 5.0 ? 4 : 2, reason: '增加后弹簧硬度' },
-          frontDamping: { delta: 1, reason: '增加前阻尼控制侧倾速度' },
-          rearDamping: { delta: 1, reason: '增加后阻尼' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 6. 出弯打滑检测 (偏航角速率异常)
-  // ----------------------------------------------------------
-  const accelFrames = frames.filter(f => f.throttle > 0.7 && f.yawRate !== undefined)
-  if (accelFrames.length > 10) {
-    const slipEvents = accelFrames.filter(f => {
-      // 偏航角速率与横向G力的关系异常 = 打滑
-      const isSliding = Math.abs(f.yawRate) > 15 && f.lateralG !== undefined && Math.abs(f.lateralG) < 0.5
-      return isSliding
-    })
-
-    const slipRatio = slipEvents.length / accelFrames.length
-    if (slipRatio > 0.1) {
-      suggestions.push({
-        problem: '出弯打滑/甩尾',
-        severity: slipRatio > 0.25 ? 'high' : 'medium',
-        details: `加速时打滑帧占比 ${(slipRatio * 100).toFixed(1)}%，${slipRatio > 0.25 ? '出弯控制困难' : '出弯时偶发打滑'}`,
-        fix: {
-          diffAccel: { delta: slipRatio > 0.25 ? -15 : -10, reason: `加速打滑率${(slipRatio * 100).toFixed(1)}%，降低加速差速锁分配扭矩以允许更多差速，防止双轮打滑` },
-          rearARB: { delta: -3, reason: '减小后防倾杆硬度增加车尾出弯机械抓地力' },
-          rearSpring: { delta: -2, reason: '减小后弹簧硬度增加车尾重心转移后的轮胎抓地面积' },
-          rearDamping: { delta: -1, reason: '减小后阻尼快速平顺出弯重心姿态' },
-          rearTirePressure: { delta: -2, reason: '降低后胎压增加出弯接地面积与抓地力' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 7. 刹车锁死检测 (刹车时速度骤降+轮胎滑动特征)
-  // ----------------------------------------------------------
-  const hardBrakeFrames = frames.filter(f => f.brake > 0.8)
-  if (hardBrakeFrames.length > 5) {
-    // 检测刹车时的车轮滑动(通过纵向G力和速度变化的突变)
-    let lockEvents = 0
-    for (let i = 1; i < hardBrakeFrames.length; i++) {
-      const prev = hardBrakeFrames[i - 1]
-      const curr = hardBrakeFrames[i]
-      const speedDiff = Math.abs(prev.speed - curr.speed)
-      const dt = (curr.timestamp - prev.timestamp) / 1000
-      if (dt > 0) {
-        const decel = speedDiff / dt / 3.6 // m/s^2
-        // 突然大幅减速且纵向G异常大 = 可能锁死
-        if (decel > 15 && Math.abs(curr.longitudinalG || 0) > 1.5) {
-          lockEvents++
-        }
-      }
-    }
-
-    const lockRatio = lockEvents / hardBrakeFrames.length
-    if (lockRatio > 0.15) {
-      suggestions.push({
-        problem: '刹车容易锁死',
-        severity: lockRatio > 0.3 ? 'high' : 'medium',
-        details: `重刹时疑似锁死帧占比 ${(lockRatio * 100).toFixed(1)}%，${lockRatio > 0.3 ? '锁死频繁严重影响操控' : '偶发锁死影响刹车效率'}`,
-        fix: {
-          brakeBias: { delta: -3, reason: '前移刹车偏置，平衡前后刹车力度避免后轮先锁死' },
-          frontTirePressure: { delta: -1, reason: '降低前胎压增加接触面积减少锁死概率' },
-          rearTirePressure: { delta: -1, reason: '降低后胎压增加接触面积' },
-          frontDamping: { delta: 1, reason: '增加前阻尼让刹车载荷转移更平滑' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 8. 直线不稳定检测 (高速时偏航角速率波动大)
-  // ----------------------------------------------------------
-  const highSpeedFrames = frames.filter(f => f.speed > 200 && f.yawRate !== undefined)
-  if (highSpeedFrames.length > 10) {
-    const yawRates = highSpeedFrames.map(f => Math.abs(f.yawRate))
-    const avgYaw = yawRates.reduce((a, b) => a + b, 0) / yawRates.length
-    const maxYaw = Math.max(...yawRates)
-    // 计算偏航波动标准差
-    const variance = yawRates.reduce((sum, v) => sum + Math.pow(v - avgYaw, 2), 0) / yawRates.length
-    const yawStdDev = Math.sqrt(variance)
-
-    if (yawStdDev > 3.0 || maxYaw > 10) {
-      suggestions.push({
-        problem: '直线不稳定',
-        severity: yawStdDev > 5.0 ? 'high' : 'medium',
-        details: `高速段偏航波动标准差 ${yawStdDev.toFixed(1)}°/s，最大偏航 ${maxYaw.toFixed(1)}°/s`,
-        fix: {
-          frontToe: { delta: -0.1, reason: '微调前束为负值增强直线稳定性' },
-          rearDownforce: { delta: 8, reason: '增加后部下压力压住车尾' },
-          frontDownforce: { delta: 3, reason: '适当增加前部下压力保持平衡' },
-          rearARB: { delta: 2, reason: '增加后防倾杆抑制高速时后部微摆' },
-          rearDamping: { delta: 1, reason: '增加后阻尼快速抑制高速微振' },
-          rearSpring: { delta: 2, reason: '增加后弹簧提升高速支撑' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 9. 突然甩尾检测 (偏航角速率突变)
-  // ----------------------------------------------------------
-  if (frames.length > 20) {
-    let snapCount = 0
-    for (let i = 2; i < frames.length; i++) {
-      if (frames[i].yawRate === undefined) continue
-      const prevRate = Math.abs(frames[i - 2].yawRate || 0)
-      const currRate = Math.abs(frames[i].yawRate || 0)
-      // 短时间内偏航角速率突然大幅增加
-      if (currRate - prevRate > 20 && currRate > 25) {
-        snapCount++
-      }
-    }
-
-    if (snapCount > 3) {
-      suggestions.push({
-        problem: '突然甩尾',
-        severity: snapCount > 8 ? 'high' : 'medium',
-        details: `检测到 ${snapCount} 次偏航角突变，${snapCount > 8 ? '甩尾频繁非常危险' : '偶发甩尾影响驾驶节奏'}`,
-        fix: {
-          diffDecel: { delta: 15, reason: `检测到${snapCount}次突变，大幅提高减速差速锁防止收油甩尾` },
-          diffAccel: { delta: 10, reason: '提高加速差速锁防止动力突变甩尾' },
-          rearARB: { delta: -3, reason: '减小后防倾杆让后轮在突变时有更渐进的滑动' },
-          rearDamping: { delta: -1, reason: '减小后回弹阻尼让后悬挂更柔顺响应突变' },
-          rearSpring: { delta: -2, reason: '降低后弹簧增加容错空间' },
-          rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 10. 起步打滑检测 (低速大油门时速度增长缓慢)
-  // ----------------------------------------------------------
-  const launchFrames = frames.filter(f => f.speed < 60 && f.throttle > 0.9 && f.speed !== undefined)
-  if (launchFrames.length > 10) {
-    // 计算起步阶段的加速效率
-    let slowAccelCount = 0
-    for (let i = 1; i < launchFrames.length; i++) {
-      const prev = launchFrames[i - 1]
-      const curr = launchFrames[i]
-      const dt = (curr.timestamp - prev.timestamp) / 1000
-      if (dt > 0 && dt < 0.5) {
-        const accel = (curr.speed - prev.speed) / dt // km/h/s
-        // 全油门但加速不到预期 = 打滑
-        if (accel < 30) { // 正常起步加速应在50-100 km/h/s
-          slowAccelCount++
-        }
-      }
-    }
-
-    const spinRatio = slowAccelCount / launchFrames.length
-    if (spinRatio > 0.3) {
-      suggestions.push({
-        problem: '起步打滑',
-        severity: spinRatio > 0.5 ? 'high' : 'medium',
-        details: `起步阶段低加速帧占比 ${(spinRatio * 100).toFixed(1)}%，轮胎可能在空转`,
-        fix: {
-          diffAccel: { delta: 20, reason: `起步打滑率${(spinRatio * 100).toFixed(1)}%，大幅提高加速差速锁` },
-          rearTirePressure: { delta: -2, reason: '降低后胎压增加起步接地面积' },
-          rearSpring: { delta: 3, reason: '增加后弹簧减少起步下蹲' },
-          rearDamping: { delta: 1, reason: '增加后压缩阻尼控制起步姿态' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 11. 过弯后摇摆检测 (出弯后偏航角速率振荡)
-  // ----------------------------------------------------------
-  if (frames.length > 30) {
-    let wobbleCount = 0
-    for (let i = 4; i < frames.length; i++) {
-      if (frames[i].yawRate === undefined) continue
-      // 检测偏航角速率的正负交替(振荡)
-      const r1 = frames[i - 3].yawRate || 0
-      const r2 = frames[i - 1].yawRate || 0
-      const r3 = frames[i].yawRate || 0
-      // 连续3个点偏航方向交替 = 摇摆
-      if (Math.abs(r2) > 2 && Math.abs(r3) > 2) {
-        if ((r1 > 0 && r2 < 0 && r3 > 0) || (r1 < 0 && r2 > 0 && r3 < 0)) {
-          wobbleCount++
-        }
-      }
-    }
-
-    if (wobbleCount > 5) {
-      suggestions.push({
-        problem: '过弯后车身摇摆',
-        severity: wobbleCount > 15 ? 'high' : 'medium',
-        details: `检测到 ${wobbleCount} 次偏航振荡，${wobbleCount > 15 ? '摇摆严重' : '车身摇摆明显'}`,
-        fix: {
-          frontARB: { delta: 3, reason: `检测到${wobbleCount}次振荡，增加前防倾杆快速抑制摇摆` },
-          rearARB: { delta: 3, reason: '增加后防倾杆配合前部稳定车身' },
-          frontDamping: { delta: 2, reason: '大幅增加前回弹阻尼消耗摇摆能量' },
-          rearDamping: { delta: 2, reason: '大幅增加后回弹阻尼' },
-          frontSpring: { delta: 2, reason: '增加前弹簧硬度远离摇摆共振频率' },
-          rearSpring: { delta: 2, reason: '增加后弹簧硬度' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 12. 轮胎过热检测
-  // ----------------------------------------------------------
-  if (tireTempFrames.length > 30) {
-    const warmFrames = tireTempFrames.slice(Math.floor(tireTempFrames.length * 0.3))
-    const avgTempByPosition = { FL: 0, FR: 0, RL: 0, RR: 0 }
-    const maxTempByPosition = { FL: -Infinity, FR: -Infinity, RL: -Infinity, RR: -Infinity }
-    let overheatCount = 0
-
-    for (const f of warmFrames) {
-      const temps = [
-        { key: 'FL', val: f.tireTemp.frontLeft },
-        { key: 'FR', val: f.tireTemp.frontRight },
-        { key: 'RL', val: f.tireTemp.rearLeft },
-        { key: 'RR', val: f.tireTemp.rearRight }
-      ]
-      for (const t of temps) {
-        avgTempByPosition[t.key] += t.val
-        if (t.val > maxTempByPosition[t.key]) maxTempByPosition[t.key] = t.val
-        if (t.val > 90) overheatCount++ // FH5中超过90°C为过热
-      }
-    }
-
-    const n4 = warmFrames.length * 4
-    for (const k of Object.keys(avgTempByPosition)) avgTempByPosition[k] /= warmFrames.length
-
-    const overallMaxTemp = Math.max(...Object.values(maxTempByPosition))
-    const overheatRatio = overheatCount / n4
-
-    if (overheatRatio > 0.1 || overallMaxTemp > 95) {
-      suggestions.push({
-        problem: '轮胎温度过高/磨损过快',
-        severity: overheatRatio > 0.25 ? 'high' : 'medium',
-        details: `过热帧占比 ${(overheatRatio * 100).toFixed(1)}%，最高温度 ${overallMaxTemp.toFixed(0)}°C，平均温度 FL:${avgTempByPosition.FL.toFixed(0)} FR:${avgTempByPosition.FR.toFixed(0)} RL:${avgTempByPosition.RL.toFixed(0)} RR:${avgTempByPosition.RR.toFixed(0)}°C`,
-        fix: {
-          frontTirePressure: { delta: 2, reason: '提高前胎压减少胎面变形生热' },
-          rearTirePressure: { delta: 2, reason: '提高后胎压减少胎面变形生热' },
-          frontCamber: { delta: 0.3, reason: '减小前轮负外倾角减少弯道内侧过度磨损生热' },
-          rearCamber: { delta: 0.3, reason: '减小后轮负外倾角' },
-          frontARB: { delta: -2, reason: '减小前防倾杆让轮胎更均匀接地减少局部过热' },
-          rearARB: { delta: -2, reason: '减小后防倾杆均匀分布后轮接地压力' }
-        }
-      })
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 去重与排序 (严重程度高的排在前面)
-  // ----------------------------------------------------------
+  // 按严重程度排序
   suggestions.sort((a, b) => {
     const severityOrder = { high: 0, medium: 1, low: 2 }
     return (severityOrder[a.severity] || 2) - (severityOrder[b.severity] || 2)
