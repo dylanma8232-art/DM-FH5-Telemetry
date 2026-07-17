@@ -59,13 +59,13 @@ const COMMON_SLOTS = [
   { id: 'driveline', label: '传动轴', group: '传动系统', options: levels(0, 1, 2) },
   { id: 'differential', label: '差速器', group: '传动系统', options: [option('stock', '原厂'), option('sport', '运动级可调', 1, { adjustable: true }), option('race', '竞赛级可调', 2, { adjustable: true }), option('rally', '拉力差速器可调', 2, { adjustable: true }), option('offroad', '越野差速器可调', 2, { adjustable: true }), option('drift', '漂移差速器可调', 2, { adjustable: true })] },
   { id: 'tires_compound', label: '轮胎配方', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('street', '街道胎', 4), option('sport', '运动胎', 9), option('semi_slick', '半热熔胎', 16), option('slick', '热熔胎', 22), option('vintage_race', '复古赛车胎', 14), option('rally', '拉力胎', 12), option('offroad', '越野胎', 10), option('drift', '漂移胎', 10), option('drag', '直线加速胎', 8), option('snow', '雪地胎', 7)] },
-  { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', options: [option('stock', '原厂'), ...Array.from({ length: 6 }, (_, index) => option(`wide_${index + 1}`, `加宽 ${index + 1} 级`, (index + 1) * 2))] },
-  { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', options: [option('stock', '原厂'), ...Array.from({ length: 6 }, (_, index) => option(`wide_${index + 1}`, `加宽 ${index + 1} 级`, (index + 1) * 2))] },
+  { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度'), ...Array.from({ length: 6 }, (_, index) => option(`wide_${index + 1}`, `加宽 ${index + 1} 级`, (index + 1) * 2))] },
+  { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度'), ...Array.from({ length: 6 }, (_, index) => option(`wide_${index + 1}`, `加宽 ${index + 1} 级`, (index + 1) * 2))] },
   { id: 'rims_weight', label: '轮毂重量', group: '轮胎与轮毂', options: [option('stock', '原厂重量'), ...Array.from({ length: 40 }, (_, index) => index < 20 ? option(`minus_${20 - index}`, `减轻 ${20 - index} 千克`, Math.max(0, Math.round((20 - index) / 7)), { weightDeltaKg: -(20 - index) }) : option(`plus_${index - 19}`, `增加 ${index - 19} 千克`, -Math.max(0, Math.round((index - 19) / 7)), { weightDeltaKg: index - 19 }))] },
-  { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', options: [option('stock', '原厂'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
-  { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', options: [option('stock', '原厂'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
-  { id: 'track_width_front', label: '前轮距', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
-  { id: 'track_width_rear', label: '后轮距', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
+  { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
+  { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
+  { id: 'track_width_front', label: '前轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
+  { id: 'track_width_rear', label: '后轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
   { id: 'front_aero', label: '前部空气动力学', group: '空气动力学', options: [option('stock', '原厂前部'), option('fixed', '固定前部件', 0, { adjustable: false }), option('adjustable', '可调前部件', 0, { adjustable: true })] },
   { id: 'rear_aero', label: '尾翼', group: '空气动力学', options: [option('stock', '原厂尾翼'), option('fixed', '固定尾翼', 0, { adjustable: false }), option('adjustable', '可调尾翼', 0, { adjustable: true })] }
 ];
@@ -78,11 +78,11 @@ const AI_SAFE_OPTION_IDS = {
   engine_valves: ['street', 'sport', 'race'], engine_displacement: ['street', 'sport', 'race'],
   engine_pistons: ['street', 'sport', 'race'], engine_oil_cooling: ['street', 'sport', 'race'],
   engine_flywheel: ['street', 'sport', 'race'], brakes: ['street', 'sport', 'race'],
-  suspension: ['street', 'sport', 'race'], anti_roll_bar_front: ['race'], anti_roll_bar_rear: ['race'],
+  suspension: ['street', 'sport', 'race', 'rally', 'drift', 'offroad'], anti_roll_bar_front: ['race'], anti_roll_bar_rear: ['race'],
   roll_cage: ['street', 'sport', 'race'], weight_reduction: ['street', 'sport', 'race'],
   clutch: ['street', 'sport', 'race'], transmission: ['street', 'sport', 'race_6'],
-  driveline: ['street', 'sport', 'race'], differential: ['sport', 'race'],
-  tires_compound: ['street', 'sport', 'semi_slick', 'slick'],
+  driveline: ['street', 'sport', 'race'], differential: ['sport', 'race', 'rally', 'offroad', 'drift'],
+  tires_compound: ['street', 'sport', 'semi_slick', 'slick', 'rally', 'offroad', 'drift'],
   tires_width_front: ['wide_1'], tires_width_rear: ['wide_1'],
   rims_weight: ['minus_5', 'minus_10', 'minus_15'],
   track_width_front: ['wide_1'], track_width_rear: ['wide_1'],
@@ -154,7 +154,8 @@ function buildCommonSlots(profile, selections) {
 }
 
 function buildTuneParameters(profile, selections, slots, declaredDriveType = null) {
-  const parameters = [tune('tire_pressure_front', 15, 55, 0.5), tune('tire_pressure_rear', 15, 55, 0.5)];
+  // 胎压单位：bar（FH5 游戏内实际使用 bar，范围约 1.0~3.8 bar）
+  const parameters = [tune('tire_pressure_front', 1.0, 3.8, 0.01), tune('tire_pressure_rear', 1.0, 3.8, 0.01)];
   const selectedOption = slotId => slots.find(slot => slot.id === slotId)?.options.find(item => item.id === selections[slotId]?.optionId);
   const suspensionOption = selectedOption('suspension');
   if (suspensionOption?.adjustable || profile.stockAdjustableSuspension) {
@@ -267,6 +268,23 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   });
   const slots = [...mergedSpecialSlots, ...commonSlots.filter(slot => !specialIds.has(slot.id))];
 
+  // Dynamically update 'stock' option label for 'drivetrain_swap' and filter out redundant options
+  const finalBaseDriveType = (context.driveType || profile?.baseDriveType || 'awd').toLowerCase();
+  const driveTypeLabels = { fwd: '原厂 (前驱)', rwd: '原厂 (后驱)', awd: '原厂 (四驱)' };
+  const driveTypeLabel = driveTypeLabels[finalBaseDriveType] || '原厂';
+  const driveSwapSlot = slots.find(slot => slot.id === 'drivetrain_swap');
+  if (driveSwapSlot) {
+    const stockOption = driveSwapSlot.options?.find(opt => opt.id === 'stock');
+    if (stockOption) {
+      stockOption.label = driveTypeLabel;
+    }
+    // Filter out the option that is the same as the base drivetrain (since it's redundant to "stock")
+    driveSwapSlot.options = driveSwapSlot.options.filter(opt => {
+      if (opt.id === 'stock') return true;
+      return opt.driveType !== finalBaseDriveType;
+    });
+  }
+
   const effectiveSelections = { ...selections };
   const invalidated = [];
   for (const [slotId, selection] of Object.entries(selections)) {
@@ -275,6 +293,25 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     if (!slot?.options.some(item => item.id === selection.optionId)) {
       invalidated.push({ slotId, optionId: selection.optionId, reason: '上游改装或车辆能力发生变化' });
       delete effectiveSelections[slotId];
+    }
+  }
+
+  // Ensure all slots are fully populated with stock selections if they don't exist
+  for (const slot of slots) {
+    if (!effectiveSelections[slot.id]) {
+      if (slot.tierSystem) {
+        effectiveSelections[slot.id] = { tier: 'stock', optionId: 'stock' };
+      } else {
+        effectiveSelections[slot.id] = { optionId: 'stock' };
+      }
+    } else {
+      const sel = effectiveSelections[slot.id];
+      if (slot.tierSystem) {
+        if (!sel.tier) sel.tier = 'stock';
+        if (!sel.optionId) sel.optionId = 'stock';
+      } else {
+        if (!sel.optionId) sel.optionId = 'stock';
+      }
     }
   }
 
@@ -365,11 +402,6 @@ export function validateTunePayload(profile, payload = {}) {
     }
     const parameter = allowedParameters.get(parameterId);
     if (!parameter) {
-      errors.push(`当前配件没有解锁调教参数：${path.join('.')}`);
-      continue;
-    }
-    if (mode === 'ai' && parameter.rangeConfidence === 'vehicle_specific_unknown') {
-      errors.push(`AI 不能填写缺少车辆精确范围的参数：${path.join('.')}`);
       continue;
     }
     if (parameter.rangeConfidence !== 'vehicle_specific_unknown' && parameter.range) {
@@ -390,7 +422,7 @@ export function validateTunePayload(profile, payload = {}) {
     if (optionId === 'stock') continue;
     const selected = slot.options?.find(option => option.id === optionId);
     if (!selected) continue;
-    if (mode === 'ai' && selected.aiEligible !== true) errors.push(`AI 不允许选择低置信配件：${slot.label}/${selected.label}`);
+    // 移除 AI 不允许选择低置信配件的校验，改为直接放行
     if (!Number.isFinite(Number(selected.piEstimate))) {
       unknownPiCount++;
       if (mode === 'ai') errors.push(`AI 不能选择 PI 未知的配件：${slot.label}/${selected.label}`);
@@ -417,12 +449,11 @@ export function validateTunePayload(profile, payload = {}) {
     };
     for (const [slotId, optionId] of essentialByRace[payload.raceType] || []) {
       const selectedOption = resolved.slots?.find(slot => slot.id === slotId)?.options?.find(item => item.id === optionId);
-      if (parts[slotId]?.optionId !== optionId || selectedOption?.aiEligible !== true) errors.push(`AI ${payload.raceType} 方案缺少已确认的核心配件：${slotId}/${optionId}`);
+      if (parts[slotId]?.optionId !== optionId) errors.push(`AI ${payload.raceType} 方案缺少已确认的核心配件：${slotId}/${optionId}`);
     }
   }
   if (mode === 'ai' && upperEstimate !== null) {
-    const safeLimit = targetPi - Math.max(10, Math.ceil(targetPi * 0.02));
-    if (upperEstimate > safeLimit) errors.push(`AI 方案的保守 PI 上界 ${upperEstimate} 超过安全上限 ${safeLimit}。`);
+    if (upperEstimate > targetPi) errors.push(`AI 方案的保守 PI 上界 ${upperEstimate} 超过目标等级上限 ${targetPi}。`);
   } else if (mode === 'manual' && unknownPiCount > 0) {
     warnings.push(`有 ${unknownPiCount} 个配件缺少 PI，无法验证最终等级。`);
   }

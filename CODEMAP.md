@@ -62,7 +62,6 @@
     - 📂 **utils/**
       - 📄 [speechQueue.js](file:///forza-telemetry/client/src/utils/speechQueue.js)   *(常量/方法: `speechManager`)*
   - 📄 [vite.config.js](file:///forza-telemetry/client/vite.config.js)   *(默认导出: `defineConfig`)*
-- 📄 [data.zip](file:///forza-telemetry/data.zip) 
 - 📂 **docs/**
   - 📄 [dashboard-round1.md](file:///forza-telemetry/docs/dashboard-round1.md) 
   - 📄 [dashboard-round2.md](file:///forza-telemetry/docs/dashboard-round2.md) 

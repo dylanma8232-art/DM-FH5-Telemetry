@@ -26,37 +26,11 @@ export function useTuneUpgrade({
       alert('请先选择一辆车辆。')
       return false
     }
-    if (unknownPiSelectionCount > 0) {
-      alert('当前已有缺少 PI 数据的配件。AI 无法保证等级上限，请先恢复这些配件为原厂后再生成。')
-      return false
-    }
-    const unsafeExisting = (upgradeShop.slots || []).find(slot => {
-      const optionId = formData.parts?.[slot.id]?.optionId || 'stock'
-      if (optionId === 'stock') return false
-      return slot.options?.find(option => option.id === optionId)?.aiEligible !== true
-    })
-    if (unsafeExisting) {
-      alert(`当前已选择的“${unsafeExisting.label}”仅供手动核对，AI 不会基于低置信配件继续生成。`)
-      return false
-    }
-    const essentialByRace = {
-      dirt: [['tires_compound', 'rally'], ['suspension', 'rally']],
-      cross_country: [['tires_compound', 'offroad'], ['suspension', 'offroad']],
-      drift: [['suspension', 'drift'], ['differential', 'drift']]
-    }
-    const missingEssential = (essentialByRace[raceType] || []).find(([slotId, optionId]) => {
-      const option = upgradeShop.slots?.find(slot => slot.id === slotId)?.options?.find(item => item.id === optionId)
-      return !option || option.aiEligible !== true || !Number.isFinite(Number(option.piUpperEstimate))
-    })
-    if (missingEssential) {
-      alert('该车辆缺少此用途所需核心配件的高置信资料。AI 为避免给出错误方案不会强行生成，请使用手动改装并对照游戏。')
-      return false
-    }
     const draftVersion = draftVersionRef.current
     try {
       setAutoUpgradeLoading(true)
-      const safetyMargin = Math.max(10, Math.ceil(targetPi * 0.02))
-      const safeLimit = targetPi - safetyMargin
+      const safetyMargin = 2
+      const safeLimit = targetPi === 999 ? 9999 : targetPi - safetyMargin
       let nextParts = JSON.parse(JSON.stringify(formData.parts || {}))
       let currentShop = upgradeShop
       let currentPi = basePi
@@ -78,6 +52,7 @@ export function useTuneUpgrade({
       const isRaceCompatible = (slotId, optionId) => {
         const specialized = {
           dirt: { tires_compound: ['rally'], suspension: ['rally'], differential: ['rally'] },
+          rally: { tires_compound: ['rally'], suspension: ['rally'], differential: ['rally'] },
           cross_country: { tires_compound: ['offroad'], suspension: ['offroad'], differential: ['offroad'] },
           drift: { tires_compound: ['drift'], suspension: ['drift'], differential: ['drift'], transmission: ['drift_4'] }
         }
@@ -93,13 +68,14 @@ export function useTuneUpgrade({
           const selectedScore = Number(selectedOption?.performanceScore) || Number(selectedOption?.piEstimate) || 0
           return (slot.options || []).filter(option => {
             const optionScore = Number(option.performanceScore) || Number(option.piEstimate) || 0
-            return option.id !== selectedId && option.aiEligible === true && isRaceCompatible(slot.id, option.id) && Number.isFinite(Number(option.piEstimate)) && optionScore > selectedScore
+            return option.id !== selectedId && isRaceCompatible(slot.id, option.id) && Number.isFinite(Number(option.piEstimate)) && optionScore > selectedScore
           }).map(option => ({ slot, option }))
         }).map(candidate => {
           const candidateParts = { ...nextParts, [candidate.slot.id]: { optionId: candidate.option.id } }
           const priorities = {
             road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'suspension', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'weight_reduction'],
             dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes'],
+            rally: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes'],
             cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction'],
             drift: ['suspension', 'differential', 'tires_width_rear', 'transmission', 'engine_camshaft']
           }
@@ -138,9 +114,6 @@ export function useTuneUpgrade({
           parts: nextParts
         }))
         setUpgradeShop(currentShop)
-        if (currentPi < safeLimit - 20) {
-          alert(`AI 已生成保守方案，PI 上界约为 ${currentPi}。由于其余配件缺少足够置信度，没有继续强行堆到目标等级。`)
-        }
         return true
       }
     } catch (e) { /* 一键升级失败 */

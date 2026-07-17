@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const proxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:9188';
+const proxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:9187';
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 9189,
+    port: 9188,
     host: '0.0.0.0',
     proxy: {
       '/api': proxyTarget,

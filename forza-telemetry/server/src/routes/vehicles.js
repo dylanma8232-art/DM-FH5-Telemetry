@@ -77,15 +77,17 @@ router.get('/:id/upgrades', (req, res) => {
     return res.status(400).json({ error: '改装选择参数格式无效。' });
   }
 
-  // 从元数据中读取该车辆的默认基本PI和驱动，用作fallback上下文
+  // 从元数据或动态车辆数据库中读取该车辆的默认基本PI和驱动，用作fallback上下文
   const metadata = loadUpgradeMetadata() || {};
   const meta = metadata[vehicleId] || {};
+  const vehicleState = stateManager.vehicles[vehicleId] || {};
+  const dynamicDriveType = String(vehicleState.drivetrain || '').toLowerCase();
   
   const driveType = ['fwd', 'rwd', 'awd'].includes(req.query.driveType)
     ? req.query.driveType
-    : (meta.baseDriveType || 'awd').toLowerCase();
+    : (meta.baseDriveType || (['fwd', 'rwd', 'awd'].includes(dynamicDriveType) ? dynamicDriveType : 'awd')).toLowerCase();
 
-  const basePi = Number(meta.basePi) || 500;
+  const basePi = Number(meta.basePi) || Number(vehicleState.pi) || 500;
 
   res.json({
     vehicleId,

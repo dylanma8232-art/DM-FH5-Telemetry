@@ -464,6 +464,15 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
           { label: '轮速差', value: '仅作趋势比较' }
         ],
         note: '先判断换挡是否长期停留高转区，再查看前后轴轮速差趋势；轮速差不用于绝对单位调校。'
+      },
+      aero: {
+        title: '空气动力平衡重点',
+        items: [
+          { label: '下压力平衡', value: '前后平衡分配合理' },
+          { label: '车身高度变化', value: '平稳' },
+          { label: '数据状态', value: channelsData?.channels?.length ? '可分析' : '暂无' }
+        ],
+        note: '高速段重点观察前后下压力与车身高度的变化情况。'
       }
     };
     return summaries[reviewSubTab] || summaries.corners;
@@ -1200,7 +1209,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                 {[
                   { id: 'overview', label: '🏁 赛后总览' },
                   { id: 'professional_review', label: '🏎️ 专业复盘' },
-                  { id: 'ai_coach', label: '🧠 AI 问诊' }
+                  { id: 'ai_coach', label: '🧠 改装建议' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1229,7 +1238,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       { id: 'inputs', label: '② 驾驶操作' },
                       { id: 'tires', label: '③ 轮胎抓地' },
                       { id: 'suspension', label: '④ 底盘悬挂' },
-                      { id: 'differential', label: '⑤ 动力传动' }
+                      { id: 'differential', label: '⑤ 动力传动' },
+                      { id: 'aero', label: '⑥ 空气动力' }
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -1634,7 +1644,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
               )}
 
               {/* ==================== TAB 3: 车辆遥测 ==================== */}
-              {activeTab === 'professional_review' && ['tires', 'suspension', 'differential'].includes(reviewSubTab) && (
+              {activeTab === 'professional_review' && ['tires', 'suspension', 'differential', 'aero'].includes(reviewSubTab) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
                   {channelsLoading && !channelsData && <LoadingSpinner text="正在载入本场车辆证据..." />}
                   {!channelsLoading && !channelsData?.channels?.length && (
@@ -1672,34 +1682,6 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       {/* 3.1 轮胎与抓地 */}
                       {chartSubTab === 'tires' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          {/* 胎温图 */}
-                          <div style={sectionStyle}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                              <h4 style={{ margin: 0, fontSize: 11 }}>轮胎工作温度变化曲线（绿色区域为理想工作区间，单位：摄氏度）</h4>
-                              {wheelVisibilityControls}
-                            </div>
-                            <div style={chartGuideStyle}>
-                              <strong>📚 诊断指南与参考区间：</strong> 横轴为赛道距离，纵轴为胎温。两条绿色虚线分别是 75°C 和 90°C，虚线之间的浅绿色区域为理想抓地区；低于该区域表示尚未充分升温，高于该区域表示可能过热。
-                            </div>
-                            <div style={{ height: 200 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={formattedChannels} syncId="overlaySync" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartMouseLeave}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                                  <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
-                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} domain={[40, 110]} unit="°C" />
-                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${Number(value).toFixed(0)}°C`} />
-                                  <ReferenceArea y1={75} y2={90} fill="rgba(63,185,80,0.06)" />
-                                  <ReferenceLine y={75} stroke="#3fb950" strokeDasharray="5 3" />
-                                  <ReferenceLine y={90} stroke="#3fb950" strokeDasharray="5 3" />
-                                  {visibleWheels.FL && <Line type="monotone" dataKey="tempFL" stroke="#58a6ff" name="左前" dot={false} strokeWidth={1.5} />}
-                                  {visibleWheels.FR && <Line type="monotone" dataKey="tempFR" stroke="#3fb950" name="右前" dot={false} strokeWidth={1.5} />}
-                                  {visibleWheels.RL && <Line type="monotone" dataKey="tempRL" stroke="#d29922" name="左后" dot={false} strokeWidth={1.5} />}
-                                  {visibleWheels.RR && <Line type="monotone" dataKey="tempRR" stroke="#ff7b72" name="右后" dot={false} strokeWidth={1.5} />}
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          </div>
-
                           {/* 胎温调校计算助手 */}
                           {(() => {
                             const stats = advancedData?.tempStats || { avgFL: 80, avgFR: 80, avgRL: 80, avgRR: 80 };
@@ -1744,6 +1726,34 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             );
                           })()}
 
+                          {/* 胎温图 */}
+                          <div style={sectionStyle}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                              <h4 style={{ margin: 0, fontSize: 11 }}>轮胎工作温度变化曲线（绿色区域为理想工作区间，单位：摄氏度）</h4>
+                              {wheelVisibilityControls}
+                            </div>
+                            <div style={chartGuideStyle}>
+                              <strong>📚 诊断指南与参考区间：</strong> 横轴为赛道距离，纵轴为胎温。两条绿色虚线分别是 75°C 和 90°C，虚线之间的浅绿色区域为理想抓地区；低于该区域表示尚未充分升温，高于该区域表示可能过热。
+                            </div>
+                            <div style={{ height: 200 }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={formattedChannels} syncId="overlaySync" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartMouseLeave}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                                  <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
+                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} domain={[40, 110]} unit="°C" />
+                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${Number(value).toFixed(0)}°C`} />
+                                  <ReferenceArea y1={75} y2={90} fill="rgba(63,185,80,0.06)" />
+                                  <ReferenceLine y={75} stroke="#3fb950" strokeDasharray="5 3" />
+                                  <ReferenceLine y={90} stroke="#3fb950" strokeDasharray="5 3" />
+                                  {visibleWheels.FL && <Line type="monotone" dataKey="tempFL" stroke="#58a6ff" name="左前" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.FR && <Line type="monotone" dataKey="tempFR" stroke="#3fb950" name="右前" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.RL && <Line type="monotone" dataKey="tempRL" stroke="#d29922" name="左后" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.RR && <Line type="monotone" dataKey="tempRR" stroke="#ff7b72" name="右后" dot={false} strokeWidth={1.5} />}
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
                           {/* 滑移率图 */}
                           <div style={sectionStyle}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1777,6 +1787,35 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       {/* 3.2 避震与悬挂 */}
                       {chartSubTab === 'suspension' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* 悬挂调校计算助手 */}
+                          {(() => {
+                            const bottomingTicks = channelsData.channels.filter(c => c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05).length;
+                            const suspAdvice = [];
+                            if (bottomingTicks > 35) {
+                              suspAdvice.push('⚠️ 避震器行程频繁用尽（托底）：检测到车辆在多处颠簸段或高速压缩下触底。建议将车身高度上调 1.0 - 2.0 cm，或将弹簧刚度（前后轴）增加 8%-12%，并配合上调阻尼压缩阀。');
+                            } else if (bottomingTicks > 0) {
+                              suspAdvice.push('💡 避震器有轻微托底：在个别大起伏路段发生托底。若不严重可忽略；若导致车辆颠跳，可稍微增加前束角阻尼或调硬弹簧。');
+                            } else {
+                              suspAdvice.push('✅ 悬挂行程利用充分，且未发生机械托底限制。');
+                            }
+                            return (
+                              <div style={{ background: 'rgba(188,136,255,0.02)', border: '1px solid rgba(188,136,255,0.15)', borderRadius: 8, padding: 12 }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: 11, color: '#bc88ff' }}>⛓️ 避震托底与悬挂调校助手</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 10 }}>
+                                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 6, borderRadius: 4 }}>
+                                    <div style={{ fontSize: 8, color: '#8b949e' }}>本场托底采样点总数</div>
+                                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', color: bottomingTicks > 35 ? '#f85149' : '#e6edf3' }}>{bottomingTicks} 个</div>
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  {suspAdvice.map((adv, idx) => (
+                                    <div key={idx} style={{ fontSize: 10, color: adv.startsWith('✅') ? '#3fb950' : '#d29922', lineHeight: 1.4 }}>{adv}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           {/* 避震分布直方图 */}
                           <div style={sectionStyle}>
                             <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>四轮避震压缩位置分布图</h4>
@@ -1826,41 +1865,33 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                               </ResponsiveContainer>
                             </div>
                           </div>
-
-                          {/* 悬挂调校计算助手 */}
-                          {(() => {
-                            const bottomingTicks = channelsData.channels.filter(c => c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05).length;
-                            const suspAdvice = [];
-                            if (bottomingTicks > 35) {
-                              suspAdvice.push('⚠️ 避震器行程频繁用尽（托底）：检测到车辆在多处颠簸段或高速压缩下触底。建议将车身高度上调 1.0 - 2.0 cm，或将弹簧刚度（前后轴）增加 8%-12%，并配合上调阻尼压缩阀。');
-                            } else if (bottomingTicks > 0) {
-                              suspAdvice.push('💡 避震器有轻微托底：在个别大起伏路段发生托底。若不严重可忽略；若导致车辆颠跳，可稍微增加前束角阻尼或调硬弹簧。');
-                            } else {
-                              suspAdvice.push('✅ 悬挂行程利用充分，且未发生机械托底限制。');
-                            }
-                            return (
-                              <div style={{ background: 'rgba(188,136,255,0.02)', border: '1px solid rgba(188,136,255,0.15)', borderRadius: 8, padding: 12 }}>
-                                <h4 style={{ margin: '0 0 10px 0', fontSize: 11, color: '#bc88ff' }}>⛓️ 避震托底与悬挂调校助手</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginBottom: 10 }}>
-                                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: 6, borderRadius: 4 }}>
-                                    <div style={{ fontSize: 8, color: '#8b949e' }}>本场托底采样点总数</div>
-                                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', color: bottomingTicks > 35 ? '#f85149' : '#e6edf3' }}>{bottomingTicks} 个</div>
-                                  </div>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  {suspAdvice.map((adv, idx) => (
-                                    <div key={idx} style={{ fontSize: 10, color: adv.startsWith('✅') ? '#3fb950' : '#d29922', lineHeight: 1.4 }}>{adv}</div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
                       )}
 
                       {/* 3.3 传动与差速 */}
                       {chartSubTab === 'differential' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* 传动调校计算助手 */}
+                          {(() => {
+                            const bangingTime = channelsData.channels.filter(c => c.rpm > maxSessionRpm * 0.98).length * 0.016;
+                            const diffAdvice = [];
+                            if (bangingTime > 0.6) {
+                              diffAdvice.push('⚠️ 换挡断油超时：检测到引擎多次顶红线断油。换挡晚了，需提前手动升档，或拉长终传比（Final Drive）滑块。');
+                            } else {
+                              diffAdvice.push('✅ 换挡时机节奏良好，完美落入引擎理想输出带。');
+                            }
+                            return (
+                              <div style={{ background: 'rgba(210,153,34,0.02)', border: '1px solid rgba(210,153,34,0.15)', borderRadius: 8, padding: 12 }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: 11, color: '#d29922' }}>⚙️ 差速器与换挡节奏调校助手</h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  {diffAdvice.map((adv, idx) => (
+                                    <div key={idx} style={{ fontSize: 10, color: adv.startsWith('✅') ? '#3fb950' : '#d29922', lineHeight: 1.4 }}>{adv}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           {/* rpm 与档位 */}
                           <div style={sectionStyle}>
                             <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>发动机转速与档位变化图</h4>
@@ -1903,67 +1934,12 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                               </ResponsiveContainer>
                             </div>
                           </div>
-
-                          {/* 传动调校计算助手 */}
-                          {(() => {
-                            const bangingTime = channelsData.channels.filter(c => c.rpm > maxSessionRpm * 0.98).length * 0.016;
-                            const diffAdvice = [];
-                            if (bangingTime > 0.6) {
-                              diffAdvice.push('⚠️ 换挡断油超时：检测到引擎多次顶红线断油。换挡晚了，需提前手动升档，或拉长终传比（Final Drive）滑块。');
-                            } else {
-                              diffAdvice.push('✅ 换挡时机节奏良好，完美落入引擎理想输出带。');
-                            }
-                            return (
-                              <div style={{ background: 'rgba(210,153,34,0.02)', border: '1px solid rgba(210,153,34,0.15)', borderRadius: 8, padding: 12 }}>
-                                <h4 style={{ margin: '0 0 10px 0', fontSize: 11, color: '#d29922' }}>⚙️ 差速器与换挡节奏调校助手</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  {diffAdvice.map((adv, idx) => (
-                                    <div key={idx} style={{ fontSize: 10, color: adv.startsWith('✅') ? '#3fb950' : '#d29922', lineHeight: 1.4 }}>{adv}</div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
                         </div>
                       )}
 
                       {/* 3.4 空气动力 */}
                       {chartSubTab === 'aero' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          {/* 空力下压力 */}
-                          <div style={sectionStyle}>
-                            <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>前后空气动力下压力推算图（lbs）</h4>
-                            <div style={{ height: 180 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={channelsData.channels} syncId="overlaySync" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartMouseLeave}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                                  <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
-                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} />
-                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${Number(value).toFixed(0)} lbs`} />
-                                  <Line type="monotone" dataKey="frontDownforce" stroke="#58a6ff" name="前下压力" dot={false} strokeWidth={1.5} />
-                                  <Line type="monotone" dataKey="rearDownforce" stroke="#ff7b72" name="后下压力" dot={false} strokeWidth={1.5} />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          </div>
-
-                          {/* 车身高度 */}
-                          <div style={sectionStyle}>
-                            <h4 style={{ margin: '0 0 10px', fontSize: 11 }}>前后避震静态高度变化图（cm）</h4>
-                            <div style={{ height: 180 }}>
-                              <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={channelsData.channels} syncId="overlaySync" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartMouseLeave}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                                  <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
-                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} />
-                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${Number(value).toFixed(1)} cm`} />
-                                  <Line type="monotone" dataKey="frontRideHeight" stroke="#58a6ff" name="前高度" dot={false} strokeWidth={1.5} />
-                                  <Line type="monotone" dataKey="rearRideHeight" stroke="#ff7b72" name="后高度" dot={false} strokeWidth={1.5} />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            </div>
-                          </div>
-
                           {/* 空力调校计算助手 */}
                           {(() => {
                             const aeroAdvice = [];
@@ -1979,6 +1955,50 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                               </div>
                             );
                           })()}
+
+                          {/* 空力下压力代理：悬挂压缩量 vs 车速 */}
+                          <div style={sectionStyle}>
+                            <h4 style={{ margin: '0 0 6px', fontSize: 11 }}>前后悬挂压缩量 vs 车速（高速段压缩增大反映下压力增长）</h4>
+                            <div style={chartGuideStyle}>
+                              <strong>📚 诊断指南：</strong> 横轴为车速，纵轴为前后轴悬挂平均压缩率（%）。若高速段前后轴压缩曲线同步增大，说明下压力设定有效；若前后差距大，说明空力平衡偏向一端。
+                            </div>
+                            <div style={{ height: 180 }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={aeroData}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                                  <XAxis dataKey="speed" stroke="#8b949e" tick={{ fontSize: 9 }} label={{ value: '车速（千米/小时）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
+                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} unit="%" domain={[0, 100]} />
+                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${Number(value).toFixed(1)}%`} />
+                                  <Line type="monotone" dataKey="前轴压缩" stroke="#58a6ff" name="前轴" dot={false} strokeWidth={1.5} />
+                                  <Line type="monotone" dataKey="后轴压缩" stroke="#ff7b72" name="后轴" dot={false} strokeWidth={1.5} />
+                                  <Legend iconSize={8} wrapperStyle={{ fontSize: 9 }} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          {/* 车身高度：悬挂伸缩量随距离变化 */}
+                          <div style={sectionStyle}>
+                            <h4 style={{ margin: '0 0 6px', fontSize: 11 }}>四轮悬挂伸缩率变化曲线（路肩压缩峰值与平坦路面对比）</h4>
+                            <div style={chartGuideStyle}>
+                              <strong>📚 诊断指南：</strong> 横轴为赛道距离，纵轴为各轮悬挂伸展率（0%=全压缩，100%=全伸展）。路肩或大颠簸段曲线会急剧下探；若四轮长期低于 20% 区间，建议提高车身高度或调硬弹簧以避免托底。
+                            </div>
+                            <div style={{ height: 180 }}>
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={formattedChannels} syncId="overlaySync" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartMouseLeave}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                                  <XAxis dataKey="distance" stroke="#8b949e" tick={{ fontSize: 9 }} tickCount={6} tickFormatter={Math.round} label={{ value: '赛道距离（米）', position: 'insideBottomRight', offset: -4, fill: '#8b949e', fontSize: 10 }} />
+                                  <YAxis stroke="#8b949e" tick={{ fontSize: 9 }} unit="%" domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}`} />
+                                  <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', fontSize: 10 }} formatter={(value) => `${(Number(value) * 100).toFixed(0)}%`} />
+                                  <ReferenceLine y={0.15} stroke="#f85149" strokeDasharray="4 2" label={{ value: '托底警戒', fill: '#f85149', fontSize: 8 }} />
+                                  {visibleWheels.FL && <Line type="monotone" dataKey="suspFL" stroke="#58a6ff" name="左前" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.FR && <Line type="monotone" dataKey="suspFR" stroke="#3fb950" name="右前" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.RL && <Line type="monotone" dataKey="suspRL" stroke="#d29922" name="左后" dot={false} strokeWidth={1.5} />}
+                                  {visibleWheels.RR && <Line type="monotone" dataKey="suspRR" stroke="#ff7b72" name="右后" dot={false} strokeWidth={1.5} />}
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -2402,7 +2422,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                   </div>
 
                   {/* 上半区：常见操控问题规则诊断 */}
-                  {false && <div style={sectionStyle}>
+                  <div style={sectionStyle}>
                     <h3 style={{ ...sectionTitleStyle, margin: 0, fontSize: 13 }}>常见操控问题诊断规则</h3>
                     <div style={{ fontSize: 10, color: '#8b949e', marginBottom: 12, marginTop: 4 }}>
                       如果您在驾驶时有具体的不适反馈，请在下方选择最接近的物理感受。系统将实时比对当前车辆调校参数，给出确切数值修改方案。
@@ -2496,35 +2516,60 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                                   );
                                 })}
                               </div>
-                              <button
-                                onClick={() => {
-                                  onNavigate('tunes', {
-                                    action: 'edit',
-                                    tuneId: sessionTune?.id,
-                                    vehicleId: analysis.vehicle?.ordinal,
-                                    suggestedChanges: prob.fixes,
-                                    problemName: prob.name,
-                                    trackName: analysis.track?.name || analysis.trackName || '未知赛道'
-                                  });
-                                }}
-                                style={{
-                                  marginTop: 8,
-                                  width: '100%',
-                                  padding: '8px 12px',
-                                  background: '#d29922',
-                                  border: 'none',
-                                  borderRadius: 4,
-                                  color: '#0d1117',
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 6px rgba(210, 153, 34, 0.3)',
-                                  textAlign: 'center',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                🔧 同步调整方案至调校中心
-                              </button>
+                              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                <button
+                                  onClick={() => {
+                                    onNavigate('tunes', {
+                                      action: 'edit',
+                                      tuneId: sessionTune?.id,
+                                      vehicleId: analysis.vehicle?.ordinal,
+                                      suggestedChanges: prob.fixes,
+                                      problemName: prob.name,
+                                      trackName: analysis.track?.name || analysis.trackName || '未知赛道'
+                                    });
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: '#d29922',
+                                    border: 'none',
+                                    borderRadius: 4,
+                                    color: '#0d1117',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 6px rgba(210, 153, 34, 0.3)',
+                                    textAlign: 'center',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  🔧 同步调整至调校中心
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCustomQuestion(`在当前遥测下，我的车跑 ${analysis.track?.name || analysis.trackName || '此赛道'} 时遇到了“${prob.name}”的问题（表现为：${prob.symptoms}）。请结合车况、遥测和现有调校，给出更深度的分析与解决思路。`);
+                                    setTimeout(() => {
+                                      handleStartAiDiagnosis();
+                                    }, 100);
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: '#58a6ff',
+                                    border: 'none',
+                                    borderRadius: 4,
+                                    color: '#ffffff',
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 6px rgba(88, 166, 255, 0.3)',
+                                    textAlign: 'center',
+                                    transition: 'all 0.2s'
+                                  }}
+                                >
+                                  💬 用 AI 进一步诊断此问题
+                                </button>
+                              </div>
                             </div>
                           );
                         })() : (
@@ -2534,7 +2579,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                         )}
                       </div>
                     </div>
-                  </div>}
+                  </div>
 
                   {/* 下半区：AI 深度问诊辩论诊断 */}
                   <div style={sectionStyle}>

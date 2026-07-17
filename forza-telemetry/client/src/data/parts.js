@@ -933,12 +933,13 @@ function findHighestAvailableRange(rangeMap, tierIndex) {
  * @param {Object} carStats - 车辆基础数据 { weight, power, torque, drivetrain }
  * @returns {Object} 推荐调校值 { paramId: value }
  */
-export function getTuneDefaults(parts, carStats = {}) {
+export function getTuneDefaults(parts, rawCarStats) {
+  const carStats = rawCarStats || {};
   const constraints = getTuneConstraints(parts);
   const defaults = {};
   const weight = carStats.weight || 1500;
   const power = carStats.power || 300;
-  const drivetrain = carStats.drivetrain || 'AWD';
+  const drivetrain = (carStats.drivetrain || 'AWD').toUpperCase();
 
   for (const [paramId, constraint] of Object.entries(constraints)) {
     if (constraint.locked || constraint.min === null || constraint.max === null) {
@@ -1205,7 +1206,7 @@ export function autoUpgradeToPi(currentParts, currentPi, targetPi) {
  * calculateTotalPi(500, { ...getDefaultParts(), aspiration: { tier: 'sport' } })
  * // 500 + 8 + 12 = 520
  */
-export function calculateTotalPi(basePi, parts) {
+export function calculateTotalPi(basePi, parts, defaultDrivetrain = null) {
   if (!parts || !basePi) return basePi || 0;
 
   let totalPiAdd = 0;
@@ -1216,7 +1217,17 @@ export function calculateTotalPi(basePi, parts) {
       const optionId = parts[cat.id]?.optionId || 'stock';
       const option = cat.options?.find(o => o.id === optionId);
       if (option) {
-        totalPiAdd += option.piBonus || 0;
+        if (cat.id === 'drivetrain_swap' && defaultDrivetrain) {
+          const stockLower = defaultDrivetrain.toLowerCase();
+          if (optionId === 'stock' || optionId === stockLower) {
+            // Selecting stock or default drivetrain results in 0 PI change
+            totalPiAdd += 0;
+          } else {
+            totalPiAdd += option.piBonus || 0;
+          }
+        } else {
+          totalPiAdd += option.piBonus || 0;
+        }
       }
       continue;
     }
