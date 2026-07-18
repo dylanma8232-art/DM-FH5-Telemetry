@@ -140,7 +140,7 @@ function scoreState(state, stock) {
 
   // 3. 轮胎材质与抓地力 (Grip) PI 贡献
   const gripDelta = state.grip - stock.grip;
-  let gripPi = gripDelta * 25.5 * (1 + (basePi - 300) * 0.0015);
+  let gripPi = gripDelta * 27.0 * (1 + (basePi - 300) * 0.0015);
 
   // 胎宽提升与后轮减分效应校准
   const frontWidthDelta = state.frontWidth - stock.frontWidth;
@@ -157,14 +157,14 @@ function scoreState(state, stock) {
 
   // 4. 其他底盘改装件贡献
   const aeroPi = (state.aero - stock.aero) * 38;
-  const brakePi = (state.brake - stock.brake) * 45;
-  const handlingPi = (state.handling - stock.handling) * 78;
+  const brakePi = (state.brake - stock.brake) * 48;
+  const handlingPi = (state.handling - stock.handling) * 84;
   const shiftPi = (state.shift - stock.shift) * 130;
 
   // 5. 驱动置换 (Drivetrain Swap)
   let driveSwapPi = 0;
   if (state.driveType === 'awd' && stock.driveType !== 'awd') {
-    driveSwapPi = 1 + (stock.powerHp / stock.massKg) * 35;
+    driveSwapPi = 3 + (stock.powerHp / stock.massKg) * 35;
   } else if (state.driveType !== 'awd' && stock.driveType === 'awd') {
     driveSwapPi = -15;
   }
