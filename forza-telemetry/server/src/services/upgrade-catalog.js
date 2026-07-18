@@ -2,7 +2,7 @@ import { applyPiPredictions, predictBuildPi } from './pi-model.js';
 
 const option = (id, label, piEstimate = 0, extra = {}) => ({ id, label, piEstimate, ...extra });
 const levels = (street = 2, sport = 4, race = 7) => [
-  option('stock', '原厂', 0), option('street', '街道级', street), option('sport', '运动级', sport), option('race', '竞赛级', race)
+  option('stock', '原厂', 0), option('street', '街车级', street), option('sport', '跑车级', sport), option('race', '赛车级', race)
 ];
 // 无车型实测资料时使用的 FH5 常见胎宽枚举。它只用于手动选择，不进入
 // AI 的 PI 搜索；每个车型最终可用项仍应以游戏内改装菜单为准。
@@ -69,17 +69,17 @@ const COMMON_SLOTS = [
   { id: 'engine_pistons', label: '活塞与压缩比', group: '发动机', options: levels(2, 4, 7) },
   { id: 'engine_oil_cooling', label: '机油与冷却', group: '发动机', options: levels(0, 1, 2) },
   { id: 'engine_flywheel', label: '飞轮', group: '发动机', options: levels(0, 1, 2) },
-  { id: 'brakes', label: '刹车', group: '平台与操控', options: [option('stock', '原厂'), option('street', '街道级不可调', 1), option('sport', '运动级不可调', 2), option('race', '竞赛级可调', 4, { adjustable: true })] },
-  { id: 'suspension', label: '悬挂', group: '平台与操控', options: [option('stock', '原厂'), option('street', '街道悬挂不可调', 2), option('sport', '运动悬挂不可调', 4), option('race', '竞赛悬挂可调', 6, { adjustable: true }), option('rally', '拉力悬挂可调', 5, { adjustable: true }), option('drift', '漂移悬挂可调', 5, { adjustable: true }), option('offroad', '越野悬挂可调', 5, { adjustable: true })] },
-  { id: 'anti_roll_bar_front', label: '前防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '竞赛级可调', 1, { adjustable: true })] },
-  { id: 'anti_roll_bar_rear', label: '后防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '竞赛级可调', 1, { adjustable: true })] },
+  { id: 'brakes', label: '刹车', group: '平台与操控', options: [option('stock', '原厂'), option('street', '街车级不可调', 1), option('sport', '跑车级不可调', 2), option('race', '赛车级可调', 4, { adjustable: true })] },
+  { id: 'suspension', label: '悬挂', group: '平台与操控', options: [option('stock', '原厂'), option('street', '街车悬挂不可调', 2), option('sport', '跑车悬挂不可调', 4), option('race', '赛车悬挂可调', 6, { adjustable: true }), option('rally', '拉力悬挂可调', 5, { adjustable: true }), option('drift', '漂移悬挂可调', 5, { adjustable: true }), option('offroad', '越野悬挂可调', 5, { adjustable: true })] },
+  { id: 'anti_roll_bar_front', label: '前防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '赛车级可调', 1, { adjustable: true })] },
+  { id: 'anti_roll_bar_rear', label: '后防倾杆', group: '平台与操控', options: [option('stock', '原厂'), option('race', '赛车级可调', 1, { adjustable: true })] },
   { id: 'roll_cage', label: '防滚架', group: '平台与操控', options: levels(-2, -5, -8) },
   { id: 'weight_reduction', label: '车身减重', group: '平台与操控', options: levels(6, 16, 28) },
   { id: 'clutch', label: '离合器', group: '传动系统', options: levels(0, 1, 2) },
-  { id: 'transmission', label: '变速箱', group: '传动系统', options: [option('stock', '原厂'), option('street', '街道级不可调', 1), option('sport', '运动级，可调终传比', 2, { adjustableFinalDrive: true }), option('race_standard', '标准竞赛级可调', 3, { gearCount: 6, gearCountConfidence: 'unknown', adjustable: true }), option('drift_4', '四速漂移变速箱可调', 3, { gearCount: 4, adjustable: true }), option('race_6', '竞赛六速可调', 3, { gearCount: 6, adjustable: true }), option('race_7', '竞赛七速可调', 4, { gearCount: 7, adjustable: true }), option('race_8', '竞赛八速可调', 5, { gearCount: 8, adjustable: true }), option('race_9', '竞赛九速可调', 6, { gearCount: 9, adjustable: true }), option('race_10', '竞赛十速可调', 7, { gearCount: 10, adjustable: true })] },
+  { id: 'transmission', label: '变速箱', group: '传动系统', options: [option('stock', '原厂'), option('street', '街车级不可调', 1), option('sport', '跑车级，可调终传比', 2, { adjustableFinalDrive: true }), option('race_standard', '标准赛车级可调', 3, { gearCount: 6, gearCountConfidence: 'unknown', adjustable: true }), option('drift_4', '四速漂移变速箱可调', 3, { gearCount: 4, adjustable: true }), option('race_6', '赛车六速可调', 3, { gearCount: 6, adjustable: true }), option('race_7', '赛车七速可调', 4, { gearCount: 7, adjustable: true }), option('race_8', '赛车八速可调', 5, { gearCount: 8, adjustable: true }), option('race_9', '赛车九速可调', 6, { gearCount: 9, adjustable: true }), option('race_10', '赛车十速可调', 7, { gearCount: 10, adjustable: true })] },
   { id: 'driveline', label: '传动轴', group: '传动系统', options: levels(0, 1, 2) },
-  { id: 'differential', label: '差速器', group: '传动系统', options: [option('stock', '原厂'), option('sport', '运动级可调', 1, { adjustable: true }), option('race', '竞赛级可调', 2, { adjustable: true }), option('rally', '拉力差速器可调', 2, { adjustable: true }), option('offroad', '越野差速器可调', 2, { adjustable: true }), option('drift', '漂移差速器可调', 2, { adjustable: true })] },
-  { id: 'tires_compound', label: '轮胎配方', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('street', '街道胎', 4), option('sport', '运动胎', 9), option('semi_slick', '半热熔胎', 16), option('slick', '热熔胎', 22), option('vintage_race', '复古赛车胎', 14), option('rally', '拉力胎', 12), option('offroad', '越野胎', 10), option('drift', '漂移胎', 10), option('drag', '直线加速胎', 8), option('snow', '雪地胎', 7)] },
+  { id: 'differential', label: '差速器', group: '传动系统', options: [option('stock', '原厂'), option('sport', '跑车级可调', 1, { adjustable: true }), option('race', '赛车级可调', 2, { adjustable: true }), option('rally', '拉力差速器可调', 2, { adjustable: true }), option('offroad', '越野差速器可调', 2, { adjustable: true }), option('drift', '漂移差速器可调', 2, { adjustable: true })] },
+  { id: 'tires_compound', label: '轮胎配方', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('street', '街车胎', 4), option('sport', '跑车胎', 9), option('semi_slick', '半热熔胎', 16), option('slick', '热熔胎', 22), option('vintage_race', '复古赛车胎', 14), option('rally', '拉力胎', 12), option('offroad', '越野胎', 10), option('drift', '漂移胎', 10), option('drag', '直线加速胎', 8), option('snow', '雪地胎', 7)] },
   // 胎宽是车型专属的离散毫米值；没有来源时绝不伪造“加宽 N 级”。
   { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
   { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
