@@ -299,6 +299,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   } = useTuneManager({ onNavigate, navIntent });
   const hasAiOption = (slotId, optionId) => upgradeShop?.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === optionId && option.aiEligible === true && Number.isFinite(Number(option.piUpperEstimate)))
   const [activePartTab, setActivePartTab] = useState('置换');
+  const [activeParamTab, setActiveParamTab] = useState('tires');
 
   const partGroups = React.useMemo(() => {
     if (!upgradeShop || upgradeShop.status === 'unverified') return { data: {}, tabs: [], current: '' };
@@ -1846,7 +1847,42 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     </div>
                   ) : (
                     <>
-                      {TUNE_FIELDS_SCHEMA.map(section => {
+                      {/* 参数分类选项卡 */}
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'auto', paddingBottom: 4, flexShrink: 0 }}>
+                        {[
+                          { id: 'tires', label: '轮胎', icon: '🛞' },
+                          { id: 'suspension', label: '悬挂', icon: '🔩' },
+                          { id: 'drivetrain', label: '传动', icon: '🔄' },
+                          { id: 'brakes', label: '制动', icon: '🛑' },
+                          { id: 'aero', label: '空阻', icon: '🌪️' }
+                        ].map(tab => {
+                          const isSelected = activeParamTab === tab.id;
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActiveParamTab(tab.id)}
+                              style={{
+                                background: isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
+                                border: '1px solid ' + (isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.05)'),
+                                borderRadius: 4,
+                                padding: '6px 14px',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: isSelected ? '#fff' : 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <span style={{ marginRight: 4 }}>{tab.icon}</span>
+                              {tab.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {TUNE_FIELDS_SCHEMA.filter(section => section.category === activeParamTab).map(section => {
                         if (section.kind === 'differential') {
                           return (
                             <div key={section.category} className="form-section" style={formSectionStyle}>
