@@ -7,8 +7,72 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { sqliteDb } from '../storage/sqlite-db.js';
 
 const router = express.Router();
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function performSelfLearningCalibration(vehicleId, confirmedPi, estimate, normalizedParts) {
+  if (!vehicleId || !confirmedPi || !estimate) return;
+  const delta = Math.round(confirmedPi - estimate);
+  if (delta === 0) return; // 物理模型正好对齐，无需校准
+
+  // 获取当前所有已改动（不是 stock）的配件列表
+  const activeSlots = Object.entries(normalizedParts || {})
+    .filter(([slotId, part]) => part && part.optionId && part.optionId !== 'stock')
+    .map(([slotId, part]) => ({ slotId, optionId: part.optionId }));
+
+  if (activeSlots.length === 0) return;
+
+  let remainingDelta = delta;
+  const assignments = [];
+
+  // 特写大件分配权重
+  const engineSwap = activeSlots.find(s => s.slotId === 'engine_swap');
+  const driveSwap = activeSlots.find(s => s.slotId === 'drivetrain_swap');
+  const aspSwap = activeSlots.find(s => s.slotId === 'aspiration_swap');
+
+  if (engineSwap) {
+    const alloc = Math.round(delta * 0.5);
+    assignments.push({ ...engineSwap, bias: alloc });
+    remainingDelta -= alloc;
+  }
+  if (driveSwap) {
+    const alloc = Math.round(delta * 0.25);
+    assignments.push({ ...driveSwap, bias: alloc });
+    remainingDelta -= alloc;
+  }
+  if (aspSwap) {
+    const alloc = Math.round(delta * 0.25);
+    assignments.push({ ...aspSwap, bias: alloc });
+    remainingDelta -= alloc;
+  }
+
+  // 剩余配件平均分配剩下的 bias
+  const others = activeSlots.filter(s => !['engine_swap', 'drivetrain_swap', 'aspiration_swap'].includes(s.slotId));
+  if (others.length > 0) {
+    const perPart = Math.round(remainingDelta / others.length);
+    others.forEach((s, idx) => {
+      const isLast = idx === others.length - 1;
+      const alloc = isLast ? remainingDelta : perPart;
+      assignments.push({ ...s, bias: alloc });
+      remainingDelta -= alloc;
+    });
+  } else if (assignments.length > 0) {
+    assignments[0].bias += remainingDelta;
+  }
+
+  // 将分摊偏置写入数据库并累计
+  const currentBiases = sqliteDb.getPiCalibrations(vehicleId) || [];
+  const currentBiasMap = new Map(currentBiases.map(b => [`${b.slot_id}/${b.option_id}`, b.bias_pi]));
+
+  for (const item of assignments) {
+    const currentBias = currentBiasMap.get(`${item.slotId}/${item.optionId}`) || 0;
+    const newBias = clamp(currentBias + item.bias, -80, 80);
+    sqliteDb.savePiCalibration(vehicleId, item.slotId, item.optionId, newBias);
+  }
+}
 
 
 
@@ -202,6 +266,15 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     aero: body.aero || null,
     parts: validation.normalizedParts
   };
+
+  // 触发 PI 增量自学习校准
+  performSelfLearningCalibration(
+    body.vehicleId, 
+    validation.computed.confirmedPi, 
+    validation.computed.estimate, 
+    validation.normalizedParts
+  );
+
   stateManager.tunes[tuneId] = tune;
   saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
   res.json({ status: 'ok', tuneId, tune });
@@ -265,6 +338,15 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   if (body.parts !== undefined) tune.parts = body.parts;
   tune.parts = validation.normalizedParts;
   tune.updatedAt = new Date().toISOString();
+  
+  // 触发 PI 增量自学习校准
+  performSelfLearningCalibration(
+    tune.vehicleId, 
+    validation.computed.confirmedPi, 
+    validation.computed.estimate, 
+    validation.normalizedParts
+  );
+
   stateManager.tunes[req.params.tuneId] = tune;
   saveJSON(DATA_DIR + '/tunes.json', stateManager.tunes);
   res.json({ status: 'ok', tune });

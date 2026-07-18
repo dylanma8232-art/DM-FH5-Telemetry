@@ -25,9 +25,42 @@ db.exec(`
     lowfi_data_br BLOB,
     updated_at TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
+    vehicle_id TEXT,
+    slot_id TEXT,
+    option_id TEXT,
+    bias_pi INTEGER,
+    PRIMARY KEY (vehicle_id, slot_id, option_id)
+  );
 `);
 
 export const sqliteDb = {
+  /**
+   * 保存特定车型某个改装件的 PI 偏置校准值 (SQLite 增量自学习偏置)
+   */
+  savePiCalibration: (vehicleId, slotId, optionId, biasPi) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO vehicle_pi_calibrations (vehicle_id, slot_id, option_id, bias_pi)
+      VALUES (?, ?, ?, ?)
+    `);
+    stmt.run(vehicleId, slotId, optionId, biasPi);
+  },
+
+  /**
+   * 获取特定车型的所有改装件 PI 偏置校准值
+   */
+  getPiCalibrations: (vehicleId) => {
+    try {
+      const stmt = db.prepare(`
+        SELECT slot_id, option_id, bias_pi FROM vehicle_pi_calibrations WHERE vehicle_id = ?
+      `);
+      return stmt.all(vehicleId) || [];
+    } catch (e) {
+      console.error(`[sqliteDb] 获取 ${vehicleId} 校准数据失败:`, e.message);
+      return [];
+    }
+  },
   /**
    * 保存 Session 时序细节包 (原子事务写入)
    */

@@ -47,7 +47,16 @@ export function useTuneUpgrade({
       const refreshed = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encodeURIComponent(JSON.stringify(formula.parts || {}))}&driveType=${encodeURIComponent(preferredDriveType || aiDriveType)}`)
       if (!refreshed.ok) throw new Error('无法读取公式改装结果')
       const resolvedShop = await refreshed.json()
-      setFormData(prev => ({ ...prev, parts: resolvedShop.effectiveSelections || formula.parts || {} }))
+      const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType || aiRaceType)
+      setFormData(prev => ({
+        ...prev,
+        parts: resolvedShop.effectiveSelections || formula.parts || {},
+        tires: prev.tires && Object.keys(prev.tires).length > 0 ? prev.tires : initRecommendations.tires,
+        suspension: prev.suspension && Object.keys(prev.suspension).length > 0 ? prev.suspension : initRecommendations.suspension,
+        drivetrain: prev.drivetrain && Object.keys(prev.drivetrain).length > 0 ? prev.drivetrain : initRecommendations.drivetrain,
+        brakes: prev.brakes && Object.keys(prev.brakes).length > 0 ? prev.brakes : initRecommendations.brakes,
+        aero: prev.aero && Object.keys(prev.aero).length > 0 ? prev.aero : initRecommendations.aero
+      }))
       setUpgradeShop(resolvedShop)
       return true
 
@@ -178,4 +187,77 @@ export function useTuneUpgrade({
     setAiDriveType,
     handleAutoUpgrade
   }
+}
+
+export function getInitialParameterRecommendations(resolvedShop, raceType = 'road') {
+  const driveType = (resolvedShop.effectiveDriveType || resolvedShop.baseDriveType || 'awd').toLowerCase();
+  
+  const tires = {};
+  const suspension = {};
+  const drivetrain = {};
+  const brakes = {};
+  const aero = {};
+  
+  for (const param of resolvedShop.tuneParameters || []) {
+    const id = param.id;
+    const min = param.range ? Number(param.range.min) : 0;
+    const max = param.range ? Number(param.range.max) : 100;
+    const mid = (min + max) / 2;
+    
+    let val = mid;
+    
+    if (id === 'tire_pressure_front' || id === 'tire_pressure_rear') {
+      val = raceType === 'cross_country' ? 1.6 : (raceType === 'dirt' || raceType === 'rally' ? 1.8 : 2.0);
+    }
+    else if (id === 'tire_camber_front') val = -1.5;
+    else if (id === 'tire_camber_rear') val = -1.0;
+    else if (id === 'tire_toe_front' || id === 'tire_toe_rear') val = 0.0;
+    else if (id === 'caster_front') val = 6.0;
+    else if (id === 'arb_front') {
+      val = driveType === 'awd' ? 15.0 : (driveType === 'fwd' ? 10.0 : 20.0);
+    }
+    else if (id === 'arb_rear') {
+      val = driveType === 'awd' ? 40.0 : (driveType === 'fwd' ? 45.0 : 30.0);
+    }
+    else if (id === 'ride_height_front' || id === 'ride_height_rear') {
+      val = raceType === 'cross_country' ? max : (raceType === 'dirt' || raceType === 'rally' ? min + (max - min) * 0.7 : min);
+    }
+    else if (id === 'rebound_front' || id === 'rebound_rear') val = 8.0;
+    else if (id === 'bump_front' || id === 'bump_rear') val = 4.8;
+    else if (id === 'diff_front_accel') val = 50.0;
+    else if (id === 'diff_front_decel') val = 0.0;
+    else if (id === 'diff_rear_accel') val = 90.0;
+    else if (id === 'diff_rear_decel') val = 10.0;
+    else if (id === 'diff_center') val = 70.0;
+    else if (id === 'brake_balance') val = 50.0;
+    else if (id === 'brake_pressure') val = 100.0;
+    
+    if (param.range) {
+      val = Math.max(min, Math.min(max, val));
+      const step = Number(param.range.step);
+      if (step > 0) {
+        const steps = Math.round((val - min) / step);
+        val = Number((min + steps * step).toFixed(2));
+      }
+    }
+    
+    if (id.startsWith('tire_') || id === 'caster_front') {
+      const field = id.replace('tire_', '');
+      tires[field === 'pressure_front' ? 'frontPressure' : field === 'pressure_rear' ? 'rearPressure' : field === 'camber_front' ? 'frontCamber' : field === 'camber_rear' ? 'rearCamber' : field === 'toe_front' ? 'frontToe' : field === 'toe_rear' ? 'rearToe' : 'frontCaster'] = val;
+    } else if (id.startsWith('spring_') || id.startsWith('rebound_') || id.startsWith('bump_') || id.startsWith('arb_') || id.startsWith('ride_height_')) {
+      const field = id;
+      suspension[field === 'spring_front' ? 'frontSpring' : field === 'spring_rear' ? 'rearSpring' : field === 'rebound_front' ? 'frontRebound' : field === 'rebound_rear' ? 'rearRebound' : field === 'bump_front' ? 'frontBump' : field === 'bump_rear' ? 'rearBump' : field === 'arb_front' ? 'frontARB' : field === 'arb_rear' ? 'rearARB' : field === 'ride_height_front' ? 'frontRideHeight' : 'rearRideHeight'] = val;
+    } else if (id.startsWith('diff_') || id === 'final_drive' || id.startsWith('gear_')) {
+      const field = id;
+      drivetrain[field === 'diff_front_accel' ? 'frontDiffAccel' : field === 'diff_front_decel' ? 'frontDiffDecel' : field === 'diff_rear_accel' ? 'rearDiffAccel' : field === 'diff_rear_decel' ? 'rearDiffDecel' : field === 'diff_center' ? 'diffCenter' : field === 'final_drive' ? 'finalDrive' : field] = val;
+    } else if (id.startsWith('brake_')) {
+      const field = id.replace('brake_', '');
+      brakes[field] = val;
+    } else if (id.startsWith('downforce_')) {
+      const field = id;
+      aero[field === 'downforce_front' ? 'frontDownforce' : 'rearDownforce'] = val;
+    }
+  }
+  
+  return { tires, suspension, drivetrain, brakes, aero };
 }

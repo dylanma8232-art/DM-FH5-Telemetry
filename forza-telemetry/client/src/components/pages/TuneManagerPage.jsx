@@ -304,9 +304,108 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     cross_country: hasAiOption('tires_compound', 'offroad') && hasAiOption('suspension', 'offroad'),
     drift: hasAiOption('suspension', 'drift') && hasAiOption('differential', 'drift')
   }
+  const renderPiBadge = (piValue) => {
+    const num = Number(piValue);
+    let classLetter = 'D';
+    let color = '#8b949e'; // 默认 D 级 灰色
+    
+    if (num > 998) {
+      classLetter = 'X';
+      color = 'linear-gradient(135deg, #f2c94c 0%, #d29922 100%)';
+    } else if (num >= 901) {
+      classLetter = 'S2';
+      color = '#da3633'; // 亮粉红
+    } else if (num >= 801) {
+      classLetter = 'S1';
+      color = '#8957e5'; // 紫色
+    } else if (num >= 701) {
+      classLetter = 'A';
+      color = '#1f6feb'; // 经典蓝色
+    } else if (num >= 601) {
+      classLetter = 'B';
+      color = '#f0883b'; // 橙色
+    } else if (num >= 501) {
+      classLetter = 'C';
+      color = '#d29922'; // 黄色
+    }
+    
+    return (
+      <div className="fh5-pi-badge">
+        <span className="fh5-pi-class" style={{ background: color, color: '#fff', fontWeight: 900 }}>
+          {classLetter}
+        </span>
+        <span className="fh5-pi-number">
+          {num || '-'}
+        </span>
+      </div>
+    );
+  };
+
+  const drawerOverlayStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden'
+  };
+
+  const drawerContentStyle = {
+    background: 'transparent',
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  };
+
   return (
-    <div style={{ padding: 8, height: 'calc(100vh - 60px)', overflow: 'auto', background: '#0d1117' }}>
+    <div style={showModal ? {
+      display: 'flex',
+      flexDirection: 'column',
+      height: 'calc(100vh - 60px)',
+      background: 'linear-gradient(145deg, #0b0e14 0%, #151a22 100%)',
+      overflow: 'hidden',
+      color: 'var(--text-primary)'
+    } : {
+      padding: 8,
+      height: 'calc(100vh - 60px)',
+      overflow: 'auto',
+      background: '#0d1117'
+    }}>
       <style>{`
+        @keyframes drawerFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes drawerSlideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        .fh5-pi-badge {
+          display: inline-flex;
+          align-items: center;
+          font-weight: 800;
+          font-family: 'monospace', 'Impact', sans-serif;
+          border-radius: 4px;
+          overflow: hidden;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .fh5-pi-class {
+          padding: 4px 10px;
+          font-size: 16px;
+          text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+        }
+        .fh5-pi-number {
+          background: #f0f6fc;
+          color: #0d1117;
+          padding: 4px 10px;
+          font-size: 16px;
+          font-weight: 900;
+        }
+
         /* 改装商店卡片高级样式 */
         .part-card {
           background: rgba(22, 27, 34, 0.4);
@@ -425,6 +524,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           border: 1px solid rgba(255, 123, 114, 0.2);
         }
       `}</style>
+      {!showModal && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8, padding: '0 6px' }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>调校管理</h2>
@@ -1024,488 +1124,424 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           {unlockToast}
         </div>
       )}
+      </>)}
 
       {showModal && (
-        <div style={modalOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
-          <div style={{ ...modalContentStyle, maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                {editingTune ? '编辑调校' : '新建调校'}
-              </h2>
-              <button
-                onClick={closeModal}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </div>
-
-            {!editingTune && (
-              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-                {['选择车辆', '选择方式', '改装配件', '填写调教'].map((label, index) => {
-                  const step = index + 1
-                  return <div key={label} style={{ flex: 1, padding: '6px 4px', textAlign: 'center', borderRadius: 4, fontSize: 10, fontWeight: 600, background: wizardStep === step ? 'var(--accent)' : (wizardStep > step ? 'rgba(63,185,80,.2)' : 'var(--bg-tertiary)'), color: wizardStep >= step ? '#fff' : 'var(--text-muted)' }}>{step}. {label}</div>
-                })}
-              </div>
-            )}
-
-            {!editingTune && wizardStep === 1 && (
-              <div style={{ padding: 16, border: '1px solid var(--border)', borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>先选择车辆</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 12 }}>后续只会展示这台车在资料库中可用的改装项目。</div>
-                <VehicleSearchSelect id="create-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={selectVehicleForDraft} style={inputStyle} />
-                <button onClick={() => setWizardStep(2)} disabled={!formData.vehicleId} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12 }}>下一步</button>
-              </div>
-            )}
-
-            {!editingTune && wizardStep === 2 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, marginBottom: 10 }}>选择改装方式</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <button onClick={() => chooseBuildMode('manual')} style={{ ...btnSmallStyle, padding: 16, textAlign: 'left', borderColor: buildMode === 'manual' ? 'var(--accent)' : 'var(--border)' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>自己改装</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>逐项选择这台车可用的改装件。</div>
-                  </button>
-                  <button onClick={() => chooseBuildMode('ai')} style={{ ...btnSmallStyle, padding: 16, textAlign: 'left', borderColor: buildMode === 'ai' ? '#3fb950' : 'var(--border)' }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>AI 生成改装</div><div style={{ fontSize: 10, color: 'var(--text-muted)' }}>按目标 PI 与用途生成后仍可手动调整。</div>
-                  </button>
-                </div>
-
-                {buildMode === 'ai' && <div style={{ marginTop: 12, padding: 12, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6 }}>
-                  <label style={labelStyle}>用途</label>
-                  <select value={aiRaceType} onChange={e => setAiRaceType(e.target.value)} style={inputStyle}>
-                    <option value="road">公路赛</option>
-                    <option value="dirt">泥地赛</option>
-                    <option value="rally">拉力赛</option>
-                    <option value="cross_country">越野赛</option>
-                    <option value="drift">漂移</option>
-                  </select>
-                  <label style={{ ...labelStyle, marginTop: 8 }}>驱动形式</label>
-                  {(() => {
-                    const stock = (upgradeShop?.baseDriveType || '').toUpperCase();
-                    return (
-                      <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
-                        <option value="fwd">前轮驱动{stock === 'FWD' ? ' (原厂)' : ''}</option>
-                        <option value="rwd">后轮驱动{stock === 'RWD' ? ' (原厂)' : ''}</option>
-                        <option value="awd">四轮驱动{stock === 'AWD' ? ' (原厂)' : ''}</option>
-                      </select>
-                    );
-                  })()}
-                  <label style={{ ...labelStyle, marginTop: 8 }}>目标等级</label>
-                  <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={inputStyle}>
-                    {basePi <= 500 && <option value="500">D 500</option>}
-                    {basePi <= 600 && <option value="600">C 600</option>}
-                    {basePi <= 700 && <option value="700">B 700</option>}
-                    {basePi <= 800 && <option value="800">A 800</option>}
-                    {basePi <= 900 && <option value="900">S1 900</option>}
-                    {basePi <= 998 && <option value="998">S2 998</option>}
-                    <option value="999">X 无上限</option>
-                  </select>
-                  <button onClick={async () => { const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType }); if (generated) { setFormData(prev => ({ ...prev, tags: prev.tags || aiRaceType })); setWizardStep(3) } }} style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636' }}>生成方案</button>
-                </div>}
-                <button onClick={() => setWizardStep(1)} style={{ ...btnSmallStyle, width: '100%', marginTop: 10 }}>上一步</button>
-              </div>
-            )}
-
-            {telemetrySuggestions && (
-              <div style={{
-                background: 'rgba(210, 153, 34, 0.08)',
-                border: '1px solid rgba(210, 153, 34, 0.45)',
-                borderRadius: 6,
-                padding: '10px 14px',
-                marginBottom: 16,
-                boxShadow: '0 0 12px rgba(210, 153, 34, 0.15)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 12
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#d29922', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>💡</span> 遥测诊断建议
-                  </div>
-                  <div style={{ fontSize: 10, color: '#c9d1d9', lineHeight: 1.4 }}>
-                    针对您的车辆在「{telemetrySuggestions.trackName}」的「{telemetrySuggestions.problemName}」操控问题，推荐进行以下参数调整：
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 4 }}>
-                      {Object.entries(telemetrySuggestions.changes).map(([paramKey, fix]) => {
-                        const paramNames = {
-                          frontTirePressure: '前胎压', rearTirePressure: '后胎压',
-                          frontCamber: '前外倾角', rearCamber: '后外倾角',
-                          frontToe: '前束角', rearToe: '后束角',
-                          frontSpring: '前弹簧刚度', rearSpring: '后弹簧刚度',
-                          frontDamping: '前阻尼压缩', rearDamping: '后阻尼压缩',
-                          frontARB: '前防倾杆', rearARB: '后防倾杆',
-                          frontRideHeight: '前车身高度', rearRideHeight: '后车身高度',
-                          diffAccel: '差速器加速锁', diffDecel: '差速器减速锁',
-                          diffCenter: '中央差速偏置', finalDrive: '终传比',
-                          frontDownforce: '前下压力', rearDownforce: '后下压力',
-                          brakeBias: '刹车偏置'
-                        };
-                        const paramName = paramNames[paramKey] || paramKey;
-                        const unit = paramKey.includes('Pressure') ? ' PSI' : paramKey.includes('Height') ? ' cm' : paramKey.includes('Downforce') ? ' kg' : paramKey.includes('Camber') || paramKey.includes('Toe') ? '°' : paramKey.includes('diff') || paramKey.includes('Bias') ? '%' : '';
-                        const deltaText = fix.delta > 0 ? `+${fix.delta}` : `${fix.delta}`;
-                        return (
-                          <span key={paramKey} style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontFamily: 'monospace', color: '#bc8cff' }}>
-                            {paramName}: {deltaText}{unit}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => applyTelemetrySuggestions(telemetrySuggestions)}
-                    style={{
-                      padding: '4px 10px',
-                      background: '#d29922',
-                      border: 'none',
-                      borderRadius: 4,
-                      color: '#0d1117',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(210, 153, 34, 0.3)'
-                    }}
-                  >
-                    一键预填建议
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTelemetrySuggestions(null)}
-                    style={{
-                      padding: '4px 8px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid #30363d',
-                      borderRadius: 4,
-                      color: '#8b949e',
-                      fontSize: 10,
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    忽略
-                  </button>
-                </div>
-              </div>
-            )}
-
-
-
-            {/* 自由改装模式与智能改装向导 */}
-            <div style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '8px 12px', background: 'rgba(56, 139, 253, 0.1)', border: '1px solid rgba(56, 139, 253, 0.3)', borderRadius: 6 }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#58a6ff' }}>自由改装模式</span>
-                <span style={{ fontSize: 9, color: '#8b949e' }}>开启后解除配件解锁限制，直接开启全部调校参数（原厂参数直接调校）</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.freeMode || false}
-                onChange={e => setFormData(prev => ({ ...prev, freeMode: e.target.checked }))}
-                style={{ width: 16, height: 16, cursor: 'pointer' }}
-              />
-            </div>
-
-            <div style={{ display: 'none',
-              background: 'rgba(35, 134, 54, 0.08)',
-              border: '1px solid rgba(35, 134, 54, 0.3)',
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 16
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#56d364', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>⚡ 智能改装向导</span>
-                <span style={{ fontSize: 9, color: '#8b949e', fontWeight: 400 }}>一键填充符合地平线5 Meta 的基准调校与改装</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-                <div>
-                  <label style={{ ...labelStyle, marginBottom: 2, fontSize: 9 }}>赛事类型</label>
-                  <select id="presetRaceType" style={{ ...inputStyle, padding: '4px 6px', fontSize: 10, height: 26 }} defaultValue="road">
-                    <option value="road">公路赛与街头赛</option>
-                    <option value="dirt">泥地赛 (拉力避震/拉力胎/AWD)</option>
-                    <option value="cross_country">越野赛 (最大高度/软避震/AWD)</option>
-                    <option value="drift">漂移赛 (大前外倾/双100%锁/漂移避震)</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ ...labelStyle, marginBottom: 2, fontSize: 9 }}>目标 PI 等级</label>
-                  <select id="presetPiClass" style={{ ...inputStyle, padding: '4px 6px', fontSize: 10, height: 26 }} defaultValue="A">
-                    <option value="D">D 500</option>
-                    <option value="C">C 600</option>
-                    <option value="B">B 700</option>
-                    <option value="A">A 800</option>
-                    <option value="S1">S1 900</option>
-                    <option value="S2">S2 998</option>
-                    <option value="X">X 999</option>
-                  </select>
-                </div>
+        <div style={drawerOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
+          <div style={drawerContentStyle}>
+            {/* 1. 全屏工坊页面级顶栏 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <button
-                  type="button"
-                  onClick={() => {
-                    const type = document.getElementById('presetRaceType').value;
-                    const pi = document.getElementById('presetPiClass').value;
-                    if (window.confirm('一键生成会覆盖当前的改装配件和调校值，确定生成吗？')) {
-                      applyPresetTune(type, pi);
-                    }
+                  onClick={closeModal}
+                  style={{
+                    ...btnSmallStyle,
+                    background: 'rgba(255,255,255,0.03)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    padding: '6px 14px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)'
                   }}
-                  style={{ ...btnPrimaryStyle, padding: '4px 10px', fontSize: 10, height: 26, background: '#238636', borderColor: '#3fb950' }}
                 >
-                  生成向导方案
+                  ← 返回调校库
+                </button>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: 'var(--accent)' }}>🏎</span> 
+                  {editingTune ? '地平线改装工坊 · 编辑调校' : '地平线改装工坊 · 新建升级配置'}
+                </h2>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.25)', padding: '5px 12px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>当前等级</span>
+                  {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                </div>
+                
+                <button
+                  onClick={saveTune}
+                  style={{
+                    ...btnPrimaryStyle,
+                    background: 'var(--success)',
+                    borderColor: 'rgba(63, 185, 80, 0.4)',
+                    padding: '8px 24px',
+                    fontSize: 13,
+                    fontWeight: 700
+                  }}
+                >
+                  保存此调校
                 </button>
               </div>
             </div>
 
-
-            {/* 当前方案 PI；只有 AI 模式需要目标等级约束。 */}
-            {(editingTune || wizardStep === 3) && <div style={{
-              background: 'var(--bg-primary)',
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 12,
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: '#d29922',
-                marginBottom: 10,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>{buildMode === 'ai' ? '公式预测 PI' : '当前方案 PI'}</span>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                  color: buildMode === 'ai' && totalPi > targetPi ? '#da3633' : 'var(--success)'
-                }}>
-                  {buildMode === 'ai'
-                    ? `预计 PI：${totalPi} / ${targetPi}`
-                    : `预计 PI：${solutionPi === null ? totalPi : solutionPi}`}
-                </span>
-              </div>
-              {buildMode === 'ai' && totalPiUpper !== totalPi && (
-                <div style={{ marginBottom: 8, textAlign: 'right', fontSize: 10, color: totalPiUpper > targetPi ? '#da3633' : '#d29922' }}>
-                  预测区间上限：{totalPiUpper} / {targetPi}
-                </div>
-              )}
-              {upgradeShop?.prediction && (
-                <div style={{ marginBottom: 8, textAlign: 'right', fontSize: 9, color: 'var(--text-muted)' }}>
-                  公式推算 · 输入覆盖率 {upgradeShop.prediction.featureCoverage}% · 误差带 ±{upgradeShop.prediction.uncertainty} PI
-                </div>
-              )}
-              {buildMode === 'ai' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>官方原厂 PI</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                    {basePi}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>公式配件增量</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'monospace', color: partsPiDelta > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
-                    +{partsPiDelta}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>预计总 PI</div>
-                  <div style={{
-                    fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
-                    color: totalPi > targetPi ? '#da3633' : 'var(--text-primary)'
-                  }}>
-                    {totalPi}
-                  </div>
-                </div>
-              </div>}
-              {buildMode === 'ai' && <div>
-                <label style={labelStyle}>目标 PI 等级</label>
-                <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={{ ...inputStyle, marginBottom: 0 }}>
-                  {basePi <= 500 && <option value="500">D 500</option>}
-                  {basePi <= 600 && <option value="600">C 600</option>}
-                  {basePi <= 700 && <option value="700">B 700</option>}
-                  {basePi <= 800 && <option value="800">A 800</option>}
-                  {basePi <= 900 && <option value="900">S1 900</option>}
-                  {basePi <= 998 && <option value="998">S2 998</option>}
-                  <option value="999">X 无上限</option>
-                </select>
-              </div>}
-              {buildMode === 'ai' && totalPi > targetPi && (
-                <div style={{
-                  marginTop: 8,
-                  padding: '6px 10px',
-                  background: 'rgba(218, 54, 51, 0.12)',
-                  borderRadius: 4,
-                  fontSize: 10,
-                  color: '#da3633'
-                }}>
-                  预计 PI 已超出目标上限 {totalPi - targetPi} 点，请降低配件等级或提高 PI 上限
-                </div>
-              )}
-              <div style={{ marginTop: buildMode === 'ai' ? 10 : 0 }}>
-                <label style={labelStyle}>{buildMode === 'ai' ? '保存方案 PI' : '当前 PI'}</label>
-                <input
-                  type="number"
-                  min="100"
-                  max="999"
-                  step="1"
-                  value={solutionPi === null ? totalPi : solutionPi}
-                  onChange={e => setSolutionPi(e.target.value)}
-                  style={{ ...inputStyle, marginBottom: 0 }}
-                />
-                <div style={{ marginTop: 5, fontSize: 9, color: 'var(--text-muted)' }}>
-                  公式模型预计为 {totalPi} PI；本车每个配件的预测 PI 为固定值，最终 PI 按原厂 PI 加已选配件求和。
-                </div>
-              </div>
-              {unknownPiSelectionCount > 0 && (
-                <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(188,140,255,0.1)', borderRadius: 4, fontSize: 10, color: '#bc8cff' }}>
-                  当前有 {unknownPiSelectionCount} 个车辆专属配件缺少 PI 数据，未计入系统预估。请按游戏内最终 PI 填写上方数值。
-                </div>
-              )}
-            </div>}
-
-            {/* 配件改装区域 */}
-            {(editingTune || wizardStep === 3) && <div style={{
-              background: 'var(--bg-primary)',
-              borderRadius: 8,
-              padding: 12,
-              marginBottom: 12,
-              border: '1px solid var(--border)'
-            }}>
-              <div style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--accent)',
-                marginBottom: 10,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>改装配件</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
-                  {visiblePartCategories.filter(c => {
-                    const p = formData.parts[c.id]
-                    if (c.tierSystem) return p?.tier && p.tier !== 'stock'
-                    return p?.optionId && p.optionId !== 'stock'
-                  }).length} 项改装
-                </span>
-              </div>
-              {!editingTune && buildMode === 'ai' && (
-                <div style={{ gridColumn: '1 / -1', marginBottom: 10, padding: '8px 10px', background: 'rgba(35,134,54,0.1)', border: '1px solid rgba(35,134,54,0.3)', borderRadius: 5, color: '#3fb950', fontSize: 10 }}>
-                  这是 AI 生成的配件草稿。请按游戏内实际选项逐项确认或修改；进入下一步后，调教项目会以最终确认的配件为准重新生成。
-                </div>
-              )}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 8
-              }}>
-                {upgradeShop?.status === 'unverified' ? (
-                  <div style={{ gridColumn: '1 / -1', padding: '18px 12px', border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>
-                    {upgradeShop.message || '请先选择一辆已有改装资料的车辆。'}
-                  </div>
-                ) : Object.entries(visiblePartCategories.reduce((groups, category) => {
-                  const group = category.group || '其他改装'
-                  ;(groups[group] ||= []).push(category)
-                  return groups
-                }, {})).map(([group, categories]) => (
-                  <React.Fragment key={group}>
-                    <div style={{ gridColumn: '1 / -1', marginTop: 4, padding: '4px 2px', borderBottom: '1px solid var(--border)', color: group === '车辆专属' ? '#bc8cff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 700 }}>
-                      {group}
+            {/* 2. 新版 3 步分步导航（编辑与新建均展示） */}
+            {showModal && (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexShrink: 0 }}>
+                {[
+                  { step: 1, label: editingTune ? '选定车辆 (只读)' : '配置车辆与改装方式' },
+                  { step: 2, label: editingTune ? '更改配件升级' : '确认配件升级' },
+                  { step: 3, label: '填写与微调参数' }
+                ].map((item) => {
+                  const isStep1 = item.step === 1;
+                  const isClickable = !isStep1 || !editingTune;
+                  return (
+                    <div
+                      key={item.step}
+                      onClick={() => {
+                        if (isClickable) setWizardStep(item.step);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: 6,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: isClickable ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.25s ease',
+                        background: wizardStep === item.step
+                          ? 'var(--accent)'
+                          : (wizardStep > item.step ? 'rgba(63,185,80,.15)' : 'rgba(255,255,255,0.03)'),
+                        border: `1px solid ${wizardStep === item.step ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}`,
+                        color: wizardStep >= item.step ? '#fff' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        opacity: isClickable ? 1 : 0.4
+                      }}
+                    >
+                      <span style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        background: wizardStep > item.step ? '#3fb950' : (wizardStep === item.step ? '#fff' : 'rgba(255,255,255,0.1)'),
+                        color: wizardStep === item.step ? 'var(--accent)' : '#fff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10
+                      }}>
+                        {wizardStep > item.step ? '✓' : item.step}
+                      </span>
+                      {item.label}
                     </div>
-                    {categories.map(cat => {
-                      const selectedPart = formData.parts[cat.id]
-                      return <PartSelector
-                        key={cat.id}
-                        category={cat}
-                        selected={selectedPart}
-                        onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
-                        defaultDrivetrain={upgradeShop?.baseDriveType}
-                      />
-                    })}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>}
-
-            {(editingTune || wizardStep === 4) && <>
-            {(!editingTune && !upgradeShop?.tuneParameters?.length) ? (
-              <div style={{ padding: 14, border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, marginBottom: 12 }}>
-                该车的可调教参数与游戏范围仍在补充中。为避免显示错误的通用参数，当前不展示未验证的调教项。
-              </div>
-            ) : <>
-            {(upgradeShop?.tuneParameters || []).some(parameter => parameter.rangeConfidence === 'vehicle_specific_unknown') && (
-              <div style={{ padding: '8px 10px', marginBottom: 10, background: 'rgba(188,140,255,0.08)', border: '1px solid rgba(188,140,255,0.25)', borderRadius: 5, color: '#bc8cff', fontSize: 10 }}>
-                弹簧、车高、逐挡齿比或下压力中的部分范围需要按当前车辆在游戏内核对。手动模式可以填写；AI 会保留为空，避免生成超出该车范围的数值。
+                  );
+                })}
               </div>
             )}
-            {TUNE_FIELDS_SCHEMA.map(section => {
-              if (section.kind === 'differential') {
-                return (
-                  <div key={section.category} className="form-section">
-                    <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('differential')}>
-                      <span>{collapsedSections.has('differential') ? '▶ ' : '▼ '}差速器</span>
-                    </div>
-                    {!collapsedSections.has('differential') && <>
-                      <div className="form-grid">
-                        {[
-                          ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
-                          ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
-                        ].map(([field, label]) => (
-                          <NumberInput
-                            key={field}
-                            label={label}
-                            value={formData.drivetrain[field]}
-                            onChange={v => updateFormField('drivetrain', field, v)}
-                            min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
-                            max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
-                            step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
-                            unit="%"
-                            locked={tuneConstraints[`drivetrain.${field}`]?.locked}
-                            {...ni('drivetrain', field)}
-                          />
-                        ))}
-                        <NumberInput
-                          label="中央差速器"
-                          value={formData.drivetrain.diffCenter}
-                          onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
-                          min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
-                          max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
-                          step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
-                          unit="%"
-                          locked={tuneConstraints['drivetrain.diffCenter']?.locked}
-                          {...ni('drivetrain', 'diffCenter')}
-                        />
-                      </div>
-                    </>}
-                  </div>
-                )
-              }
 
-              if (section.kind === 'gearing') {
-                return (
-                  <div key="gearing" className="form-section">
-                    <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection('gearing')}>
-                      <span>{collapsedSections.has('gearing') ? '▶ ' : '▼ '}传动比</span>
+            {/* 3.1 步骤 1：选车与方式合并 */}
+            {!editingTune && wizardStep === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, overflow: 'visible' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20, overflow: 'visible' }}>
+                  
+                  {/* 左：选择车辆 */}
+                  <div style={{ padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: 'var(--accent)' }}>🚗</span> 选择目标车辆
                     </div>
-                    {!collapsedSections.has('gearing') && <>
-                      <div className="form-grid">
-                        <NumberInput label="终传比" value={formData.drivetrain.finalDrive} onChange={v => updateFormField('drivetrain', 'finalDrive', v)} min={tuneConstraints['drivetrain.finalDrive']?.min ?? 1} max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6} step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01} locked={tuneConstraints['drivetrain.finalDrive']?.locked} {...ni('drivetrain', 'finalDrive')} />
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 8 }}>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(gear => <NumberInput key={gear} label={`${gear}档齿比`} value={formData.drivetrain[`gear${gear}`]} onChange={v => updateFormField('drivetrain', `gear${gear}`, v)} min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5} max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6} step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01} locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked} {...ni('drivetrain', `gear${gear}`)} />)}
-                      </div>
-                    </>}
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 16 }}>
+                      后续只会展示这台车在游戏内真实的改装插槽和参数可调范围。
+                    </div>
+                    <label style={labelStyle}>目标车型</label>
+                    <VehicleSearchSelect id="create-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={selectVehicleForDraft} style={inputStyle} />
                   </div>
-                )
-              }
 
-              return (
-                <div key={section.sectionKey || section.category} className="form-section">
-                  <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection(section.sectionKey || section.category)}>
-                    <span>{collapsedSections.has(section.sectionKey || section.category) ? '▶ ' : '▼ '}{section.title}</span>
+                  {/* 右：选择升级模式 */}
+                  <div style={{ padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: '#3fb950' }}>⚡</span> 升级改装方式
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 16 }}>
+                      您可以手动点选每一项升级配件，或者使用启发式算法智能生成 META 改装。
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                      <button
+                        type="button"
+                        onClick={() => chooseBuildMode('manual')}
+                        style={{
+                          ...btnSmallStyle,
+                          padding: '16px 12px',
+                          textAlign: 'left',
+                          background: buildMode === 'manual' ? 'rgba(56,139,253,0.1)' : 'transparent',
+                          borderColor: buildMode === 'manual' ? 'var(--accent)' : 'var(--border)',
+                          height: 'auto',
+                          borderRadius: 6
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'manual' ? 'var(--accent)' : 'var(--text-primary)' }}>手动升级改装</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>在下一步中逐个选择发动机、轮胎和悬挂组件。</div>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => chooseBuildMode('ai')}
+                        style={{
+                          ...btnSmallStyle,
+                          padding: '16px 12px',
+                          textAlign: 'left',
+                          background: buildMode === 'ai' ? 'rgba(63,185,80,0.1)' : 'transparent',
+                          borderColor: buildMode === 'ai' ? '#3fb950' : 'var(--border)',
+                          height: 'auto',
+                          borderRadius: 6
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>AI 一键生成</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>按照您期望的 PI 评级与赛事路面倾向为您智能装配。</div>
+                      </button>
+                    </div>
+
+                    {buildMode === 'ai' && (
+                      <div style={{ padding: 14, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: 6, animation: 'drawerFadeIn 0.3s ease' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                          <div>
+                            <label style={labelStyle}>赛道用途</label>
+                            <select value={aiRaceType} onChange={e => setAiRaceType(e.target.value)} style={inputStyle}>
+                              <option value="road">公路/街头赛</option>
+                              <option value="dirt">泥地拉力赛</option>
+                              <option value="rally">混合路拉力</option>
+                              <option value="cross_country">越野拉力赛</option>
+                              <option value="drift">漂移横滑</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>驱动形式</label>
+                            {(() => {
+                              const stock = (upgradeShop?.baseDriveType || '').toUpperCase();
+                              return (
+                                <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
+                                  <option value="fwd">前驱 FWD {stock === 'FWD' ? '(原厂)' : ''}</option>
+                                  <option value="rwd">后驱 RWD {stock === 'RWD' ? '(原厂)' : ''}</option>
+                                  <option value="awd">四驱 AWD {stock === 'AWD' ? '(原厂)' : ''}</option>
+                                </select>
+                              );
+                            })()}
+                          </div>
+                          <div>
+                            <label style={labelStyle}>目标 PI 等级</label>
+                            <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={inputStyle}>
+                              {basePi <= 500 && <option value="500">D 500</option>}
+                              {basePi <= 600 && <option value="600">C 600</option>}
+                              {basePi <= 700 && <option value="700">B 700</option>}
+                              {basePi <= 800 && <option value="800">A 800</option>}
+                              <option value="999">X 999 (无上限)</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
+                            if (generated) {
+                              setFormData(prev => ({ ...prev, tags: prev.tags || aiRaceType }));
+                              setWizardStep(2); // 跳往确认升级改装这一步
+                            }
+                          }}
+                          style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636', borderColor: '#2ea44f' }}
+                        >
+                          智能启发式计算装配
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                  {buildMode === 'manual' && (
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(2)}
+                      disabled={!formData.vehicleId || !upgradeShop}
+                      style={{ ...btnPrimaryStyle, width: 140 }}
+                    >
+                      {(!upgradeShop && formData.vehicleId) ? '加载配件中...' : '继续选配升级组件'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3.2 步骤 2：确认配件改装 */}
+            {wizardStep === 2 && (
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px 18px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>估算改装后 PI 级</span>
+                  {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                </div>
+                
+                {buildMode === 'ai' && (
+                  <div style={{ padding: '6px 12px', background: 'rgba(35,134,54,0.1)', border: '1px solid rgba(35,134,54,0.3)', borderRadius: 6, color: '#3fb950', fontSize: 10 }}>
+                    💡 这是 AI 生成的预选方案。您可以任意更改下方的轮胎、引擎或减震等配件；进入下一步前，最终选定的升级包将自动决定可调参数范围。
+                  </div>
+                )}
+                
+                <div style={{
+                  background: 'var(--bg-primary)',
+                  borderRadius: 8,
+                  padding: 16,
+                  border: '1px solid var(--border)',
+                  overflow: 'auto',
+                  flex: 1
+                }}>
+                  <div style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--accent)',
+                    marginBottom: 12,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>升级组件选配</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
+                      已选择 {visiblePartCategories.filter(c => {
+                        const p = formData.parts[c.id];
+                        if (c.tierSystem) return p?.tier && p.tier !== 'stock';
+                        return p?.optionId && p.optionId !== 'stock';
+                      }).length} 项升级
+                    </span>
+                  </div>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 10,
+                    alignItems: 'start'
+                  }}>
+                    {!upgradeShop ? (
+                      <div style={{ gridColumn: '1 / -1', padding: '40px 12px', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 24, animation: 'spin 1.2s linear infinite' }}>⏳</span>
+                        <span>正在加载物理车辆升级配件大表... 请稍候</span>
+                        <style>{`
+                          @keyframes spin {
+                            from { transform: rotate(0deg); }
+                            to { transform: rotate(360deg); }
+                          }
+                        `}</style>
+                      </div>
+                    ) : upgradeShop?.status === 'unverified' ? (
+                      <div style={{ gridColumn: '1 / -1', padding: '24px 12px', border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, textAlign: 'center' }}>
+                        {upgradeShop.message || '请先选择一辆已有改装资料的车辆。'}
+                      </div>
+                    ) : Object.entries(visiblePartCategories.reduce((groups, category) => {
+                      const group = category.group || '其他改装';
+                      (groups[group] ||= []).push(category);
+                      return groups;
+                    }, {})).map(([group, categories]) => (
+                      <React.Fragment key={group}>
+                        <div style={{ gridColumn: '1 / -1', marginTop: 8, padding: '4px 2px', borderBottom: '1px solid var(--border)', color: group === '车辆专属' ? '#bc8cff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 700 }}>
+                          {group}
+                        </div>
+                        {categories.map(cat => {
+                          const selectedPart = formData.parts[cat.id];
+                          const slotInfo = upgradeShop?.slots?.find(s => s.id === cat.id);
+                          return (
+                            <PartSelector
+                              key={cat.id}
+                              category={cat}
+                              selected={selectedPart}
+                              slotInfo={slotInfo}
+                              onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
+                              defaultDrivetrain={upgradeShop?.baseDriveType}
+                            />
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                  <button onClick={() => setWizardStep(1)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>
+                  <button onClick={() => setWizardStep(3)} style={{ ...btnPrimaryStyle, flex: 2 }}>确认配件去调试参数</button>
+                </div>
+              </div>
+            )}
+
+            {/* 3.3 步骤 3 或编辑模式：填写与微调参数（两栏宽屏 Workspace 布局） */}
+            {wizardStep === 3 && (
+              <div style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                
+                {/* 左栏：参数设置区域 (可滚动) */}
+                <div style={{ flex: 1.15, overflow: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {(!editingTune && !upgradeShop?.tuneParameters?.length) ? (
+                    <div style={{ padding: 14, border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11 }}>
+                      该车型的可调教参数范围正在收集核对中。当前不展示未经验证的调校项目。
+                    </div>
+                  ) : (
+                    <>
+                      {TUNE_FIELDS_SCHEMA.map(section => {
+                        if (section.kind === 'differential') {
+                          return (
+                            <div key={section.category} className="form-section" style={formSectionStyle}>
+                              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('differential') ? 0 : 8 }} onClick={() => toggleSection('differential')}>
+                                <span>{collapsedSections.has('differential') ? '▶ ' : '▼ '}差速器</span>
+                              </div>
+                              {!collapsedSections.has('differential') && (
+                                <div style={formGridStyle}>
+                                  {[
+                                    ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
+                                    ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
+                                  ].map(([field, label]) => (
+                                    <NumberInput
+                                      key={field}
+                                      label={label}
+                                      value={formData.drivetrain[field]}
+                                      onChange={v => updateFormField('drivetrain', field, v)}
+                                      min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
+                                      max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
+                                      step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
+                                      unit="%"
+                                      locked={tuneConstraints[`drivetrain.${field}`]?.locked}
+                                      {...ni('drivetrain', field)}
+                                    />
+                                  ))}
+                                  <NumberInput
+                                    label="中央差速偏置"
+                                    value={formData.drivetrain.diffCenter}
+                                    onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
+                                    min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
+                                    max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
+                                    step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
+                                    unit="%"
+                                    locked={tuneConstraints['drivetrain.diffCenter']?.locked}
+                                    {...ni('drivetrain', 'diffCenter')}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        if (section.kind === 'gearing') {
+                          return (
+                            <div key="gearing" className="form-section" style={formSectionStyle}>
+                              <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('gearing') ? 0 : 8 }} onClick={() => toggleSection('gearing')}>
+                                <span>{collapsedSections.has('gearing') ? '▶ ' : '▼ '}传动比</span>
+                              </div>
+                              {!collapsedSections.has('gearing') && (
+                                <>
+                                  <div style={formGridStyle}>
+                                    <NumberInput label="终传比" value={formData.drivetrain.finalDrive} onChange={v => updateFormField('drivetrain', 'finalDrive', v)} min={tuneConstraints['drivetrain.finalDrive']?.min ?? 1} max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6} step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01} locked={tuneConstraints['drivetrain.finalDrive']?.locked} {...ni('drivetrain', 'finalDrive')} />
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(gear => (
+                                      <NumberInput key={gear} label={`${gear}档齿比`} value={formData.drivetrain[`gear${gear}`]} onChange={v => updateFormField('drivetrain', `gear${gear}`, v)} min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5} max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6} step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01} locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked} {...ni('drivetrain', `gear${gear}`)} />
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={section.sectionKey || section.category} className="form-section">
+                            <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection(section.sectionKey || section.category)}>
+                              <span>{collapsedSections.has(section.sectionKey || section.category) ? '▶ ' : '▼ '}{section.title}</span>
                     {section.category !== 'brakes' && Object.keys(tuneDefaults).some(k => k.startsWith(`${section.category}.`)) && (
-                      <button onClick={resetAllToDefaults} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
+                      <button onClick={(e) => { e.stopPropagation(); resetAllToDefaults(); }} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
                         重置为推荐值
                       </button>
                     )}
@@ -1531,11 +1567,115 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 </div>
               )
             })}
+                    </>
+                  )}
+                </div>
 
-            {/* 常用驾驶问题面板 + 遥测诊断面板 - 并排显示 */}
-            {editingTune && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              {/* 常用驾驶问题面板 */}
+                {/* 右栏：评级、基本信息与诊断工具面板 (可滚动) */}
+                <div style={{ flex: 0.85, overflow: 'auto', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  
+                  {/* PI 卡片徽章 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>调校最终 PI 级别</span>
+                    {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                  </div>
+
+                  {/* 预计总 PI 说明 */}
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: 8,
+                    padding: 12,
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#d29922',
+                      marginBottom: 8,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{buildMode === 'ai' ? '预测总 PI' : '系统预估 PI'}</span>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        color: buildMode === 'ai' && totalPi > targetPi ? '#da3633' : 'var(--success)'
+                      }}>
+                        {totalPi} PI
+                      </span>
+                    </div>
+                    {buildMode === 'ai' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 8, fontSize: 9, color: 'var(--text-muted)' }}>
+                        <div>原厂: {basePi}</div>
+                        <div>配件增量: +{partsPiDelta}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 基本配置填报 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <label style={labelStyle}>调校名称</label>
+                      <input
+                        value={formData.name}
+                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="例如: 街头赛高速弯道调校"
+                        style={inputStyle}
+                      />
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={labelStyle}>标签 (逗号分隔)</label>
+                        <input
+                          value={formData.tags}
+                          onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                          placeholder="公路, 漂移, 拉力..."
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>适用车型</label>
+                        <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={labelStyle}>手动修改 PI 级</label>
+                        <input
+                          type="number"
+                          min="100"
+                          max="999"
+                          step="1"
+                          value={solutionPi === null ? totalPi : solutionPi}
+                          onChange={e => setSolutionPi(e.target.value)}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 6 }}>
+                        <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>系统估算 PI：{totalPi}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 6 }}>
+                      <label style={labelStyle}>调校笔记与调参描述</label>
+                      <textarea
+                        value={formData.notes || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="在此记录调校改动特点..."
+                        rows={3}
+                        style={{ ...inputStyle, resize: 'none', fontSize: 10, lineHeight: 1.4 }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 常用驾驶问题面板 + 遥测诊断面板 */}
+                  {editingTune && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* 常用驾驶问题面板 */}
               <div style={{
                 background: 'var(--bg-primary)',
                 borderRadius: 8,
@@ -1895,78 +2035,37 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     )}
                   </div>
                 )}
-              </div>
-              </div>
-            )}
-
-            </>}
-            </>}
-
-            {(editingTune || wizardStep === 4) && (
-              <div style={{ marginTop: 16 }}>
-                {/* 基本信息 */}
-                <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>调校名称</label>
-                  <input
-                    value={formData.name}
-                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="例如: 公路赛高速调校"
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                  <div>
-                    <label style={labelStyle}>标签（用逗号分隔）</label>
-                    <input
-                      value={formData.tags}
-                      onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                      placeholder="公路, 漂移, 拉力..."
-                      style={inputStyle}
-                    />
+                
+                {showModal && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(2)}
+                      style={{ ...btnSmallStyle, flex: 1 }}
+                    >
+                      上一步 (返回选配)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveTune}
+                      style={{ ...btnPrimaryStyle, flex: 1.5, background: 'var(--success)' }}
+                    >
+                      完成并保存调校
+                    </button>
                   </div>
-                  <div>
-                    <label style={labelStyle}>适用车辆</label>
-                    <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
-                  </div>
-                </div>
-
-                {/* 调校笔记 */}
-                <div style={{ marginBottom: 16 }}>
-                  <label style={labelStyle}>调校笔记</label>
-                  <textarea
-                    value={formData.notes || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="记录这个调校的特点、适用场景、调校思路等..."
-                    rows={3}
-                    style={{
-                      ...inputStyle,
-                      resize: 'vertical',
-                      lineHeight: 1.6,
-                      fontFamily: 'inherit'
-                    }}
-                  />
-                </div>
+                )}
+              </div>
               </div>
             )}
-
-            {!editingTune && wizardStep === 3 && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button onClick={() => setWizardStep(2)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>
-                <button onClick={() => setWizardStep(4)} style={{ ...btnPrimaryStyle, flex: 1 }}>{buildMode === 'ai' ? '确认配件并填写调教' : '下一步：填写调教'}</button>
-              </div>
+            </div>
+            </div>
             )}
-            {(editingTune || wizardStep === 4) && <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              {!editingTune && <button onClick={() => setWizardStep(3)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>}
-              <button onClick={saveTune} disabled={loading} style={{ ...btnPrimaryStyle, flex: 2 }}>
-                {loading ? '保存中...' : (editingTune ? '保存修改' : '创建调校')}
-              </button>
-            </div>}
-            {/* Round 9: 快捷键提示 */}
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', lineHeight: 1.6 }}>
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Esc</span> 关闭 &nbsp;
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+S</span> 保存 &nbsp;
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+D</span> 复制调校
+
+            {/* 4. 快捷键提示与页脚 */}
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 12, textAlign: 'center', lineHeight: 1.4, flexShrink: 0 }}>
+              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Esc</span> 关闭工作台 &nbsp;&nbsp;
+              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+S</span> 保存调校 &nbsp;&nbsp;
+              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+D</span> 复制草稿
             </div>
           </div>
         </div>
