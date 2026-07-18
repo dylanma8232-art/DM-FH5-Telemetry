@@ -63,5 +63,80 @@ export const sqliteDb = {
       DELETE FROM sessions_detail WHERE id = ?
     `);
     stmt.run(sessionId);
+  },
+
+  /**
+   * 一键静默历史大碎文件全面归并搬迁入库，并彻底删除物理大文件
+   */
+  migrateAllOldSessions: () => {
+    const sessionsDir = path.join(DATA_DIR, 'sessions');
+    if (!fs.existsSync(sessionsDir)) return;
+
+    try {
+      const files = fs.readdirSync(sessionsDir);
+      let count = 0;
+      
+      // 提取出所有含有 _detail 字样的 br 文件
+      const brFiles = files.filter(f => f.includes('_detail') && f.endsWith('.br'));
+      
+      // 提取出所有 session 标志 ID
+      const sessionIds = new Set();
+      for (const file of brFiles) {
+        const id = file.split('_detail')[0];
+        if (id) sessionIds.add(id);
+      }
+      
+      for (const sessionId of sessionIds) {
+        const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
+        const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
+        const oldBrPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
+        
+        try {
+          const stmtCheck = db.prepare(`SELECT 1 FROM sessions_detail WHERE id = ?`);
+          const exists = stmtCheck.get(sessionId);
+          
+          if (!exists) {
+            // 找存在的 buffer
+            let hifiBuffer = null;
+            let lowfiBuffer = null;
+            
+            if (fs.existsSync(hifiPath)) hifiBuffer = fs.readFileSync(hifiPath);
+            else if (fs.existsSync(oldBrPath)) hifiBuffer = fs.readFileSync(oldBrPath);
+            
+            if (fs.existsSync(lowfiPath)) lowfiBuffer = fs.readFileSync(lowfiPath);
+            
+            // 兜底互相填充
+            if (hifiBuffer && !lowfiBuffer) lowfiBuffer = hifiBuffer;
+            if (!hifiBuffer && lowfiBuffer) hifiBuffer = lowfiBuffer;
+            
+            if (hifiBuffer || lowfiBuffer) {
+              const stmtInsert = db.prepare(`
+                INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
+                VALUES (?, ?, ?, ?)
+              `);
+              stmtInsert.run(sessionId, hifiBuffer, lowfiBuffer, new Date().toISOString());
+            }
+          }
+          
+          // 一旦数据库有备份，彻底销毁磁盘上的大碎文件！
+          if (fs.existsSync(hifiPath)) fs.unlinkSync(hifiPath);
+          if (fs.existsSync(lowfiPath)) fs.unlinkSync(lowfiPath);
+          if (fs.existsSync(oldBrPath)) fs.unlinkSync(oldBrPath);
+          
+          const oldGzPath = path.join(sessionsDir, `${sessionId}_detail.json.gz`);
+          if (fs.existsSync(oldGzPath)) fs.unlinkSync(oldGzPath);
+          
+          count++;
+        } catch (e) {
+          console.error(`[SQLite Migration] 彻底迁移 ${sessionId} 细节失败:`, e.message);
+        }
+      }
+      
+      if (count > 0) {
+        console.log(`[SQLite Migration] 🎉 彻底大清扫！已强力归并并销毁了 ${count} 组历史遥测碎物理文件。`);
+      }
+    } catch (err) {
+      console.error('[SQLite Migration] 全量彻底迁移老文件出错:', err.message);
+    }
   }
 };

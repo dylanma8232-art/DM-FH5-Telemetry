@@ -15,6 +15,7 @@ import { runSessionRetentionCleanup } from './services/retention.js';
 
 // 子系统与存储模块导入
 import { getLocalIPs, loadJSON, saveJSON } from './utils/helpers.js';
+import { sqliteDb } from './storage/sqlite-db.js';
 import { 
   loadTracksDatabase, 
   saveTracksDatabase, 
@@ -57,6 +58,11 @@ if (fs.existsSync(envPath)) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 migrateOldSessions();
+try {
+  sqliteDb.migrateAllOldSessions();
+} catch (e) {
+  console.error('[index.js] 自动全量迁移至 SQLite 失败:', e.message);
+}
 
 let vehicles = loadJSON(DATA_DIR + '/vehicles.json');
 let tracks = loadTracksDatabase();
