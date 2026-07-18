@@ -76,8 +76,16 @@ export function applyOption(state, slotId, option = {}, baseState) {
     next.massKg *= 1 - 0.012 * Math.max(1, level);
   }
   if (slotId === 'tires_compound') next.grip += TIRE_GRIP[id] ?? 0.2;
-  if (slotId === 'tires_width_front' && option.widthMm) next.frontWidth = Number(option.widthMm);
-  if (slotId === 'tires_width_rear' && option.widthMm) next.rearWidth = Number(option.widthMm);
+  if (slotId === 'tires_width_front') {
+    const val = Number(id.replace('plus_', '').replace('minus_', '')) || 0;
+    const sign = id.startsWith('minus_') ? -1 : 1;
+    next.frontWidth = baseState.frontWidth + sign * val * 10;
+  }
+  if (slotId === 'tires_width_rear') {
+    const val = Number(id.replace('plus_', '').replace('minus_', '')) || 0;
+    const sign = id.startsWith('minus_') ? -1 : 1;
+    next.rearWidth = baseState.rearWidth + sign * val * 10;
+  }
   if (slotId === 'rims_weight' && Number.isFinite(Number(option.weightDeltaKg))) next.massKg += Number(option.weightDeltaKg);
   if (slotId === 'rim_size_front' || slotId === 'rim_size_rear') {
     if (id.startsWith('plus_')) next.massKg += (Number(id.replace('plus_', '')) || 0) * 1.2;
@@ -88,9 +96,12 @@ export function applyOption(state, slotId, option = {}, baseState) {
     next.driveType = option.driveType;
     next.massKg += option.driveType === 'awd' ? 55 : -12;
   }
-  if (slotId === 'front_aero' || slotId === 'rear_aero') {
-    next.aero += id === 'adjustable' ? 0.13 : 0.07;
-    next.topSpeedKph *= id === 'adjustable' ? 0.988 : 0.994;
+  if (slotId === 'front_aero') {
+    next.aero += id === 'adjustable' ? 0.08 : 0.04;
+  }
+  if (slotId === 'rear_aero') {
+    next.aero += id === 'adjustable' ? -0.18 : 0.0;
+    next.topSpeedKph *= id === 'adjustable' ? 0.965 : 0.994;
   }
   if (slotId === 'brakes') next.brake += level * 0.055;
   if (slotId === 'suspension') next.handling += (id === 'rally' || id === 'offroad' ? 0.02 : 0.005) * Math.max(1, level || 2);
@@ -98,7 +109,10 @@ export function applyOption(state, slotId, option = {}, baseState) {
   if (slotId === 'differential') next.handling += 0.001 * Math.max(1, level || 2);
   if (slotId === 'transmission') next.shift += 0.001 * Math.max(1, level);
   if (slotId === 'clutch' || slotId === 'driveline') next.shift += 0.001 * Math.max(1, level);
-  if (slotId === 'roll_cage') { next.massKg += 15 * Math.max(1, level); next.handling += 0; }
+  if (slotId === 'roll_cage') {
+    next.massKg += 15 * Math.max(1, level);
+    next.handling += 0.007 * Math.max(1, level); // 扭转刚度带来的 Handling 物理补偿
+  }
   return next;
 }
 
@@ -113,11 +127,12 @@ function scoreState(state, stock) {
   // 引入 0.62 缩放因子将马力 PI 校准到游戏真实范围，并针对中小马力车型引入非线性马力折扣
   const powerScale = 420 + Math.max(0, basePi - 400) * 1.15;
   const powerRatioDiscount = Math.min(1.0, 0.4 + (stock.powerHp / 450) * 0.6);
-  let powerPi = deltaPowerRatio * powerScale * 0.62 * powerRatioDiscount;
+  // 引入非线性幂次函数对大马力推重比提升进行边际收益衰减 (符合大马力下 PI 边际效应骤减规律)
+  let powerPi = deltaPowerRatio * powerScale * 0.47 * powerRatioDiscount;
   
   const hpDelta = state.powerHp - stock.powerHp;
   if (hpDelta > 0) {
-    powerPi += (hpDelta / stock.powerHp) * 9 * (1 + (basePi - 300) * 0.0012);
+    powerPi += (hpDelta / stock.powerHp) * 4.2 * (1 + (basePi - 300) * 0.0012);
   }
 
   // 2. 减重与被动增重 (Weight delta) 贡献的 PI 分数
@@ -152,7 +167,7 @@ function scoreState(state, stock) {
   // 5. 驱动置换 (Drivetrain Swap)
   let driveSwapPi = 0;
   if (state.driveType === 'awd' && stock.driveType !== 'awd') {
-    driveSwapPi = 15 + (stock.powerHp / stock.massKg) * 45;
+    driveSwapPi = 2 + (stock.powerHp / stock.massKg) * 25;
   } else if (state.driveType !== 'awd' && stock.driveType === 'awd') {
     driveSwapPi = -15;
   }
@@ -162,32 +177,46 @@ function scoreState(state, stock) {
 
 export function fixedOptionDelta(stock, slotId, option) {
   if (!option || option.id === 'stock') return 0;
-  let baseBonus = 0;
-  if (slotId === 'engine_swap') {
-    baseBonus = 15; // 引擎置换底盘调校基础补偿
-  }
-  return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock) + baseBonus);
+  return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock));
 }
 
 export function predictBuildPi(profile, selections, slots, ignoreBias = false) {
   const stock = makeStockState(profile);
   const basePi = finite(profile.basePi, 500);
 
-  // 从 SQLite 加载该车型的配件偏置校准
+  // 1. 整体物理状态叠加计算 (以 combinedState 整体计算物理增益，防止各配件独立相加导致缺乏物理耦合而 PI 虚高)
+  let combinedState = { ...stock };
+  if (slots && selections) {
+    for (const slot of slots) {
+      const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
+      const option = slot.options?.find(item => item.id === optionId);
+      if (option && optionId !== 'stock') {
+        combinedState = applyOption(combinedState, slot.id, option, stock);
+      }
+    }
+  }
+
+  // 整体物理 Delta
+  const mainPhysicsDelta = scoreState(combinedState, stock);
+
+  // 2. 从 SQLite 加载配件对应的 bias 校准偏置并累加
   const vehicleId = profile.id || profile.vehicleId || '';
   const calibrations = vehicleId ? sqliteDb.getPiCalibrations(vehicleId) : [];
   const biasMap = ignoreBias ? new Map() : new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
 
-  const deltaFromStock = (slots || []).reduce((total, slot) => {
-    const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
-    const baseDelta = fixedOptionDelta(stock, slot.id, slot.options?.find(item => item.id === optionId));
-    const bias = biasMap.get(`${slot.id}/${optionId}`) || 0;
-    return total + baseDelta + bias;
-  }, 0);
+  let sumBias = 0;
+  if (slots && selections) {
+    for (const slot of slots) {
+      const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
+      const bias = biasMap.get(`${slot.id}/${optionId}`) || 0;
+      sumBias += bias;
+    }
+  }
 
-  const totalPi = clamp(Math.round(basePi + deltaFromStock), 100, 999);
+  const totalPi = clamp(Math.round(basePi + mainPhysicsDelta + sumBias), 100, 999);
   const coverage = Math.round((stock.knownFields / 6) * 100);
-  const uncertainty = clamp(Math.round(7 + (100 - coverage) * 0.16 + Math.abs(deltaFromStock) * 0.045), 7, 30);
+  const uncertainty = clamp(Math.round(7 + (100 - coverage) * 0.16 + Math.abs(mainPhysicsDelta) * 0.045), 7, 30);
+  
   return {
     totalPi, minPi: clamp(totalPi - uncertainty, 100, 999), maxPi: clamp(totalPi + uncertainty, 100, 999),
     deltaFromStock: totalPi - basePi, featureCoverage: coverage, uncertainty, modelVersion: 'formula-v1', usedPriors: stock.usedPriors

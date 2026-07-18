@@ -81,8 +81,8 @@ const COMMON_SLOTS = [
   { id: 'differential', label: '差速器', group: '传动系统', options: [option('stock', '原厂'), option('sport', '跑车级可调', 1, { adjustable: true }), option('race', '赛车级可调', 2, { adjustable: true }), option('rally', '拉力差速器可调', 2, { adjustable: true }), option('offroad', '越野差速器可调', 2, { adjustable: true }), option('drift', '漂移差速器可调', 2, { adjustable: true })] },
   { id: 'tires_compound', label: '轮胎配方', group: '轮胎与轮毂', options: [option('stock', '原厂'), option('street', '街车胎', 4), option('sport', '跑车胎', 9), option('semi_slick', '半热熔胎', 16), option('slick', '热熔胎', 22), option('vintage_race', '复古赛车胎', 14), option('rally', '拉力胎', 12), option('offroad', '越野胎', 10), option('drift', '漂移胎', 10), option('drag', '直线加速胎', 8), option('snow', '雪地胎', 7)] },
   // 胎宽是车型专属的离散毫米值；没有来源时绝不伪造“加宽 N 级”。
-  { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
-  { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
+  { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', options: [option('minus_1', '减小一级', -1), option('stock', '原厂宽度'), option('plus_1', '加宽一级', 1), option('plus_2', '加宽二级', 2), option('plus_3', '加宽三级', 3)] },
+  { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', options: [option('minus_1', '减小一级', -1), option('stock', '原厂宽度'), option('plus_1', '加宽一级', 2), option('plus_2', '加宽二级', 5), option('plus_3', '加宽三级', 8)] },
   { id: 'rims_weight', label: '轮毂重量', group: '轮胎与轮毂', options: [option('stock', '原厂重量'), ...Array.from({ length: 40 }, (_, index) => index < 20 ? option(`minus_${20 - index}`, `减轻 ${20 - index} 千克`, Math.max(0, Math.round((20 - index) / 7)), { weightDeltaKg: -(20 - index) }) : option(`plus_${index - 19}`, `增加 ${index - 19} 千克`, -Math.max(0, Math.round((index - 19) / 7)), { weightDeltaKg: index - 19 }))] },
   { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
   { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
@@ -118,7 +118,22 @@ const AI_SAFE_OPTION_IDS = {
 const tune = (id, min, max, step, when = null, rangeConfidence = 'game_global') => ({ id, range: { min, max, step }, when, rangeConfidence });
 function buildCommonSlots(profile, selections) {
   const exclusions = new Set(profile.excludedCommonSlots || []);
-  exclusions.add('engine_restrictor'); // 默认排除限流板，仅在 overrides 显式指示时加载
+  
+  // 智能动态解锁限流板：若原车有配置，或选装了赛车级(Racing)/拉力级(Rally)置换引擎，则自动解锁显示
+  let hasRestrictor = profile.commonSlotOverrides?.engine_restrictor?.availability === 'verified_present';
+  if (selections?.engine_swap?.optionId && selections.engine_swap.optionId !== 'stock') {
+    const engineSwapSlot = (profile.slots || []).find(s => s.id === 'engine_swap');
+    const selectedOpt = engineSwapSlot?.options?.find(o => o.id === selections.engine_swap.optionId);
+    if (selectedOpt) {
+      const optName = (selectedOpt.label || selectedOpt.name || '').toLowerCase();
+      if (optName.includes('racing') || optName.includes('rally') || optName.includes('restrictor') || optName.includes('赛车') || optName.includes('拉力')) {
+        hasRestrictor = true;
+      }
+    }
+  }
+  if (!hasRestrictor) {
+    exclusions.add('engine_restrictor');
+  }
   if (profile.commonTemplate === 'electric_road' || profile.stockAspiration === 'e') {
     ['aspiration_swap', 'engine_intake', 'engine_intake_manifold', 'engine_fuel_system', 'engine_ignition', 'exhaust', 'engine_camshaft', 'engine_valves', 'engine_displacement', 'engine_pistons', 'engine_oil_cooling', 'engine_flywheel', 'clutch'].forEach(id => exclusions.add(id));
   }
@@ -131,13 +146,7 @@ function buildCommonSlots(profile, selections) {
     const override = overrides[slot.id] || {};
     const allowed = override.allowedOptions ? new Set(override.allowedOptions) : null;
     const aiSafe = new Set(override.aiEligibleOptions || AI_SAFE_OPTION_IDS[slot.id] || []);
-    const tirePosition = slot.id === 'tires_width_front' ? 'front' : slot.id === 'tires_width_rear' ? 'rear' : null;
-    const knownTireSizes = tirePosition ? profile.tireSizes?.[tirePosition] : null;
-    const hasVehicleTireSizes = Array.isArray(knownTireSizes) && knownTireSizes.length;
-    const tireWidths = hasVehicleTireSizes ? knownTireSizes : GENERIC_TIRE_WIDTHS_MM;
-    const slotOptions = tirePosition
-      ? [option('stock', '原厂宽度'), ...tireWidths.map(widthMm => option(`width_${widthMm}`, `${widthMm} 毫米`, estimateTireWidthPi(profile, widthMm, hasVehicleTireSizes ? knownTireSizes : [], tirePosition), { widthMm, piSource: hasVehicleTireSizes ? 'vehicle_width_model' : 'generic_width_model', aiEligible: false }))]
-      : slot.options;
+    const slotOptions = slot.options;
     const options = slotOptions.filter(item => !allowed || item.id === 'stock' || allowed.has(item.id)).map(item => {
       const isSameDrivetrain = slot.id === 'drivetrain_swap' && item.driveType === profile.baseDriveType;
       // null 表示尚无 PI 数据，不能把它误当作 0 PI。
@@ -157,7 +166,7 @@ function buildCommonSlots(profile, selections) {
         ...item,
         piEstimate: actualPiEstimate,
         aiEligible: item.id !== 'stock' && aiSafe.has(item.id),
-        piConfidence: (item.id === 'stock' || isSameDrivetrain) ? 'exact' : (hasPiEstimate ? (item.piSource?.includes('_model') ? 'model_estimate' : 'bounded_generic_estimate') : 'unknown'),
+        piConfidence: (item.id === 'stock' || isSameDrivetrain) ? 'exact' : (hasPiEstimate ? 'bounded_generic_estimate' : 'unknown'),
         piUpperEstimate: upperEstimate
       };
     });
@@ -165,7 +174,7 @@ function buildCommonSlots(profile, selections) {
       ...slot,
       scope: 'common_template',
       availability: override.availability || 'inferred_common',
-      tireWidthSource: tirePosition ? (hasVehicleTireSizes ? 'vehicle' : 'generic') : null,
+      tireWidthSource: null,
       options
     };
   });
