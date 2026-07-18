@@ -344,6 +344,38 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     });
   }
 
+  // 动态净化并过滤置换引擎选项中的同马力歧义 (如过滤油车的电驱选项，去除“待核验”字眼)
+  const engineSwapSlot = slots.find(slot => slot.id === 'engine_swap');
+  if (engineSwapSlot) {
+    engineSwapSlot.options = engineSwapSlot.options.map(opt => {
+      if (opt.id === 'stock' || !opt.engineCandidates || opt.engineCandidates.length <= 1) return opt;
+      
+      const isElectricVehicle = profile.commonTemplate?.toLowerCase().includes('electric');
+      
+      let filteredCandidates = opt.engineCandidates;
+      if (isElectricVehicle) {
+        // 如果是电车，只保留电驱
+        filteredCandidates = opt.engineCandidates.filter(c => c.aspiration === 'e' || c.name?.toLowerCase().includes('motor'));
+      } else {
+        // 如果是油车，过滤电驱
+        filteredCandidates = opt.engineCandidates.filter(c => c.aspiration !== 'e' && !c.name?.toLowerCase().includes('motor'));
+      }
+
+      if (filteredCandidates.length > 0) {
+        const bestCandidate = filteredCandidates[0];
+        const sourceVehicleText = bestCandidate.sourceVehicle ? ` (来自 ${bestCandidate.sourceVehicle})` : '';
+        return {
+          ...opt,
+          label: `${bestCandidate.name} · ${bestCandidate.powerHp}马力${sourceVehicleText}`,
+          engineCandidates: filteredCandidates,
+          engineNameStatus: filteredCandidates.length === 1 ? 'resolved' : 'ambiguous'
+        };
+      }
+      
+      return opt;
+    });
+  }
+
   const effectiveSelections = { ...selections };
   const invalidated = [];
   for (const [slotId, selection] of Object.entries(selections)) {
