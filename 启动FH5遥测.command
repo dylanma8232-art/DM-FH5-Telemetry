@@ -85,8 +85,15 @@ if [ "$NEED_BUILD" -eq 1 ]; then
     cd forza-telemetry/client && npm run build && cd "$PROJECT_DIR"
 fi
 
-# 4. 清理残留进程，释放 9188 端口
+# 4. 清理残留进程，释放 9187, 9188 与 UDP 9996 端口
+kill_port 9187
 kill_port 9188
+local udp_pid=$(lsof -t -iUDP:9996 2>/dev/null)
+if [ -n "$udp_pid" ]; then
+    echo -e "[$(get_time)] ${YELLOW}正在清理占用的 UDP 9996 遥测端口...${NC}"
+    kill -9 $udp_pid 2>/dev/null
+    sleep 1
+fi
 
 # 5. 后台延时打开浏览器
 LOCAL_IP=$(get_local_ip)

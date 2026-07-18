@@ -107,6 +107,13 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const [editingTune, setEditingTune] = useState(null)
   const [expandedTune, setExpandedTune] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const setTunes = () => {}
+  const setVehicles = () => {}
+  const setTracks = () => {}
+  const setActiveTune = () => {}
+  const setActiveTuneLoading = () => {}
+  const setTuneSessionStats = () => {}
+
   const [vehicleFilter, setVehicleFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
   const [formData, setFormData] = useState(createDefaultFormData)
