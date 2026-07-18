@@ -104,7 +104,7 @@ function scoreState(state, stock) {
   
   // 1. 绝对马力推重比提升 (FH5 核心马力 PI 模型)
   // 校准说明：原系数过大导致全套引擎改装估算 PI 虚高 ~2-3x
-  // 目标：单件竞赛级发动机改装 +10~25 PI（A800 车型），全套引擎 +50~80 PI
+  // 目标：单件赛车级发动机改装 +10~25 PI（A800 车型），全套引擎 +50~80 PI
   const stockPowerRatio = stock.powerHp / stock.massKg;
   const currentPowerRatio = state.powerHp / state.massKg;
   const deltaPowerRatio = currentPowerRatio - stockPowerRatio;
