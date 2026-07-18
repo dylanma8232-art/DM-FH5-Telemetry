@@ -1,5 +1,11 @@
 # AI Agent 协作指南
 
+> [!IMPORTANT]
+> ### 🛑 唯一开发与运行环境绝对军规 (Iron Rules - DO NOT DEVIATE)
+> 1. **唯一服务端口**：本项目的唯一运行与调试网页永远是且仅是 **`http://localhost:9188`**。
+> 2. **禁止启用测试端口**：任何时候进场，**严禁**搭建或使用 Vite dev server 的临时开发测试端口（如 `9187` 或 `5173` 等）。
+> 3. **强制自动构建同步（Vite Build Sync）**：由于后端服务直接从 `client/dist` 托管静态页面，任何时候修改了 `client/src/` 下的前端代码，**必须无条件立刻进入 `forza-telemetry/client` 目录执行 `npm run build` 进行编译同步**！所有页面效果验证与自动化测试必须基于 `9188` 进行。
+
 ## CodeGraph 知识图谱
 
 本项目使用 [CodeGraph](https://github.com/colbymchenry/codegraph) 进行智能索引和知识图谱管理。
