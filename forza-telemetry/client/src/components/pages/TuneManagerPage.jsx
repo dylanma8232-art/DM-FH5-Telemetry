@@ -1471,6 +1471,22 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   ← 返回调校库
                 </button>
               </div>
+              
+              <button
+                onClick={saveTune}
+                style={{
+                  ...btnPrimaryStyle,
+                  background: 'var(--success)',
+                  padding: '6px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                💾 {editingTune ? '保存此调校' : '完成并保存'}
+              </button>
             </div>
 
             {/* 2. 新版 3 步分步导航（编辑与新建均展示） */}
