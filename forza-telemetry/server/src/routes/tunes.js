@@ -336,6 +336,8 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   if (body.brakes !== undefined) tune.brakes = body.brakes;
   if (body.aero !== undefined) tune.aero = body.aero;
   if (body.parts !== undefined) tune.parts = body.parts;
+  if (body.notes !== undefined) tune.notes = body.notes;
+  if (body.freeMode !== undefined) tune.freeMode = body.freeMode;
   tune.parts = validation.normalizedParts;
   tune.updatedAt = new Date().toISOString();
   
