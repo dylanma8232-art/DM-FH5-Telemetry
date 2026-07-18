@@ -635,7 +635,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     const savedTargetPi = Number(tune.targetPi)
     setTargetPi(PI_CLASS_CAPS.includes(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
-    setWizardStep(4)
+    setWizardStep(3)
     _setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
     setShowModal(true)
     setDrivingProblemsOpen(false)
@@ -704,7 +704,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
     dirtyParamsRef.current.clear()
     _setBuildMode(mode)  // 同步更新 ref，防止异步 effect 竞争
     refreshUpgradeShop(formData.vehicleId, {})
-    if (mode === 'manual') setWizardStep(3)
   }
 
   const applyTelemetrySuggestions = (suggestions) => {

@@ -422,38 +422,126 @@ export function validateBuild(profile, selections = {}) {
  */
 export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, driveType, raceType = 'road' } = {}) {
   const priority = {
-    road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'weight_reduction', 'suspension', 'brakes'],
-    dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction'],
-    cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction'],
+    road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'weight_reduction', 'suspension', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
+    dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
+    cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction', 'brakes'],
     drift: ['suspension', 'differential', 'tires_width_rear', 'transmission', 'engine_camshaft']
   };
+  
   let parts = { ...selections };
-  let resolved = resolveUpgradeProfile(profile, parts, { driveType });
   const limit = Math.min(999, Number(targetPi) || 800);
+
+  // 1. 操控核心改件前置强制装配 (META 改装黄金准则：操控与鞋子最优先)
+  if (raceType === 'dirt' || raceType === 'rally') {
+    parts.tires_compound = { optionId: 'rally', tier: 'sport' };
+    parts.suspension = { optionId: 'rally', tier: 'sport' };
+    parts.differential = { optionId: 'race', tier: 'race' };
+  } else if (raceType === 'cross_country') {
+    parts.tires_compound = { optionId: 'offroad', tier: 'sport' };
+    parts.suspension = { optionId: 'offroad', tier: 'sport' };
+    parts.differential = { optionId: 'race', tier: 'race' };
+  } else if (raceType === 'drift') {
+    parts.suspension = { optionId: 'drift', tier: 'sport' };
+    parts.differential = { optionId: 'drift', tier: 'sport' };
+    parts.tires_compound = { optionId: 'drift', tier: 'sport' };
+  } else { // 公路/街头赛 road
+    parts.suspension = { optionId: 'race', tier: 'race' };
+    parts.anti_roll_bar_front = { optionId: 'race', tier: 'race' };
+    parts.anti_roll_bar_rear = { optionId: 'race', tier: 'race' };
+    
+    // 根据目标 PI 级别动态选择轮胎抓地材质
+    if (limit >= 900) { // S1 级以上
+      parts.tires_compound = { optionId: 'semi_slick', tier: 'sport' };
+    } else if (limit >= 800) { // A 级以上
+      parts.tires_compound = { optionId: 'sport', tier: 'sport' };
+    } else if (limit >= 700) { // B 级
+      parts.tires_compound = { optionId: 'street', tier: 'street' };
+    }
+  }
+
+  let resolved = resolveUpgradeProfile(profile, parts, { driveType });
+
+  // 如果前置关键件后已经超标，需要立即卸载一些不必要的前置件
+  if (resolved.prediction.totalPi > limit) {
+    if (parts.tires_compound && limit < 800) {
+      parts.tires_compound = { optionId: 'stock', tier: 'stock' };
+    }
+    resolved = resolveUpgradeProfile(profile, parts, { driveType });
+  }
+
+  // 2. 启发式多轮贪心升级搜索
   for (let pass = 0; pass < 80; pass++) {
     const current = resolved.prediction;
+    if (current.totalPi >= limit) break;
+
     let best = null;
     for (const slot of resolved.slots || []) {
       const currentId = parts[slot.id]?.optionId || 'stock';
       for (const option of slot.options || []) {
         if (option.id === currentId || option.id === 'stock') continue;
         
-        // 启发式剪枝：如果该配件的预估 PI 增量加上当前 PI 已经直接超出上限（加上容差带），则无需执行复杂的 predict 过程
-        const estimateDelta = Number(option.piEstimate) || 0;
-        if (current.totalPi + estimateDelta > limit + 15) continue;
+        // 剪枝过滤：不允许选退化或低于当前的配件级别
+        const currentTierIdx = TIER_INDEX[currentId] ?? 0;
+        const optionTierIdx = TIER_INDEX[option.id] ?? 0;
+        if (slot.tierSystem && optionTierIdx <= currentTierIdx) continue;
 
         const candidateParts = { ...parts, [slot.id]: { optionId: option.id, tier: option.id } };
         const candidate = predictBuildPi(profile, candidateParts, resolved.slots);
-        if (candidate.totalPi > limit || candidate.totalPi <= current.totalPi) continue;
+        
+        // 允许微小的溢出（溢出在 6 PI 以内我们依然接受，用于后续回溯降级裁剪动力件，这能榨干每一滴 PI！）
+        if (candidate.totalPi > limit + 6 || candidate.totalPi <= current.totalPi) continue;
+        
         const rank = priority[raceType]?.indexOf(slot.id);
-        const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 8 : 0) - candidate.uncertainty * 0.25;
-        if (!best || utility > best.utility) best = { slotId: slot.id, optionId: option.id, utility };
+        const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 12 : 0) - candidate.uncertainty * 0.15;
+        if (!best || utility > best.utility) {
+          best = { slotId: slot.id, optionId: option.id, utility, targetPi: candidate.totalPi };
+        }
       }
     }
     if (!best) break;
+
+    // 实施升级
     parts = { ...parts, [best.slotId]: { optionId: best.optionId, tier: best.optionId } };
     resolved = resolveUpgradeProfile(profile, parts, { driveType });
   }
+
+  // 3. 动力改件降级回溯（Backtracking Downgrade）—— 极限缝合目标 PI 阈值
+  const powerSlotsForDowngrade = [
+    'engine_flywheel', 'engine_oil_cooling', 'engine_ignition', 
+    'engine_valves', 'engine_intake', 'engine_fuel_system', 
+    'engine_intercooler', 'engine_displacement', 'engine_pistons',
+    'exhaust', 'engine_camshaft'
+  ];
+
+  for (let rollback = 0; rollback < 10; rollback++) {
+    resolved = resolveUpgradeProfile(profile, parts, { driveType });
+    if (resolved.prediction.totalPi <= limit) break;
+
+    // 寻找当前已升级最高的动力小改件进行降级
+    let downgradedSomething = false;
+    for (const slotId of powerSlotsForDowngrade) {
+      const currentOptId = parts[slotId]?.optionId || 'stock';
+      if (currentOptId === 'stock') continue;
+
+      // 降级一个档次
+      const slot = resolved.slots?.find(s => s.id === slotId);
+      if (!slot) continue;
+      
+      const currentTierIdx = TIER_INDEX[currentOptId] ?? 0;
+      const lowerOptions = (slot.options || [])
+        .filter(o => (TIER_INDEX[o.id] ?? 0) < currentTierIdx)
+        .sort((a, b) => (TIER_INDEX[b.id] ?? 0) - (TIER_INDEX[a.id] ?? 0)); // 按等级降序
+
+      if (lowerOptions.length > 0) {
+        parts[slotId] = { optionId: lowerOptions[0].id, tier: lowerOptions[0].id };
+        downgradedSomething = true;
+        break;
+      }
+    }
+    if (!downgradedSomething) break;
+  }
+
+  resolved = resolveUpgradeProfile(profile, parts, { driveType });
   return { parts: resolved.effectiveSelections, prediction: resolved.prediction, slots: resolved.slots };
 }
 

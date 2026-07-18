@@ -1,3 +1,5 @@
+import { sqliteDb } from '../storage/sqlite-db.js';
+
 /**
  * 公式 PI 预测器。
  *
@@ -36,7 +38,8 @@ function makeStockState(profile = {}) {
     powerHp, torqueNm, massKg, frontWidth, rearWidth, topSpeedKph,
     grip: finite(spec.tireGrip, 0), aero: finite(spec.aero, 0), brake: finite(spec.brake, 0),
     handling: finite(spec.handling, 0), shift: 0, driveType: profile.baseDriveType || 'awd',
-    knownFields: known, usedPriors: known < 6
+    knownFields: known, usedPriors: known < 6,
+    basePi: pi
   };
 }
 
@@ -97,40 +100,87 @@ function applyOption(state, slotId, option = {}, baseState) {
 }
 
 function scoreState(state, stock) {
-  const powerPerMass = state.powerHp / state.massKg;
-  const stockPowerPerMass = stock.powerHp / stock.massKg;
-  const torquePerMass = state.torqueNm / state.massKg;
-  const stockTorquePerMass = stock.torqueNm / stock.massKg;
-  const widthGrip = 0.65 * logRatio(state.frontWidth, stock.frontWidth) + 0.2 * logRatio(state.rearWidth, stock.rearWidth);
-  const driveGrip = state.driveType === 'awd'
-    ? 7.5 * clamp((powerPerMass / 0.32) * (1 - clamp(state.grip / 1.45, 0, 1)), 0, 1.35)
-    : state.driveType === 'fwd' ? -3.5 * clamp(powerPerMass / 0.42, 0, 1.4) : 0;
-  return 70 * logRatio(powerPerMass, stockPowerPerMass)
-    + 12 * logRatio(torquePerMass, stockTorquePerMass)
-    - 12 * logRatio(state.massKg, stock.massKg)
-    + 18 * logRatio(state.topSpeedKph, stock.topSpeedKph)
-    + 85 * ((state.grip - stock.grip) + widthGrip)
-    + 25 * (state.aero - stock.aero)
-    + 24 * (state.brake - stock.brake)
-    + 28 * (state.handling - stock.handling)
-    + 35 * (state.shift - stock.shift)
-    + driveGrip;
+  const basePi = stock.basePi || 500;
+  
+  // 1. 绝对马力推重比提升 (FH5 核心马力 PI 模型)
+  const stockPowerRatio = stock.powerHp / stock.massKg;
+  const currentPowerRatio = state.powerHp / state.massKg;
+  const deltaPowerRatio = currentPowerRatio - stockPowerRatio;
+  
+  // FH5 里随着车辆本身 PI (底盘性能) 增高，马力对应的 PI 增幅呈非线性放大
+  const powerScale = 420 + Math.max(0, basePi - 400) * 1.15;
+  let powerPi = deltaPowerRatio * powerScale;
+  
+  // 确保有一个绝对的马力增幅底线
+  const hpDelta = state.powerHp - stock.powerHp;
+  if (hpDelta > 0) {
+    powerPi += (hpDelta / stock.powerHp) * 15 * (1 + (basePi - 300) * 0.0012);
+  }
+
+  // 2. 减重 (Weight Reduction) 贡献的 PI 分数
+  const deltaMass = stock.massKg - state.massKg;
+  let massPi = 0;
+  if (deltaMass > 0) {
+    const massRatio = deltaMass / stock.massKg;
+    // FH5 中减重对越轻/高级的车加 PI 越多
+    massPi = massRatio * 320 * (1 + (basePi - 400) * 0.0018);
+  }
+
+  // 3. 轮胎材质与抓地力 (Grip) PI 贡献
+  const gripDelta = state.grip - stock.grip;
+  // 赛车胎 1.45 grip 对应约 85-110 PI 的提升
+  let gripPi = gripDelta * 65 * (1 + (basePi - 300) * 0.0015);
+
+  // 胎宽提升
+  const frontWidthDelta = state.frontWidth - stock.frontWidth;
+  const rearWidthDelta = state.rearWidth - stock.rearWidth;
+  if (frontWidthDelta > 0) gripPi += (frontWidthDelta / 10) * 2.2;
+  if (rearWidthDelta > 0) gripPi += (rearWidthDelta / 10) * 3.5;
+
+  // 4. 其他底盘改装件贡献 (直接与升级程度 linear/nonlinear 映射)
+  const aeroPi = (state.aero - stock.aero) * 50;
+  const brakePi = (state.brake - stock.brake) * 75;
+  const handlingPi = (state.handling - stock.handling) * 110;
+  const shiftPi = (state.shift - stock.shift) * 90;
+
+  // 5. 驱动置换 (Drivetrain Swap)
+  let driveSwapPi = 0;
+  if (state.driveType === 'awd' && stock.driveType !== 'awd') {
+    // 后驱/前驱改四驱：大马力车加的极多，小马力车只加 15-20 PI
+    driveSwapPi = 18 + (stock.powerHp / stock.massKg) * 60;
+  } else if (state.driveType !== 'awd' && stock.driveType === 'awd') {
+    // 四驱改后驱：通常会扣减 10-20 PI
+    driveSwapPi = -18;
+  }
+
+  return powerPi + massPi + gripPi + aeroPi + brakePi + handlingPi + shiftPi + driveSwapPi;
 }
 
 function fixedOptionDelta(stock, slotId, option) {
   if (!option || option.id === 'stock') return 0;
-  // 产品规则：同一辆车上同一个配件的 PI 固定，不受其它已装配件影响。
-  // 公式仅负责把车型原厂规格投影成该固定值；整套改装随后直接求和。
-  return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock));
+  let baseBonus = 0;
+  if (slotId === 'engine_swap') {
+    baseBonus = 15; // 引擎置换底盘调校基础补偿
+  }
+  return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock) + baseBonus);
 }
 
 export function predictBuildPi(profile, selections, slots) {
   const stock = makeStockState(profile);
   const basePi = finite(profile.basePi, 500);
+
+  // 从 SQLite 加载该车型的配件偏置校准
+  const vehicleId = profile.id || profile.vehicleId || '';
+  const calibrations = vehicleId ? sqliteDb.getPiCalibrations(vehicleId) : [];
+  const biasMap = new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
+
   const deltaFromStock = (slots || []).reduce((total, slot) => {
     const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
-    return total + fixedOptionDelta(stock, slot.id, slot.options?.find(item => item.id === optionId));
+    const baseDelta = fixedOptionDelta(stock, slot.id, slot.options?.find(item => item.id === optionId));
+    const bias = biasMap.get(`${slot.id}/${optionId}`) || 0;
+    return total + baseDelta + bias;
   }, 0);
+
   const totalPi = clamp(Math.round(basePi + deltaFromStock), 100, 999);
   const coverage = Math.round((stock.knownFields / 6) * 100);
   const uncertainty = clamp(Math.round(7 + (100 - coverage) * 0.16 + Math.abs(deltaFromStock) * 0.045), 7, 30);
@@ -143,8 +193,17 @@ export function predictBuildPi(profile, selections, slots) {
 export function applyPiPredictions(profile, selections, slots) {
   const prediction = predictBuildPi(profile, selections, slots);
   const stock = makeStockState(profile);
+
+  // 从 SQLite 加载该车型的配件偏置校准
+  const vehicleId = profile.id || profile.vehicleId || '';
+  const calibrations = vehicleId ? sqliteDb.getPiCalibrations(vehicleId) : [];
+  const biasMap = new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
+
   const scoredSlots = slots.map(slot => ({ ...slot, options: (slot.options || []).map(option => {
-    const delta = fixedOptionDelta(stock, slot.id, option);
+    const baseDelta = fixedOptionDelta(stock, slot.id, option);
+    const bias = biasMap.get(`${slot.id}/${option.id}`) || 0;
+    const delta = baseDelta + bias;
+
     const optionUncertainty = clamp(Math.round(3 + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.08 + Math.abs(delta) * 0.035), 3, 16);
     return {
       ...option,
@@ -152,8 +211,9 @@ export function applyPiPredictions(profile, selections, slots) {
       piDeltaFromCurrent: delta,
       piDeltaFromStock: delta,
       piUpperEstimate: delta + optionUncertainty,
-      piSource: 'formula_v1', piConfidence: 'model_estimate',
-      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: '车型固定公式', contextDependent: false, ruleVersion: prediction.modelVersion }
+      piSource: bias !== 0 ? 'sqlite_calibrated' : 'formula_v1', 
+      piConfidence: bias !== 0 ? 'exact_calibrated' : 'model_estimate',
+      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: bias !== 0 ? '自学习校准融合' : '车型绝对公式', contextDependent: false, ruleVersion: prediction.modelVersion }
     };
   }) }));
   return { prediction, slots: scoredSlots };
