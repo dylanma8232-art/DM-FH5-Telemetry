@@ -22,7 +22,7 @@ const POWER_SLOT_GAIN = {
   engine_flywheel: 0.006, electric_motor: 0.055
 };
 
-function makeStockState(profile = {}) {
+export function makeStockState(profile = {}) {
   const pi = finite(profile.basePi, 500);
   const spec = profile.stockSpecs || {};
   // 没有完整原厂规格时采用显式先验；这会降低 coverage 并扩大误差带。
@@ -45,7 +45,7 @@ function makeStockState(profile = {}) {
 
 function tier(optionId) { return TIER_INDEX[optionId] ?? 0; }
 
-function applyOption(state, slotId, option = {}, baseState) {
+export function applyOption(state, slotId, option = {}, baseState) {
   if (!option || option.id === 'stock') return state;
   const next = { ...state };
   const id = option.id;
@@ -90,12 +90,12 @@ function applyOption(state, slotId, option = {}, baseState) {
     next.topSpeedKph *= id === 'adjustable' ? 0.988 : 0.994;
   }
   if (slotId === 'brakes') next.brake += level * 0.055;
-  if (slotId === 'suspension') next.handling += (id === 'rally' || id === 'offroad' ? 0.07 : 0.055) * Math.max(1, level || 2);
-  if (slotId === 'anti_roll_bar_front' || slotId === 'anti_roll_bar_rear') next.handling += 0.035;
-  if (slotId === 'differential') next.handling += 0.018 * Math.max(1, level || 2);
-  if (slotId === 'transmission') next.shift += 0.018 * Math.max(1, level || (id.startsWith('race') ? 3 : 1));
-  if (slotId === 'clutch' || slotId === 'driveline') next.shift += 0.01 * Math.max(1, level);
-  if (slotId === 'roll_cage') { next.massKg += 18 * Math.max(1, level); next.handling += 0.015 * Math.max(1, level); }
+  if (slotId === 'suspension') next.handling += (id === 'rally' || id === 'offroad' ? 0.02 : 0.005) * Math.max(1, level || 2);
+  if (slotId === 'anti_roll_bar_front' || slotId === 'anti_roll_bar_rear') next.handling += 0.001;
+  if (slotId === 'differential') next.handling += 0.001 * Math.max(1, level || 2);
+  if (slotId === 'transmission') next.shift += 0.001 * Math.max(1, level);
+  if (slotId === 'clutch' || slotId === 'driveline') next.shift += 0.001 * Math.max(1, level);
+  if (slotId === 'roll_cage') { next.massKg += 15 * Math.max(1, level); next.handling += 0; }
   return next;
 }
 
@@ -103,50 +103,47 @@ function scoreState(state, stock) {
   const basePi = stock.basePi || 500;
   
   // 1. 绝对马力推重比提升 (FH5 核心马力 PI 模型)
-  // 校准说明：原系数过大导致全套引擎改装估算 PI 虚高 ~2-3x
-  // 目标：单件赛车级发动机改装 +10~25 PI（A800 车型），全套引擎 +50~80 PI
   const stockPowerRatio = stock.powerHp / stock.massKg;
   const currentPowerRatio = state.powerHp / state.massKg;
   const deltaPowerRatio = currentPowerRatio - stockPowerRatio;
   
-  // 引入 0.62 缩放因子将马力 PI 校准到游戏真实范围
+  // 引入 0.62 缩放因子将马力 PI 校准到游戏真实范围，并针对中小马力车型引入非线性马力折扣
   const powerScale = 420 + Math.max(0, basePi - 400) * 1.15;
-  let powerPi = deltaPowerRatio * powerScale * 0.62;
+  const powerRatioDiscount = Math.min(1.0, 0.4 + (stock.powerHp / 450) * 0.6);
+  let powerPi = deltaPowerRatio * powerScale * 0.62 * powerRatioDiscount;
   
   const hpDelta = state.powerHp - stock.powerHp;
   if (hpDelta > 0) {
     powerPi += (hpDelta / stock.powerHp) * 9 * (1 + (basePi - 300) * 0.0012);
   }
 
-  // 2. 减重 (Weight Reduction) 贡献的 PI 分数
-  // ⚠️ 修复说明：massPi 与 powerPi 双重计算问题
-  // powerPi 已经通过推重比(power/mass)变化捕获了减重对加速/极速的全部贡献。
-  // 若再单独计算 massPi，等于双重叠加，导致减重 race 虚高至 +54 PI。
-  // 减重对刹车/操控的贡献已在 applyOption 的 brake/handling delta 中体现。
-  // 结论：massPi 归零，仅保留 powerPi + brakePi + handlingPi 三路贡献。
-  const deltaMass = stock.massKg - state.massKg;
-  const massPi = 0; // 避免双重计算，已由 powerPi 完整捕获
+  // 2. 减重与被动增重 (Weight delta) 贡献的 PI 分数
+  // 对增重车辆应用负反馈补偿 (如防滚架、轮毂尺寸增大等被动负重)
+  const massPi = state.massKg > stock.massKg ? (stock.massKg - state.massKg) * 0.08 : 0;
 
   // 3. 轮胎材质与抓地力 (Grip) PI 贡献
-  // 校准说明：原系数 65 导致热熔胎估算 +150 PI，实际游戏约 +20~35 PI
-  // 目标：slick(grip=1.45) 对 A800 车(放大因子≈1.55)约 +28 PI → 系数=12
+  // 提升抓地力主系数以匹配轮胎升级带来的高额 PI 改动分
   const gripDelta = state.grip - stock.grip;
-  let gripPi = gripDelta * 12 * (1 + (basePi - 300) * 0.0015);
+  let gripPi = gripDelta * 23.5 * (1 + (basePi - 300) * 0.0015);
 
-  // 胎宽提升（每 10mm 贡献 1.0~2.0 PI）
+  // 胎宽提升与后轮减分效应校准
   const frontWidthDelta = state.frontWidth - stock.frontWidth;
   const rearWidthDelta = state.rearWidth - stock.rearWidth;
-  if (frontWidthDelta > 0) gripPi += (frontWidthDelta / 10) * 1.0;
-  if (rearWidthDelta > 0) gripPi += (rearWidthDelta / 10) * 1.8;
+  if (frontWidthDelta > 0) gripPi += (frontWidthDelta / 10) * 1.8;
+  
+  if (rearWidthDelta > 0) {
+    if (state.driveType === 'awd') {
+      // 四驱车加宽后胎在 FH5 中因滚阻与重量往往会扣分
+      gripPi += (rearWidthDelta / 10) * -0.15;
+    } else {
+      gripPi += (rearWidthDelta / 10) * 0.5;
+    }
+  }
 
   // 4. 其他底盘改装件贡献
-  // 空力：adjustable aero(delta=0.13) 约 +5 PI
   const aeroPi = (state.aero - stock.aero) * 38;
-  // 制动：race brakes(delta=0.165) 约 +6 PI
   const brakePi = (state.brake - stock.brake) * 38;
-  // 操控：race suspension(delta=0.11) 约 +7 PI，差速器/防倾杆各约 +2~3 PI
   const handlingPi = (state.handling - stock.handling) * 62;
-  // 变速：race transmission(delta=0.054) 约 +7 PI
   const shiftPi = (state.shift - stock.shift) * 130;
 
   // 5. 驱动置换 (Drivetrain Swap)
@@ -160,7 +157,7 @@ function scoreState(state, stock) {
   return powerPi + massPi + gripPi + aeroPi + brakePi + handlingPi + shiftPi + driveSwapPi;
 }
 
-function fixedOptionDelta(stock, slotId, option) {
+export function fixedOptionDelta(stock, slotId, option) {
   if (!option || option.id === 'stock') return 0;
   let baseBonus = 0;
   if (slotId === 'engine_swap') {
@@ -169,14 +166,14 @@ function fixedOptionDelta(stock, slotId, option) {
   return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock) + baseBonus);
 }
 
-export function predictBuildPi(profile, selections, slots) {
+export function predictBuildPi(profile, selections, slots, ignoreBias = false) {
   const stock = makeStockState(profile);
   const basePi = finite(profile.basePi, 500);
 
   // 从 SQLite 加载该车型的配件偏置校准
   const vehicleId = profile.id || profile.vehicleId || '';
   const calibrations = vehicleId ? sqliteDb.getPiCalibrations(vehicleId) : [];
-  const biasMap = new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
+  const biasMap = ignoreBias ? new Map() : new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
 
   const deltaFromStock = (slots || []).reduce((total, slot) => {
     const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
