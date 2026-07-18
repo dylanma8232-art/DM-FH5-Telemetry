@@ -298,7 +298,38 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     applyTelemetrySuggestions
   } = useTuneManager({ onNavigate, navIntent });
   const hasAiOption = (slotId, optionId) => upgradeShop?.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === optionId && option.aiEligible === true && Number.isFinite(Number(option.piUpperEstimate)))
-  const [activePartTab, setActivePartTab] = useState('全部');
+  const [activePartTab, setActivePartTab] = useState('置换');
+
+  const partGroups = React.useMemo(() => {
+    if (!upgradeShop || upgradeShop.status === 'unverified') return { data: {}, tabs: [], current: '' };
+    
+    const mapping = {
+      '置换': '置换',
+      '空气动力学': '空气动力学',
+      '轮胎与轮毂': '轮胎与轮毂',
+      '传动系统': '传动系统',
+      '平台与操控': '底盘与操控',
+      '发动机': '引擎',
+      '电驱系统': '引擎',
+      '车辆专属': '车辆专属'
+    };
+    
+    const order = ['置换', '空气动力学', '轮胎与轮毂', '传动系统', '底盘与操控', '引擎', '车辆专属'];
+    
+    const data = {};
+    visiblePartCategories.forEach(category => {
+      const rawGroup = category.group || '其他改装';
+      const resolvedGroup = mapping[rawGroup];
+      if (resolvedGroup) {
+        (data[resolvedGroup] ||= []).push(category);
+      }
+    });
+    
+    const tabs = order.filter(tab => data[tab] && data[tab].length > 0);
+    const current = tabs.includes(activePartTab) ? activePartTab : (tabs[0] || '');
+    
+    return { data, tabs, current };
+  }, [upgradeShop, visiblePartCategories, activePartTab]);
 
   const convertFixes = (fixes) => {
     if (!fixes) return null;
@@ -1438,26 +1469,6 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 >
                   ← 返回调校库
                 </button>
-                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: 'var(--accent)' }}>🏎</span> 
-                  {editingTune ? '地平线改装工坊 · 编辑调校' : '地平线改装工坊 · 新建升级配置'}
-                </h2>
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={saveTune}
-                  style={{
-                    ...btnPrimaryStyle,
-                    background: 'var(--success)',
-                    borderColor: 'rgba(63, 185, 80, 0.4)',
-                    padding: '8px 24px',
-                    fontSize: 13,
-                    fontWeight: 700
-                  }}
-                >
-                  保存此调校
-                </button>
               </div>
             </div>
 
@@ -1735,15 +1746,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   
                   {(() => {
                     if (!upgradeShop || upgradeShop?.status === 'unverified') return null;
-                    const partGroupsData = visiblePartCategories.reduce((groups, category) => {
-                      const group = category.group || '其他改装';
-                      (groups[group] ||= []).push(category);
-                      return groups;
-                    }, {});
+                    const { tabs, current } = partGroups;
                     return (
                       <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'auto', paddingBottom: 4, flexShrink: 0 }}>
-                        {['全部', ...Object.keys(partGroupsData)].map(tabName => {
-                          const isSelected = activePartTab === tabName;
+                        {tabs.map(tabName => {
+                          const isSelected = current === tabName;
                           return (
                             <button
                               key={tabName}
@@ -1792,13 +1799,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         {upgradeShop.message || '请先选择一辆已有改装资料的车辆。'}
                       </div>
                     ) : (() => {
-                      const partGroupsData = visiblePartCategories.reduce((groups, category) => {
-                        const group = category.group || '其他改装';
-                        (groups[group] ||= []).push(category);
-                        return groups;
-                      }, {});
-                      return Object.entries(partGroupsData)
-                        .filter(([groupName]) => activePartTab === '全部' || activePartTab === groupName)
+                      const { data, current } = partGroups;
+                      return Object.entries(data)
+                        .filter(([groupName]) => groupName === current)
                         .map(([group, categories]) => (
                           <React.Fragment key={group}>
                             <div style={{ gridColumn: '1 / -1', marginTop: 8, padding: '4px 2px', borderBottom: '1px solid var(--border)', color: group === '车辆专属' ? '#bc8cff' : 'var(--text-secondary)', fontSize: 10, fontWeight: 700 }}>
