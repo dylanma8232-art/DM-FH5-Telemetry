@@ -74,7 +74,18 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
       style={isStock ? {} : { '--glow-color': selectedColor + '18', borderColor: selectedColor + '44' }}
     >
       <div className="part-header" onClick={() => setExpanded(!expanded)}>
-        <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+        <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {!isStock && (
+            <span style={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: '#3fb950',
+              boxShadow: '0 0 8px #3fb950',
+              display: 'inline-block',
+              animation: 'recommendedGlow 2.5s infinite ease-in-out'
+            }} />
+          )}
           {category.label}
         </span>
         <span 

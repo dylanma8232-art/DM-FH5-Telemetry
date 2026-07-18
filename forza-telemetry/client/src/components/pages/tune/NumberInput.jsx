@@ -46,17 +46,54 @@ export const NumberInput = React.memo(function NumberInput({
 
   return (
     <div style={{ position: 'relative', marginBottom: 12 }}>
+      <style>{`
+        @keyframes recommendedGlow {
+          0% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.3), inset 0 0 2px rgba(63, 185, 80, 0.2); border-color: rgba(63, 185, 80, 0.4); }
+          50% { box-shadow: 0 0 12px rgba(63, 185, 80, 0.85), inset 0 0 4px rgba(63, 185, 80, 0.4); border-color: #3fb950; }
+          100% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.3), inset 0 0 2px rgba(63, 185, 80, 0.2); border-color: rgba(63, 185, 80, 0.4); }
+        }
+        .input-glow-recommended {
+          animation: recommendedGlow 2.5s infinite ease-in-out;
+        }
+        .fh5-range-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 3px;
+          outline: none;
+          transition: background 0.2s;
+        }
+        .fh5-range-slider:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.12);
+        }
+        .fh5-range-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: var(--thumb-color, var(--accent));
+          cursor: pointer;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 0 6px var(--thumb-glow, rgba(56, 139, 253, 0.4));
+          transition: transform 0.15s, background-color 0.15s;
+        }
+        .fh5-range-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.35);
+        }
+      `}</style>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <label className="label-ctrl" style={{ margin: 0, fontSize: 10, fontWeight: 600 }}>
           {label} {unit && <span style={{ color: 'var(--text-muted)' }}>({unit})</span>}
           {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }} title={lockedHint}>🔒 {lockedHint || '需升级'}</span>}
-          {highlighted && <span style={{ color: '#d29922', marginLeft: 4, fontSize: 9, fontWeight: 600 }}>遥测推荐</span>}
+          {highlighted && <span style={{ color: '#3fb950', marginLeft: 4, fontSize: 9, fontWeight: 600 }}>遥测推荐</span>}
         </label>
       </div>
 
       {suggestedValue !== undefined && !locked ? (
         <div style={{
-          fontSize: 8, color: '#d29922', marginTop: -2, marginBottom: 4,
+          fontSize: 8, color: '#3fb950', marginTop: -2, marginBottom: 4,
           display: 'flex', alignItems: 'center', gap: 3
         }}>
           <span>遥测预填建议: {suggestedValue}</span>
@@ -106,20 +143,23 @@ export const NumberInput = React.memo(function NumberInput({
           min={min}
           max={max}
           step={step}
+          className="fh5-range-slider"
           value={locked ? min : (value === '' || value === '-' ? min : value)}
           onChange={(e) => { if (!locked) onChange(parseFloat(e.target.value)) }}
           disabled={locked}
           style={{
             flex: 1,
-            height: 4,
-            accentColor: highlighted ? '#d29922' : 'var(--accent)',
+            height: 5,
             cursor: locked ? 'not-allowed' : 'pointer',
-            opacity: locked ? 0.3 : 1
+            opacity: locked ? 0.3 : 1,
+            '--thumb-color': highlighted ? '#3fb950' : 'var(--accent)',
+            '--thumb-glow': highlighted ? 'rgba(63, 185, 80, 0.6)' : 'rgba(56, 139, 253, 0.4)'
           }}
         />
 
         <input
           type="number"
+          className={highlighted ? 'input-glow-recommended' : ''}
           value={locked ? '-' : value}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -128,20 +168,22 @@ export const NumberInput = React.memo(function NumberInput({
           step={step}
           disabled={locked}
           style={{
-            width: 52,
+            width: 54,
             height: 24,
             background: 'var(--bg-secondary)',
             border: '1px solid var(--border)',
             borderRadius: 4,
-            color: 'var(--text-primary)',
+            color: highlighted ? '#3fb950' : 'var(--text-primary)',
+            fontWeight: highlighted ? 700 : 400,
             textAlign: 'center',
             fontFamily: 'monospace',
             fontSize: 10,
             outline: 'none',
-            boxShadow: highlighted ? '0 0 10px rgba(210, 153, 34, 0.6)' : (isOffDefault ? 'inset 0 0 0 1px rgba(210, 153, 34, 0.2)' : 'none'),
-            borderColor: highlighted ? '#d29922' : (isOffDefault ? 'rgba(210, 153, 34, 0.4)' : 'var(--border)'),
+            boxShadow: highlighted ? 'none' : (isOffDefault ? 'inset 0 0 0 1px rgba(210, 153, 34, 0.15)' : 'none'),
+            borderColor: highlighted ? 'transparent' : (isOffDefault ? 'rgba(210, 153, 34, 0.3)' : 'var(--border)'),
             opacity: locked ? 0.4 : 1,
-            cursor: locked ? 'not-allowed' : 'auto'
+            cursor: locked ? 'not-allowed' : 'auto',
+            transition: 'border-color 0.25s, box-shadow 0.25s, color 0.25s'
           }}
         />
 

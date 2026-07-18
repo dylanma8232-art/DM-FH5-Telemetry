@@ -89,15 +89,16 @@ export function useTuneDiagnosis({
   }
 
   // 执行遥测诊断
-  const runTelemetryDiagnosis = async () => {
-    if (!selectedSessionId) {
+  const runTelemetryDiagnosis = async (targetSessionId = null) => {
+    const sessionId = targetSessionId || selectedSessionId
+    if (!sessionId) {
       alert('请先选择一个Session')
       return
     }
     setDiagnosing(true)
     setDiagnosisResult(null)
     try {
-      const res = await fetch(`/api/sessions/${selectedSessionId}/telemetry`)
+      const res = await fetch(`/api/sessions/${sessionId}/telemetry`)
       if (!res.ok) throw new Error('加载遥测数据失败')
       const telemetryData = await res.json()
 

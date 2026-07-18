@@ -88,8 +88,11 @@ const COMMON_SLOTS = [
   { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
   { id: 'track_width_front', label: '前轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
   { id: 'track_width_rear', label: '后轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
-  { id: 'front_aero', label: '前部空气动力学', group: '空气动力学', options: [option('stock', '原厂前部'), option('fixed', '固定前部件', 0, { adjustable: false }), option('adjustable', '可调前部件', 0, { adjustable: true })] },
-  { id: 'rear_aero', label: '尾翼', group: '空气动力学', options: [option('stock', '原厂尾翼'), option('fixed', '固定尾翼', 0, { adjustable: false }), option('adjustable', '可调尾翼', 0, { adjustable: true })] }
+  // 空力件说明：FH5 中只有「Forza 品牌前铲/尾翼」才是可调件（解锁下压力调校菜单）
+  // 固定前铲/尾翼外观件 PI 差异极大且无法可靠估算，不列入改装选项
+  // 选项仅保留「原厂」和「可调」两种有明确语义的状态
+  { id: 'front_aero', label: '前铲', group: '空气动力学', options: [option('stock', '原厂'), option('adjustable', '可调前铲（解锁前下压力调校）', 0, { adjustable: true })] },
+  { id: 'rear_aero', label: '尾翼', group: '空气动力学', options: [option('stock', '原厂'), option('adjustable', '可调尾翼（解锁后下压力调校）', 0, { adjustable: true })] }
 ];
 
 // 手动模式保留完整枚举；AI 只从这些保守子集中选择。专属件默认不进入 AI。
@@ -244,8 +247,8 @@ export function isConditionMet(condition, selections = {}) {
 const VEHICLE_SLOT_PI_MODELS = {
   aspiration_swap: { aspiration_na: 0, aspiration_t: 20, aspiration_tt: 20, aspiration_pds: 20, aspiration_cs: 20 },
   widebody: { listed_widebody: 8 },
-  front_aero: { fixed: 0, adjustable: 0 },
-  rear_aero: { fixed: 0, adjustable: 0 },
+  front_aero: { adjustable: 0 },
+  rear_aero: { adjustable: 0 },
   appearance_options: { listed_appearance: 0 },
   upgrade_preset: { listed_preset: 0 }
 };

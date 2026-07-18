@@ -631,11 +631,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
     })
     // 已保存方案的 basePi 由服务端按车辆原厂档案计算；加载档案后还会再次校正。
     setBasePi(tune.basePi || 500)
-    setSolutionPi(Number.isFinite(Number(tune.totalPi)) ? String(tune.totalPi) : null)
+    setSolutionPi(null) // 编辑模式跟随动态 totalPi；用户可在保存前手动输入实测 PI
     const savedTargetPi = Number(tune.targetPi)
     setTargetPi(PI_CLASS_CAPS.includes(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
-    setWizardStep(3)
+    setWizardStep(2)
     _setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
     setShowModal(true)
     setDrivingProblemsOpen(false)

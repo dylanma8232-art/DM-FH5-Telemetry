@@ -1518,14 +1518,16 @@ export function TrackManagerPage({ onNavigate }) {
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
-          {/* 搜索框 + 排序按钮 */}
+          {/* 下拉搜索框 + 排序按钮 */}
           <div style={{ marginBottom: 8, display: 'flex', gap: 6 }}>
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="搜索赛道名称..."
-              style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
-            />
+            <div style={{ flex: 1 }}>
+              <SearchableTrackSelect
+                tracks={tracks}
+                value={selectedTrack || ''}
+                onChange={id => { if (id) previewTrack(id); }}
+                placeholder="搜索赛道名称..."
+              />
+            </div>
             {[
               { key: 'time', label: '时间' },
               { key: 'name', label: '名称' },
