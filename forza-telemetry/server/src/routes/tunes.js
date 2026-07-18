@@ -8,24 +8,37 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { sqliteDb } from '../storage/sqlite-db.js';
+import { predictBuildPi } from '../services/pi-model.js';
+import { resolveUpgradeProfile } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 function performSelfLearningCalibration(vehicleId, confirmedPi, estimate, normalizedParts) {
-  if (!vehicleId || !confirmedPi || !estimate) return;
-  const delta = Math.round(confirmedPi - estimate);
-  if (delta === 0) return; // 物理模型正好对齐，无需校准
+  if (!vehicleId || !confirmedPi) return;
+  const profile = loadUpgradeProfile(vehicleId);
+  if (!profile) return;
 
-  // 获取当前所有已改动（不是 stock）的配件列表
+  // 1. 获取完整的 slots
+  const resolved = resolveUpgradeProfile(profile, normalizedParts);
+  const slots = resolved.slots || [];
+
+  // 2. 预测没有偏置 (ignoreBias = true) 的纯物理估值
+  const purePrediction = predictBuildPi(profile, normalizedParts, slots, true);
+  const pureEstimate = purePrediction.totalPi;
+
+  // 3. 计算绝对物理误差
+  const absoluteDelta = Math.round(confirmedPi - pureEstimate);
+
+  // 4. 获取当前所有已改动（不是 stock）的配件列表
   const activeSlots = Object.entries(normalizedParts || {})
     .filter(([slotId, part]) => part && part.optionId && part.optionId !== 'stock')
     .map(([slotId, part]) => ({ slotId, optionId: part.optionId }));
 
   if (activeSlots.length === 0) return;
 
-  let remainingDelta = delta;
+  let remainingDelta = absoluteDelta;
   const assignments = [];
 
   // 特写大件分配权重
@@ -34,17 +47,17 @@ function performSelfLearningCalibration(vehicleId, confirmedPi, estimate, normal
   const aspSwap = activeSlots.find(s => s.slotId === 'aspiration_swap');
 
   if (engineSwap) {
-    const alloc = Math.round(delta * 0.5);
+    const alloc = Math.round(absoluteDelta * 0.5);
     assignments.push({ ...engineSwap, bias: alloc });
     remainingDelta -= alloc;
   }
   if (driveSwap) {
-    const alloc = Math.round(delta * 0.25);
+    const alloc = Math.round(absoluteDelta * 0.25);
     assignments.push({ ...driveSwap, bias: alloc });
     remainingDelta -= alloc;
   }
   if (aspSwap) {
-    const alloc = Math.round(delta * 0.25);
+    const alloc = Math.round(absoluteDelta * 0.25);
     assignments.push({ ...aspSwap, bias: alloc });
     remainingDelta -= alloc;
   }
@@ -63,13 +76,9 @@ function performSelfLearningCalibration(vehicleId, confirmedPi, estimate, normal
     assignments[0].bias += remainingDelta;
   }
 
-  // 将分摊偏置写入数据库并累计
-  const currentBiases = sqliteDb.getPiCalibrations(vehicleId) || [];
-  const currentBiasMap = new Map(currentBiases.map(b => [`${b.slot_id}/${b.option_id}`, b.bias_pi]));
-
+  // 将分摊偏置写入数据库并直接覆写 (不再与 currentBias 叠加)
   for (const item of assignments) {
-    const currentBias = currentBiasMap.get(`${item.slotId}/${item.optionId}`) || 0;
-    const newBias = clamp(currentBias + item.bias, -80, 80);
+    const newBias = clamp(item.bias, -40, 40); // 限制单项最大偏置为 [-40, 40]
     sqliteDb.savePiCalibration(vehicleId, item.slotId, item.optionId, newBias);
   }
 }
