@@ -79,7 +79,10 @@ export function applyOption(state, slotId, option = {}, baseState) {
   if (slotId === 'tires_width_front' && option.widthMm) next.frontWidth = Number(option.widthMm);
   if (slotId === 'tires_width_rear' && option.widthMm) next.rearWidth = Number(option.widthMm);
   if (slotId === 'rims_weight' && Number.isFinite(Number(option.weightDeltaKg))) next.massKg += Number(option.weightDeltaKg);
-  if (slotId === 'rim_size_front' || slotId === 'rim_size_rear') next.massKg += Math.max(0, Number(id.replace('plus_', '')) || 0) * 1.2;
+  if (slotId === 'rim_size_front' || slotId === 'rim_size_rear') {
+    if (id.startsWith('plus_')) next.massKg += (Number(id.replace('plus_', '')) || 0) * 1.2;
+    else if (id.startsWith('minus_')) next.massKg -= (Number(id.replace('minus_', '')) || 0) * 1.2;
+  }
   if (slotId === 'track_width_front' || slotId === 'track_width_rear') next.handling += (Number(id.replace('wide_', '')) || 0) * 0.018;
   if (slotId === 'drivetrain_swap' && option.driveType) {
     next.driveType = option.driveType;

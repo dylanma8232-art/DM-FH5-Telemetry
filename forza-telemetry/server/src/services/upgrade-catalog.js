@@ -84,15 +84,16 @@ const COMMON_SLOTS = [
   { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
   { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂宽度')] },
   { id: 'rims_weight', label: '轮毂重量', group: '轮胎与轮毂', options: [option('stock', '原厂重量'), ...Array.from({ length: 40 }, (_, index) => index < 20 ? option(`minus_${20 - index}`, `减轻 ${20 - index} 千克`, Math.max(0, Math.round((20 - index) / 7)), { weightDeltaKg: -(20 - index) }) : option(`plus_${index - 19}`, `增加 ${index - 19} 千克`, -Math.max(0, Math.round((index - 19) / 7)), { weightDeltaKg: index - 19 }))] },
-  { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
-  { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `增大 ${index + 1} 级`, index + 1))] },
+  { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
+  { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
   { id: 'track_width_front', label: '前轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
   { id: 'track_width_rear', label: '后轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
   // 空力件说明：FH5 中只有「Forza 品牌前铲/尾翼」才是可调件（解锁下压力调校菜单）
   // 固定前铲/尾翼外观件 PI 差异极大且无法可靠估算，不列入改装选项
   // 选项仅保留「原厂」和「可调」两种有明确语义的状态
   { id: 'front_aero', label: '前铲', group: '空气动力学', options: [option('stock', '原厂'), option('adjustable', '可调前铲（解锁前下压力调校）', 0, { adjustable: true })] },
-  { id: 'rear_aero', label: '尾翼', group: '空气动力学', options: [option('stock', '原厂'), option('adjustable', '可调尾翼（解锁后下压力调校）', 0, { adjustable: true })] }
+  { id: 'rear_aero', label: '尾翼', group: '空气动力学', options: [option('stock', '原厂'), option('adjustable', '可调尾翼（解锁后下压力调校）', 0, { adjustable: true })] },
+  { id: 'engine_restrictor', label: '限流板', group: '发动机', options: [option('stock', '原厂限流板', 0), option('removed', '拆除限流板', 45, { powerMultiplier: 1.45 })] }
 ];
 
 // 手动模式保留完整枚举；AI 只从这些保守子集中选择。专属件默认不进入 AI。
@@ -117,12 +118,13 @@ const AI_SAFE_OPTION_IDS = {
 const tune = (id, min, max, step, when = null, rangeConfidence = 'game_global') => ({ id, range: { min, max, step }, when, rangeConfidence });
 function buildCommonSlots(profile, selections) {
   const exclusions = new Set(profile.excludedCommonSlots || []);
+  exclusions.add('engine_restrictor'); // 默认排除限流板，仅在 overrides 显式指示时加载
   if (profile.commonTemplate === 'electric_road' || profile.stockAspiration === 'e') {
     ['aspiration_swap', 'engine_intake', 'engine_intake_manifold', 'engine_fuel_system', 'engine_ignition', 'exhaust', 'engine_camshaft', 'engine_valves', 'engine_displacement', 'engine_pistons', 'engine_oil_cooling', 'engine_flywheel', 'clutch'].forEach(id => exclusions.add(id));
   }
   const overrides = profile.commonSlotOverrides || {};
   const slots = COMMON_SLOTS.filter(slot => {
-    if (exclusions.has(slot.id)) return false;
+    if (exclusions.has(slot.id) && !overrides[slot.id]) return false;
     const availability = overrides[slot.id]?.availability;
     return availability !== 'verified_absent' && availability !== 'unknown';
   }).map(slot => {
