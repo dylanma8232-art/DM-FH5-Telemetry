@@ -39,11 +39,17 @@
         - 📄 [TrackManagerPage.jsx](file:///forza-telemetry/client/src/components/pages/TrackManagerPage.jsx)   *(函数/组件: `TrackManagerPage`)*
         - 📄 [TuneManagerPage.jsx](file:///forza-telemetry/client/src/components/pages/TuneManagerPage.jsx)   *(函数/组件: `TuneManagerPage`)*
         - 📄 [VehicleManagerPage.jsx](file:///forza-telemetry/client/src/components/pages/VehicleManagerPage.jsx)   *(函数/组件: `VehicleManagerPage`)*
+        - 📂 **tune/**
+          - 📄 [NumberInput.jsx](file:///forza-telemetry/client/src/components/pages/tune/NumberInput.jsx)   *(常量/方法: `NumberInput`)*
+          - 📄 [ParamItem.jsx](file:///forza-telemetry/client/src/components/pages/tune/ParamItem.jsx)   *(常量/方法: `ParamItem`)*
+          - 📄 [PartSelector.jsx](file:///forza-telemetry/client/src/components/pages/tune/PartSelector.jsx)   *(常量/方法: `PartSelector`)*
+          - 📄 [VehicleSearchSelect.jsx](file:///forza-telemetry/client/src/components/pages/tune/VehicleSearchSelect.jsx)   *(函数/组件: `VehicleSearchSelect`)*
       - 📂 **settings/**
         - 📄 [SettingsPanel.jsx](file:///forza-telemetry/client/src/components/settings/SettingsPanel.jsx)   *(函数/组件: `SettingsPanel`)*
       - 📂 **shared/**
         - 📄 [EmptyState.jsx](file:///forza-telemetry/client/src/components/shared/EmptyState.jsx)   *(函数/组件: `EmptyState`)*
         - 📄 [ErrorBoundary.jsx](file:///forza-telemetry/client/src/components/shared/ErrorBoundary.jsx) 
+        - 📄 [InlineConfirm.jsx](file:///forza-telemetry/client/src/components/shared/InlineConfirm.jsx)   *(函数/组件: `InlineConfirm`)*
         - 📄 [LoadingSpinner.jsx](file:///forza-telemetry/client/src/components/shared/LoadingSpinner.jsx)   *(函数/组件: `LoadingSpinner`)*
         - 📄 [Toast.jsx](file:///forza-telemetry/client/src/components/shared/Toast.jsx)   *(函数/组件: `toast`, 函数/组件: `ToastContainer`)*
     - 📂 **contexts/**
@@ -53,15 +59,20 @@
       - 📄 [useDashboardData.js](file:///forza-telemetry/client/src/hooks/useDashboardData.js)   *(函数/组件: `useDashboardData`)*
       - 📄 [useKeyboard.js](file:///forza-telemetry/client/src/hooks/useKeyboard.js)   *(函数/组件: `useKeyboard`)*
       - 📄 [useSessionHistory.js](file:///forza-telemetry/client/src/hooks/useSessionHistory.js)   *(函数/组件: `useSessionHistory`)*
-      - 📄 [useSocket.js](file:///forza-telemetry/client/src/hooks/useSocket.js)   *(函数/组件: `useSocket`)*
+      - 📄 [useSocket.js](file:///forza-telemetry/client/src/hooks/useSocket.js)   *(函数/组件: `subscribeTelemetry`, 函数/组件: `useTelemetrySubscription`, 函数/组件: `useSocket`)*
       - 📄 [useTuneDiagnosis.js](file:///forza-telemetry/client/src/hooks/useTuneDiagnosis.js)   *(函数/组件: `useTuneDiagnosis`)*
       - 📄 [useTuneManager.js](file:///forza-telemetry/client/src/hooks/useTuneManager.js)   *(函数/组件: `useTuneManager`, 常量/方法: `FIX_PARAM_MAP`)*
-      - 📄 [useTuneUpgrade.js](file:///forza-telemetry/client/src/hooks/useTuneUpgrade.js)   *(函数/组件: `useTuneUpgrade`)*
+      - 📄 [useTuneUpgrade.js](file:///forza-telemetry/client/src/hooks/useTuneUpgrade.js)   *(函数/组件: `useTuneUpgrade`, 函数/组件: `getInitialParameterRecommendations`)*
     - 📄 [main.jsx](file:///forza-telemetry/client/src/main.jsx) 
+    - 📂 **services/**
+      - 📄 [api.js](file:///forza-telemetry/client/src/services/api.js)   *(常量/方法: `api`)*
+    - 📂 **stores/**
+      - 📄 [useTuneStore.js](file:///forza-telemetry/client/src/stores/useTuneStore.js)   *(常量/方法: `useTuneStore`)*
     - 📄 [themes.js](file:///forza-telemetry/client/src/themes.js)   *(函数/组件: `getThemeCSSVariables`, 常量/方法: `themes`, 常量/方法: `defaultSettings`)*
     - 📂 **utils/**
       - 📄 [speechQueue.js](file:///forza-telemetry/client/src/utils/speechQueue.js)   *(常量/方法: `speechManager`)*
   - 📄 [vite.config.js](file:///forza-telemetry/client/vite.config.js)   *(默认导出: `defineConfig`)*
+- 📄 [data.zip](file:///forza-telemetry/data.zip) 
 - 📂 **docs/**
   - 📄 [dashboard-round1.md](file:///forza-telemetry/docs/dashboard-round1.md) 
   - 📄 [dashboard-round2.md](file:///forza-telemetry/docs/dashboard-round2.md) 
@@ -1034,12 +1045,14 @@
       - 📄 [migration.js](file:///forza-telemetry/server/src/storage/migration.js)   *(函数/组件: `migrateMonolithicDatabase`)*
       - 📄 [save-worker.js](file:///forza-telemetry/server/src/storage/save-worker.js) 
       - 📄 [session-db.js](file:///forza-telemetry/server/src/storage/session-db.js)   *(函数/组件: `loadTracksDatabase`, 函数/组件: `saveTracksDatabase`, 函数/组件: `readTrackDetail`, 函数/组件: `writeTrackDetail`, 函数/组件: `deleteTrackDetail`, 函数/组件: `loadSession`, 函数/组件: `migrateOldSessions`)*
+      - 📄 [sqlite-db.js](file:///forza-telemetry/server/src/storage/sqlite-db.js)   *(常量/方法: `sqliteDb`)*
     - 📄 [telemetry-parser.js](file:///forza-telemetry/server/src/telemetry-parser.js)   *(函数/组件: `parseTelemetryPacket`)*
     - 📄 [track-builder.js](file:///forza-telemetry/server/src/track-builder.js) 
     - 📂 **utils/**
       - 📄 [asyncHandler.js](file:///forza-telemetry/server/src/utils/asyncHandler.js)   *(常量/方法: `asyncHandler`)*
       - 📄 [helpers.js](file:///forza-telemetry/server/src/utils/helpers.js)   *(函数/组件: `getLocalIPs`, 函数/组件: `loadJSON`, 函数/组件: `saveJSON`)*
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)   *(函数/组件: `simplifyRDP`)*
+      - 📄 [schemas.js](file:///forza-telemetry/server/src/utils/schemas.js)   *(函数/组件: `formatZodError`, 常量/方法: `tuneParamSchema`, 常量/方法: `saveTuneSchema`)*
   - 📂 **test/**
     - 📄 [pi-model.test.js](file:///forza-telemetry/server/test/pi-model.test.js) 
 

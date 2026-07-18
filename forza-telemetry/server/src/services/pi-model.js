@@ -103,54 +103,58 @@ function scoreState(state, stock) {
   const basePi = stock.basePi || 500;
   
   // 1. 绝对马力推重比提升 (FH5 核心马力 PI 模型)
+  // 校准说明：原系数过大导致全套引擎改装估算 PI 虚高 ~2-3x
+  // 目标：单件竞赛级发动机改装 +10~25 PI（A800 车型），全套引擎 +50~80 PI
   const stockPowerRatio = stock.powerHp / stock.massKg;
   const currentPowerRatio = state.powerHp / state.massKg;
   const deltaPowerRatio = currentPowerRatio - stockPowerRatio;
   
-  // FH5 里随着车辆本身 PI (底盘性能) 增高，马力对应的 PI 增幅呈非线性放大
+  // 引入 0.62 缩放因子将马力 PI 校准到游戏真实范围
   const powerScale = 420 + Math.max(0, basePi - 400) * 1.15;
-  let powerPi = deltaPowerRatio * powerScale;
+  let powerPi = deltaPowerRatio * powerScale * 0.62;
   
-  // 确保有一个绝对的马力增幅底线
   const hpDelta = state.powerHp - stock.powerHp;
   if (hpDelta > 0) {
-    powerPi += (hpDelta / stock.powerHp) * 15 * (1 + (basePi - 300) * 0.0012);
+    powerPi += (hpDelta / stock.powerHp) * 9 * (1 + (basePi - 300) * 0.0012);
   }
 
   // 2. 减重 (Weight Reduction) 贡献的 PI 分数
+  // ⚠️ 修复说明：massPi 与 powerPi 双重计算问题
+  // powerPi 已经通过推重比(power/mass)变化捕获了减重对加速/极速的全部贡献。
+  // 若再单独计算 massPi，等于双重叠加，导致减重 race 虚高至 +54 PI。
+  // 减重对刹车/操控的贡献已在 applyOption 的 brake/handling delta 中体现。
+  // 结论：massPi 归零，仅保留 powerPi + brakePi + handlingPi 三路贡献。
   const deltaMass = stock.massKg - state.massKg;
-  let massPi = 0;
-  if (deltaMass > 0) {
-    const massRatio = deltaMass / stock.massKg;
-    // FH5 中减重对越轻/高级的车加 PI 越多
-    massPi = massRatio * 320 * (1 + (basePi - 400) * 0.0018);
-  }
+  const massPi = 0; // 避免双重计算，已由 powerPi 完整捕获
 
   // 3. 轮胎材质与抓地力 (Grip) PI 贡献
+  // 校准说明：原系数 65 导致热熔胎估算 +150 PI，实际游戏约 +20~35 PI
+  // 目标：slick(grip=1.45) 对 A800 车(放大因子≈1.55)约 +28 PI → 系数=12
   const gripDelta = state.grip - stock.grip;
-  // 赛车胎 1.45 grip 对应约 85-110 PI 的提升
-  let gripPi = gripDelta * 65 * (1 + (basePi - 300) * 0.0015);
+  let gripPi = gripDelta * 12 * (1 + (basePi - 300) * 0.0015);
 
-  // 胎宽提升
+  // 胎宽提升（每 10mm 贡献 1.0~2.0 PI）
   const frontWidthDelta = state.frontWidth - stock.frontWidth;
   const rearWidthDelta = state.rearWidth - stock.rearWidth;
-  if (frontWidthDelta > 0) gripPi += (frontWidthDelta / 10) * 2.2;
-  if (rearWidthDelta > 0) gripPi += (rearWidthDelta / 10) * 3.5;
+  if (frontWidthDelta > 0) gripPi += (frontWidthDelta / 10) * 1.0;
+  if (rearWidthDelta > 0) gripPi += (rearWidthDelta / 10) * 1.8;
 
-  // 4. 其他底盘改装件贡献 (直接与升级程度 linear/nonlinear 映射)
-  const aeroPi = (state.aero - stock.aero) * 50;
-  const brakePi = (state.brake - stock.brake) * 75;
-  const handlingPi = (state.handling - stock.handling) * 110;
-  const shiftPi = (state.shift - stock.shift) * 90;
+  // 4. 其他底盘改装件贡献
+  // 空力：adjustable aero(delta=0.13) 约 +5 PI
+  const aeroPi = (state.aero - stock.aero) * 38;
+  // 制动：race brakes(delta=0.165) 约 +6 PI
+  const brakePi = (state.brake - stock.brake) * 38;
+  // 操控：race suspension(delta=0.11) 约 +7 PI，差速器/防倾杆各约 +2~3 PI
+  const handlingPi = (state.handling - stock.handling) * 62;
+  // 变速：race transmission(delta=0.054) 约 +7 PI
+  const shiftPi = (state.shift - stock.shift) * 130;
 
   // 5. 驱动置换 (Drivetrain Swap)
   let driveSwapPi = 0;
   if (state.driveType === 'awd' && stock.driveType !== 'awd') {
-    // 后驱/前驱改四驱：大马力车加的极多，小马力车只加 15-20 PI
-    driveSwapPi = 18 + (stock.powerHp / stock.massKg) * 60;
+    driveSwapPi = 15 + (stock.powerHp / stock.massKg) * 45;
   } else if (state.driveType !== 'awd' && stock.driveType === 'awd') {
-    // 四驱改后驱：通常会扣减 10-20 PI
-    driveSwapPi = -18;
+    driveSwapPi = -15;
   }
 
   return powerPi + massPi + gripPi + aeroPi + brakePi + handlingPi + shiftPi + driveSwapPi;
