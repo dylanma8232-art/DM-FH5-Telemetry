@@ -2481,16 +2481,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     <button
                       type="button"
                       onClick={() => setWizardStep(2)}
-                      style={{ ...btnSmallStyle, flex: 1 }}
+                      style={{ ...btnSmallStyle, width: '100%', display: 'block' }}
                     >
-                      上一步 (返回选配)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveTune}
-                      style={{ ...btnPrimaryStyle, flex: 1.5, background: 'var(--success)' }}
-                    >
-                      完成并保存调校
+                      ← 上一步 (返回选配)
                     </button>
                   </div>
                 )}
