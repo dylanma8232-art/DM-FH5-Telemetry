@@ -128,21 +128,19 @@ function scoreState(state, stock) {
   const powerScale = 420 + Math.max(0, basePi - 400) * 1.15;
   const powerRatioDiscount = Math.min(1.0, 0.4 + (stock.powerHp / 450) * 0.6);
   // 引入非线性幂次函数对大马力推重比提升进行边际收益衰减 (符合大马力下 PI 边际效应骤减规律)
-  let powerPi = deltaPowerRatio * powerScale * 0.47 * powerRatioDiscount;
+  let powerPi = deltaPowerRatio * powerScale * 0.51 * powerRatioDiscount;
   
   const hpDelta = state.powerHp - stock.powerHp;
   if (hpDelta > 0) {
-    powerPi += (hpDelta / stock.powerHp) * 4.2 * (1 + (basePi - 300) * 0.0012);
+    powerPi += (hpDelta / stock.powerHp) * 3.6 * (1 + (basePi - 300) * 0.0012);
   }
 
-  // 2. 减重与被动增重 (Weight delta) 贡献的 PI 分数
-  // 对增重车辆应用负反馈补偿 (如防滚架、轮毂尺寸增大等被动负重)
+  // 2. 减重与被动增重 (Weight delta) 贡献 of PI
   const massPi = state.massKg > stock.massKg ? (stock.massKg - state.massKg) * 0.08 : 0;
 
   // 3. 轮胎材质与抓地力 (Grip) PI 贡献
-  // 提升抓地力主系数以匹配轮胎升级带来的高额 PI 改动分
   const gripDelta = state.grip - stock.grip;
-  let gripPi = gripDelta * 23.5 * (1 + (basePi - 300) * 0.0015);
+  let gripPi = gripDelta * 25.5 * (1 + (basePi - 300) * 0.0015);
 
   // 胎宽提升与后轮减分效应校准
   const frontWidthDelta = state.frontWidth - stock.frontWidth;
@@ -151,7 +149,6 @@ function scoreState(state, stock) {
   
   if (rearWidthDelta > 0) {
     if (state.driveType === 'awd') {
-      // 四驱车加宽后胎在 FH5 中因滚阻与重量往往会扣分
       gripPi += (rearWidthDelta / 10) * -0.15;
     } else {
       gripPi += (rearWidthDelta / 10) * 0.5;
@@ -160,14 +157,14 @@ function scoreState(state, stock) {
 
   // 4. 其他底盘改装件贡献
   const aeroPi = (state.aero - stock.aero) * 38;
-  const brakePi = (state.brake - stock.brake) * 38;
-  const handlingPi = (state.handling - stock.handling) * 62;
+  const brakePi = (state.brake - stock.brake) * 45;
+  const handlingPi = (state.handling - stock.handling) * 78;
   const shiftPi = (state.shift - stock.shift) * 130;
 
   // 5. 驱动置换 (Drivetrain Swap)
   let driveSwapPi = 0;
   if (state.driveType === 'awd' && stock.driveType !== 'awd') {
-    driveSwapPi = 2 + (stock.powerHp / stock.massKg) * 25;
+    driveSwapPi = 1 + (stock.powerHp / stock.massKg) * 35;
   } else if (state.driveType !== 'awd' && stock.driveType === 'awd') {
     driveSwapPi = -15;
   }
