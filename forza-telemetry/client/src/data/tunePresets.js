@@ -150,7 +150,7 @@ export const DRIVING_PROBLEMS = [
       tireCompound: { delta: 1, reason: '建议升级至更高等级轮胎，耐热性更好' }
     },
     requiresParts: ['sport_brakes'],
-    upgradeAdvice: '建议升级刹车系统至运动级或竞赛级，高等级刹车耐热性显著提升'
+    upgradeAdvice: '建议升级刹车系统至跑车级或赛车级，高等级刹车耐热性显著提升'
   },
 
   // ========== 底盘类 ==========
@@ -352,7 +352,7 @@ export const DRIVING_PROBLEMS = [
       finalDrive: { delta: -0.2, reason: '配合缩短最终传动比，让每个档位在更合适的转速区间发力' }
     },
     requiresParts: ['sport_trans'],
-    upgradeAdvice: '需要运动级或更高等级变速箱才能自定义齿比'
+    upgradeAdvice: '需要跑车级或更高等级变速箱才能自定义齿比'
   },
   {
     id: 'gear_too_short',
@@ -364,7 +364,7 @@ export const DRIVING_PROBLEMS = [
       finalDrive: { delta: 0.2, reason: '配合加长最终传动比，让每个档位覆盖更宽的速度范围' }
     },
     requiresParts: ['sport_trans'],
-    upgradeAdvice: '需要运动级或更高等级变速箱才能自定义齿比'
+    upgradeAdvice: '需要跑车级或更高等级变速箱才能自定义齿比'
   },
 
   // ========== 空力类 ==========
@@ -416,7 +416,7 @@ export const DRIVING_PROBLEMS = [
       tireCompound: { delta: -1, reason: '使用更耐久的轮胎配方（牺牲少量抓地力换取耐久性）' }
     },
     requiresParts: ['street_tires'],
-    upgradeAdvice: '如果需要兼顾抓地力和耐久，竞赛级轮胎是最平衡的选择'
+    upgradeAdvice: '如果需要兼顾抓地力和耐久，赛车级轮胎是最平衡的选择'
   },
   {
     id: 'tire_wear_uneven',
