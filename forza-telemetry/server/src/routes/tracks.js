@@ -8,7 +8,7 @@ import {
   deleteTrack,
   getEnrichedTracks
 } from '../services/track-service.js';
-import { readTrackDetail, saveTracksDatabase } from '../storage/session-db.js';
+import { readTrackDetail, saveTracksDatabase, deleteTrackDetail } from '../storage/session-db.js';
 import {
   detectTurnsEnhanced,
   generateSectors,
@@ -347,12 +347,12 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
 
   let sourceDetail = readTrackDetail(sourceTrackId);
   if (!sourceDetail) {
-    sourceDetail = { ...tracks[sourceTrackId] };
+    sourceDetail = { ...stateManager.tracks[sourceTrackId] };
   }
 
   let targetDetail = readTrackDetail(targetTrackId);
   if (!targetDetail) {
-    targetDetail = { ...tracks[targetTrackId] };
+    targetDetail = { ...stateManager.tracks[targetTrackId] };
   }
 
   const sourceTrajectories = sourceDetail.trajectories || [sourceDetail.points || []];
