@@ -18,9 +18,9 @@ const TIERS = ['stock', 'street', 'sport', 'race', 'extreme'];
 
 const TIER_LABELS = {
   stock:    { zh: '原厂',   en: 'Stock',   color: '#8b949e', sort: 0 },
-  street:   { zh: '街道级', en: 'Street',  color: '#58a6ff', sort: 1 },
-  sport:    { zh: '运动级', en: 'Sport',   color: '#3fb950', sort: 2 },
-  race:     { zh: '竞赛级', en: 'Race',    color: '#d29922', sort: 3 },
+  street:   { zh: '街车级', en: 'Street',  color: '#58a6ff', sort: 1 },
+  sport:    { zh: '跑车级', en: 'Sport',   color: '#3fb950', sort: 2 },
+  race:     { zh: '赛车级', en: 'Race',    color: '#d29922', sort: 3 },
   extreme:  { zh: '极限级', en: 'Extreme', color: '#f85149', sort: 4 }
 };
 
