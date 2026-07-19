@@ -21,8 +21,19 @@ export const useTuneStore = create((set, get) => ({
 
   loadVehicles: async () => {
     try {
-      const data = await api.vehicles.list()
-      set({ vehicles: data || {} })
+      const [received, catalog] = await Promise.all([
+        api.vehicles.list(),
+        api.vehicles.getCatalog()
+      ])
+      // 调教中心必须可选择游戏完整车辆目录；已接收车辆的实时信息覆盖目录基础信息。
+      const directory = Object.fromEntries((catalog || []).map(vehicle => [String(vehicle.ordinal), {
+        name: vehicle.name,
+        manufacturer: vehicle.manufacturer,
+        basePi: vehicle.basePi,
+        pi: vehicle.basePi,
+        catalogOnly: true
+      }]))
+      set({ vehicles: { ...directory, ...(received || {}) } })
     } catch (e) {
       // 加载车辆失败
     }

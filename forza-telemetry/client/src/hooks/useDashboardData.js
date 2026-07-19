@@ -5,9 +5,14 @@ export function useDashboardData(socket) {
   const [vehiclesList, setVehiclesList] = useState({});
 
   useEffect(() => {
-    fetch('/api/vehicles')
-      .then(res => res.json())
-      .then(data => setVehiclesList(data || {}))
+    Promise.all([
+      fetch('/api/vehicles').then(res => res.json()),
+      fetch('/api/vehicles/catalog').then(res => res.json())
+    ])
+      .then(([received, catalog]) => {
+        const directory = Object.fromEntries((catalog || []).map(vehicle => [String(vehicle.ordinal), vehicle]));
+        setVehiclesList({ ...directory, ...(received || {}) });
+      })
       .catch(() => {});
 
     fetch('/api/trackMode/status')

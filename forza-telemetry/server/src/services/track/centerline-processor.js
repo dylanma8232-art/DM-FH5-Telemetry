@@ -1,15 +1,53 @@
 export function resampleCenterline(traj, interval = 2.0) {
   if (!traj || traj.length < 2) return traj;
-  const resampled = [traj[0]];
+  // 必须按弧长取样：旧实现在跨过 interval 时直接取原始点，会把 UDP
+  // 采样频率和驾驶速度变成地图的几何形状。
+  const resampled = [{ ...traj[0], s: 0 }];
+  let carry = 0;
   for (let i = 1; i < traj.length; i++) {
-    let p1 = resampled[resampled.length - 1];
-    let p2 = traj[i];
-    let dx = p2.x - p1.x,
-      dz = p2.z - p1.z;
-    let dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist >= interval) resampled.push(p2);
+    const from = traj[i - 1];
+    const to = traj[i];
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const segmentLength = Math.hypot(dx, dz);
+    if (segmentLength < 1e-4) continue;
+    let consumed = 0;
+    while (carry + (segmentLength - consumed) >= interval) {
+      const needed = interval - carry;
+      consumed += needed;
+      const ratio = consumed / segmentLength;
+      const yawA = from.yaw || 0;
+      let yawDelta = (to.yaw || yawA) - yawA;
+      while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+      while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+      resampled.push({
+        ...from,
+        x: from.x + dx * ratio,
+        y: (from.y || 0) + ((to.y || 0) - (from.y || 0)) * ratio,
+        z: from.z + dz * ratio,
+        yaw: yawA + yawDelta * ratio,
+        s: resampled.length * interval
+      });
+      carry = 0;
+    }
+    carry += segmentLength - consumed;
+  }
+  const last = traj[traj.length - 1];
+  if (Math.hypot(last.x - resampled.at(-1).x, last.z - resampled.at(-1).z) > interval * 0.35) {
+    resampled.push({ ...last, s: resampled.at(-1).s + carry });
   }
   return resampled;
+}
+
+export function annotateArcLength(centerline) {
+  if (!centerline?.length) return centerline;
+  let s = 0;
+  centerline[0].s = 0;
+  for (let i = 1; i < centerline.length; i++) {
+    s += Math.hypot(centerline[i].x - centerline[i - 1].x, centerline[i].z - centerline[i - 1].z);
+    centerline[i].s = s;
+  }
+  return centerline;
 }
 
 export function smoothCenterline(centerline, iterations = 5) {
@@ -104,6 +142,14 @@ export function smoothCenterline(centerline, iterations = 5) {
     }
   }
 
+  // 坐标平滑完成后，航向必须由几何中心线重新计算。遥测里的车辆 yaw 是驾驶
+  // 姿态，漂移、反打和碰撞都会让它偏离道路切线，不能用于弯角或路书。
+  for (let i = 0; i < pts.length; i++) {
+    const prev = pts[Math.max(0, i - 1)];
+    const next = pts[Math.min(pts.length - 1, i + 1)];
+    pts[i].yaw = Math.atan2(next.z - prev.z, next.x - prev.x);
+  }
+
   // Calculate First & Second Derivatives and Curvature (Kappa)
   for (let i = 1; i < pts.length - 1; i++) {
     let dx = (pts[i + 1].x - pts[i - 1].x) / 2.0;
@@ -122,10 +168,9 @@ export function smoothCenterline(centerline, iterations = 5) {
   pts[0].radius = 10000;
   pts[pts.length - 1].kappa = 0;
   pts[pts.length - 1].radius = 10000;
-  return pts;
+  return annotateArcLength(pts);
 }
 
 /**
  * 自动平均切分3个Sectors
  */
-

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "S1 900 高速四驱", "tags": ["Road", "S1"], "vehicleId": "412", "totalPi": 900,
+    "tires": {"frontPressure": 1.9,"rearPressure": 1.8,"frontCamber": -1.8,"rearCamber": -1.2,"frontToe": 0.1,"rearToe": -0.1,"frontCaster": 6.5},
+    "suspension": {"frontSpring": 82,"rearSpring": 105,"frontRideHeight": 0,"rearRideHeight": 0,"frontRebound": 11,"rearRebound": 12,"frontBump": 6.5,"rearBump": 7.5,"frontARB": 12,"rearARB": 48},
+    "drivetrain": {"finalDrive": 2.83,"gear1": 3.05,"gear2": 2.15,"gear3": 1.65,"gear4": 1.35,"gear5": 1.12,"gear6": 0.95,"gear7": 0.82,"frontDiffAccel": 25,"frontDiffDecel": 0,"rearDiffAccel": 60,"rearDiffDecel": 15,"diffCenter": 65},
+    "brakes": {"balance": 48,"pressure": 100}, "aero": {"frontDownforce": 55,"rearDownforce": 157},
+    "notes": "源文件标注后胎315毫米；当前系统只有到加宽三级的可验证选项，按可用最大值导入。离心式机械增压的“跑车级”无独立档位，按离心式机械增压导入。",
+    "parts": {"engine_swap":{"optionId":"engine_415"},"drivetrain_swap":{"optionId":"awd"},"aspiration_swap":{"optionId":"aspiration_cs"},"tires_compound":{"optionId":"semi_slick"},"tires_width_front":{"optionId":"plus_2"},"tires_width_rear":{"optionId":"plus_3"},"rim_size_front":{"optionId":"plus_2"},"rim_size_rear":{"optionId":"plus_2"},"clutch":{"optionId":"race"},"transmission":{"optionId":"race_7"},"driveline":{"optionId":"race"},"differential":{"optionId":"race"},"engine_camshaft":{"optionId":"street"},"engine_intake":{"optionId":"race"},"engine_fuel_system":{"optionId":"race"},"engine_ignition":{"optionId":"race"},"brakes":{"optionId":"race"},"suspension":{"optionId":"race"},"anti_roll_bar_front":{"optionId":"race"},"anti_roll_bar_rear":{"optionId":"race"},"weight_reduction":{"optionId":"race"},"front_aero":{"optionId":"adjustable"},"rear_aero":{"optionId":"adjustable"}}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "S1 895 首都高特调", "tags": ["Road", "S1"], "vehicleId": "3681", "totalPi": 895,
+    "tires": {"frontPressure": 1.9,"rearPressure": 1.8,"frontCamber": -1.5,"rearCamber": -1,"frontToe": 0,"rearToe": -0.1,"frontCaster": 6.5},
+    "suspension": {"frontSpring": 135.5,"rearSpring": 120,"frontRideHeight": 15.4,"rearRideHeight": 15.8,"frontRebound": 11,"rearRebound": 10,"frontBump": 6.5,"rearBump": 5.5,"frontARB": 18,"rearARB": 32},
+    "drivetrain": {"finalDrive": 3.45,"gear1": 2.8,"gear2": 2,"gear3": 1.55,"gear4": 1.25,"gear5": 1,"gear6": 0.85,"gear7": 0.72,"frontDiffAccel": 30,"frontDiffDecel": 0,"rearDiffAccel": 65,"rearDiffDecel": 10,"diffCenter": 65},
+    "brakes": {"balance": 48,"pressure": 92}, "aero": {"rearDownforce": 95},
+    "notes": "源文件给出275/345毫米胎宽和19英寸轮毂，但系统资料不能从绝对毫米数唯一推导升级级数，故未伪造胎宽/轮毂级数；KRC 宽体、JUN 引擎盖和KRC尾翼记录为外观资料。",
+    "parts": {"engine_swap":{"optionId":"engine_415"},"drivetrain_swap":{"optionId":"awd"},"widebody":{"optionId":"listed_widebody"},"tires_compound":{"optionId":"semi_slick"},"transmission":{"optionId":"race_7"},"driveline":{"optionId":"race"},"differential":{"optionId":"race"},"brakes":{"optionId":"race"},"suspension":{"optionId":"race"},"anti_roll_bar_front":{"optionId":"race"},"anti_roll_bar_rear":{"optionId":"race"},"weight_reduction":{"optionId":"race"},"engine_intake":{"optionId":"race"},"exhaust":{"optionId":"race"},"engine_camshaft":{"optionId":"race"},"engine_valves":{"optionId":"race"},"engine_displacement":{"optionId":"race"},"engine_ignition":{"optionId":"race"},"engine_fuel_system":{"optionId":"race"},"engine_pistons":{"optionId":"race"},"engine_intercooler":{"optionId":"race"},"engine_flywheel":{"optionId":"race"},"engine_oil_cooling":{"optionId":"race"},"front_aero":{"optionId":"adjustable"},"rear_aero":{"optionId":"adjustable"}}
+  }
+}

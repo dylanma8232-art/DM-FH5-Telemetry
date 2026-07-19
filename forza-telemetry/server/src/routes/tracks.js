@@ -98,6 +98,58 @@ router.get('/:id/validate', asyncHandler(async (req, res) => {
 
 }));
 
+// 采用每次比赛生成的候选地图。候选生成不改正式路书；只有此操作才会提升它。
+router.post('/:id/adopt-candidate', asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  const trackDetail = readTrackDetail(id) || stateManager.tracks[id];
+  if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
+
+  const candidate = trackDetail.geometryCandidate;
+  if (!candidate?.centerline?.length || !candidate?.turns?.length) {
+    return res.status(400).json({ error: '没有可采用的候选地图。请先完成一场该赛道的比赛。' });
+  }
+
+  trackDetail.points = candidate.centerline;
+  trackDetail.centerline = candidate.centerline;
+  trackDetail.turns = candidate.turns;
+  trackDetail.length = candidate.length || 0;
+  trackDetail.isLoop = candidate.isLoop || false;
+  trackDetail.sectors = candidate.sectors || generateSectors(candidate.centerline, candidate.turns);
+  trackDetail.routeBook = candidate.routeBook || buildRouteBook(candidate.centerline, candidate.turns, candidate.centerline);
+  trackDetail.referenceGeometry = {
+    schemaVersion: candidate.schemaVersion || 2,
+    algorithm: candidate.algorithm || 'rdp-fit-v1',
+    status: 'active',
+    revision: (trackDetail.referenceGeometry?.revision || 0) + 1,
+    sourceTrajectoryCount: candidate.sourceTrajectoryCount || trackDetail.trajectoryCount || 1,
+    activatedAt: new Date().toISOString(),
+    adoptedFromCandidateAt: candidate.generatedAt || new Date().toISOString()
+  };
+  delete trackDetail.geometryCandidate;
+  trackDetail.quality = validateTrackQuality(trackDetail);
+  trackDetail.updatedAt = new Date().toISOString();
+  writeTrackDetail(id, trackDetail);
+
+  if (stateManager.tracks[id]) {
+    Object.assign(stateManager.tracks[id], {
+      length: trackDetail.length,
+      pointCount: trackDetail.centerline.length,
+      turnCount: trackDetail.turns.length,
+      isLoop: trackDetail.isLoop,
+      updatedAt: trackDetail.updatedAt
+    });
+    saveTracksDatabase(stateManager.tracks);
+  }
+
+  res.json({
+    status: 'ok',
+    trackId: id,
+    length: trackDetail.length,
+    pointCount: trackDetail.centerline.length,
+    turnCount: trackDetail.turns.length
+  });
+}));
+
 // 重建赛道中心线和弯道数据
 router.post('/:id/rebuild', asyncHandler(async (req, res) => {
   const id = req.params.id;
@@ -134,6 +186,13 @@ router.post('/:id/rebuild', asyncHandler(async (req, res) => {
   trackDetail.isLoop = trackData.isLoop || false;
   trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
   trackDetail.routeBook = trackData.routeBook;
+  trackDetail.referenceGeometry = {
+    ...trackData.geometry,
+    status: 'active',
+    revision: (trackDetail.referenceGeometry?.revision || 0) + 1,
+    activatedAt: new Date().toISOString()
+  };
+  delete trackDetail.geometryCandidate;
   trackDetail.quality = validateTrackQuality(trackDetail);
   trackDetail.updatedAt = new Date().toISOString();
 
@@ -258,7 +317,7 @@ router.post('/:id/turns/split', express.json(), asyncHandler(async (req, res) =>
   trackDetail.turns.splice(index, 1, t1, t2);
 
 
-  const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
+  const rebuiltRouteBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
   trackDetail.routeBook = rebuiltRouteBook;
   trackDetail.updatedAt = new Date().toISOString();
 
@@ -312,7 +371,7 @@ router.put('/:id/turns/:index/bounds', express.json(), asyncHandler(async (req, 
   trackDetail.turns[index] = updatedT;
 
 
-  const rebuiltRouteBook = buildRouteBook(trackDetail.turns, trackDetail.centerline);
+  const rebuiltRouteBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
   trackDetail.routeBook = rebuiltRouteBook;
   trackDetail.updatedAt = new Date().toISOString();
 
@@ -379,6 +438,14 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
     targetDetail.length = trackData.length;
     targetDetail.isLoop = trackData.isLoop || false;
     targetDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
+    targetDetail.routeBook = trackData.routeBook;
+    targetDetail.referenceGeometry = {
+      ...trackData.geometry,
+      status: 'active',
+      revision: (targetDetail.referenceGeometry?.revision || 0) + 1,
+      activatedAt: new Date().toISOString()
+    };
+    delete targetDetail.geometryCandidate;
   }
 
   deleteTrackDetail(sourceTrackId);

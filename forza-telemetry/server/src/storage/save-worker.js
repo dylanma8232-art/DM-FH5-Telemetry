@@ -214,7 +214,7 @@ async function main() {
       }
       const trimmed = trimTrajectories(existingTrajectories, 5);
 
-      // 运行几何重构，重建赛道中心线 and 弯道属性
+      // 比赛遥测只生成候选几何，不能在一次完赛后悄悄改写正在使用的地图和路书。
       const trackData = buildTrackFromTrajectories(trimmed, {
         oldTurns: trackDetail.turns || [],
         isPaceNoteLocked: trackDetail.isPaceNoteLocked || false,
@@ -226,13 +226,26 @@ async function main() {
       trackDetail.updatedAt = new Date().toISOString();
 
       if (trackData) {
-        trackDetail.points = trackData.centerline;
-        trackDetail.centerline = trackData.centerline;
-        trackDetail.turns = trackData.turns;
-        trackDetail.length = trackData.length;
-        trackDetail.isLoop = trackData.isLoop || false;
-        trackDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-
+        trackDetail.geometryCandidate = {
+          ...trackData.geometry,
+          centerline: trackData.centerline,
+          turns: trackData.turns,
+          routeBook: trackData.routeBook,
+          sectors: generateSectors(trackData.centerline, trackData.turns),
+          length: trackData.length,
+          pointCount: trackData.centerline.length,
+          isLoop: trackData.isLoop || false,
+          generatedAt: trackDetail.updatedAt
+        };
+        if (!trackDetail.referenceGeometry && trackDetail.centerline?.length) {
+          trackDetail.referenceGeometry = {
+            schemaVersion: 2,
+            algorithm: 'legacy-frozen',
+            revision: 1,
+            activatedAt: trackDetail.updatedAt,
+            sourceTrajectoryCount: Math.max(1, trimmed.length)
+          };
+        }
       }
 
       // 写入赛道详细几何包
@@ -275,6 +288,12 @@ async function main() {
       turns: trackData ? trackData.turns : null,
       isLoop: trackData ? (trackData.isLoop || false) : false,
       sectors: trackData ? generateSectors(trackData.centerline, trackData.turns) : [],
+      referenceGeometry: trackData ? {
+        ...trackData.geometry,
+        status: 'active',
+        revision: 1,
+        activatedAt: new Date().toISOString()
+      } : null,
 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

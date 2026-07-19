@@ -17,13 +17,13 @@ class SpeechQueueManager {
    * @param {object} options 语速/音量微调
    */
   speak(text, priority = 1, options = {}) {
-    if (!this.speechEnabled || !window.speechSynthesis) return;
+    if (!this.speechEnabled || !window.speechSynthesis) return false;
 
     const now = Date.now();
 
     // 防刷策略：相同文本在 1.5 秒内只能播报一次，避免如“严重打滑”在1秒内连续复读5遍
     if (text === this.lastSpokenText && (now - this.lastSpokenTime < 1500)) {
-      return;
+      return false;
     }
 
     // 优先级冲突处理
@@ -35,7 +35,7 @@ class SpeechQueueManager {
         delay = 50; // 预留 50ms 给浏览器音频通道进行释放
       } else {
         // 新播报优先级较低或相同：直接丢弃（赛车竞速瞬息万变，延迟播报旧信息已无意义，坚决不积压队列）
-        return;
+        return false;
       }
     }
 
@@ -118,6 +118,7 @@ class SpeechQueueManager {
     } else {
       window.speechSynthesis.speak(utterance);
     }
+    return true;
   }
 
   /**

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "S1 899 全地形耐力版", "tags": ["Rally", "Endurance", "S1"], "vehicleId": "3629", "totalPi": 899,
+    "tires": {"frontPressure": 1.5,"rearPressure": 1.4,"frontCamber": -1.5,"rearCamber": -1,"frontToe": 0.3,"rearToe": -0.2},
+    "suspension": {"frontSpring": 50,"rearSpring": 41.1,"frontRebound": 9.5,"rearRebound": 8.5,"frontBump": 3,"rearBump": 2.5,"frontARB": 18,"rearARB": 18},
+    "drivetrain": {"finalDrive": 3.45,"gear1": 2.8,"frontDiffAccel": 40,"frontDiffDecel": 0,"rearDiffAccel": 60,"rearDiffDecel": 40,"diffCenter": 55},
+    "aero": {"frontDownforce": 105,"rearDownforce": 90},
+    "notes": "基于S1 900最终操控版。游戏内前胎265毫米超出当前档案可验证的加宽三级范围，未伪造成其它级数；刹车按原厂导入。二至七档仅描述为紧密序列，未提供准确数值，故未填写。",
+    "parts": {"engine_swap":{"optionId":"engine_805"},"widebody":{"optionId":"listed_widebody"},"engine_forced_induction":{"optionId":"race"},"engine_valves":{"optionId":"race"},"engine_fuel_system":{"optionId":"sport"},"engine_ignition":{"optionId":"sport"},"tires_compound":{"optionId":"rally"},"suspension":{"optionId":"rally"},"anti_roll_bar_front":{"optionId":"race"},"anti_roll_bar_rear":{"optionId":"race"},"weight_reduction":{"optionId":"race"},"transmission":{"optionId":"race_7"},"differential":{"optionId":"rally"},"front_aero":{"optionId":"adjustable"},"rear_aero":{"optionId":"adjustable"}}
+  }
+}

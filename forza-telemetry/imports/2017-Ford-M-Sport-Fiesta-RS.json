@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "拉力高速全驱", "tags": ["Rally"], "vehicleId": "3051",
+    "tires": {"frontPressure": 1.1,"rearPressure": 1.1,"frontCamber": -1.5,"rearCamber": -1,"frontToe": 0.2,"rearToe": -0.2,"frontCaster": 7},
+    "suspension": {"frontSpring": 32.5,"rearSpring": 38,"frontRideHeight": 19,"rearRideHeight": 19.3,"frontRebound": 6.5,"rearRebound": 5.5,"frontBump": 3.2,"rearBump": 2.5,"frontARB": 12,"rearARB": 26},
+    "drivetrain": {"finalDrive": 4.25,"gear1": 2.85,"gear2": 2,"gear3": 1.55,"gear4": 1.25,"gear5": 1.05,"gear6": 0.9,"gear7": 0.78,"frontDiffAccel": 45,"frontDiffDecel": 0,"rearDiffAccel": 80,"rearDiffDecel": 15,"diffCenter": 65},
+    "aero": {"frontDownforce": 205,"rearDownforce": 250},
+    "notes": "实测极速约293公里/小时。源文件的进气限流板拆除、街车引擎盖和前后轮距三级在当前车型档案中没有可验证的独立选项；255/275毫米胎宽及18英寸轮毂因缺少原厂尺寸映射，未伪造升级级数。",
+    "parts": {"engine_forced_induction":{"optionId":"race"},"engine_camshaft":{"optionId":"race"},"engine_displacement":{"optionId":"race"},"brakes":{"optionId":"race"},"weight_reduction":{"optionId":"race"},"differential":{"optionId":"offroad"},"tires_compound":{"optionId":"rally"},"transmission":{"optionId":"race_7"},"front_aero":{"optionId":"adjustable"},"rear_aero":{"optionId":"adjustable"}}
+  }
+}

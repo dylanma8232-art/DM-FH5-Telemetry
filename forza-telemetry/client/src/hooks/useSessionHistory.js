@@ -216,8 +216,11 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   
   useEffect(() => {
-    api.vehicles.list()
-      .then(data => setVehiclesList(data))
+    Promise.all([api.vehicles.list(), api.vehicles.getCatalog()])
+      .then(([received, catalog]) => {
+        const directory = Object.fromEntries((catalog || []).map(vehicle => [String(vehicle.ordinal), vehicle]));
+        setVehiclesList({ ...directory, ...(received || {}) });
+      })
       .catch(console.error);
   }, []);
 
