@@ -93,6 +93,12 @@ codemap_content = f"""# FH5 遥测分析系统 - 代码知识图谱
 
 ---
 
+## 🎯 调教改装 PI 方法论
+
+* [改装配件 PI 统一估算方法论](file:///forza-telemetry/docs/upgrade-pi-methodology.md)：说明已校准配件、统一模型、误差边界、配件可用性与 AI 回填约束。涉及调教/改装功能时应先阅读此文档。
+
+---
+
 ## ⚡ 核心组件功能概述
 
 ### 1. 网页客户端 (`forza-telemetry/client`)

@@ -12,7 +12,6 @@
 
 - 📄 [CLAUDE.md](file:///forza-telemetry/CLAUDE.md)
 - 📄 [README.md](file:///forza-telemetry/README.md)
-- 📄 [改装配件 PI 方法论](file:///forza-telemetry/docs/upgrade-pi-methodology.md)
 - 📂 **client/**
   - 📄 [index.html](file:///forza-telemetry/client/index.html)
   - 📄 [package-lock.json](file:///forza-telemetry/client/package-lock.json)
@@ -76,6 +75,7 @@
   - 📄 [vite.config.js](file:///forza-telemetry/client/vite.config.js)  *(默认导出: `defineConfig`)*
 - 📄 [data.zip](file:///forza-telemetry/data.zip)
 - 📂 **docs/**
+  - 📄 [TRACK_AND_ROUTEBOOK_WORKFLOW.md](file:///forza-telemetry/docs/TRACK_AND_ROUTEBOOK_WORKFLOW.md)
   - 📄 [dashboard-round1.md](file:///forza-telemetry/docs/dashboard-round1.md)
   - 📄 [dashboard-round2.md](file:///forza-telemetry/docs/dashboard-round2.md)
   - 📄 [dashboard-round3-5.md](file:///forza-telemetry/docs/dashboard-round3-5.md)
@@ -1073,6 +1073,12 @@
     - 📄 [upgrade-catalog.test.js](file:///forza-telemetry/server/test/upgrade-catalog.test.js)
 - 📂 **templates/**
   - 📄 [调校导入模板.json](file:///forza-telemetry/templates/调校导入模板.json)
+
+---
+
+## 🎯 调教改装 PI 方法论
+
+* [改装配件 PI 统一估算方法论](file:///forza-telemetry/docs/upgrade-pi-methodology.md)：说明已校准配件、统一模型、误差边界、配件可用性与 AI 回填约束。涉及调教/改装功能时应先阅读此文档。
 
 ---
 
