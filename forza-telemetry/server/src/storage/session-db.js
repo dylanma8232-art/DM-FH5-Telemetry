@@ -142,8 +142,9 @@ export function loadSession(sessionId, tracks) {
   if (fs.existsSync(summaryPath)) {
     try {
       const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-      if (typeof tracks !== 'undefined' && tracks && summary.trackId && tracks[summary.trackId]) {
-        summary.trackName = tracks[summary.trackId].name;
+      const actualTracks = tracks || loadTracksDatabase();
+      if (actualTracks && summary.trackId && actualTracks[summary.trackId]) {
+        summary.trackName = actualTracks[summary.trackId].name;
       }
       
       Object.defineProperty(summary, 'data', {

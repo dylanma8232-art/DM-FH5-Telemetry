@@ -24,6 +24,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 
+const DATA_DIR = stateManager.DATA_DIR;
 const router = express.Router();
 const LEADERBOARD_CACHE_TTL = 30000;
 
