@@ -171,7 +171,7 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
                   : null;
                 const realPi = resolvedOpt ? (resolvedOpt.piEstimate ?? resolvedOpt.piDeltaFromCurrent) : tier.piBonus;
                 const showPi = realPi !== null && realPi !== undefined && realPi !== '';
-                const isModelPi = resolvedOpt?.piSource === 'formula_v1' || resolvedOpt?.piConfidence === 'model_estimate';
+                const isModelPi = resolvedOpt?.piSource === 'formula_v1' || resolvedOpt?.piConfidence === 'model_estimate' || resolvedOpt?.piConfidence === 'high_variance_model';
                 const labelPi = `${isModelPi ? '预测 ' : ''}${Number(realPi) > 0 ? '+' : ''}${realPi} PI`;
 
                 return (
