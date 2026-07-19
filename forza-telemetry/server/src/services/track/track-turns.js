@@ -387,6 +387,10 @@ export function calculateTurnAttributes(centerline, turnStartIdx, turnEndIdx, id
     brakePointZ: centerline[brakePointIdx].z,
     startIdx: turnStartIdx,
     endIdx: turnEndIdx,
+    // 索引会随重新采样变化；路书的稳定锚点使用赛道弧长。
+    startS: centerline[turnStartIdx].s ?? null,
+    apexS: centerline[apexIdx].s ?? null,
+    endS: centerline[turnEndIdx].s ?? null,
     apexRadius: Math.round(minRadius),
     radius: Math.round(minRadius),
     angle: angleDiff,
@@ -485,4 +489,3 @@ export function remapLockedTurns(oldTurns, oldCenterline, newCenterline) {
     };
   });
 }
-

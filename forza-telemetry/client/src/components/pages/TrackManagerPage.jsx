@@ -108,6 +108,7 @@ export function TrackManagerPage({ onNavigate }) {
   // Round 7: 验证结果状态
   const [validationResult, setValidationResult] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
+  const [showCandidate, setShowCandidate] = useState(true);
 
   useEffect(() => {
     loadTracks();
@@ -156,6 +157,23 @@ export function TrackManagerPage({ onNavigate }) {
       setTracks(data);
     } catch (e) {
       toast('加载赛道失败', 'error');
+    }
+  };
+
+  const adoptCandidate = async (id) => {
+    try {
+      const res = await fetch(`/api/tracks/${id}/adopt-candidate`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '采用候选地图失败');
+      toast(`已采用候选地图：${data.turnCount} 个弯道，${Math.round(data.length)} 米`, 'success');
+      const detailRes = await fetch(`/api/tracks/${id}`);
+      if (detailRes.ok) {
+        const detail = await detailRes.json();
+        setTracks(prev => ({ ...prev, [id]: { ...prev[id], ...detail } }));
+      }
+      await previewTrack(id);
+    } catch (error) {
+      toast(error.message || '采用候选地图失败', 'error');
     }
   };
 
@@ -808,12 +826,14 @@ export function TrackManagerPage({ onNavigate }) {
       null
     ) : null;
     if (!track || !resolvedPoints || resolvedPoints.length < 2) return;
+    const candidate = showCandidate ? track.geometryCandidate : null;
+    const candidatePoints = candidate?.centerline?.length > 1 ? candidate.centerline : null;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#0d1117';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const bboxPoints = resolvedPoints;
+    const bboxPoints = candidatePoints ? [...resolvedPoints, ...candidatePoints] : resolvedPoints;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     bboxPoints.forEach(p => {
       if (p.x < minX) minX = p.x;
@@ -838,6 +858,9 @@ export function TrackManagerPage({ onNavigate }) {
 
     const points = movingAverageSmooth(resolvedPoints, track.isLoop === true, 50, 5);
     const isLoop = track.isLoop === true;
+    const smoothedCandidate = candidatePoints
+      ? movingAverageSmooth(candidatePoints, candidate.isLoop === true, 50, 5)
+      : null;
     
     // Save to ref for interactions
     if (mapContextRef) {
@@ -854,6 +877,23 @@ export function TrackManagerPage({ onNavigate }) {
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
+    // 每场比赛更新的候选地图：紫色虚线，仅用于对比，不参与当前路书编辑。
+    if (smoothedCandidate) {
+      ctx.setLineDash([7 / transform.scale, 5 / transform.scale]);
+      ctx.lineWidth = 3 / transform.scale;
+      ctx.strokeStyle = '#bc8cff';
+      ctx.beginPath();
+      const candidateStart = toScreen(smoothedCandidate[0]);
+      ctx.moveTo(candidateStart.sx, candidateStart.sy);
+      for (let i = 1; i < smoothedCandidate.length; i++) {
+        const point = toScreen(smoothedCandidate[i]);
+        ctx.lineTo(point.sx, point.sy);
+      }
+      if (candidate.isLoop) ctx.lineTo(candidateStart.sx, candidateStart.sy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 1. 绘制整体赛道底色（直道颜色）
     ctx.lineWidth = 12 * sc; // 基础路宽 12 米
@@ -1079,7 +1119,7 @@ export function TrackManagerPage({ onNavigate }) {
     }
 
     ctx.restore();
-  }, [editingTurnIndex, editTurnForm]);
+  }, [editingTurnIndex, editTurnForm, showCandidate]);
 
   const previewTrack = async (id) => {
     setSelectedTrack(id);
@@ -1125,6 +1165,21 @@ export function TrackManagerPage({ onNavigate }) {
     canvas.height = canvas.offsetHeight || 300;
     drawTrack(ctx, canvas, track, transform);
   }, [selectedTrack, tracks, transform, drawTrack]);
+
+  // 候选地图由比赛保存线程在每次完赛后写入；轮询完整详情，确保管理页无需刷新即可看到变化。
+  useEffect(() => {
+    if (!selectedTrack || editingTurnIndex !== null) return undefined;
+    const refreshCandidate = async () => {
+      try {
+        const res = await fetch(`/api/tracks/${selectedTrack}`);
+        if (!res.ok) return;
+        const detail = await res.json();
+        setTracks(prev => ({ ...prev, [selectedTrack]: { ...prev[selectedTrack], ...detail } }));
+      } catch {}
+    };
+    const timer = setInterval(refreshCandidate, 15000);
+    return () => clearInterval(timer);
+  }, [selectedTrack, editingTurnIndex]);
 
 
   useEffect(() => {
@@ -1623,6 +1678,11 @@ export function TrackManagerPage({ onNavigate }) {
         }}>
           {selectedTrack && (
             <>
+              {selectedTrackData?.geometryCandidate && (
+                <button onClick={() => setShowCandidate(value => !value)} style={showCandidate ? btnPrimarySmallStyle : btnSmallStyle}>
+                  {showCandidate ? '隐藏候选' : '显示候选'}
+                </button>
+              )}
               <button onClick={() => exportTrackPNG(selectedTrack)} style={btnSmallStyle}>导出图片</button>
               <button onClick={() => exportTrackJSON(selectedTrack)} style={btnSmallStyle}>导出JSON</button>
               <button onClick={() => exportRouteBookTXT(selectedTrack)} style={btnSmallStyle}>导出路书TXT</button>
@@ -1725,6 +1785,11 @@ export function TrackManagerPage({ onNavigate }) {
                 <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                   弯道: {selectedTrackData.turns ? selectedTrackData.turns.length : 0}
                 </span>
+                {selectedTrackData.geometryCandidate && (
+                  <span style={{ fontSize: 11, color: '#bc8cff' }}>
+                    候选: {Math.round(selectedTrackData.geometryCandidate.length || 0)}m · {selectedTrackData.geometryCandidate.turns?.length || 0}弯
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -2046,6 +2111,23 @@ export function TrackManagerPage({ onNavigate }) {
                             🔄 重建
                           </button>
                         </div>
+
+                        {selectedTrackData.geometryCandidate && (
+                          <div style={{ marginBottom: 8, padding: 8, borderRadius: 5, border: '1px solid rgba(188,140,255,0.45)', background: 'rgba(188,140,255,0.08)' }}>
+                            <div style={{ fontSize: 10, color: '#d2a8ff', marginBottom: 5 }}>
+                              最新候选地图：{Math.round(selectedTrackData.geometryCandidate.length || 0)}m · {selectedTrackData.geometryCandidate.turns?.length || 0}弯
+                            </div>
+                            <button
+                              onClick={() => setConfirmDialog({
+                                message: '采用候选地图将替换当前正式地图，并根据候选弯道更新自动路书。已编辑路书中的锁定弯道会继续映射保留。',
+                                onConfirm: () => adoptCandidate(selectedTrack)
+                              })}
+                              style={btnPrimarySmallStyle}
+                            >
+                              采用候选地图
+                            </button>
+                          </div>
+                        )}
 
                         {/* 分项进度条 */}
                         {q?.details && (
@@ -2632,4 +2714,3 @@ const btnDangerIconStyle = {
   fontSize: 14,
   lineHeight: 1
 };
-

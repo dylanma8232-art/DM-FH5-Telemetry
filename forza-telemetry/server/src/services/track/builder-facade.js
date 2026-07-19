@@ -13,7 +13,7 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
 
   // ★ 环道检测：对每条轨迹检测是否为环道，如果是则只取单圈
   const processedTrajectories = [];
-  let detectedIsLoop = false; // 记录是否检测到环道
+  let sawLapBasedLoop = false;
   for (const traj of trajectories) {
     if (!traj || traj.length < 100) {
       processedTrajectories.push(traj);
@@ -26,7 +26,7 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
     if (result.isLoop) {
       console.log(`[环道检测] 检测到环道，方法: ${result.method}，原始点数: ${traj.length} -> 单圈点数: ${result.singleLap.length}`);
       processedTrajectories.push(result.singleLap);
-      detectedIsLoop = true;
+      sawLapBasedLoop = true;
     } else {
       processedTrajectories.push(traj);
     }
@@ -93,6 +93,12 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
   if (cleanTrajectories.length === 0) return null;
   cleanTrajectories.sort((a, b) => b.length - a.length);
   const skeleton = resampleCenterline(cleanTrajectories[0], 2.0);
+  // 圈数变化只能算候选证据。点对点赛中混入的其它片段也可能带 lapNum，
+  // 不能因为任一片段就把整条冲刺赛强行闭合成环道。
+  const primaryStart = skeleton[0];
+  const primaryEnd = skeleton.at(-1);
+  const primaryGap = primaryStart && primaryEnd ? Math.hypot(primaryEnd.x - primaryStart.x, primaryEnd.z - primaryStart.z) : Infinity;
+  const detectedIsLoop = sawLapBasedLoop && primaryGap < 45;
 
   // 核心安全升级：过滤丢弃那些平均偏离主中线超过 20 米的脏轨迹段（主要是悬空传送线或乱车线）
   const validTrajectories = [];
@@ -122,6 +128,8 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
       validTrajectories.push(traj);
     }
   }
+  // 保留既有的建议走线校正：它只用于消除轨迹的横向偏置，随后由 RDP 分段与
+  // 分段几何拟合稳定化，不能以单圈驾驶线直接定义路书结构。
   const correctedTrajectories = validTrajectories.map(traj => correctTrajectoryDrivingLine(densifyTrajectory(traj, 2.0)));
   let mergedCenterline = [];
   let minX = Infinity,
@@ -268,12 +276,13 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
   filterKinks(mergedCenterline, 35);
   const centerline = smoothCenterline(mergedCenterline, 5);
 
-  // 弯道几何重建：用圆弧拟合弯道，消除走线影响（先用临时 turns 做圆弧拟合）
+  // RDP 先确定宏观弯段，再对该弯段进行拟合，消除单圈走线造成的局部折角。
+  // 拟合器会在不适合圆弧的段落保留原中心线，避免强制改变复杂弯的结构。
   const turnsForReconstruct = detectTurnsEnhanced(centerline);
   let reconstructedCenterline = reconstructTrackGeometry(centerline, turnsForReconstruct);
 
   // ★ 环道闭合修复：检测起跑线区域的自交叉并截断尾巴（会改变中心线长度）
-  reconstructedCenterline = fixLoopClosure(reconstructedCenterline);
+  if (detectedIsLoop) reconstructedCenterline = fixLoopClosure(reconstructedCenterline);
 
   // ★ 弯道重建：结合旧有的路书锚点与黑名单
   const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
@@ -337,7 +346,15 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
     },
     routeBook: buildRouteBook(reconstructedCenterline, turns, allPoints),
     dataSourceCount: trajectories.length,
-    isLoop: detectedIsLoop // 只信 lapNum，不猜几何
+    isLoop: detectedIsLoop, // 只信 lapNum，不猜几何
+    geometry: {
+      schemaVersion: 2,
+      algorithm: 'rdp-fit-v1',
+      generatedAt: new Date().toISOString(),
+      sourceTrajectoryCount: validTrajectories.length,
+      // 当前构建结果只能作为候选；由赛道管理器显式提升为活跃参考几何。
+      status: 'candidate'
+    }
   };
 }
 
@@ -645,6 +662,7 @@ export function buildRouteBook(centerline, turns, allPoints) {
     if (maxTurnPuddle > 0.05) surface = 'water';else if (maxTurnRumble > 0.5) surface = 'gravel';
     routeBook.turns.push({
       index: i,
+      turnId: turn.id,
       type: turn.type,
       turnCategory: turn.turnCategory,
       direction: turn.direction,
@@ -676,6 +694,10 @@ export function buildRouteBook(centerline, turns, allPoints) {
       suggestedGearDrop: avgGearDrop,
       radius: turn.radius,
       isChicane: turn.isChicane,
+      customNote: turn.customNote || '',
+      startS: turn.startS ?? centerline[turn.startIdx]?.s ?? null,
+      apexS: turn.apexS ?? centerline[turn.index]?.s ?? null,
+      endS: turn.endS ?? centerline[turn.endIdx]?.s ?? null,
       // Round 8: 数据来源统计
       dataSources: {
         entrySpeedSamples: stats.entrySpeeds.length,
@@ -733,4 +755,3 @@ export function buildRouteBook(centerline, turns, allPoints) {
  * @param {Array} points - 点数组 [{x, z}, ...]
  * @returns {Object|null} {cx, cz, radius} 或 null
  */
-

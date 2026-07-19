@@ -74,7 +74,6 @@ function generatePaceNotes(trackData) {
     turns.forEach((turn, idx) => {
       const recSpeed = turn.apexSpeed || turn.bestApexSpeed || 0;
       const recGear = recSpeed > 0 ? recommendGearForSpeed(recSpeed) : null;
-      const severity = TURN_SEVERITY[turn.type] || 3;
       const dirLabel = turn.direction === 'left' ? '左' : '右';
       
       const wrcNumber = turn.wrcNumber || turn.severity || 0;
@@ -135,10 +134,10 @@ function generatePaceNotes(trackData) {
         dirLabel,
         wrcNumber,
         wrcLabel,
+        severity: wrcNumber || 3,
         angle: turn.angle,
         turnType: turn.type,
         turnTypeLabel: TURN_TYPE_LABELS[turn.type] || turn.type,
-        severity,
         entrySpeed: turn.entrySpeed || turn.bestEntrySpeed || 0,
         recommendedGear: recGear,
         brakeDistance,
@@ -150,6 +149,9 @@ function generatePaceNotes(trackData) {
         chicaneDirection: turn.chicaneDirection,
         camber: turn.camber,
         crest: turn.crest,
+        customNote: turn.customNote || '',
+        startIdx: turn.startIdx,
+        endIdx: turn.endIdx,
         // 到下一弯的直道物理距离
         distanceToNext: Math.round(distanceToNext)
       });
@@ -335,7 +337,7 @@ function getDirectionArrow(direction) {
 function getWrcLabel(note) {
   if (!note) return '';
   const dir = note.direction === 'left' ? '左' : '右';
-  const sev = note.severity || '3';
+  const sev = note.wrcNumber || note.severity || '3';
   return `${dir}${sev}`;
 }
 
@@ -576,6 +578,12 @@ export function PaceNotesPanel({
     return (total - cumDist[start]) + cumDist[end];
   };
 
+  // 只计算赛道前方距离；点对点赛不允许把已经通过的弯当成“绕一圈后”的目标。
+  const getForwardDistance = (start, end) => {
+    if (!trackData?.isLoop && end < start) return Infinity;
+    return getDistanceBetween(start, end);
+  };
+
   // 4. 判定弯道是否在车辆前方 (环线逻辑)
   const isTurnAhead = (turnIdx, currentIdx, totalPoints) => {
     let diff = turnIdx - currentIdx;
@@ -661,21 +669,21 @@ export function PaceNotesPanel({
         break;
       }
     }
-    if (nextForwardIdx === -1 && turnNotes.length > 0) {
+    if (nextForwardIdx === -1 && trackData.isLoop && turnNotes.length > 0) {
       nextForwardIdx = 0;
     }
 
     if (nextForwardIdx !== -1) {
       const targetNote = turnNotes[nextForwardIdx];
       let indexDiff = targetNote.index - nearestIdx;
-      if (indexDiff < 0) {
+      if (indexDiff < 0 && trackData.isLoop) {
         indexDiff = (targetNote.index + centerlineLength) - nearestIdx;
       }
 
       const pointsPreview = Math.max(25, Math.round(currentSpeed * 0.347));
 
       let passedDiff = nearestIdx - targetNote.index;
-      if (passedDiff < 0) {
+      if (passedDiff < 0 && trackData.isLoop) {
         passedDiff = (nearestIdx + centerlineLength) - targetNote.index;
       }
 
@@ -701,12 +709,17 @@ export function PaceNotesPanel({
     // --- D. 独立的语音提前播报逻辑 (时速前瞻 + 真实WRC等级同步) ---
 
     if (hasRaceStarted && gear !== 0 && currentSpeed > 20) {
-      // 找到前方第一个尚未播报的弯道
+      // 从仪表盘正在跟踪的“下一个几何弯”开始找未播报项，避免被数组前方的旧弯卡住。
       let nextUnspokenIdx = -1;
-      for (let i = 0; i < turnNotes.length; i++) {
-        if (!broadcastedTurnsInLapRef.current.has(i)) {
-          nextUnspokenIdx = i;
-          break;
+      if (nextForwardIdx !== -1) {
+        for (let offset = 0; offset < turnNotes.length; offset++) {
+          const rawIdx = nextForwardIdx + offset;
+          if (!trackData.isLoop && rawIdx >= turnNotes.length) break;
+          const candidateIdx = rawIdx % turnNotes.length;
+          if (!broadcastedTurnsInLapRef.current.has(candidateIdx)) {
+            nextUnspokenIdx = candidateIdx;
+            break;
+          }
         }
       }
 
@@ -715,28 +728,18 @@ export function PaceNotesPanel({
         const targetIdx = nextTurn.startIdx !== undefined ? nextTurn.startIdx : nextTurn.index;
         
         // 计算车辆与该弯道入口的物理距离
-        const distToEntry = getDistanceBetween(nearestIdx, targetIdx);
+        const distToEntry = getForwardDistance(nearestIdx, targetIdx);
         
         // 动态前瞻物理距离：低速至少提前 85 米，高速视界提前 3.5 秒
         const previewDistance = Math.max(85, (currentSpeed / 3.6) * 3.5);
 
         if (distToEntry <= previewDistance) {
-          const dir = nextTurn.direction === 'left' ? '左' : '右';
-          const sev = nextTurn.wrcNumber || TURN_TYPE_LABELS[nextTurn.turnType] || '3';
-          
-          let text = `${dir}${sev}`;
+          let text = getWrcLabel(nextTurn);
 
           // 级联播报判定：下个弯与当前弯直道距离小于 120 米
           const nextNote = turnNotes[nextUnspokenIdx + 1];
           if (nextNote && nextTurn.distanceToNext < 120) {
-            const nextDir = nextNote.direction === 'left' ? '左' : '右';
-            const nextSev = nextNote.wrcNumber || TURN_TYPE_LABELS[nextNote.turnType] || '3';
-            text += `，接${nextDir}${nextSev}`;
-            
-            broadcastedTurnsInLapRef.current.add(nextUnspokenIdx);
-            broadcastedTurnsInLapRef.current.add(nextUnspokenIdx + 1);
-          } else {
-            broadcastedTurnsInLapRef.current.add(nextUnspokenIdx);
+            text += `，接${getWrcLabel(nextNote)}`;
           }
 
           // 地形与坡度描述
@@ -749,7 +752,13 @@ export function PaceNotesPanel({
           }
 
           import('../../utils/speechQueue').then(m => {
-            m.speechManager.speak(text, 2);
+            // 语音忙碌或被高优先级警告打断时，保持未播报状态，让后续遥测重试。
+            if (m.speechManager.speak(text, 2)) {
+              broadcastedTurnsInLapRef.current.add(nextUnspokenIdx);
+              if (nextNote && nextTurn.distanceToNext < 120) {
+                broadcastedTurnsInLapRef.current.add(nextUnspokenIdx + 1);
+              }
+            }
           });
         }
       }

@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "S1 900 最终操控版", "tags": ["Rally", "Drift", "S1"], "vehicleId": "3629", "totalPi": 900,
+    "tires": {"frontPressure": 1.4,"rearPressure": 1.2,"frontCamber": -1.8,"rearCamber": -1,"frontToe": 0.3,"rearToe": -0.2,"frontCaster": 7},
+    "suspension": {"frontSpring": 52,"rearSpring": 44,"frontRideHeight": 50,"rearRideHeight": 50,"frontRebound": 12.5,"rearRebound": 10.5,"frontBump": 4,"rearBump": 3.2,"frontARB": 12,"rearARB": 30},
+    "drivetrain": {"finalDrive": 3.65,"gear1": 2.9,"frontDiffAccel": 35,"frontDiffDecel": 0,"rearDiffAccel": 85,"rearDiffDecel": 25,"diffCenter": 75},
+    "brakes": {"balance": 47,"pressure": 95}, "aero": {"frontDownforce": 123,"rearDownforce": 110},
+    "notes": "Rocket Bunny宽体按可验证宽体选项记录。源文件后胎295毫米与重型轮毂没有对应的可验证升级级数，因此保留原厂选择而不猜测。",
+    "parts": {"engine_swap":{"optionId":"engine_805"},"widebody":{"optionId":"listed_widebody"},"engine_forced_induction":{"optionId":"race"},"engine_valves":{"optionId":"race"},"engine_fuel_system":{"optionId":"sport"},"engine_ignition":{"optionId":"sport"},"tires_compound":{"optionId":"rally"},"tires_width_front":{"optionId":"plus_2"},"brakes":{"optionId":"race"},"suspension":{"optionId":"rally"},"anti_roll_bar_front":{"optionId":"race"},"anti_roll_bar_rear":{"optionId":"race"},"weight_reduction":{"optionId":"race"},"transmission":{"optionId":"race_7"},"differential":{"optionId":"rally"},"front_aero":{"optionId":"adjustable"},"rear_aero":{"optionId":"adjustable"}}
+  }
+}

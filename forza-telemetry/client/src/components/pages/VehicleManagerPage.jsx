@@ -225,7 +225,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const vehicleCards = useMemo(() => {
     const catalogByOrdinal = new Map(catalog.map(item => [String(item.ordinal), item]));
     const allOrdinals = new Set([...catalogByOrdinal.keys(), ...Object.keys(vehicles), ...Object.keys(statsByOrdinal)]);
-    return Array.from(allOrdinals).map(ord => {
+    const cards = Array.from(allOrdinals).map(ord => {
       const v = vehicles[ord];
       const catalogVehicle = catalogByOrdinal.get(String(ord));
       const savedName = v?.name && !v.name.startsWith('Car #') ? v.name : null;
@@ -261,6 +261,19 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
         }
       };
     });
+
+    // 目录和运行时车辆可能给不同编号返回相同名称，尤其是手动保存过
+    // 同名车辆时。车辆库展示按“车厂 + 规范化名称”去重，优先保留已接收、
+    // 已收藏、比赛次数更多的记录，避免搜索结果出现重复车辆名称。
+    const uniqueCards = new Map();
+    const priority = card => (card.isReceived ? 1000000 : 0) + (card.favorite ? 10000 : 0) + card.stat.count;
+    for (const card of cards) {
+      const normalizedName = String(card.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const key = `${String(card.manufacturer || '其他').trim().toLowerCase()}|${normalizedName}`;
+      const current = uniqueCards.get(key);
+      if (!current || priority(card) > priority(current)) uniqueCards.set(key, card);
+    }
+    return Array.from(uniqueCards.values());
   }, [catalog, vehicles, statsByOrdinal, tunesList]);
 
   const filteredCards = useMemo(() => {
