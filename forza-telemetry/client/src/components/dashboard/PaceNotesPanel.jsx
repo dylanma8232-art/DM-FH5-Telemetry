@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PaceNoteExport } from './PaceNoteExport';
+import { api } from '../../services/api';
 
 /**
  * PaceNotesPanel - 路书面板
@@ -539,7 +540,7 @@ export function PaceNotesPanel({
 
   const handleExitConfirm = async () => {
     try {
-      await fetch('/api/trackMode/stop', { method: 'POST' });
+      await api.trackMode.stopResponse();
       if (onExit) onExit();
     } catch (e) {
       console.error(e);

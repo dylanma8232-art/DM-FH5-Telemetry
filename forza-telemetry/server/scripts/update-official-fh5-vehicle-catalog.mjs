@@ -19,6 +19,8 @@ const decodeHtml = value => String(value)
   .replace(/&lt;/g, '<')
   .replace(/&gt;/g, '>');
 
+const normalizeName = value => String(value).replace(/\s+/g, ' ').trim();
+
 const html = fs.readFileSync(sourcePath, 'utf8');
 const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
   .map(match => [...match[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
@@ -27,13 +29,22 @@ const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
 
 const cars = {};
 const duplicateIds = new Map();
+const duplicatePairs = [];
+const seenPairs = new Set();
 for (const row of rows) {
   const [name,,,,, id] = row;
-  if (cars[id] && cars[id] !== name) {
-    duplicateIds.set(id, [...(duplicateIds.get(id) || [cars[id]]), name]);
+  const normalizedName = normalizeName(name);
+  const pairKey = `${id}\u0000${normalizedName}`;
+  if (seenPairs.has(pairKey)) {
+    duplicatePairs.push({ id, name: normalizedName });
     continue;
   }
-  cars[id] = name;
+  seenPairs.add(pairKey);
+  if (cars[id] && cars[id] !== normalizedName) {
+    duplicateIds.set(id, [...(duplicateIds.get(id) || [cars[id]]), normalizedName]);
+    continue;
+  }
+  cars[id] = normalizedName;
 }
 
 if (Object.keys(cars).length < 850) {
@@ -47,5 +58,6 @@ console.log(JSON.stringify({
   source: 'https://forza.net/fh5cars/',
   officialRows: rows.length,
   uniqueVehicleIds: Object.keys(cars).length,
-  duplicateIds: Object.fromEntries(duplicateIds)
+  duplicateIds: Object.fromEntries(duplicateIds),
+  duplicateNameAndIdPairs: duplicatePairs.length
 }, null, 2));

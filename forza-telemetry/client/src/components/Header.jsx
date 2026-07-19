@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from './shared/Toast';
+import { api } from '../services/api';
 
 let globalAudioCtx = null;
 
@@ -41,8 +42,7 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
 
   // 挂载时获取服务器状态
   useEffect(() => {
-    fetch('/api/status')
-      .then(res => res.json())
+    api.system.getStatus()
       .then(data => {
         if (data.udpPort) {
           setServerStatus({ udpPort: data.udpPort, ips: data.ips || [] });
@@ -161,13 +161,9 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
 
   const handleManualRecordToggle = async () => {
     if (manualRecording) {
-      await fetch('/api/record/stop', { method: 'POST' });
+      await api.record.stopResponse();
       try {
-        const res = await fetch('/api/record/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trackName: '手动录制_' + new Date().toLocaleString() })
-        });
+        const res = await api.record.saveResponse({ trackName: '手动录制_' + new Date().toLocaleString() });
         if (res.ok) {
           const data = await res.json();
           toast('手动录制已保存', 'success', 3000);
@@ -179,7 +175,7 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
       setRecordStartTime(null);
       setRecordDuration(0);
     } else {
-      await fetch('/api/record/start', { method: 'POST' });
+      await api.record.startResponse();
       setManualRecording(true);
       setRecordStartTime(Date.now());
       toast('手动录制已开始', 'info', 2000);

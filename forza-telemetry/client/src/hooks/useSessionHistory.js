@@ -1,16 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from '../components/shared/Toast';
 import { api } from '../services/api';
-
-const inputStyle = {
-  width: '100%',
-  padding: 8,
-  background: 'var(--bg-primary)',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: 'var(--text-primary)',
-  fontSize: 11
-};
+import {
+  SESSION_PAGE_SIZE,
+  buildGgData,
+  buildGroupedAchievements,
+  buildSectorTimingData,
+  filterSessions,
+  formatLeaderboardTime,
+  formatSessionDate,
+  formatSessionTime,
+  getDiagnosisStyle,
+  getUniqueTracks,
+  getVehicleClass
+} from '../utils/sessionHistory';
 
 export function useSessionHistory({ onNavigate, navIntent }) {
 
@@ -64,155 +67,22 @@ export function useSessionHistory({ onNavigate, navIntent }) {
 
   // Round 9: Session列表分页
   const [sessionPage, setSessionPage] = useState(1);
-  const SESSION_PAGE_SIZE = 20;
-
-
-
   // 赛道标签筛选器
-  const uniqueTracks = useMemo(() => {
-    return [...new Set(sessions.map(s => s.trackName || '未知赛道'))].filter(Boolean)
-  }, [sessions])
+  const uniqueTracks = useMemo(() => getUniqueTracks(sessions), [sessions]);
 
   // 按赛道分组的成就墙数据
-  const groupedAchievements = useMemo(() => {
-    const map = new Map();
-    for (const entry of lbEntries) {
-      const trackId = entry.trackId || 'unknown';
-      if (!map.has(trackId)) {
-        map.set(trackId, {
-          trackId,
-          trackName: entry.trackName || '未知赛道',
-          bestLap: entry.bestLap || 0,
-          firstLap: entry.firstLap || 0,
-          totalLaps: 0,
-          sessionCount: 0,
-          recentBreakthrough: false,
-          daysSinceLastSession: Infinity,
-          vehicles: [],
-          lastSessionAt: null,
-          recentBestLaps: []
-        });
-      }
-      const item = map.get(trackId);
-      
-      // 记录车辆最佳圈速信息
-      item.vehicles.push({
-        vehicleOrdinal: entry.vehicleOrdinal,
-        vehicleName: (vehiclesList[entry.vehicleOrdinal]?.name || entry.vehicleName),
-        vehicleClass: entry.vehicleClass,
-        vehiclePI: entry.vehiclePI,
-        bestLap: entry.bestLap,
-        sessionCount: entry.sessionCount,
-        totalLaps: entry.totalLaps
-      });
-
-      // 累加场次和跑圈数
-      item.totalLaps += entry.totalLaps || 0;
-      item.sessionCount += entry.sessionCount || 0;
-
-      // 寻找绝对最快圈速及车辆
-      if (entry.bestLap > 0 && (item.bestLap === 0 || entry.bestLap < item.bestLap)) {
-        item.bestLap = entry.bestLap;
-        item.vehicleOrdinal = entry.vehicleOrdinal;
-        item.vehicleName = (vehiclesList[entry.vehicleOrdinal]?.name || entry.vehicleName);
-        item.vehicleClass = entry.vehicleClass;
-        item.vehiclePI = entry.vehiclePI;
-      }
-      
-      if (entry.recentBreakthrough) {
-        item.recentBreakthrough = true;
-      }
-      
-      if (entry.daysSinceLastSession < item.daysSinceLastSession) {
-        item.daysSinceLastSession = entry.daysSinceLastSession;
-      }
-      
-      if (!item.lastSessionAt || (entry.lastSessionAt && new Date(entry.lastSessionAt) > new Date(item.lastSessionAt))) {
-        item.lastSessionAt = entry.lastSessionAt;
-      }
-    }
-
-    const list = [];
-    map.forEach(item => {
-      // 按照车辆最佳圈速升序排序
-      item.vehicles.sort((a, b) => {
-        if (a.bestLap === 0) return 1;
-        if (b.bestLap === 0) return -1;
-        return a.bestLap - b.bestLap;
-      });
-
-      // 获取最老的一次有效圈速记录作为基准首圈，用于计算提升幅度
-      const validFirstLaps = lbEntries.filter(e => e.trackId === item.trackId && e.firstLap > 0).map(e => e.firstLap);
-      const overallFirstLap = validFirstLaps.length > 0 ? Math.min(...validFirstLaps) : 0;
-      item.firstLap = overallFirstLap;
-
-      // 提取该赛道最后5场比赛的最佳圈速，用于迷你趋势折线图
-      const trackSessions = [...sessions]
-        .filter(s => s.trackId === item.trackId)
-        .reverse();
-      item.recentBestLaps = trackSessions
-        .filter(s => s.laps?.best > 0)
-        .slice(-5)
-        .map((s, i) => ({ index: i + 1, bestLap: s.laps.best }));
-
-      list.push(item);
-    });
-
-    // 最近出赛的排在前面
-    list.sort((a, b) => new Date(b.lastSessionAt) - new Date(a.lastSessionAt));
-    return list;
-  }, [lbEntries, sessions]);
+  const groupedAchievements = useMemo(
+    () => buildGroupedAchievements(lbEntries, sessions, vehiclesList),
+    [lbEntries, sessions]
+  );
 
   // G-G 摩擦力圆：降采样 + 缓存峰值
-  const ggData = useMemo(() => {
-    const channels = channelsData?.channels || [];
-    if (channels.length === 0) return { sampled: [], maxLat: 0, maxBrake: 0 };
-
-    // 降采样：基础每4帧取1帧，额外保留高G值点
-    const threshold = 0.8;
-    const sampled = [];
-    for (let i = 0; i < channels.length; i += 4) {
-      const c = channels[i];
-      const lat = Math.abs(c.gLat || 0);
-      const lng = Math.abs(c.gLong || 0);
-      sampled.push(c);
-      // 如果接近极限，前后各补2帧保留细节
-      if (lat > threshold || lng > threshold) {
-        for (let j = Math.max(0, i - 2); j < Math.min(channels.length, i + 3); j++) {
-          if (j !== i) sampled.push(channels[j]);
-        }
-      }
-    }
-
-    // 计算峰值
-    let maxLat = 0, maxBrake = 0;
-    for (const c of channels) {
-      const lat = Math.abs(c.gLat || 0);
-      const brake = c.gLong < 0 ? Math.abs(c.gLong) : 0;
-      if (lat > maxLat) maxLat = lat;
-      if (brake > maxBrake) maxBrake = brake;
-    }
-
-    return { sampled, maxLat, maxBrake };
-  }, [channelsData])
+  const ggData = useMemo(() => buildGgData(channelsData), [channelsData]);
 
   // 分段用时数据缓存
-  const sectorTimingData = useMemo(() => {
-    if (!advancedData || !advancedData.lapSectorDetails || advancedData.lapSectorDetails.length === 0) return null;
-    const isMultiLap = advancedData.lapCount > 1;
-    const allLosses = advancedData.lapSectorDetails.flatMap(lap => lap.sectors.map(s => s.loss));
-    const allTimes = advancedData.lapSectorDetails.flatMap(lap => lap.sectors.map(s => s.time));
-    const maxTime = Math.max(...allTimes);
-    const maxLoss = Math.max(...allLosses.map(l => Math.max(0, l)), 0.01);
-    return { isMultiLap, maxTime, maxLoss };
-  }, [advancedData])
+  const sectorTimingData = useMemo(() => buildSectorTimingData(advancedData), [advancedData]);
 
-  const myFilteredSessions = sessions.filter(s => {
-    const matchSearch = !sessionSearchQuery.trim() || (s.trackName || '未知赛道').toLowerCase().includes(sessionSearchQuery.trim().toLowerCase())
-    // trackFilter 可能是 trackId 或 trackName，两者都要支持
-    const matchTrack = !trackFilter || (s.trackId === trackFilter) || (s.trackName || '未知赛道') === trackFilter
-    return matchSearch && matchTrack
-  });
+  const myFilteredSessions = filterSessions(sessions, sessionSearchQuery, trackFilter);
 
   
   useEffect(() => {
@@ -291,7 +161,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   const batchExportCSV = async () => {
     try {
       for (const id of selectedSessionIds) {
-        await downloadBlob('/api/export/csv/' + id, 'telemetry_' + id + '.csv');
+        await downloadBlob('csv', id, 'telemetry_' + id + '.csv');
       }
       toast(`已导出 ${selectedSessionIds.size} 个CSV`, 'success');
     } catch (e) {
@@ -592,25 +462,14 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     }
   };
 
-  const lbFormatTime = (seconds) => {
-    if (!seconds || seconds <= 0) return '-';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 1000);
-    return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
-  };
-
-  const getVehicleClass = (cls) => {
-    const classes = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
-    return classes[cls] || '?';
-  };
+  const lbFormatTime = formatLeaderboardTime;
 
   // ========== End 圈速排行榜函数 ==========
 
   // Round 5: 导出改为 fetch + blob 下载，失败时 toast 提示
-  const downloadBlob = async (url, filename) => {
+  const downloadBlob = async (format, sessionId, filename) => {
     try {
-      const res = await fetch(url);
+      const res = await api.exports.downloadResponse(format, sessionId);
       if (!res.ok) throw new Error('导出失败');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -627,7 +486,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   };
 
   const exportCSV = (sessionId) => {
-    downloadBlob('/api/export/csv/' + sessionId, 'telemetry_' + sessionId + '.csv');
+    downloadBlob('csv', sessionId, 'telemetry_' + sessionId + '.csv');
   };
 
   // Round 6: 增强版CSV导出 - 包含轮胎温度、悬挂行程、G力
@@ -791,40 +650,11 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
   };
 
   const exportReport = (sessionId) => {
-    downloadBlob('/api/export/report/' + sessionId, 'report_' + sessionId + '.html');
+    downloadBlob('report', sessionId, 'report_' + sessionId + '.html');
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds || seconds === 0) return '--:--.---';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return mins + ':' + secs.toFixed(3).padStart(6, '0');
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Round 4: 诊断区域颜色逻辑提取为函数，替代4层嵌套三元运算
-  const getDiagnosisStyle = (diagnosis) => {
-    if (!diagnosis?.tuneId) {
-      return { border: '2px solid var(--text-muted)', background: 'rgba(139, 148, 158, 0.05)' };
-    }
-    if (!diagnosis.diagnoses?.length) {
-      return { border: '2px solid var(--success)', background: 'rgba(0, 200, 150, 0.05)' };
-    }
-    const hasHigh = diagnosis.diagnoses.some(d => d.严重程度 === 'high');
-    const hasMedium = diagnosis.diagnoses.some(d => d.严重程度 === 'medium');
-    if (hasHigh) {
-      return { border: '2px solid var(--danger)', background: 'rgba(248, 81, 73, 0.05)' };
-    }
-    if (hasMedium) {
-      return { border: '2px solid var(--warning)', background: 'rgba(210, 153, 34, 0.05)' };
-    }
-    return { border: '2px solid var(--accent)', background: 'rgba(88, 166, 255, 0.05)' };
-  };
+  const formatTime = formatSessionTime;
+  const formatDate = formatSessionDate;
 
 
   // Round 9: 分页后的session列表

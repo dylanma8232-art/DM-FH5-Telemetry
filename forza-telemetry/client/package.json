@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "test": "node --test test/*.test.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "lint:dead": "knip --production --include files"
   },
   "dependencies": {
     "react": "^18.2.0",

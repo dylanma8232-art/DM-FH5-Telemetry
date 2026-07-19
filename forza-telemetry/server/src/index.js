@@ -36,6 +36,7 @@ import leaderboardRouter from './routes/leaderboard.js';
 import navigationRouter from './routes/navigation.js';
 import systemRouter from './routes/system.js';
 import recordRouterModule from './routes/record.js';
+import { configureHttpApp } from './http-app.js';
 
 const UDP_PORT = process.env.UDP_PORT ? parseInt(process.env.UDP_PORT, 10) : 9996;
 const HTTP_PORT = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 9188;
@@ -91,20 +92,7 @@ stateManager.tunes = tunes;
 console.log("--> setIO called!"); stateManager.setIO(io);
 stateManager.DATA_DIR = DATA_DIR;
 
-// 挂载核心模块化路由
 const recordModule = recordRouterModule;
-
-app.use('/api/analysis', analysisRouter);
-app.use('/api/tracks', tracksRouter);
-app.use('/api/tunes', tunesRouter);
-app.use('/api/vehicles', vehiclesRouter);
-app.use('/api/leaderboard', leaderboardRouter);
-app.use('/api', navigationRouter);
-app.use('/api/system', systemRouter);
-// 兼容旧版设置页的调用路径，避免已打开的页面保存 AI 配置时直接 404。
-app.use('/api/settings', systemRouter);
-app.use('/api', recordModule.router);
-app.use('/', sessionsRouter);
 
 // Socket.io 监听
 io.on('connection', (socket) => {
@@ -125,15 +113,20 @@ udpServer.on('error', (err) => {
   console.error('[UDP] 错误:', err.message);
 });
 
-// 静态文件托管
 const STATIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
-if (fs.existsSync(STATIC_DIR)) {
-  app.use(express.static(STATIC_DIR));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) return next();
-    res.sendFile(path.join(STATIC_DIR, 'index.html'));
-  });
-}
+configureHttpApp({
+  app,
+  express,
+  routers: {
+    analysis: analysisRouter, tracks: tracksRouter, tunes: tunesRouter, vehicles: vehiclesRouter,
+    leaderboard: leaderboardRouter, navigation: navigationRouter, system: systemRouter, sessions: sessionsRouter,
+  },
+  recordRouter: recordModule.router,
+  staticDir: STATIC_DIR,
+  hasStaticDir: fs.existsSync(STATIC_DIR),
+  getStatus: () => ({ udpPort: UDP_PORT, ips: getLocalIPs(), packetCount, lastPacketTime, isReceiving: lastPacketTime && (Date.now() - new Date(lastPacketTime).getTime() < 2000), isManualRecording: recordModule.getIsManualRecording(), autoRecordState: recordModule.getAutoRecordState() }),
+  getCurrent: () => currentData || {},
+});
 
 // UDP 包接收分发循环
 const EMIT_INTERVAL_MS = 33;
@@ -219,17 +212,6 @@ function processTelemetryPacket(telemetry, msgLength) {
   recordModule.handleAutoRecord(telemetry);
   recordModule.onPacketReceived(telemetry);
 }
-
-// 根路由状态输出
-app.get('/api/status', (req, res) => res.json({ udpPort: UDP_PORT, ips: getLocalIPs(), packetCount, lastPacketTime, isReceiving: lastPacketTime && (Date.now() - new Date(lastPacketTime).getTime() < 2000), isManualRecording: recordModule.getIsManualRecording(), autoRecordState: recordModule.getAutoRecordState() }));
-app.get('/api/current', (req, res) => res.json(currentData || {}));
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Forza Horizon 5 遥测系统 API',
-    version: '2.0',
-    endpoints: { status: '/api/status', current: '/api/current', tracks: '/api/tracks', vehicles: '/api/vehicles', sessions: '/api/sessions', tunes: '/api/tunes', leaderboard: '/api/leaderboard' }
-  });
-});
 
 // 服务引导流程
 (async () => {

@@ -28,6 +28,28 @@ const put = (url, body) => fetch(url, {
 
 const del = (url) => fetch(url, { method: 'DELETE' }).then(handleResponse);
 
+// 一些既有页面需要根据 res.ok 分支处理响应，保留原始 Response 以便迁移到
+// 唯一 API 入口时不改变这些页面的错误时序与提示逻辑。
+const getResponse = (url) => fetch(url);
+const postResponse = (url, body) => body === undefined
+  ? fetch(url, { method: 'POST' })
+  : fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+const putResponse = (url, body) => fetch(url, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body)
+});
+const deleteResponse = (url) => fetch(url, { method: 'DELETE' });
+const postBinaryResponse = (url, body) => fetch(url, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/octet-stream' },
+  body
+});
+
 export const api = {
   vehicles: {
     list: () => get('/api/vehicles'),
@@ -38,6 +60,7 @@ export const api = {
       const params = new URLSearchParams(query).toString();
       return get(`/api/vehicles/${id}/upgrades${params ? '?' + params : ''}`);
     },
+    aiSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/ai-solve`, body),
     solveUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/solve`, body),
     validateUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/validate`, body),
   },
@@ -84,7 +107,36 @@ export const api = {
     validate: (id) => get(`/api/tracks/${id}/validate`),
     rebuild: (id) => post(`/api/tracks/${id}/rebuild`),
     merge: (body) => post('/api/tracks/merge', body),
-    importSessions: (body) => post('/api/tracks/import-sessions', body)
+    importSessions: (body) => post('/api/tracks/import-sessions', body),
+    listResponse: () => getResponse('/api/tracks'),
+    getResponse: (id) => getResponse(`/api/tracks/${id}`),
+    getThumbnailResponse: (id) => getResponse(`/api/tracks/${id}/thumbnail`),
+    deleteResponse: (id) => deleteResponse(`/api/tracks/${id}`),
+    updateResponse: (id, body) => putResponse(`/api/tracks/${id}`, body),
+    validateResponse: (id) => getResponse(`/api/tracks/${id}/validate`),
+    rebuildResponse: (id) => postResponse(`/api/tracks/${id}/rebuild`),
+    adoptCandidateResponse: (id) => postResponse(`/api/tracks/${id}/adopt-candidate`),
+    updateTurnsResponse: (id, body) => putResponse(`/api/tracks/${id}/turns`, body),
+    mergeTurnsResponse: (id, body) => postResponse(`/api/tracks/${id}/turns/merge`, body),
+    updateTurnBoundsResponse: (id, turnIndex, body) => putResponse(`/api/tracks/${id}/turns/${turnIndex}/bounds`, body),
+    splitTurnResponse: (id, body) => postResponse(`/api/tracks/${id}/turns/split`, body),
+    mergeResponse: (body) => postResponse('/api/tracks/merge', body)
+  },
+  trackMode: {
+    getStatus: () => get('/api/trackMode/status'),
+    startResponse: (body) => postResponse('/api/trackMode/start', body),
+    stopResponse: () => postResponse('/api/trackMode/stop')
+  },
+  record: {
+    startResponse: () => postResponse('/api/record/start'),
+    stopResponse: () => postResponse('/api/record/stop'),
+    saveResponse: (body) => postResponse('/api/record/save', body)
+  },
+  backup: {
+    restoreResponse: (buffer) => postBinaryResponse('/api/backup/restore', buffer)
+  },
+  exports: {
+    downloadResponse: (format, sessionId) => getResponse(`/api/export/${format}/${sessionId}`)
   },
   system: {
     getStatus: () => get('/api/status'),
