@@ -13,6 +13,15 @@
   },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
+    "weight_reduction": {
+      "allowedOptions": ["sport", "race"]
+    },
+    "transmission": {
+      "allowedOptions": ["race_6"]
+    },
+    "driveline": {
+      "allowedOptions": ["race"]
+    },
     "track_width_front": {
       "availability": "source_explicit"
     },

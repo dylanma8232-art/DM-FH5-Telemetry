@@ -13,6 +13,9 @@
   },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
+    "differential": {
+      "allowedOptions": ["race"]
+    },
     "track_width_front": {
       "availability": "source_explicit"
     },

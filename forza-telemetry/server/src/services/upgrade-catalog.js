@@ -30,6 +30,7 @@ const COMMON_SLOTS = [
     id: 'drivetrain_swap',
     label: '驱动置换',
     group: '置换',
+    requiresVehicleEvidence: true,
     options: [
       option('stock', '保持原厂驱动', 0),
       option('fwd', '置换为前轮驱动', -15, { driveType: 'fwd' }),
@@ -41,6 +42,7 @@ const COMMON_SLOTS = [
     id: 'aspiration_swap',
     label: '增压方式置换',
     group: '置换',
+    requiresVehicleEvidence: true,
     options: [
       option('stock', '保持原厂增压方式', 0),
       option('aspiration_na', '自然吸气', 0),
@@ -54,6 +56,7 @@ const COMMON_SLOTS = [
     id: 'widebody',
     label: '宽体与车身套件',
     group: '置换',
+    requiresVehicleEvidence: true,
     options: [
       option('stock', '保持原厂车身', 0),
       option('listed_widebody', '宽体或车身套件（请对照游戏）', 8)
@@ -84,7 +87,6 @@ const COMMON_SLOTS = [
   // 胎宽是车型专属的离散毫米值；没有来源时绝不伪造“加宽 N 级”。
   { id: 'tires_width_front', label: '前轮胎宽度', group: '轮胎与轮毂', options: [option('minus_1', '减小一级', -1), option('stock', '原厂宽度'), option('plus_1', '加宽一级', 1), option('plus_2', '加宽二级', 2), option('plus_3', '加宽三级', 3)] },
   { id: 'tires_width_rear', label: '后轮胎宽度', group: '轮胎与轮毂', options: [option('minus_1', '减小一级', -1), option('stock', '原厂宽度'), option('plus_1', '加宽一级', 2), option('plus_2', '加宽二级', 5), option('plus_3', '加宽三级', 8)] },
-  { id: 'rims_weight', label: '轮毂重量', group: '轮胎与轮毂', options: [option('stock', '原厂重量'), ...Array.from({ length: 40 }, (_, index) => index < 20 ? option(`minus_${20 - index}`, `减轻 ${20 - index} 千克`, Math.max(0, Math.round((20 - index) / 7)), { weightDeltaKg: -(20 - index) }) : option(`plus_${index - 19}`, `增加 ${index - 19} 千克`, -Math.max(0, Math.round((index - 19) / 7)), { weightDeltaKg: index - 19 }))] },
   { id: 'rim_size_front', label: '前轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
   { id: 'rim_size_rear', label: '后轮毂尺寸', group: '轮胎与轮毂', sizeDisplay: true, options: [option('minus_1', '减小 1 英寸', -1), option('stock', '原厂尺寸'), ...Array.from({ length: 5 }, (_, index) => option(`plus_${index + 1}`, `加 ${index + 1} 英寸`, index + 1))] },
   { id: 'track_width_front', label: '前轮距', group: '轮胎与轮毂', sizeDisplay: true, options: [option('stock', '原厂轮距'), option('wide_1', '加宽一级', 1), option('wide_2', '加宽二级', 2), option('wide_3', '加宽三级', 3)] },
@@ -110,7 +112,7 @@ const AI_SAFE_OPTION_IDS = {
   clutch: ['street', 'sport', 'race'], transmission: ['street', 'sport', 'race_6'],
   driveline: ['street', 'sport', 'race'], differential: ['sport', 'race', 'rally', 'offroad', 'drift'],
   tires_compound: ['street', 'sport', 'semi_slick', 'slick', 'rally', 'offroad', 'drift'],
-  tires_width_front: ['wide_1'], tires_width_rear: ['wide_1'],
+  tires_width_front: ['plus_1'], tires_width_rear: ['plus_1'],
   rims_weight: ['minus_5', 'minus_10', 'minus_15'],
   track_width_front: ['wide_1'], track_width_rear: ['wide_1'],
   engine_forced_induction: ['street', 'sport'], engine_intercooler: ['street', 'sport']
@@ -142,6 +144,9 @@ function buildCommonSlots(profile, selections) {
   const slots = COMMON_SLOTS.filter(slot => {
     if (exclusions.has(slot.id) && !overrides[slot.id]) return false;
     const availability = overrides[slot.id]?.availability;
+    const hasVehicleEvidence = (profile.slots || []).some(vehicleSlot => vehicleSlot.id === slot.id)
+      || availability === 'verified_present' || availability === 'source_explicit';
+    if (slot.requiresVehicleEvidence && !hasVehicleEvidence) return false;
     return availability !== 'verified_absent' && availability !== 'unknown';
   }).map(slot => {
     const override = overrides[slot.id] || {};
@@ -190,7 +195,16 @@ function buildCommonSlots(profile, selections) {
   const forcedInduction = aspiration === 'stock' ? !['na', 'e', null].includes(profile.stockAspiration) : selectedForcedInduction;
   if (forcedInduction) {
     for (const slot of [
-      { id: 'engine_forced_induction', label: '增压器升级', options: levels(3, 7, 12) },
+      {
+        id: 'engine_forced_induction',
+        label: '增压器升级',
+        options: [
+          option('stock', '原厂增压器', 0),
+          option('street', '街车级涡轮增压器', 3),
+          option('sport', '跑车级涡轮增压器', 7),
+          option('race', '防滞后赛车涡轮增压器', 12)
+        ]
+      },
       { id: 'engine_intercooler', label: '中冷器', options: levels(1, 2, 4) }
     ]) {
       const aiSafe = new Set(AI_SAFE_OPTION_IDS[slot.id] || []);
@@ -209,8 +223,9 @@ function buildTuneParameters(profile, selections, slots, declaredDriveType = nul
     parameters.push(
       tune('tire_camber_front', -5, 5, 0.1), tune('tire_camber_rear', -5, 5, 0.1),
       tune('tire_toe_front', -5, 5, 0.1), tune('tire_toe_rear', -5, 5, 0.1), tune('caster_front', 1, 7, 0.1),
-      tune('spring_front', 1, 2000, 0.1, null, 'vehicle_specific_unknown'), tune('spring_rear', 1, 2000, 0.1, null, 'vehicle_specific_unknown'),
-      tune('ride_height_front', 1, 50, 0.1, null, 'vehicle_specific_unknown'), tune('ride_height_rear', 1, 50, 0.1, null, 'vehicle_specific_unknown'),
+      // 未录入车辆级游戏范围时使用保守边界，禁止把占位范围插值成假推荐值。
+      tune('spring_front', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'), tune('spring_rear', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'),
+      tune('ride_height_front', 3, 20, 1, null, 'vehicle_specific_unknown'), tune('ride_height_rear', 3, 20, 1, null, 'vehicle_specific_unknown'),
       tune('rebound_front', 1, 20, 0.1), tune('rebound_rear', 1, 20, 0.1),
       tune('bump_front', 1, 20, 0.1), tune('bump_rear', 1, 20, 0.1)
     );
@@ -508,13 +523,9 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
 
   let resolved = resolveUpgradeProfile(profile, parts, { driveType });
 
-  // 如果前置关键件后已经超标，需要立即卸载一些不必要的前置件
-  if (resolved.prediction.totalPi > limit) {
-    if (parts.tires_compound && limit < 800) {
-      parts.tires_compound = { optionId: 'stock', tier: 'stock' };
-    }
-    resolved = resolveUpgradeProfile(profile, parts, { driveType });
-  }
+  // 先保留赛事核心件；如果前置核心件已经超限，交给后面的价值回退策略
+  // 选择低性价比配件，不直接牺牲轮胎或悬挂。
+  resolved = resolveUpgradeProfile(profile, parts, { driveType });
 
   // 2. 启发式多轮贪心升级搜索
   for (let pass = 0; pass < 80; pass++) {
@@ -535,8 +546,8 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
         const candidateParts = { ...parts, [slot.id]: { optionId: option.id, tier: option.id } };
         const candidate = predictBuildPi(profile, candidateParts, resolved.slots);
         
-        // 允许微小的溢出（溢出在 6 PI 以内我们依然接受，用于后续回溯降级裁剪动力件，这能榨干每一滴 PI！）
-        if (candidate.totalPi > limit + 6 || candidate.totalPi <= current.totalPi) continue;
+        // 严格限制在目标 PI 内；不把超限方案伪装成可行方案。
+        if (candidate.totalPi > limit || candidate.totalPi <= current.totalPi) continue;
         
         const rank = priority[raceType]?.indexOf(slot.id);
         const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 12 : 0) - candidate.uncertainty * 0.15;
@@ -588,8 +599,66 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
     if (!downgradedSomething) break;
   }
 
+  // 通用超限回退：不是删除 PI 最大的配件，而是计算每个配件被删除后
+  // 能省下多少 PI，再按“功能价值 / 节省 PI”从低到高回退。
+  // 赛事核心件默认受保护，确保 AI 方案仍然像一个有目标的改装方案。
+  const protectedSlots = new Set({
+    road: ['tires_compound', 'suspension', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
+    dirt: ['tires_compound', 'suspension', 'differential'],
+    rally: ['tires_compound', 'suspension', 'differential'],
+    cross_country: ['tires_compound', 'suspension', 'differential'],
+    drift: ['tires_compound', 'suspension', 'differential']
+  }[raceType] || []);
+  const slotValue = {
+    tires_compound: 100, suspension: 95, differential: 90,
+    anti_roll_bar_front: 80, anti_roll_bar_rear: 80,
+    weight_reduction: 75, brakes: 70, tires_width_front: 70,
+    tires_width_rear: 70, track_width_front: 65, track_width_rear: 65,
+    transmission: 65, drivetrain_swap: 65, front_aero: 60, rear_aero: 60,
+    engine_swap: 60, engine_camshaft: 48, engine_forced_induction: 48,
+    engine_intake: 35, engine_intake_manifold: 35, engine_fuel_system: 35,
+    engine_ignition: 30, exhaust: 35, engine_valves: 32,
+    engine_displacement: 45, engine_pistons: 42, engine_intercooler: 28,
+    engine_oil_cooling: 15, engine_flywheel: 12, clutch: 25, driveline: 25,
+    roll_cage: 35, rims_weight: 20, rim_size_front: 10, rim_size_rear: 10
+  };
+  for (let rollback = 0; rollback < 30; rollback++) {
+    resolved = resolveUpgradeProfile(profile, parts, { driveType });
+    if (resolved.prediction.totalPi <= limit) break;
+    const currentPi = resolved.prediction.totalPi;
+    const removable = (resolved.slots || [])
+      .filter(slot => !protectedSlots.has(slot.id))
+      .map(slot => {
+        const optionId = parts[slot.id]?.optionId || parts[slot.id]?.tier || 'stock';
+        const option = slot.options?.find(item => item.id === optionId);
+        if (optionId === 'stock' || !option) return null;
+        const candidateParts = { ...parts, [slot.id]: { optionId: 'stock', tier: 'stock' } };
+        const candidate = predictBuildPi(profile, candidateParts, resolved.slots);
+        const savedPi = Math.max(0, currentPi - candidate.totalPi);
+        const rank = priority[raceType]?.indexOf(slot.id) ?? -1;
+        const strategicValue = rank >= 0 ? (priority[raceType].length - rank) * 12 : 0;
+        const value = Number(option.performanceScore) || (slotValue[slot.id] || 20) + strategicValue;
+        return { slot, optionId, option, savedPi, value, valuePerPi: value / Math.max(1, savedPi) };
+      })
+      .filter(Boolean)
+      .filter(item => item.savedPi > 0)
+      .sort((a, b) => a.valuePerPi - b.valuePerPi || b.savedPi - a.savedPi);
+    if (!removable.length) break;
+    const target = removable[0];
+    parts[target.slot.id] = { optionId: 'stock', tier: 'stock' };
+  }
+
   resolved = resolveUpgradeProfile(profile, parts, { driveType });
-  return { parts: resolved.effectiveSelections, prediction: resolved.prediction, slots: resolved.slots };
+  const predictedPi = Number(resolved.prediction?.totalPi);
+  return {
+    parts: resolved.effectiveSelections,
+    prediction: resolved.prediction,
+    slots: resolved.slots,
+    targetPi: limit,
+    withinTarget: Number.isFinite(predictedPi) && predictedPi <= limit,
+    overBy: Number.isFinite(predictedPi) ? Math.max(0, predictedPi - limit) : null,
+    solverStatus: Number.isFinite(predictedPi) && predictedPi <= limit ? 'feasible' : 'no_feasible_build'
+  };
 }
 
 const TUNE_FIELD_PATHS = {
@@ -662,7 +731,7 @@ export function validateTunePayload(profile, payload = {}) {
   const unknownPiCount = 0;
 
   const targetPi = Number(payload.targetPi);
-  const hasConfirmedPi = payload.totalPi !== '' && payload.totalPi !== null && payload.totalPi !== undefined;
+  const hasConfirmedPi = payload.piConfirmed === true && payload.totalPi !== '' && payload.totalPi !== null && payload.totalPi !== undefined;
   const confirmedPi = hasConfirmedPi ? Number(payload.totalPi) : estimate;
   if (hasConfirmedPi && (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999)) {
     errors.push('方案 PI 必须是 100 到 999 之间的整数。');

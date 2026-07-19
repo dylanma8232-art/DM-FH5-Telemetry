@@ -33,6 +33,16 @@ db.exec(`
     bias_pi INTEGER,
     PRIMARY KEY (vehicle_id, slot_id, option_id)
   );
+
+  CREATE TABLE IF NOT EXISTS vehicle_pi_observations (
+    vehicle_id TEXT,
+    signature TEXT,
+    confirmed_pi INTEGER NOT NULL,
+    estimated_pi INTEGER,
+    source TEXT,
+    observed_at TEXT,
+    PRIMARY KEY (vehicle_id, signature)
+  );
 `);
 
 export const sqliteDb = {
@@ -61,6 +71,23 @@ export const sqliteDb = {
       return [];
     }
   },
+  savePiObservation: ({ vehicleId, signature, confirmedPi, estimatedPi, source = '玩家游戏内实测' }) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO vehicle_pi_observations
+        (vehicle_id, signature, confirmed_pi, estimated_pi, source, observed_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(String(vehicleId), String(signature), Number(confirmedPi), Number.isFinite(Number(estimatedPi)) ? Number(estimatedPi) : null, String(source), new Date().toISOString());
+  },
+  getPiObservation: (vehicleId, signature) => {
+    try {
+      const stmt = db.prepare(`SELECT vehicle_id, signature, confirmed_pi, estimated_pi, source, observed_at FROM vehicle_pi_observations WHERE vehicle_id = ? AND signature = ?`);
+      return stmt.get(String(vehicleId), String(signature)) || null;
+    } catch (e) {
+      console.error(`[sqliteDb] 获取 ${vehicleId} 组合实测 PI 失败:`, e.message);
+      return null;
+    }
+  },
   /**
    * 保存 Session 时序细节包 (原子事务写入)
    */
@@ -68,7 +95,7 @@ export const sqliteDb = {
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
       VALUES (?, ?, ?, ?)
-    `);
+  `);
     
     // 执行原子提交
     const now = new Date().toISOString();

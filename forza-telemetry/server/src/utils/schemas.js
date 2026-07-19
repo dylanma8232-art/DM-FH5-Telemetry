@@ -45,6 +45,7 @@ export const saveTuneSchema = z.object({
   driveType: z.enum(['fwd', 'rwd', 'awd']).nullable().optional(),
   targetPi: z.number().nullable().optional(),
   totalPi: z.number().nullable().optional(),
+  piConfirmed: z.boolean().optional().default(false),
   basePi: z.number().nullable().optional(),
   freeMode: z.boolean().optional(),
   notes: z.string().optional().default(''),

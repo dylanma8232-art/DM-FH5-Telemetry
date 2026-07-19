@@ -23,7 +23,7 @@ function loadUpgradeMetadata() {
 
 function loadSingleUpgradeProfile(vehicleId) {
   const profilePath = path.join(upgradesDir, `${vehicleId}.json`);
-  return fs.existsSync(profilePath) ? loadJSON(profilePath) : null;
+  return fs.existsSync(profilePath) ? { ...loadJSON(profilePath), id: String(vehicleId) } : null;
 }
 
 function getManufacturer(name) {
@@ -109,6 +109,95 @@ router.post('/:id/upgrades/solve', express.json(), (req, res) => {
   });
   res.json({ vehicleId, ...result });
 });
+
+// 真正的大模型改装推荐：模型只能从当前车辆已解析出的选项 ID 中选择，
+// 最终方案仍必须经过本地车辆适配和 PI 校验，不能让模型直接伪造配件或 PI。
+router.post('/:id/upgrades/ai-solve', express.json(), asyncHandler(async (req, res) => {
+  const vehicleId = String(req.params.id);
+  const profile = loadSingleUpgradeProfile(vehicleId);
+  if (!profile) return res.status(404).json({ error: '该车辆缺少改装资料，暂不能使用 AI 改装。' });
+  const apiKey = process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) return res.status(403).json({ error: '尚未配置 AI 密钥，请先在设置中的 AI 配置里填写。' });
+
+  const body = req.body || {};
+  const targetPi = Math.min(999, Number(body.targetPi) || 800);
+  const raceType = body.raceType || 'road';
+  const driveType = ['fwd', 'rwd', 'awd'].includes(body.driveType) ? body.driveType : profile.baseDriveType;
+  const resolved = resolveUpgradeProfile(profile, body.parts || {}, { driveType });
+  const trustedPi = new Set(['exact_observed', 'exact_calibrated', 'calibrated_model']);
+  const compactSlots = (resolved.slots || []).map(slot => ({
+    id: slot.id,
+    label: slot.label,
+    options: (slot.options || []).filter(option => option.id === 'stock' || (
+      option.aiEligible === true && trustedPi.has(option.piConfidence)
+    )).map(option => ({
+      id: option.id,
+      label: option.label,
+      performanceScore: option.performanceScore ?? null,
+      piEstimate: option.piEstimate ?? null,
+      piConfidence: option.piConfidence
+    }))
+  })).filter(slot => slot.options.length > 1);
+  if (!compactSlots.length) {
+    return res.status(422).json({ error: '该车尚无 PI 已实测或已校准的可升级配件，AI 不会用公式猜测方案。请手动改装后填写游戏实测 PI。' });
+  }
+  const baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+  const modelName = process.env.DASHSCOPE_MODEL || 'qwen3.7-plus';
+  const prompt = `你是 Forza Horizon 5 改装规划器。请为以下车辆选择目标 PI 内性价比最高的改装组合。
+只能使用给出的 slot id 和 option id，禁止创造新 ID；未列出的选项不能选择。
+必须输出严格 JSON，不要 Markdown：{"parts":{"slotId":{"optionId":"optionId"}},"reason":"中文简短说明"}
+车辆：${profile.name}，原厂 PI：${profile.basePi}，目标 PI：${targetPi}，赛事：${raceType}，驱动：${driveType}
+可用选项：${JSON.stringify(compactSlots)}`;
+  const apiResponse = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: modelName,
+      temperature: 0.1,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: '你只负责在给定候选配件中做约束选择。不要估算或编造游戏不存在的配件。' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+  if (!apiResponse.ok) return res.status(apiResponse.status).json({ error: `AI 改装请求失败：${apiResponse.statusText}` });
+  const json = await apiResponse.json();
+  const content = json.choices?.[0]?.message?.content || '';
+  let aiPlan;
+  try {
+    const text = String(content).replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    aiPlan = JSON.parse(text);
+  } catch (_) {
+    return res.status(502).json({ error: 'AI 返回的改装方案不是有效 JSON，未应用任何配件。' });
+  }
+  const requestedParts = aiPlan?.parts && typeof aiPlan.parts === 'object' ? aiPlan.parts : {};
+  const allowed = new Map((resolved.slots || []).map(slot => [slot.id, new Set((slot.options || []).map(option => option.id))]));
+  const normalizedParts = {};
+  for (const [slotId, selection] of Object.entries(requestedParts)) {
+    const optionId = selection?.optionId || selection?.tier;
+    if (!allowed.has(slotId) || !allowed.get(slotId).has(optionId)) {
+      return res.status(422).json({ error: `AI 选择了车辆不可用的配件：${slotId}/${optionId || '空值'}。` });
+    }
+    if (optionId !== 'stock') normalizedParts[slotId] = { optionId };
+  }
+  const finalResolved = resolveUpgradeProfile(profile, normalizedParts, { driveType });
+  const predictedPi = Number(finalResolved.prediction?.totalPi);
+  const upperPi = Number(finalResolved.prediction?.maxPi ?? predictedPi);
+  if (!Number.isFinite(predictedPi) || !Number.isFinite(upperPi) || upperPi > targetPi) {
+    return res.status(422).json({ error: `AI 方案未满足目标 PI：预测 ${predictedPi}，保守上限 ${upperPi}，目标 ${targetPi}。请重新生成或降低目标。` });
+  }
+  res.json({
+    vehicleId,
+    parts: finalResolved.effectiveSelections,
+    prediction: finalResolved.prediction,
+    slots: finalResolved.slots,
+    targetPi,
+    withinTarget: true,
+    solverStatus: 'ai_validated',
+    aiReason: String(aiPlan.reason || '')
+  });
+}));
 
 router.post('/:id/upgrades/validate', express.json(), (req, res) => {
   const profile = loadSingleUpgradeProfile(String(req.params.id));

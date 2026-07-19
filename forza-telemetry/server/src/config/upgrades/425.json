@@ -13,6 +13,9 @@
   },
   "commonTemplate": "combustion_road",
   "commonSlotOverrides": {
+    "drivetrain_swap": {
+      "availability": "verified_present"
+    },
     "track_width_front": {
       "availability": "source_explicit"
     },
