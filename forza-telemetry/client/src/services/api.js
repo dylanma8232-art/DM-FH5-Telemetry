@@ -4,6 +4,7 @@ const handleResponse = async (res) => {
     try {
       const data = await res.json();
       errorMsg = data.error || errorMsg;
+      if (Array.isArray(data.errors) && data.errors.length) errorMsg += `：${data.errors.join('；')}`;
     } catch (e) { /* ignore */ }
     const err = new Error(errorMsg);
     err.status = res.status;

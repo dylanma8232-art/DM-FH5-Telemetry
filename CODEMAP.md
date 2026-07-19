@@ -18,6 +18,7 @@
   - 📄 [package.json](file:///forza-telemetry/client/package.json)
   - 📂 **public/**
     - 📄 [manifest.json](file:///forza-telemetry/client/public/manifest.json)
+    - 📄 [调校导入模板.json](file:///forza-telemetry/client/public/调校导入模板.json)
   - 📂 **src/**
     - 📄 [App.jsx](file:///forza-telemetry/client/src/App.jsx)  *(默认导出: `App`)*
     - 📂 **components/**
@@ -93,6 +94,13 @@
   - 📄 [workshop-round1.md](file:///forza-telemetry/docs/workshop-round1.md)
   - 📄 [workshop-round2-5.md](file:///forza-telemetry/docs/workshop-round2-5.md)
   - 📄 [workshop-round6-10.md](file:///forza-telemetry/docs/workshop-round6-10.md)
+- 📂 **imports/**
+  - 📄 [1992-Honda-NSX-R-A800.json](file:///forza-telemetry/imports/1992-Honda-NSX-R-A800.json)
+  - 📄 [1992-Honda-NSX-R-S1-900.json](file:///forza-telemetry/imports/1992-Honda-NSX-R-S1-900.json)
+  - 📄 [1998-Toyota-Supra-Welcome-Pack-S1-895.json](file:///forza-telemetry/imports/1998-Toyota-Supra-Welcome-Pack-S1-895.json)
+  - 📄 [2017-Ford-M-Sport-Fiesta-RS.json](file:///forza-telemetry/imports/2017-Ford-M-Sport-Fiesta-RS.json)
+  - 📄 [2021-Toyota-GR-Yaris-A-S1-900.json](file:///forza-telemetry/imports/2021-Toyota-GR-Yaris-A-S1-900.json)
+  - 📄 [2021-Toyota-GR-Yaris-B-S1-899.json](file:///forza-telemetry/imports/2021-Toyota-GR-Yaris-B-S1-899.json)
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh)
 - 📄 [package.json](file:///forza-telemetry/package.json)
 - 📂 **scripts/**
@@ -107,13 +115,18 @@
   - 📂 **scripts/**
     - 📄 [import-fh5-engine-names.mjs](file:///forza-telemetry/server/scripts/import-fh5-engine-names.mjs)
     - 📄 [import-fh5-vehicle-sheet.mjs](file:///forza-telemetry/server/scripts/import-fh5-vehicle-sheet.mjs)
+    - 📄 [rebuild-all-tracks.mjs](file:///forza-telemetry/server/scripts/rebuild-all-tracks.mjs)
+    - 📄 [recalculate-imported-tune-pi.mjs](file:///forza-telemetry/server/scripts/recalculate-imported-tune-pi.mjs)
+    - 📄 [restore-track-backup.mjs](file:///forza-telemetry/server/scripts/restore-track-backup.mjs)
     - 📄 [shard-upgrades-tool.mjs](file:///forza-telemetry/server/scripts/shard-upgrades-tool.mjs)
+    - 📄 [update-official-fh5-vehicle-catalog.mjs](file:///forza-telemetry/server/scripts/update-official-fh5-vehicle-catalog.mjs)
   - 📂 **src/**
     - 📂 **config/**
       - 📄 [VEHICLE_UPGRADE_CATALOG.md](file:///forza-telemetry/server/src/config/VEHICLE_UPGRADE_CATALOG.md)
       - 📄 [cars-database.json](file:///forza-telemetry/server/src/config/cars-database.json)
       - 📄 [constants.js](file:///forza-telemetry/server/src/config/constants.js)  *(常量/方法: `DATA_DIR`)*
       - 📄 [engine-swap-catalog.json](file:///forza-telemetry/server/src/config/engine-swap-catalog.json)
+      - 📄 [pi-observations.json](file:///forza-telemetry/server/src/config/pi-observations.json)
       - 📂 **upgrades/**
         - 📄 [1005.json](file:///forza-telemetry/server/src/config/upgrades/1005.json)
         - 📄 [1006.json](file:///forza-telemetry/server/src/config/upgrades/1006.json)
@@ -1033,7 +1046,7 @@
       - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)  *(常量/方法: `stateManager`)*
       - 📂 **track/**
         - 📄 [builder-facade.js](file:///forza-telemetry/server/src/services/track/builder-facade.js)  *(函数/组件: `buildTrackFromTrajectories`, 函数/组件: `generateSectors`, 函数/组件: `validateTrackQuality`, 函数/组件: `buildRouteBook`)*
-        - 📄 [centerline-processor.js](file:///forza-telemetry/server/src/services/track/centerline-processor.js)  *(函数/组件: `resampleCenterline`, 函数/组件: `smoothCenterline`)*
+        - 📄 [centerline-processor.js](file:///forza-telemetry/server/src/services/track/centerline-processor.js)  *(函数/组件: `resampleCenterline`, 函数/组件: `annotateArcLength`, 函数/组件: `smoothCenterline`)*
         - 📄 [track-math.js](file:///forza-telemetry/server/src/services/track/track-math.js)  *(函数/组件: `simplifyRDP`)*
         - 📄 [track-turns.js](file:///forza-telemetry/server/src/services/track/track-turns.js)  *(函数/组件: `detectTurnsEnhanced`, 函数/组件: `calculateTurnAttributes`, 函数/组件: `mapOldTurnsToNewCenterline`, 函数/组件: `remapLockedTurns`)*
         - 📄 [trajectory-cleaner.js](file:///forza-telemetry/server/src/services/track/trajectory-cleaner.js)  *(函数/组件: `correctTrajectoryDrivingLine`)*
@@ -1056,6 +1069,8 @@
   - 📂 **test/**
     - 📄 [pi-model.test.js](file:///forza-telemetry/server/test/pi-model.test.js)
     - 📄 [upgrade-catalog.test.js](file:///forza-telemetry/server/test/upgrade-catalog.test.js)
+- 📂 **templates/**
+  - 📄 [调校导入模板.json](file:///forza-telemetry/templates/调校导入模板.json)
 
 ---
 

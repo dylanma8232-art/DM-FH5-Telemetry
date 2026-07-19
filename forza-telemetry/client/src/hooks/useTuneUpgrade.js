@@ -30,9 +30,9 @@ export function useTuneUpgrade({
     const draftVersion = draftVersionRef.current
     try {
       setAutoUpgradeLoading(true)
-      // 公式模型是非线性的：候选卡片的 PI 是相对“当前构型”的差值，不能再
-      // 用旧的前端动态规划相加。统一交由服务端的整车预测器求解。
-      const formulaResponse = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades/solve`, {
+      // AI 只负责在服务端已解析、且 PI 有实测或样本校准依据的候选中做取舍。
+      // 最终构型必须由服务端再校验，客户端绝不自行拼凑或估算。
+      const aiResponse = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades/ai-solve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -41,16 +41,19 @@ export function useTuneUpgrade({
           driveType: preferredDriveType || aiDriveType
         })
       })
-      if (!formulaResponse.ok) throw new Error('公式改装方案生成失败')
-      const formula = await formulaResponse.json()
+      const aiResult = await aiResponse.json()
+      if (!aiResponse.ok) throw new Error(aiResult.error || 'AI 改装方案生成失败')
       if (draftVersion !== draftVersionRef.current) return false
-      const refreshed = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encodeURIComponent(JSON.stringify(formula.parts || {}))}&driveType=${encodeURIComponent(preferredDriveType || aiDriveType)}`)
-      if (!refreshed.ok) throw new Error('无法读取公式改装结果')
+      if (aiResult.withinTarget === false) {
+        throw new Error(`当前车辆在目标 ${targetPi} PI 内没有可行方案，模型返回 ${aiResult.prediction?.totalPi ?? '未知'} PI，未应用该方案。`)
+      }
+      const refreshed = await fetch(`/api/vehicles/${encodeURIComponent(formData.vehicleId)}/upgrades?selections=${encodeURIComponent(JSON.stringify(aiResult.parts || {}))}&driveType=${encodeURIComponent(preferredDriveType || aiDriveType)}`)
+      if (!refreshed.ok) throw new Error('无法读取 AI 改装结果')
       const resolvedShop = await refreshed.json()
       const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType || aiRaceType)
       setFormData(prev => ({
         ...prev,
-        parts: resolvedShop.effectiveSelections || formula.parts || {},
+        parts: resolvedShop.effectiveSelections || aiResult.parts || {},
         tires: prev.tires && Object.keys(prev.tires).length > 0 ? prev.tires : initRecommendations.tires,
         suspension: prev.suspension && Object.keys(prev.suspension).length > 0 ? prev.suspension : initRecommendations.suspension,
         drivetrain: prev.drivetrain && Object.keys(prev.drivetrain).length > 0 ? prev.drivetrain : initRecommendations.drivetrain,
@@ -205,6 +208,9 @@ export function getInitialParameterRecommendations(resolvedShop, raceType = 'roa
     const mid = (min + max) / 2;
     
     let val = mid;
+
+    // 车辆级范围尚未核验时不能用占位范围生成“推荐值”。
+    if (param.rangeConfidence === 'vehicle_specific_unknown') continue;
     
     if (id === 'tire_pressure_front' || id === 'tire_pressure_rear') {
       val = raceType === 'cross_country' ? 1.6 : (raceType === 'dirt' || raceType === 'rally' ? 1.8 : 2.0);

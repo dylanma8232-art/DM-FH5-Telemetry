@@ -13,74 +13,22 @@ import { resolveUpgradeProfile } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const selectionSignature = (selections = {}) => Object.entries(selections)
+  .map(([slotId, selection]) => [slotId, selection?.optionId || selection?.tier || 'stock'])
+  .filter(([, optionId]) => optionId !== 'stock')
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([slotId, optionId]) => `${slotId}=${optionId}`)
+  .join('|');
 
-function performSelfLearningCalibration(vehicleId, confirmedPi, estimate, normalizedParts) {
-  if (!vehicleId || !confirmedPi) return;
-  const profile = loadUpgradeProfile(vehicleId);
-  if (!profile) return;
-
-  // 1. 获取完整的 slots
-  const resolved = resolveUpgradeProfile(profile, normalizedParts);
-  const slots = resolved.slots || [];
-
-  // 2. 预测没有偏置 (ignoreBias = true) 的纯物理估值
-  const purePrediction = predictBuildPi(profile, normalizedParts, slots, true);
-  const pureEstimate = purePrediction.totalPi;
-
-  // 3. 计算绝对物理误差
-  const absoluteDelta = Math.round(confirmedPi - pureEstimate);
-
-  // 4. 获取当前所有已改动（不是 stock）的配件列表
-  const activeSlots = Object.entries(normalizedParts || {})
-    .filter(([slotId, part]) => part && part.optionId && part.optionId !== 'stock')
-    .map(([slotId, part]) => ({ slotId, optionId: part.optionId }));
-
-  if (activeSlots.length === 0) return;
-
-  let remainingDelta = absoluteDelta;
-  const assignments = [];
-
-  // 特写大件分配权重
-  const engineSwap = activeSlots.find(s => s.slotId === 'engine_swap');
-  const driveSwap = activeSlots.find(s => s.slotId === 'drivetrain_swap');
-  const aspSwap = activeSlots.find(s => s.slotId === 'aspiration_swap');
-
-  if (engineSwap) {
-    const alloc = Math.round(absoluteDelta * 0.5);
-    assignments.push({ ...engineSwap, bias: alloc });
-    remainingDelta -= alloc;
-  }
-  if (driveSwap) {
-    const alloc = Math.round(absoluteDelta * 0.25);
-    assignments.push({ ...driveSwap, bias: alloc });
-    remainingDelta -= alloc;
-  }
-  if (aspSwap) {
-    const alloc = Math.round(absoluteDelta * 0.25);
-    assignments.push({ ...aspSwap, bias: alloc });
-    remainingDelta -= alloc;
-  }
-
-  // 剩余配件平均分配剩下的 bias
-  const others = activeSlots.filter(s => !['engine_swap', 'drivetrain_swap', 'aspiration_swap'].includes(s.slotId));
-  if (others.length > 0) {
-    const perPart = Math.round(remainingDelta / others.length);
-    others.forEach((s, idx) => {
-      const isLast = idx === others.length - 1;
-      const alloc = isLast ? remainingDelta : perPart;
-      assignments.push({ ...s, bias: alloc });
-      remainingDelta -= alloc;
-    });
-  } else if (assignments.length > 0) {
-    assignments[0].bias += remainingDelta;
-  }
-
-  // 将分摊偏置写入数据库并直接覆写 (不再与 currentBias 叠加)
-  for (const item of assignments) {
-    const newBias = clamp(item.bias, -40, 40); // 限制单项最大偏置为 [-40, 40]
-    sqliteDb.savePiCalibration(vehicleId, item.slotId, item.optionId, newBias);
-  }
+function saveCombinationObservation(vehicleId, confirmedPi, estimate, normalizedParts, piConfirmed) {
+  if (!piConfirmed || !vehicleId || !Number.isFinite(Number(confirmedPi))) return;
+  sqliteDb.savePiObservation({
+    vehicleId,
+    signature: selectionSignature(normalizedParts),
+    confirmedPi,
+    estimatedPi: estimate,
+    source: '玩家游戏内实测'
+  });
 }
 
 
@@ -91,7 +39,7 @@ const upgradesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 const loadUpgradeProfile = vehicleId => {
   const profilePath = path.join(upgradesDir, `${vehicleId}.json`);
-  return fs.existsSync(profilePath) ? loadJSON(profilePath) : null;
+  return fs.existsSync(profilePath) ? { ...loadJSON(profilePath), id: String(vehicleId) } : null;
 };
 
 const nestedTuneKeys = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero'];
@@ -230,6 +178,7 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     estimatedPi: validation.computed.unknownPiCount ? null : validation.computed.estimate,
     piUpperEstimate: validation.computed.upperEstimate,
     piStatus: validation.computed.status,
+    piConfirmed: body.piConfirmed === true,
     validationWarnings: validation.warnings,
     generationMode: body.generationMode === 'ai' ? 'ai' : 'manual',
     raceType: body.generationMode === 'ai' ? body.raceType || 'road' : null,
@@ -246,11 +195,12 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
   };
 
   // 触发 PI 增量自学习校准
-  performSelfLearningCalibration(
+  saveCombinationObservation(
     body.vehicleId, 
     validation.computed.confirmedPi, 
     validation.computed.estimate, 
-    validation.normalizedParts
+    validation.normalizedParts,
+    body.piConfirmed
   );
 
   stateManager.tunes[tuneId] = tune;
@@ -303,6 +253,7 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   tune.estimatedPi = validation.computed.unknownPiCount ? null : validation.computed.estimate;
   tune.piUpperEstimate = validation.computed.upperEstimate;
   tune.piStatus = validation.computed.status;
+  if (body.piConfirmed !== undefined) tune.piConfirmed = body.piConfirmed === true;
   tune.validationWarnings = validation.warnings;
   tune.generationMode = candidate.generationMode === 'ai' ? 'ai' : 'manual';
   tune.raceType = candidate.generationMode === 'ai' ? candidate.raceType || 'road' : null;
@@ -320,11 +271,12 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   tune.updatedAt = new Date().toISOString();
   
   // 触发 PI 增量自学习校准
-  performSelfLearningCalibration(
+  saveCombinationObservation(
     tune.vehicleId, 
     validation.computed.confirmedPi, 
     validation.computed.estimate, 
-    validation.normalizedParts
+    validation.normalizedParts,
+    candidate.piConfirmed === true
   );
 
   stateManager.tunes[req.params.tuneId] = tune;

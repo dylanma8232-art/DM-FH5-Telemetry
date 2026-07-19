@@ -449,6 +449,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         let value = recommended[parameter.id]
         const gear = parameter.id.match(/^gear_(\d+)$/)?.[1]
         if (gear) value = Math.max(0.65, Number((4.2 / Math.pow(Number(gear), 0.72)).toFixed(2)))
+        if (parameter.rangeConfidence === 'vehicle_specific_unknown') return
         if (parameter.id.startsWith('spring_')) value = Number(((range.min + range.max) * 0.4).toFixed(1))
         if (parameter.id.startsWith('ride_height_')) value = Number((range.min + (range.max - range.min) * (aiRaceType === 'cross_country' ? 0.75 : 0.2)).toFixed(1))
         if (parameter.id.startsWith('downforce_')) value = Number((range.min + (range.max - range.min) * 0.55).toFixed(0))
@@ -537,6 +538,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       basePi,
       targetPi: buildMode === 'ai' ? targetPi : null,
       totalPi: confirmedPi,
+      piConfirmed: solutionPi !== null,
       generationMode: buildMode === 'ai' ? 'ai' : 'manual',
       raceType: buildMode === 'ai' ? aiRaceType : null,
       driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
@@ -628,7 +630,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     })
     // 已保存方案的 basePi 由服务端按车辆原厂档案计算；加载档案后还会再次校正。
     setBasePi(tune.basePi || 500)
-    setSolutionPi(null) // 编辑模式跟随动态 totalPi；用户可在保存前手动输入实测 PI
+    setSolutionPi(tune.piStatus === 'user_confirmed' ? Number(tune.totalPi) : null)
     const savedTargetPi = Number(tune.targetPi)
     setTargetPi(PI_CLASS_CAPS.includes(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
@@ -887,11 +889,28 @@ export function useTuneManager({ onNavigate, navIntent }) {
     dirtyParamsRef.current.clear()
   }
 
+  // 将当前车辆的所有改装槽位恢复为原厂，并让服务端重新解析整车构型。
+  // 不能直接使用旧的前端 PART_CATEGORIES 默认表：车型专属槽位和通用槽位
+  // 可能不同，直接替换会让 PartSelector 的 selected/slotInfo 结构短暂失配。
+  const resetAllPartsToStock = async () => {
+    const stockParts = Object.fromEntries((upgradeShop?.slots || []).map(slot => [
+      slot.id,
+      slot.tierSystem ? { tier: 'stock', optionId: 'stock' } : { optionId: 'stock' }
+    ]))
+    const vehicleId = formData.vehicleId
+    if (!vehicleId) return
+
+    dirtyParamsRef.current.clear()
+    setSolutionPi(null)
+    setFormData(prev => ({ ...prev, parts: stockParts }))
+    await refreshUpgradeShop(vehicleId, stockParts)
+  }
+
   // 配件选择处理（Round 9: 对比解锁参数）
   const TUNE_PARAM_LABELS = {
     'tire_camber_front': '前外倾角', 'tire_camber_rear': '后外倾角',
     'tire_toe_front': '前束角', 'tire_toe_rear': '后束角',
-    'caster_front': '主销后倾角',
+    'caster_front': '前后倾角',
     'spring_front': '前弹簧硬度', 'spring_rear': '后弹簧硬度',
     'damping_front': '前阻尼', 'damping_rear': '后阻尼',
     'rebound_front': '前回弹阻尼', 'rebound_rear': '后回弹阻尼',
@@ -1186,8 +1205,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
         tires: tune.tires || {},
         suspension: tune.suspension || {},
         drivetrain: tune.drivetrain || {},
+        brakes: tune.brakes || {},
         aero: tune.aero || {},
-        parts: tune.parts || {}
+        parts: tune.parts || {},
+        notes: tune.notes || '',
+        description: tune.description || ''
       }
       await api.tunes.create(payload);
       await loadTunes()
@@ -1476,6 +1498,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     tuneDefaults,
     resetParamToDefault,
     resetAllToDefaults,
+    resetAllPartsToStock,
     updatePartSelection,
     tuneConstraints,
     upgradeShop,

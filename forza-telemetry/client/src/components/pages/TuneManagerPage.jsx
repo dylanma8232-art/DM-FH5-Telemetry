@@ -30,7 +30,7 @@ const TUNE_FIELDS_SCHEMA = [
       { id: 'rearCamber', label: '后外倾角', min: -5, max: 0, step: 0.1, unit: '°' },
       { id: 'frontToe', label: '前束角', min: -0.5, max: 0.5, step: 0.1, unit: '°' },
       { id: 'rearToe', label: '后束角', min: -0.5, max: 0.5, step: 0.1, unit: '°' },
-      { id: 'frontCaster', label: '主销后倾角', min: 1, max: 7, step: 0.1, unit: '°' }
+      { id: 'frontCaster', label: '前后倾角', min: 1, max: 7, step: 0.1, unit: '°' }
     ]
   },
   {
@@ -100,7 +100,7 @@ const PARAM_NAMES_ZH = {
   rearCamber: '后外倾角',
   frontToe: '前束角',
   rearToe: '后束角',
-  frontCaster: '主销后倾角',
+  frontCaster: '前后倾角',
   frontSpring: '前弹簧刚度',
   rearSpring: '后弹簧刚度',
   frontDamping: '前避震阻尼',
@@ -135,7 +135,7 @@ const PARAM_NAMES_ZH = {
   tire_camber_rear: '后外倾角',
   tire_toe_front: '前束角',
   tire_toe_rear: '后束角',
-  caster_front: '主销后倾角',
+  caster_front: '前后倾角',
   spring_front: '前弹簧',
   spring_rear: '后弹簧',
   damping_front: '前避震阻尼',
@@ -267,6 +267,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     tuneDefaults,
     resetParamToDefault,
     resetAllToDefaults,
+    resetAllPartsToStock,
     updatePartSelection,
     tuneConstraints,
     upgradeShop,
@@ -289,10 +290,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   } = useTuneManager({ onNavigate, navIntent });
   const hasAiOption = (slotId, optionId) => upgradeShop?.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === optionId && option.aiEligible === true && Number.isFinite(Number(option.piUpperEstimate)))
   const [activePartTab, setActivePartTab] = useState('置换');
-  const [activeParamTab, setActiveParamTab] = useState('tires');
+  const [activeParamTab, setActiveParamTab] = useState('tire-pressure');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPartsList, setAiPartsList] = useState([]);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [showImportMenu, setShowImportMenu] = useState(false);
 
   const partGroups = React.useMemo(() => {
     if (!upgradeShop || upgradeShop.status === 'unverified') return { data: {}, tabs: [], current: '' };
@@ -623,7 +625,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           >
             {compareMode ? '退出' : '对比'}
           </button>
-          <button onClick={() => importFileRef.current?.click()} style={{ ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}>
+          <button onClick={() => setShowImportMenu(true)} style={{ ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}>
             导入
           </button>
           <button onClick={() => setShareCodeModal('input')} style={{ ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}>
@@ -641,6 +643,36 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
         onChange={handleImportFile}
         style={{ display: 'none' }}
       />
+
+      {showImportMenu && (
+        <div style={modalOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setShowImportMenu(false) }}>
+          <div style={{ ...modalContentStyle, maxWidth: 410 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>导入调校</h2>
+              <button onClick={() => setShowImportMenu(false)} style={{ ...btnSmallStyle, border: 'none' }}>关闭</button>
+            </div>
+            <p style={{ margin: '0 0 14px', color: 'var(--text-secondary)', fontSize: 11, lineHeight: 1.55 }}>
+              请选择已有调校文件，或先下载模板填写。未填写的配件会保持原厂。
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button
+                onClick={() => { setShowImportMenu(false); importFileRef.current?.click() }}
+                style={{ ...btnPrimaryStyle, minHeight: 72, fontSize: 12 }}
+              >
+                上传文件
+              </button>
+              <a
+                href="/调校导入模板.json"
+                download="调校导入模板.json"
+                onClick={() => setShowImportMenu(false)}
+                style={{ ...btnSmallStyle, minHeight: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontSize: 12, fontWeight: 700, color: '#58a6ff', borderColor: 'rgba(88,166,255,0.45)' }}
+              >
+                下载模板
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 搜索与筛选栏 */}
       <div style={{
@@ -1055,7 +1087,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       <ParamItem label="后外倾角" value={tune.tires?.rearCamber} unit="°" defaultValue={tuneDefaultsForView['tires.rearCamber']} />
                       <ParamItem label="前束角" value={tune.tires?.frontToe} unit="°" defaultValue={tuneDefaultsForView['tires.frontToe']} />
                       <ParamItem label="后束角" value={tune.tires?.rearToe} unit="°" defaultValue={tuneDefaultsForView['tires.rearToe']} />
-                      <ParamItem label="主销后倾角" value={tune.tires?.frontCaster} unit="°" defaultValue={tuneDefaultsForView['tires.frontCaster']} />
+                      <ParamItem label="前后倾角" value={tune.tires?.frontCaster} unit="°" defaultValue={tuneDefaultsForView['tires.frontCaster']} />
                     </div>
 
                     {/* 2.2 避震弹簧 */}
@@ -1537,10 +1569,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#58a6ff', letterSpacing: 0.5 }}>
-                  AI 多智能代理正在进行遗传算法寻优...
+                  智能改装推荐正在计算...
                 </div>
                 <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>
-                  正在模拟风洞试验、胎温胎压抓地力平衡与最优齿比传动曲线
+                  正在根据车辆资料、目标 PI 和赛事类型筛选可行配件
                 </div>
               </div>
             )}
@@ -1743,7 +1775,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           borderRadius: 6
                         }}
                       >
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>AI 一键生成</div>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>智能改装推荐</div>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>按照您期望的 PI 评级与赛事路面倾向为您智能装配。</div>
                       </button>
                     </div>
@@ -1792,35 +1824,31 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           type="button"
                           onClick={async () => {
                             setAiLoading(true);
-                            setTimeout(async () => {
-                              try {
-                                const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
-                                if (generated) {
-                                  setFormData(prev => {
-                                    const modifiedParts = [];
-                                    if (prev.parts) {
-                                      Object.entries(prev.parts).forEach(([k, v]) => {
-                                        const isStock = v.tier === 'stock' || v.optionId === 'stock' || (!v.tier && !v.optionId);
-                                        if (!isStock) {
-                                          modifiedParts.push(k);
-                                        }
-                                      });
-                                    }
-                                    setAiPartsList(modifiedParts);
-                                    return { ...prev, tags: prev.tags ? (prev.tags.includes(aiRaceType) ? prev.tags : [...prev.tags, aiRaceType]) : [aiRaceType] };
-                                  });
-                                  setWizardStep(2); 
-                                }
-                              } catch (e) {
-                                console.error(e);
-                              } finally {
-                                setAiLoading(false);
+                            try {
+                              const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
+                              if (generated) {
+                                setFormData(prev => {
+                                  const modifiedParts = [];
+                                  if (prev.parts) {
+                                    Object.entries(prev.parts).forEach(([k, v]) => {
+                                      const isStock = v.tier === 'stock' || v.optionId === 'stock' || (!v.tier && !v.optionId);
+                                      if (!isStock) modifiedParts.push(k);
+                                    });
+                                  }
+                                  setAiPartsList(modifiedParts);
+                                  return { ...prev, tags: prev.tags ? (prev.tags.includes(aiRaceType) ? prev.tags : [...prev.tags, aiRaceType]) : [aiRaceType] };
+                                });
+                                setWizardStep(2);
                               }
-                            }, 1500);
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setAiLoading(false);
+                            }
                           }}
                           style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636', borderColor: '#2ea44f' }}
                         >
-                          智能启发式计算装配
+                          AI 生成并回填方案
                         </button>
                       </div>
                     )}
@@ -1848,7 +1876,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 
                 {buildMode === 'ai' && (
                   <div style={{ padding: '6px 12px', background: 'rgba(35,134,54,0.1)', border: '1px solid rgba(35,134,54,0.3)', borderRadius: 6, color: '#3fb950', fontSize: 10 }}>
-                    💡 这是 AI 生成的预选方案。您可以任意更改下方的轮胎、引擎或减震等配件；进入下一步前，最终选定的升级包将自动决定可调参数范围。
+                    💡 这是根据车辆资料和目标 PI 计算出的预选方案，尚未保存。您可以任意更改配件；完成保存后才会进入调校库。
                   </div>
                 )}
                 
@@ -1887,7 +1915,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           type="button"
                           onClick={() => {
                             if (window.confirm('确定要恢复所有改装组件为原厂状态吗？')) {
-                              setFormData(prev => ({ ...prev, parts: getDefaultParts() }));
+                              resetAllPartsToStock();
                               setAiPartsList([]);
                             }
                           }}
@@ -2009,11 +2037,15 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       {/* 参数分类选项卡 */}
                       <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'auto', paddingBottom: 4, flexShrink: 0 }}>
                         {[
-                          { id: 'tires', label: '轮胎', icon: '🛞' },
-                          { id: 'suspension', label: '悬挂', icon: '🔩' },
-                          { id: 'drivetrain', label: '传动', icon: '🔄' },
-                          { id: 'brakes', label: '制动', icon: '🛑' },
-                          { id: 'aero', label: '空阻', icon: '🌪️' }
+                          { id: 'tire-pressure', label: '轮胎', icon: '🛞' },
+                          { id: 'gearing', label: '齿轮比', icon: '⚙️' },
+                          { id: 'alignment', label: '轮胎定位', icon: '📐' },
+                          { id: 'anti-roll-bars', label: '防倾杆', icon: '↔️' },
+                          { id: 'springs', label: '弹簧', icon: '🔩' },
+                          { id: 'damping', label: '阻尼', icon: '⚡' },
+                          { id: 'aero', label: '空力设置', icon: '🌪️' },
+                          { id: 'brakes', label: '刹车', icon: '🛑' },
+                          { id: 'differential', label: '差速器', icon: '🔄' }
                         ].map(tab => {
                           const isSelected = activeParamTab === tab.id;
                           return (
@@ -2041,7 +2073,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         })}
                       </div>
 
-                      {TUNE_FIELDS_SCHEMA.filter(section => section.category === activeParamTab).map(section => {
+                      {TUNE_FIELDS_SCHEMA.filter(section => (section.sectionKey || section.kind || section.category) === activeParamTab).map(section => {
                         if (section.kind === 'differential') {
                           return (
                             <div key={section.category} className="form-section" style={formSectionStyle}>
@@ -2231,7 +2263,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
                       <div>
-                        <label style={labelStyle}>手动修改 PI 级</label>
+                        <label style={labelStyle}>游戏实测 PI（留空使用估算）</label>
                         <input
                           type="number"
                           min="100"
@@ -2243,7 +2275,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 6 }}>
-                        <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>系统估算 PI：{totalPi}</span>
+                        <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>系统估算 PI：{totalPi}；填写游戏内最终 PI 后会按完整配件组合校准</span>
                       </div>
                     </div>
 

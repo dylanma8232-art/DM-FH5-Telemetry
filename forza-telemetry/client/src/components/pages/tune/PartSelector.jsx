@@ -66,6 +66,7 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
 
   const handleSelect = (tier, optionId) => {
     onChange(tier, optionId)
+    setExpanded(false)
   }
 
   return (

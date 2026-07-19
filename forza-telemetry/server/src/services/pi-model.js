@@ -1,4 +1,5 @@
 import { sqliteDb } from '../storage/sqlite-db.js';
+import piObservations from '../config/pi-observations.json' with { type: 'json' };
 
 /**
  * 公式 PI 预测器。
@@ -21,6 +22,75 @@ const POWER_SLOT_GAIN = {
   engine_forced_induction: 0.07, engine_intercooler: 0.025, engine_oil_cooling: 0.008,
   engine_flywheel: 0.006, electric_motor: 0.055
 };
+
+function selectionSignature(selections = {}) {
+  return Object.entries(selections)
+    .map(([slotId, selection]) => [slotId, selection?.optionId || selection?.tier || 'stock'])
+    .filter(([, optionId]) => optionId !== 'stock')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([slotId, optionId]) => `${slotId}=${optionId}`)
+    .join('|');
+}
+
+function findExactObservation(profile, selections) {
+  const vehicleId = String(profile?.id || profile?.vehicleId || '');
+  const signature = selectionSignature(selections);
+  const fileObservation = (piObservations.observations || []).find((sample) =>
+    String(sample.vehicleId) === vehicleId && selectionSignature(Object.fromEntries(Object.entries(sample.parts || {}).map(([slotId, optionId]) => [slotId, { optionId }]))) === signature
+  );
+  if (fileObservation) return fileObservation;
+  const storedObservation = sqliteDb.getPiObservation(vehicleId, signature);
+  if (!storedObservation) return null;
+  return {
+    vehicleId,
+    confirmedPi: storedObservation.confirmed_pi,
+    source: storedObservation.source || '玩家游戏内实测',
+    estimatedPi: storedObservation.estimated_pi,
+    observedAt: storedObservation.observed_at
+  };
+}
+
+function findComponentObservation(profile, slotId, optionId) {
+  const vehicleId = String(profile?.id || profile?.vehicleId || '');
+  return (piObservations.componentObservations || []).find(sample =>
+    String(sample.vehicleId) === vehicleId && sample.slotId === slotId && sample.optionId === optionId
+  ) || null;
+}
+
+function componentPopulationEstimate(profile, slotId, optionId) {
+  const features = piObservations.vehicleFeatures || {};
+  const target = {
+    driveType: profile?.baseDriveType || 'awd',
+    basePi: finite(profile?.basePi, 600),
+    massKg: finite(profile?.stockSpecs?.massKg, 1450)
+  };
+  const samples = (piObservations.componentObservations || [])
+    .filter(sample => sample.slotId === slotId && sample.optionId === optionId && Number.isFinite(Number(sample.pi)))
+    .map(sample => {
+      const sampleFeatures = features[String(sample.vehicleId)] || {};
+      const baseDistance = Math.abs(finite(sampleFeatures.basePi, target.basePi) - target.basePi);
+      const massDistance = Math.abs(finite(sampleFeatures.massKg, target.massKg) - target.massKg);
+      let weight = 1;
+      if (sampleFeatures.driveType === target.driveType) weight += 2.5;
+      if (baseDistance <= 75) weight += 1.5;
+      else if (baseDistance <= 150) weight += 0.75;
+      if (massDistance <= 250) weight += 0.5;
+      return { pi: Number(sample.pi), weight };
+    });
+  if (samples.length < 3) return null;
+  const totalWeight = samples.reduce((sum, sample) => sum + sample.weight, 0);
+  const point = samples.reduce((sum, sample) => sum + sample.pi * sample.weight, 0) / totalWeight;
+  const variance = samples.reduce((sum, sample) => sum + sample.weight * (sample.pi - point) ** 2, 0) / totalWeight;
+  return { pi: Math.round(point), sampleCount: samples.length, spread: Math.sqrt(variance) };
+}
+
+function resolveComponentPi(profile, stock, slotId, option) {
+  const observed = findComponentObservation(profile, slotId, option.id);
+  if (observed) return { pi: Number(observed.pi), source: 'game_observed', confidence: 'exact_observed', sampleCount: 1, spread: 0 };
+  const population = componentPopulationEstimate(profile, slotId, option.id);
+  if (population) return { ...population, source: 'population_calibrated', confidence: 'calibrated_model' };
+  return { pi: fixedOptionDelta(stock, slotId, option), source: 'formula_v1', confidence: 'model_estimate', sampleCount: 0, spread: null };
+}
 
 export function makeStockState(profile = {}) {
   const pi = finite(profile.basePi, 500);
@@ -180,21 +250,62 @@ export function fixedOptionDelta(stock, slotId, option) {
 export function predictBuildPi(profile, selections, slots, ignoreBias = false) {
   const stock = makeStockState(profile);
   const basePi = finite(profile.basePi, 500);
+  const exactObservation = findExactObservation(profile, selections);
+  if (exactObservation) {
+    return {
+      totalPi: exactObservation.confirmedPi,
+      minPi: exactObservation.confirmedPi,
+      maxPi: exactObservation.confirmedPi,
+      deltaFromStock: exactObservation.confirmedPi - basePi,
+      featureCoverage: 100,
+      uncertainty: 0,
+      modelVersion: 'observed-build-v1',
+      usedPriors: false,
+      source: exactObservation.source
+    };
+  }
 
-  // 1. 整体物理状态叠加计算 (以 combinedState 整体计算物理增益，防止各配件独立相加导致缺乏物理耦合而 PI 虚高)
-  let combinedState = { ...stock };
+  // 原厂构型是 PI 模型的锚点：只要没有任何非原厂选项，结果必须严格
+  // 等于车辆档案的原厂 PI，不能让经验先验或驱动状态把原厂车算低。
+  const hasNonStockSelection = (slots || []).some(slot => {
+    const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
+    return optionId !== 'stock';
+  });
+  if (!hasNonStockSelection) {
+    const coverage = Math.round((stock.knownFields / 6) * 100);
+    return {
+      totalPi: basePi,
+      minPi: clamp(basePi - (stock.usedPriors ? 7 : 0), 100, 999),
+      maxPi: clamp(basePi + (stock.usedPriors ? 7 : 0), 100, 999),
+      deltaFromStock: 0,
+      featureCoverage: coverage,
+      uncertainty: stock.usedPriors ? 7 : 0,
+      modelVersion: 'formula-v1',
+      usedPriors: stock.usedPriors
+    };
+  }
+
+  // 1. 统一 PI 口径：原厂 PI + 每个已选配件从原厂状态计算出的固定增量。
+  // 这样候选卡片、整车预估和保存校验使用同一套数字，避免把单件 PI 与
+  // 整车非线性重算混用，造成用户看到的增量无法复算。
+  let additiveDelta = 0;
+  let uncertaintySquared = stock.usedPriors ? 16 : 0;
   if (slots && selections) {
     for (const slot of slots) {
       const optionId = selections?.[slot.id]?.optionId || selections?.[slot.id]?.tier || 'stock';
       const option = slot.options?.find(item => item.id === optionId);
       if (option && optionId !== 'stock') {
-        combinedState = applyOption(combinedState, slot.id, option, stock);
+        const component = resolveComponentPi(profile, stock, slot.id, option);
+        additiveDelta += component.pi;
+        const componentUncertainty = component.confidence === 'exact_observed'
+          ? 0
+          : component.confidence === 'calibrated_model'
+            ? Math.max(1, component.spread || 1)
+            : 7 + Math.abs(component.pi) * 0.04;
+        uncertaintySquared += componentUncertainty ** 2;
       }
     }
   }
-
-  // 整体物理 Delta
-  const mainPhysicsDelta = scoreState(combinedState, stock);
 
   // 2. 从 SQLite 加载配件对应的 bias 校准偏置并累加
   const vehicleId = profile.id || profile.vehicleId || '';
@@ -210,13 +321,13 @@ export function predictBuildPi(profile, selections, slots, ignoreBias = false) {
     }
   }
 
-  const totalPi = clamp(Math.round(basePi + mainPhysicsDelta + sumBias), 100, 999);
+  const totalPi = clamp(Math.round(basePi + additiveDelta + sumBias), 100, 999);
   const coverage = Math.round((stock.knownFields / 6) * 100);
-  const uncertainty = clamp(Math.round(7 + (100 - coverage) * 0.16 + Math.abs(mainPhysicsDelta) * 0.045), 7, 30);
+  const uncertainty = clamp(Math.round(Math.sqrt(uncertaintySquared)), 0, 30);
   
   return {
     totalPi, minPi: clamp(totalPi - uncertainty, 100, 999), maxPi: clamp(totalPi + uncertainty, 100, 999),
-    deltaFromStock: totalPi - basePi, featureCoverage: coverage, uncertainty, modelVersion: 'formula-v1', usedPriors: stock.usedPriors
+    deltaFromStock: totalPi - basePi, featureCoverage: coverage, uncertainty, modelVersion: 'calibrated-components-v2', usedPriors: stock.usedPriors
   };
 }
 
@@ -230,20 +341,23 @@ export function applyPiPredictions(profile, selections, slots) {
   const biasMap = new Map(calibrations.map(c => [`${c.slot_id}/${c.option_id}`, c.bias_pi]));
 
   const scoredSlots = slots.map(slot => ({ ...slot, options: (slot.options || []).map(option => {
-    const baseDelta = fixedOptionDelta(stock, slot.id, option);
+    const component = resolveComponentPi(profile, stock, slot.id, option);
+    const baseDelta = component.pi;
     const bias = biasMap.get(`${slot.id}/${option.id}`) || 0;
     const delta = baseDelta + bias;
 
-    const optionUncertainty = clamp(Math.round(3 + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.08 + Math.abs(delta) * 0.035), 3, 16);
+    const optionUncertainty = component.confidence === 'exact_observed'
+      ? 0
+      : clamp(Math.round(3 + (component.spread || 0) + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.05 + Math.abs(delta) * 0.035), 3, 16);
     return {
       ...option,
       piEstimate: delta,
       piDeltaFromCurrent: delta,
       piDeltaFromStock: delta,
       piUpperEstimate: delta + optionUncertainty,
-      piSource: bias !== 0 ? 'sqlite_calibrated' : 'formula_v1', 
-      piConfidence: bias !== 0 ? 'exact_calibrated' : 'model_estimate',
-      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: bias !== 0 ? '自学习校准融合' : '车型绝对公式', contextDependent: false, ruleVersion: prediction.modelVersion }
+      piSource: bias !== 0 ? 'sqlite_calibrated' : component.source,
+      piConfidence: bias !== 0 ? 'exact_calibrated' : component.confidence,
+      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: component.confidence === 'exact_observed' ? '游戏单项实测' : (bias !== 0 ? '自学习校准融合' : component.confidence === 'calibrated_model' ? `同类车型 ${component.sampleCount} 条实测校准` : '车型绝对公式'), contextDependent: component.confidence !== 'exact_observed', ruleVersion: prediction.modelVersion }
     };
   }) }));
   return { prediction, slots: scoredSlots };
