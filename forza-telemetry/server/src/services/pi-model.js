@@ -57,38 +57,142 @@ function findComponentObservation(profile, slotId, optionId) {
   ) || null;
 }
 
-function componentPopulationEstimate(profile, slotId, optionId) {
-  const features = piObservations.vehicleFeatures || {};
-  const target = {
-    driveType: profile?.baseDriveType || 'awd',
+// 统一配件 PI 学习器：不为某一辆车写特例，而是对每个「槽位/选项」从
+// 全部游戏实测中自动选择泛化误差最低的模型。候选模型会在留一验证中比较：
+// 全局均值、驱动类型平滑均值、PI/车重岭回归、PI/车重/驱动岭回归。
+// 这样新车只需要原厂 PI、车重和驱动形式，不需要逐车校验。
+function vehicleFeatures(profile = {}) {
+  return {
+    driveType: profile?.baseDriveType || profile?.driveType || 'awd',
     basePi: finite(profile?.basePi, 600),
-    massKg: finite(profile?.stockSpecs?.massKg, 1450)
+    massKg: finite(profile?.stockSpecs?.massKg ?? profile?.massKg, 1450)
   };
+}
+
+function featureVector(features, includeDriveType) {
+  const vector = [1, (features.basePi - 650) / 100, (features.massKg - 1450) / 400];
+  if (includeDriveType) vector.push(features.driveType === 'fwd' ? 1 : 0, features.driveType === 'rwd' ? 1 : 0);
+  return vector;
+}
+
+function solveLinearSystem(matrix, target) {
+  const n = target.length;
+  const augmented = matrix.map((row, index) => [...row, target[index]]);
+  for (let column = 0; column < n; column++) {
+    let pivot = column;
+    for (let row = column + 1; row < n; row++) if (Math.abs(augmented[row][column]) > Math.abs(augmented[pivot][column])) pivot = row;
+    if (Math.abs(augmented[pivot][column]) < 1e-9) return null;
+    [augmented[column], augmented[pivot]] = [augmented[pivot], augmented[column]];
+    const divisor = augmented[column][column];
+    for (let index = column; index <= n; index++) augmented[column][index] /= divisor;
+    for (let row = 0; row < n; row++) {
+      if (row === column) continue;
+      const factor = augmented[row][column];
+      for (let index = column; index <= n; index++) augmented[row][index] -= factor * augmented[column][index];
+    }
+  }
+  return augmented.map(row => row[n]);
+}
+
+function fitRidge(samples, includeDriveType) {
+  const size = featureVector(samples[0].features, includeDriveType).length;
+  const matrix = Array.from({ length: size }, () => Array(size).fill(0));
+  const target = Array(size).fill(0);
+  // 轻度正则化，防止 7～12 个样本下把某一台车的偶然值记死。
+  const ridge = 1.2;
+  for (const sample of samples) {
+    const vector = featureVector(sample.features, includeDriveType);
+    for (let row = 0; row < size; row++) {
+      target[row] += vector[row] * sample.pi;
+      for (let column = 0; column < size; column++) matrix[row][column] += vector[row] * vector[column];
+    }
+  }
+  for (let index = 1; index < size; index++) matrix[index][index] += ridge;
+  const weights = solveLinearSystem(matrix, target);
+  return weights ? features => featureVector(features, includeDriveType).reduce((sum, value, index) => sum + value * weights[index], 0) : null;
+}
+
+function fitCandidate(samples, kind) {
+  const mean = samples.reduce((sum, sample) => sum + sample.pi, 0) / samples.length;
+  if (kind === 'mean') return () => mean;
+  if (kind === 'drive_mean') {
+    const byDrive = new Map();
+    for (const sample of samples) {
+      const group = byDrive.get(sample.features.driveType) || [];
+      group.push(sample.pi); byDrive.set(sample.features.driveType, group);
+    }
+    return features => {
+      const group = byDrive.get(features.driveType) || [];
+      // 向全局均值收缩，避免只有一两台同驱动车型时过拟合。
+      return (group.reduce((sum, value) => sum + value, 0) + mean * 3) / (group.length + 3);
+    };
+  }
+  return fitRidge(samples, kind === 'pi_mass_drive');
+}
+
+function selectComponentModel(samples) {
+  const candidates = ['mean', 'drive_mean', 'pi_mass', 'pi_mass_drive'];
+  const scores = candidates.map(kind => {
+    let error = 0; let count = 0;
+    for (let index = 0; index < samples.length; index++) {
+      const training = samples.filter((_, sampleIndex) => sampleIndex !== index);
+      const predict = fitCandidate(training, kind);
+      if (!predict) { error = Infinity; break; }
+      error += Math.abs(predict(samples[index].features) - samples[index].pi); count++;
+    }
+    return { kind, mae: count ? error / count : Infinity };
+  }).sort((a, b) => a.mae - b.mae);
+  const selected = scores[0];
+  const predict = fitCandidate(samples, selected.kind);
+  return predict ? { ...selected, predict } : null;
+}
+
+function componentPopulationEstimate(profile, slotId, optionId) {
+  const featuresByVehicle = piObservations.vehicleFeatures || {};
   const samples = (piObservations.componentObservations || [])
     .filter(sample => sample.slotId === slotId && sample.optionId === optionId && Number.isFinite(Number(sample.pi)))
-    .map(sample => {
-      const sampleFeatures = features[String(sample.vehicleId)] || {};
-      const baseDistance = Math.abs(finite(sampleFeatures.basePi, target.basePi) - target.basePi);
-      const massDistance = Math.abs(finite(sampleFeatures.massKg, target.massKg) - target.massKg);
-      let weight = 1;
-      if (sampleFeatures.driveType === target.driveType) weight += 2.5;
-      if (baseDistance <= 75) weight += 1.5;
-      else if (baseDistance <= 150) weight += 0.75;
-      if (massDistance <= 250) weight += 0.5;
-      return { pi: Number(sample.pi), weight };
-    });
-  if (samples.length < 3) return null;
-  const totalWeight = samples.reduce((sum, sample) => sum + sample.weight, 0);
-  const point = samples.reduce((sum, sample) => sum + sample.pi * sample.weight, 0) / totalWeight;
-  const variance = samples.reduce((sum, sample) => sum + sample.weight * (sample.pi - point) ** 2, 0) / totalWeight;
-  return { pi: Math.round(point), sampleCount: samples.length, spread: Math.sqrt(variance) };
+    .map(sample => ({ pi: Number(sample.pi), features: vehicleFeatures(featuresByVehicle[String(sample.vehicleId)] || {}) }));
+  if (samples.length < 5) return null;
+  const model = selectComponentModel(samples);
+  if (!model) return null;
+  const point = model.predict(vehicleFeatures(profile));
+  const residuals = samples.map(sample => Math.abs(model.predict(sample.features) - sample.pi));
+  const spread = residuals.reduce((sum, value) => sum + value, 0) / residuals.length;
+  return {
+    pi: Math.round(point), sampleCount: samples.length, spread,
+    validationMae: model.mae, algorithm: `unified_${model.kind}_v1`
+  };
+}
+
+export function getPiCalibrationDiagnostics() {
+  const featuresByVehicle = piObservations.vehicleFeatures || {};
+  const groups = new Map();
+  for (const observation of piObservations.componentObservations || []) {
+    if (!Number.isFinite(Number(observation.pi))) continue;
+    const key = `${observation.slotId}/${observation.optionId}`;
+    const samples = groups.get(key) || [];
+    samples.push({ pi: Number(observation.pi), features: vehicleFeatures(featuresByVehicle[String(observation.vehicleId)] || {}) });
+    groups.set(key, samples);
+  }
+  return [...groups.entries()].flatMap(([key, samples]) => {
+    if (samples.length < 5) return [];
+    const model = selectComponentModel(samples);
+    return model ? [{ key, sampleCount: samples.length, validationMae: Number(model.mae.toFixed(2)), algorithm: `unified_${model.kind}_v1` }] : [];
+  }).sort((a, b) => a.validationMae - b.validationMae || b.sampleCount - a.sampleCount);
 }
 
 function resolveComponentPi(profile, stock, slotId, option) {
   const observed = findComponentObservation(profile, slotId, option.id);
   if (observed) return { pi: Number(observed.pi), source: 'game_observed', confidence: 'exact_observed', sampleCount: 1, spread: 0 };
   const population = componentPopulationEstimate(profile, slotId, option.id);
-  if (population) return { ...population, source: 'population_calibrated', confidence: 'calibrated_model' };
+  if (population) {
+    const stable = population.validationMae <= 8;
+    return {
+      ...population,
+      source: stable ? 'population_calibrated' : 'population_high_variance',
+      confidence: stable ? 'calibrated_model' : 'high_variance_model'
+    };
+  }
   return { pi: fixedOptionDelta(stock, slotId, option), source: 'formula_v1', confidence: 'model_estimate', sampleCount: 0, spread: null };
 }
 
@@ -348,7 +452,7 @@ export function applyPiPredictions(profile, selections, slots) {
 
     const optionUncertainty = component.confidence === 'exact_observed'
       ? 0
-      : clamp(Math.round(3 + (component.spread || 0) + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.05 + Math.abs(delta) * 0.035), 3, 16);
+      : clamp(Math.round((component.confidence === 'high_variance_model' ? 5 : 3) + (component.spread || 0) + (100 - Math.round((stock.knownFields / 6) * 100)) * 0.05 + Math.abs(delta) * 0.035), 3, 20);
     return {
       ...option,
       piEstimate: delta,
@@ -357,7 +461,7 @@ export function applyPiPredictions(profile, selections, slots) {
       piUpperEstimate: delta + optionUncertainty,
       piSource: bias !== 0 ? 'sqlite_calibrated' : component.source,
       piConfidence: bias !== 0 ? 'exact_calibrated' : component.confidence,
-      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: component.confidence === 'exact_observed' ? '游戏单项实测' : (bias !== 0 ? '自学习校准融合' : component.confidence === 'calibrated_model' ? `同类车型 ${component.sampleCount} 条实测校准` : '车型绝对公式'), contextDependent: component.confidence !== 'exact_observed', ruleVersion: prediction.modelVersion }
+      piPrediction: { point: delta, min: delta - optionUncertainty, max: delta + optionUncertainty, basis: component.confidence === 'exact_observed' ? '游戏单项实测' : (bias !== 0 ? '自学习校准融合' : component.confidence === 'calibrated_model' ? `统一模型：${component.sampleCount} 条实测，留一误差 ${component.validationMae?.toFixed(1) ?? '未知'} PI` : component.confidence === 'high_variance_model' ? `高方差统一模型：留一误差 ${component.validationMae?.toFixed(1) ?? '未知'} PI` : '车型绝对公式'), contextDependent: component.confidence !== 'exact_observed', ruleVersion: prediction.modelVersion }
     };
   }) }));
   return { prediction, slots: scoredSlots };

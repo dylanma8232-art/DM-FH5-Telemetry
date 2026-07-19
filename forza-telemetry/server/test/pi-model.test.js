@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { resolveUpgradeProfile, solveFormulaBuild } from '../src/services/upgrade-catalog.js';
+import { getPiCalibrationDiagnostics } from '../src/services/pi-model.js';
 
 const upgradesDir = path.resolve(import.meta.dirname, '../src/config/upgrades');
 const readProfile = vehicleId => JSON.parse(fs.readFileSync(path.join(upgradesDir, `${vehicleId}.json`), 'utf8'));
@@ -42,4 +43,12 @@ test('公式自动改装不会超过点预测目标 PI', () => {
   const result = solveFormulaBuild(profile, {}, { targetPi: 700, raceType: 'road' });
   assert.ok(result.prediction.totalPi <= 700);
   assert.ok(result.prediction.totalPi >= profile.basePi);
+});
+
+test('统一配件 PI 模型在稳定样本上满足 5 PI 留一误差目标，并隔离高方差项', () => {
+  const diagnostics = getPiCalibrationDiagnostics();
+  const stable = diagnostics.filter(item => item.key !== 'weight_reduction/sport');
+  assert.ok(stable.every(item => item.validationMae <= 5), JSON.stringify(stable));
+  const sportWeight = diagnostics.find(item => item.key === 'weight_reduction/sport');
+  assert.ok(sportWeight.validationMae > 8);
 });
