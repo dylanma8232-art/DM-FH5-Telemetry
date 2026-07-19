@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
+import { MergePreviewCanvas } from './track/MergePreviewCanvas';
+import { SearchableTrackSelect } from './track/SearchableTrackSelect';
+import { movingAverageSmooth } from '../../utils/movingAverageSmooth';
+import { api } from '../../services/api';
 
 const inputStyle = {
   width: '100%',
@@ -36,48 +40,6 @@ const modalContentStyle = {
   padding: 24,
   boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
 };
-
-// === 移动平均平滑算法：用于地图几何标准化渲染 ===
-// 原理：每个点的坐标替换为其周围 windowSize 个点的均值。
-// 优势：输出永远在输入范围内（数学保证），不产生任何振荡/过冲/扭折。
-// 三次叠加后效果接近高斯平滑，直道抖动被抹平，弯道保持自然弧线。
-// origIdx 保留原始索引，路书（turns startIdx/endIdx）完全不受影响。
-function movingAverageSmooth(points, isLoop, windowSize = 30, passes = 3) {
-  if (points.length < 3) return points.map((p, i) => ({ ...p, origIdx: i }));
-  const n = points.length;
-  const half = Math.floor(windowSize / 2);
-
-  let current = points.map((p, i) => ({ ...p, origIdx: i }));
-
-  for (let pass = 0; pass < passes; pass++) {
-    const next = [];
-    for (let i = 0; i < n; i++) {
-      let sumX = 0, sumZ = 0;
-      let count = 0;
-      for (let j = -half; j <= half; j++) {
-        let idx;
-        if (isLoop) {
-          idx = ((i + j) % n + n) % n;
-        } else {
-          idx = Math.max(0, Math.min(n - 1, i + j));
-        }
-        sumX += current[idx].x;
-        sumZ += current[idx].z;
-        count++;
-      }
-      next.push({
-        ...current[i],
-        x: sumX / count,
-        z: sumZ / count,
-        // origIdx 始终保持原始位置，不随平滑移动
-        origIdx: current[i].origIdx
-      });
-    }
-    current = next;
-  }
-
-  return current;
-}
 
 export function TrackManagerPage({ onNavigate }) {
   const [tracks, setTracks] = useState({});
@@ -126,7 +88,7 @@ export function TrackManagerPage({ onNavigate }) {
     if (selectedTrack) {
       const autoValidate = async () => {
         try {
-          const res = await fetch(`/api/tracks/${selectedTrack}/validate`);
+          const res = await api.tracks.validateResponse(selectedTrack);
           if (res.ok) {
             const result = await res.json();
             setValidationResult(prev => ({ ...prev, [selectedTrack]: result }));
@@ -152,7 +114,7 @@ export function TrackManagerPage({ onNavigate }) {
 
   const loadTracks = async () => {
     try {
-      const res = await fetch('/api/tracks');
+      const res = await api.tracks.listResponse();
       const data = await res.json();
       setTracks(data);
     } catch (e) {
@@ -162,11 +124,11 @@ export function TrackManagerPage({ onNavigate }) {
 
   const adoptCandidate = async (id) => {
     try {
-      const res = await fetch(`/api/tracks/${id}/adopt-candidate`, { method: 'POST' });
+      const res = await api.tracks.adoptCandidateResponse(id);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '采用候选地图失败');
       toast(`已采用候选地图：${data.turnCount} 个弯道，${Math.round(data.length)} 米`, 'success');
-      const detailRes = await fetch(`/api/tracks/${id}`);
+      const detailRes = await api.tracks.getResponse(id);
       if (detailRes.ok) {
         const detail = await detailRes.json();
         setTracks(prev => ({ ...prev, [id]: { ...prev[id], ...detail } }));
@@ -180,7 +142,7 @@ export function TrackManagerPage({ onNavigate }) {
   // Round 8: 赛道录制模式
   const startRecording = async () => {
     try {
-      const res = await fetch('/api/record/start', { method: 'POST' });
+      const res = await api.record.startResponse();
       if (res.ok) {
         setIsRecording(true);
         setRecordStartTime(Date.now());
@@ -195,7 +157,7 @@ export function TrackManagerPage({ onNavigate }) {
 
   const stopRecording = async () => {
     try {
-      const res = await fetch('/api/record/stop', { method: 'POST' });
+      const res = await api.record.stopResponse();
       const data = await res.json();
       if (data.positions > 10) {
         toast(`录制完成！获得 ${data.positions} 个轨迹点。请前往保存页面（或重新加载赛道列表查看新赛道）。`, 'success');
@@ -212,7 +174,7 @@ export function TrackManagerPage({ onNavigate }) {
 
   const deleteTrack = async (id) => {
     try {
-      await fetch('/api/tracks/' + id, { method: 'DELETE' });
+      await api.tracks.deleteResponse(id);
       loadTracks();
       if (selectedTrack === id) setSelectedTrack(null);
       setShowDeleteConfirm(null);
@@ -224,11 +186,7 @@ export function TrackManagerPage({ onNavigate }) {
 
   const renameTrack = async (id, name) => {
     try {
-      await fetch('/api/tracks/' + id, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
+      await api.tracks.updateResponse(id, { name });
       loadTracks();
       setEditingTrack(null);
     } catch (e) {
@@ -239,7 +197,7 @@ export function TrackManagerPage({ onNavigate }) {
   // Round 7: 赛道数据质量验证
   const validateTrack = async (id) => {
     try {
-      const res = await fetch(`/api/tracks/${id}/validate`);
+      const res = await api.tracks.validateResponse(id);
       if (res.ok) {
         const result = await res.json();
         setValidationResult(prev => ({ ...prev, [id]: result }));
@@ -254,7 +212,7 @@ export function TrackManagerPage({ onNavigate }) {
   const rebuildTrack = async (id) => {
     try {
       toast('正在重建中心线，请稍候...', 'info');
-      const res = await fetch(`/api/tracks/${id}/rebuild`, { method: 'POST' });
+      const res = await api.tracks.rebuildResponse(id);
       if (res.ok) {
         const result = await res.json();
         const { before, after } = result;
@@ -343,14 +301,10 @@ export function TrackManagerPage({ onNavigate }) {
     };
 
     try {
-      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const res = await api.tracks.updateTurnsResponse(selectedTrack, {
           turns: updatedTurns,
           isPaceNoteLocked: track.isPaceNoteLocked,
           deletedTurns: track.deletedTurns
-        })
       });
       
       if (res.ok) {
@@ -372,7 +326,7 @@ export function TrackManagerPage({ onNavigate }) {
         toast('路书弯道保存成功！', 'success');
         
         // 自动触发质量分数的重新验证拉取
-        const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+        const qRes = await api.tracks.validateResponse(selectedTrack);
         if (qRes.ok) {
           const qResult = await qRes.json();
           setValidationResult(prev => ({
@@ -402,14 +356,10 @@ export function TrackManagerPage({ onNavigate }) {
         const updatedDeletedTurns = [...(track.deletedTurns || []), turnToDelete];
 
         try {
-          const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+          const res = await api.tracks.updateTurnsResponse(selectedTrack, {
               turns: updatedTurns,
               deletedTurns: updatedDeletedTurns,
               isPaceNoteLocked: track.isPaceNoteLocked
-            })
           });
           
           if (res.ok) {
@@ -430,7 +380,7 @@ export function TrackManagerPage({ onNavigate }) {
             toast('弯道删除成功！', 'success');
             
             // 自动重新拉取质量分数
-            const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+            const qRes = await api.tracks.validateResponse(selectedTrack);
             if (qRes.ok) {
               const qResult = await qRes.json();
               setValidationResult(prev => ({
@@ -457,11 +407,7 @@ export function TrackManagerPage({ onNavigate }) {
       message: `确认将 弯道 T${idxToMerge + 1} 和下一个弯道合并吗？`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/tracks/${selectedTrack}/turns/merge`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ turnIndex: idxToMerge })
-          });
+          const res = await api.tracks.mergeTurnsResponse(selectedTrack, { turnIndex: idxToMerge });
           
           if (res.ok) {
             const data = await res.json();
@@ -478,7 +424,7 @@ export function TrackManagerPage({ onNavigate }) {
             toast('弯道合并成功！', 'success');
             
             // 自动重新拉取质量分数
-            const qRes = await fetch(`/api/tracks/${selectedTrack}/validate`);
+            const qRes = await api.tracks.validateResponse(selectedTrack);
             if (qRes.ok) {
               const qResult = await qRes.json();
               setValidationResult(prev => ({
@@ -503,14 +449,10 @@ export function TrackManagerPage({ onNavigate }) {
     const newStatus = !track.isPaceNoteLocked;
     
     try {
-      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const res = await api.tracks.updateTurnsResponse(selectedTrack, {
           turns: track.turns || [],
           isPaceNoteLocked: newStatus,
           deletedTurns: track.deletedTurns || []
-        })
       });
       
       if (res.ok) {
@@ -538,14 +480,10 @@ export function TrackManagerPage({ onNavigate }) {
     updatedTurns[idxToToggle] = { ...originalTurn, isLockedByUser: newLockStatus };
 
     try {
-      const res = await fetch(`/api/tracks/${selectedTrack}/turns`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+      const res = await api.tracks.updateTurnsResponse(selectedTrack, {
           turns: updatedTurns,
           isPaceNoteLocked: track.isPaceNoteLocked,
           deletedTurns: track.deletedTurns
-        })
       });
 
       if (res.ok) {
@@ -571,11 +509,7 @@ export function TrackManagerPage({ onNavigate }) {
       return;
     }
     try {
-      const res = await fetch('/api/tracks/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceTrackId: mergeSource, targetTrackId: mergeTarget })
-      });
+      const res = await api.tracks.mergeResponse({ sourceTrackId: mergeSource, targetTrackId: mergeTarget });
       const data = await res.json();
       if (!res.ok) {
         toast('合并失败: ' + (data.error || '服务器错误'), 'error');
@@ -591,11 +525,7 @@ export function TrackManagerPage({ onNavigate }) {
 
   const startTrackRace = async (trackId) => {
     try {
-      const res = await fetch('/api/trackMode/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackId })
-      });
+      const res = await api.trackMode.startResponse({ trackId });
       const data = await res.json();
       if (data.status === 'ok') {
         toast('赛道模式已启动！赛道：' + data.trackName + '（' + data.turns.length + '弯），请在游戏中开始比赛，系统将自动录制。', 'success');
@@ -1131,7 +1061,7 @@ export function TrackManagerPage({ onNavigate }) {
     // 如果该赛道尚未拉取完整的几何点数据，进行一次异步加载，并混入本地 tracks 字典中
     if (!track.points || track.points.length === 0) {
       try {
-        const res = await fetch(`/api/tracks/${id}`);
+        const res = await api.tracks.getResponse(id);
         const detailed = await res.json();
         if (detailed && detailed.id === id) {
           setTracks(prev => ({
@@ -1171,7 +1101,7 @@ export function TrackManagerPage({ onNavigate }) {
     if (!selectedTrack || editingTurnIndex !== null) return undefined;
     const refreshCandidate = async () => {
       try {
-        const res = await fetch(`/api/tracks/${selectedTrack}`);
+        const res = await api.tracks.getResponse(selectedTrack);
         if (!res.ok) return;
         const detail = await res.json();
         setTracks(prev => ({ ...prev, [selectedTrack]: { ...prev[selectedTrack], ...detail } }));
@@ -1433,11 +1363,7 @@ export function TrackManagerPage({ onNavigate }) {
       // Auto save bounds!
       if (editTurnForm && selectedTrack && editingTurnIndex !== null) {
          try {
-           const res = await fetch(`/api/tracks/${selectedTrack}/turns/${editingTurnIndex}/bounds`, {
-             method: 'PUT',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ startIdx: editTurnForm.startIdx, endIdx: editTurnForm.endIdx })
-           });
+           const res = await api.tracks.updateTurnBoundsResponse(selectedTrack, editingTurnIndex, { startIdx: editTurnForm.startIdx, endIdx: editTurnForm.endIdx });
            if (res.ok) {
              const data = await res.json();
              updateSelectedTrackTurns(data.turns);
@@ -1462,11 +1388,7 @@ export function TrackManagerPage({ onNavigate }) {
             message: '确认在此处拆分弯道吗？',
             onConfirm: async () => {
               try {
-                const res = await fetch(`/api/tracks/${selectedTrack}/turns/split`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ turnIndex: editingTurnIndex, splitIdx: closestIdx })
-                });
+                const res = await api.tracks.splitTurnResponse(selectedTrack, { turnIndex: editingTurnIndex, splitIdx: closestIdx });
                 if (res.ok) {
                   const data = await res.json();
                   updateSelectedTrackTurns(data.turns);
@@ -2449,191 +2371,6 @@ export function TrackManagerPage({ onNavigate }) {
     </div>
   );
 }
-
-// Round 3: 合并预览Canvas组件
-function MergePreviewCanvas({ trackA, trackB }) {
-  const canvasRef = useRef(null);
-  const [dataA, setDataA] = useState(null);
-  const [dataB, setDataB] = useState(null);
-
-  useEffect(() => {
-    const loadDetail = async (track, setData) => {
-      if (!track) return;
-      if (track.points && track.points.length > 0) {
-        setData(track);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/tracks/${track.id}`);
-        const detailed = await res.json();
-        setData(detailed);
-      } catch (e) {
-        console.error('Failed to load merge track detail:', e);
-      }
-    };
-
-    loadDetail(trackA, setDataA);
-    loadDetail(trackB, setDataB);
-  }, [trackA, trackB]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = 240;
-    const ctx = canvas.getContext('2d');
-
-    const pointsA = dataA ? (dataA.centerline || dataA.points || (dataA.trajectories && dataA.trajectories[0])) : null;
-    const pointsB = dataB ? (dataB.centerline || dataB.points || (dataB.trajectories && dataB.trajectories[0])) : null;
-
-    if (!pointsA || pointsA.length < 2 || !pointsB || pointsB.length < 2) return;
-
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    [...pointsA, ...pointsB].forEach(p => {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.z < minZ) minZ = p.z;
-      if (p.z > maxZ) maxZ = p.z;
-    });
-
-    if (maxX - minX < 0.01 && maxZ - minZ < 0.01) return;
-
-    const pad = 30;
-    const sx = (canvas.width - pad * 2) / (maxX - minX || 1);
-    const sz = (canvas.height - pad * 2) / (maxZ - minZ || 1);
-    const sc = Math.min(sx, sz);
-    const ox = (canvas.width - (maxX - minX) * sc) / 2;
-    const oz = (canvas.height - (maxZ - minZ) * sc) / 2;
-
-    const toScreen = (p) => ({
-      sx: (p.x - minX) * sc + ox,
-      sy: (maxZ - p.z) * sc + oz
-    });
-
-    // 目标赛道（蓝色）
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#58a6ff';
-    ctx.beginPath();
-    const sStartB = toScreen(pointsB[0]);
-    ctx.moveTo(sStartB.sx, sStartB.sy);
-    for (let i = 1; i < pointsB.length; i++) {
-      const sPt = toScreen(pointsB[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    ctx.stroke();
-
-    // 源赛道（红色）
-    ctx.strokeStyle = '#f85149';
-    ctx.beginPath();
-    const sStartA = toScreen(pointsA[0]);
-    ctx.moveTo(sStartA.sx, sStartA.sy);
-    for (let i = 1; i < pointsA.length; i++) {
-      const sPt = toScreen(pointsA[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    ctx.stroke();
-
-    // 图例
-    ctx.font = '10px sans-serif';
-    ctx.fillStyle = '#58a6ff';
-    ctx.fillRect(10, 10, 12, 3);
-    ctx.fillText('目标（保留）', 26, 14);
-    ctx.fillStyle = '#f85149';
-    ctx.fillRect(10, 22, 12, 3);
-    ctx.fillText('源（删除）', 26, 26);
-  }, [dataA, dataB]);
-
-  return (
-    <div style={{ marginBottom: 12, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
-      <canvas ref={canvasRef} style={{ width: '100%', height: 240, background: '#0d1117', display: 'block' }} />
-    </div>
-  );
-}
-
-// 可搜索赛道下拉组件
-function SearchableTrackSelect({ tracks, value, onChange, placeholder, excludeId, highlightColor = '#58a6ff' }) {
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef(null);
-
-  const entries = Object.entries(tracks).filter(([id]) => id !== excludeId);
-  const filtered = entries.filter(([id, t]) => {
-    const name = (t.name || id).toLowerCase();
-    return name.includes(query.toLowerCase());
-  });
-
-  const selectedName = value && tracks[value] ? (tracks[value].name || value) : '';
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={open ? query : selectedName}
-        onChange={e => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => { setQuery(''); setOpen(true); }}
-        onBlur={() => { setTimeout(() => setOpen(false), 200); }}
-        placeholder={placeholder}
-        style={{
-          width: '100%',
-          padding: '6px 10px',
-          background: 'var(--bg-primary)',
-          border: `1px solid ${value ? highlightColor : 'var(--border)'}`,
-          borderRadius: 4,
-          color: 'var(--text-primary)',
-          fontSize: 12,
-          outline: 'none',
-          boxSizing: 'border-box'
-        }}
-      />
-      {value && (
-        <button
-          onClick={() => { onChange(''); setQuery(''); }}
-          style={{
-            position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', fontSize: 14, padding: '0 4px'
-          }}
-        >×</button>
-      )}
-      {open && filtered.length > 0 && (
-        <div
-          style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-            maxHeight: 220, overflowY: 'auto',
-            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-            borderRadius: 4, marginTop: 2, boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-          }}
-        >
-          {filtered.map(([id, t]) => (
-            <div
-              key={id}
-              onMouseDown={() => { onChange(id); setOpen(false); setQuery(''); }}
-              style={{
-                padding: '6px 10px',
-                cursor: 'pointer',
-                fontSize: 11,
-                background: id === value ? `${highlightColor}22` : 'transparent',
-                color: id === value ? highlightColor : 'var(--text-primary)',
-                borderBottom: '1px solid rgba(48,54,61,0.3)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(88,166,255,0.08)'}
-              onMouseLeave={e => e.currentTarget.style.background = id === value ? `${highlightColor}22` : 'transparent'}
-            >
-              <span>{t.name || id}</span>
-              <span style={{ fontSize: 9, color: '#484f58', fontFamily: 'monospace' }}>
-                {t.length ? Math.round(t.length) + 'm' : ''} {t.turns ? t.turns.length + '弯' : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 const statCardStyle = {
   background: 'var(--bg-primary)',

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { themes } from '../../themes';
+import { api } from '../../services/api';
 
 export function SettingsPanel({ onClose }) {
   const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
@@ -34,8 +35,7 @@ export function SettingsPanel({ onClose }) {
   useEffect(() => {
     if (activeTab === 'ai') {
       setLoadingKey(true);
-      fetch('/api/system/settings/dashscope-key')
-        .then(res => res.json())
+      api.system.getDashscopeKey()
         .then(data => {
           setApiKey(data.apiKey || '');
           setBaseUrl(data.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
@@ -54,19 +54,11 @@ export function SettingsPanel({ onClose }) {
     }
     setSavingKey(true);
     try {
-      const res = await fetch('/api/system/settings/dashscope-key', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() })
-      });
-      if (res.ok) {
-        alert('AI 密钥配置已成功保存！');
-      } else {
-        alert('配置保存失败');
-      }
+      await api.system.setDashscopeKey({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() });
+      alert('AI 密钥配置已成功保存！');
     } catch (err) {
       console.error('[Settings] 保存配置失败:', err);
-      alert('请求失败，请稍后重试');
+      alert(err.status ? '配置保存失败' : '请求失败，请稍后重试');
     } finally {
       setSavingKey(false);
     }
@@ -418,11 +410,7 @@ export function SettingsPanel({ onClose }) {
                   }
                   try {
                     const buf = await file.arrayBuffer();
-                    const res = await fetch('/api/backup/restore', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/octet-stream' },
-                      body: buf
-                    });
+                    const res = await api.backup.restoreResponse(buf);
                     const data = await res.json();
                     if (data.success) {
                       alert(data.message);

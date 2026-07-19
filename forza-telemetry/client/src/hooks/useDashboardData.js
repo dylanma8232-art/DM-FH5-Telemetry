@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 export function useDashboardData(socket) {
   const [trackData, setTrackData] = useState(null);
@@ -6,8 +7,8 @@ export function useDashboardData(socket) {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/vehicles').then(res => res.json()),
-      fetch('/api/vehicles/catalog').then(res => res.json())
+      api.vehicles.list(),
+      api.vehicles.getCatalog()
     ])
       .then(([received, catalog]) => {
         const directory = Object.fromEntries((catalog || []).map(vehicle => [String(vehicle.ordinal), vehicle]));
@@ -15,12 +16,10 @@ export function useDashboardData(socket) {
       })
       .catch(() => {});
 
-    fetch('/api/trackMode/status')
-      .then(res => res.json())
+    api.trackMode.getStatus()
       .then(resData => {
         if (resData.active && resData.trackId) {
-          fetch(`/api/tracks/${resData.trackId}`)
-            .then(res2 => res2.json())
+          api.tracks.get(resData.trackId)
             .then(t => setTrackData(t))
             .catch(() => {});
         }
@@ -32,8 +31,7 @@ export function useDashboardData(socket) {
     if (!socket) return;
     const handleTrackModeChanged = (payload) => {
       if (payload.active && payload.trackId) {
-        fetch(`/api/tracks/${payload.trackId}`)
-          .then(res => res.json())
+        api.tracks.get(payload.trackId)
           .then(t => setTrackData(t))
           .catch(() => {});
       } else {
@@ -49,8 +47,7 @@ export function useDashboardData(socket) {
     const onTrackUpdated = async (payload) => {
       setTrackData(prev => {
         if (prev && prev.id === payload.trackId) {
-          fetch(`/api/tracks/${payload.trackId}`)
-            .then(res => res.json())
+          api.tracks.get(payload.trackId)
             .then(t => setTrackData(t))
             .catch(console.error);
           return { ...prev, name: payload.name };

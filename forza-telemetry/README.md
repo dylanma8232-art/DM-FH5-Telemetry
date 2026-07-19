@@ -67,11 +67,13 @@ cd ../client && npm install
 cd server && npm run dev
 ```
 
-### 3. 启动前端
+### 3. 构建前端
 
 ```bash
-cd client && npm run dev
+cd client && npm run build
 ```
+
+前端由后端从 `client/dist` 托管，所有页面验证均使用 `http://localhost:9188`。
 
 ### 4. 测试数据接收
 

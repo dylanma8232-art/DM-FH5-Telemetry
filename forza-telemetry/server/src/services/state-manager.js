@@ -4,6 +4,11 @@ import { existsSync } from 'fs';
 import { DATA_DIR } from '../config/constants.js';
 import { readJsonAsync } from '../storage/file-db.js';
 
+export function replaceObjectContents(target, next) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, next);
+}
+
 class StateManager {
   constructor() {
     this.vehicles = {};
@@ -51,17 +56,16 @@ class StateManager {
   }
   getLeaderboardCacheTime() { return this.leaderboardCacheTime || 0; }
   onRestore(nextTracks, nextVehicles, nextTunes) {
-    Object.keys(this.tracks).forEach(k => delete this.tracks[k]);
-    Object.assign(this.tracks, nextTracks);
-    Object.keys(this.vehicles).forEach(k => delete this.vehicles[k]);
-    Object.assign(this.vehicles, nextVehicles);
-    Object.keys(this.tunes).forEach(k => delete this.tunes[k]);
-    Object.assign(this.tunes, nextTunes);
+    replaceObjectContents(this.tracks, nextTracks);
+    replaceObjectContents(this.vehicles, nextVehicles);
+    replaceObjectContents(this.tunes, nextTunes);
   }
 
   async bootstrap() {
-    this.vehicles = await readJsonAsync(path.join(DATA_DIR, 'vehicles.json'), {});
-    this.tunes = await readJsonAsync(path.join(DATA_DIR, 'tunes.json'), {});
+    const vehicles = await readJsonAsync(path.join(DATA_DIR, 'vehicles.json'), {});
+    const tunes = await readJsonAsync(path.join(DATA_DIR, 'tunes.json'), {});
+    replaceObjectContents(this.vehicles, vehicles);
+    replaceObjectContents(this.tunes, tunes);
     
     // 一次性扫描并缓存所有 Session 数据
     const sessionsDir = path.join(DATA_DIR, 'sessions');

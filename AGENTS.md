@@ -61,3 +61,7 @@
 
 - **客户端（Client）编译**：由于本项目的静态资源由后端（Express）从 `client/dist` 目录托管，因此在任何修改了 `client/src/` 目录下前端代码（如 React 组件、样式、Hooks）后，**必须进入 `forza-telemetry/client` 目录执行 `npm run build` 命令**。
 - 如果不执行此命令，前端的修改将不会在实际的浏览器页面和后端路由中生效！
+
+## 长期架构规范
+
+所有后续开发必须遵循 [架构与开发规范](forza-telemetry/docs/ARCHITECTURE_BOUNDARIES.md)，尤其是 API 唯一入口、共享状态唯一来源、文件规模和验证门禁。新增功能不得以绕过这些边界的方式实现。

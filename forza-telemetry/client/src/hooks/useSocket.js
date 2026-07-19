@@ -5,7 +5,7 @@ const telemetryListeners = new Set();
 let latestTelemetry = null;
 
 // 全局订阅方法
-export function subscribeTelemetry(callback) {
+function subscribeTelemetry(callback) {
   telemetryListeners.add(callback);
   // 如果已有最新数据，订阅时立即推送一次初始数据，防止首帧空白
   if (latestTelemetry) {

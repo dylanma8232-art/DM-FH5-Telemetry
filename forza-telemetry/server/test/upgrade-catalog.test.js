@@ -60,3 +60,45 @@ test('已核实不存在的配件不会再出现在该车型目录中', () => {
   const resolved = resolveUpgradeProfile(profile, {});
   assert.equal(resolved.slots.some(slot => slot.id === 'brakes'), false);
 });
+
+test('车型专属空气动力件保留验证范围但显示在空气动力学分组', () => {
+  const profile = {
+    basePi: 700,
+    baseDriveType: 'rwd',
+    commonTemplate: 'combustion_road',
+    slots: [
+      { id: 'front_aero', group: '车辆专属', scope: 'vehicle_specific', replaceCommonOptions: true, options: [{ id: 'stock' }, { id: 'adjustable', adjustable: true }] },
+      { id: 'rear_aero', group: '车辆专属', scope: 'vehicle_specific', replaceCommonOptions: true, options: [{ id: 'stock' }, { id: 'adjustable', adjustable: true }] }
+    ]
+  };
+  const resolved = resolveUpgradeProfile(profile, {});
+
+  for (const slotId of ['front_aero', 'rear_aero']) {
+    const slot = resolved.slots.find(item => item.id === slotId);
+    assert.equal(slot.group, '空气动力学');
+    assert.equal(slot.scope, 'vehicle_specific');
+  }
+});
+
+test('未录入专属证据的车辆回退到通用置换，明确不存在时隐藏', () => {
+  const genericProfile = { basePi: 600, baseDriveType: 'rwd', commonTemplate: 'combustion_road', slots: [] };
+  const generic = resolveUpgradeProfile(genericProfile, {});
+  for (const slotId of ['drivetrain_swap', 'aspiration_swap', 'widebody']) {
+    assert.ok(generic.slots.find(slot => slot.id === slotId), `${slotId} 应回退到通用候选`);
+  }
+  const awd = generic.slots.find(slot => slot.id === 'drivetrain_swap').options.find(option => option.id === 'awd');
+  assert.equal(awd.piConfidence, 'model_estimate');
+  assert.equal(awd.aiEligible, false);
+
+  const unavailable = resolveUpgradeProfile({
+    ...genericProfile,
+    commonSlotOverrides: {
+      drivetrain_swap: { availability: 'verified_absent' },
+      aspiration_swap: { availability: 'verified_absent' },
+      widebody: { availability: 'verified_absent' }
+    }
+  }, {});
+  for (const slotId of ['drivetrain_swap', 'aspiration_swap', 'widebody']) {
+    assert.equal(unavailable.slots.some(slot => slot.id === slotId), false);
+  }
+});

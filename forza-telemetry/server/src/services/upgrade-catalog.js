@@ -30,7 +30,9 @@ const COMMON_SLOTS = [
     id: 'drivetrain_swap',
     label: '驱动置换',
     group: '置换',
-    requiresVehicleEvidence: true,
+    // FH5 的绝大多数可调校车辆都支持驱动置换。缺少车型证据时应作为
+    // 通用手动选项展示，而不是误判为“没有”；明确验证不存在时仍由
+    // commonSlotOverrides.drivetrain_swap.availability 隐藏。
     options: [
       option('stock', '保持原厂驱动', 0),
       option('fwd', '置换为前轮驱动', -15, { driveType: 'fwd' }),
@@ -42,7 +44,7 @@ const COMMON_SLOTS = [
     id: 'aspiration_swap',
     label: '增压方式置换',
     group: '置换',
-    requiresVehicleEvidence: true,
+    // 车型档案存在时以专属候选覆盖；缺少档案时显示通用手动候选。
     options: [
       option('stock', '保持原厂增压方式', 0),
       option('aspiration_na', '自然吸气', 0),
@@ -56,7 +58,7 @@ const COMMON_SLOTS = [
     id: 'widebody',
     label: '宽体与车身套件',
     group: '置换',
-    requiresVehicleEvidence: true,
+    // 专属资料缺失时保留通用候选，并明确要求以游戏内菜单为准。
     options: [
       option('stock', '保持原厂车身', 0),
       option('listed_widebody', '宽体或车身套件（请对照游戏）', 8)
@@ -147,7 +149,9 @@ function buildCommonSlots(profile, selections) {
     const hasVehicleEvidence = (profile.slots || []).some(vehicleSlot => vehicleSlot.id === slot.id)
       || availability === 'verified_present' || availability === 'source_explicit';
     if (slot.requiresVehicleEvidence && !hasVehicleEvidence) return false;
-    return availability !== 'verified_absent' && availability !== 'unknown';
+    // “未知”表示尚未收录专属资料，应回退到通用候选；只有游戏内已
+    // 明确验证不存在时才隐藏该项目。
+    return availability !== 'verified_absent';
   }).map(slot => {
     const override = overrides[slot.id] || {};
     const allowed = override.allowedOptions ? new Set(override.allowedOptions) : null;
@@ -326,9 +330,12 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   }
 
   const conversionSlots = new Set(['engine_swap', 'drivetrain_swap', 'aspiration_swap', 'widebody']);
+  // 专属证据决定“是否可用”，展示分组仍应遵循改装功能。否则已验证的
+  // 前铲和尾翼会被错误展示在“车辆专属”，而不是“空气动力学”。
+  const displayGroups = { front_aero: '空气动力学', rear_aero: '空气动力学' };
   const specialSlots = (profile.slots || []).map(slot => ({
     ...slot,
-    group: conversionSlots.has(slot.id) ? '置换' : slot.group,
+    group: conversionSlots.has(slot.id) ? '置换' : (displayGroups[slot.id] || slot.group),
     scope: slot.scope || 'vehicle_specific',
     availability: slot.availability || 'source_explicit',
     options: (slot.options || []).filter(option => isConditionMet(option.when, selections)).map(option => applyVehiclePiModel(slot, option))

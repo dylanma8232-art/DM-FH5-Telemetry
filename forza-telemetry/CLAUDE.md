@@ -11,6 +11,8 @@
 
 ## 1. 项目概述
 
+开发边界与提交前验证要求见 [架构与开发规范](docs/ARCHITECTURE_BOUNDARIES.md)。
+
 **Forza Horizon 5 实时遥测分析系统**，基于 UDP 数据接收、WebSocket 实时传输、Canvas/React 可视化渲染。
 
 核心功能：
@@ -584,8 +586,8 @@ npm run install:all
 # 启动后端 (端口 9188, UDP 9996)
 npm run server
 
-# 启动前端
-npm run client
+# 构建前端（后端从 client/dist 托管）
+npm run build:client
 
 # 更新代码图谱/知识图谱 (在代码文件发生变动后运行)
 npm run build:map

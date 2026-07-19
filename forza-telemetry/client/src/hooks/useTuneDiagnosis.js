@@ -1,42 +1,7 @@
 import { useState } from 'react'
 import { diagnoseFromTelemetry } from '../data/tunePresets'
-
-const FIX_PARAM_MAP = {
-  'frontTirePressure': 'tires.frontPressure',
-  'rearTirePressure': 'tires.rearPressure',
-  'frontCamber': 'tires.frontCamber',
-  'rearCamber': 'tires.rearCamber',
-  'frontToe': 'tires.frontToe',
-  'rearToe': 'tires.rearToe',
-  'frontSpring': 'suspension.frontSpring',
-  'rearSpring': 'suspension.rearSpring',
-  'frontDamping': 'suspension.frontDamping',
-  'rearDamping': 'suspension.rearDamping',
-  'frontARB': 'suspension.frontARB',
-  'rearARB': 'suspension.rearARB',
-  'frontRideHeight': 'suspension.frontRideHeight',
-  'rearRideHeight': 'suspension.rearRideHeight',
-  'diffAccel': 'drivetrain.diffAccel',
-  'diffDecel': 'drivetrain.diffDecel',
-  'diffCenter': 'drivetrain.diffCenter',
-  'finalDrive': 'drivetrain.finalDrive',
-  'frontDownforce': 'aero.frontDownforce',
-  'rearDownforce': 'aero.rearDownforce',
-  'brakeBias': 'brakes.bias'
-}
-
-function convertFixesToSuggestedChanges(fixes) {
-  if (!fixes) return null
-  const result = {}
-  for (const [paramKey, fix] of Object.entries(fixes)) {
-    const dotPath = FIX_PARAM_MAP[paramKey]
-    if (!dotPath) continue
-    const [category, field] = dotPath.split('.')
-    if (!result[category]) result[category] = {}
-    result[category][field] = fix.delta
-  }
-  return result
-}
+import { api } from '../services/api'
+import { convertFixesToSuggestedChanges } from '../utils/tuneForm'
 
 const RECOMMENDATION_PATHS = {
   frontTirePressure: ['tires', 'frontPressure'], rearTirePressure: ['tires', 'rearPressure'],
@@ -102,9 +67,7 @@ export function useTuneDiagnosis({
   // 加载可用遥测Session
   const loadTelemetrySessions = async () => {
     try {
-      const res = await fetch('/api/sessions')
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await api.sessions.list()
       const sessions = Array.isArray(data) ? data : (data.sessions || [])
       setAvailableSessions(sessions)
     } catch (e) { /* 加载遥测Session失败 */ }
@@ -121,9 +84,14 @@ export function useTuneDiagnosis({
     setDiagnosisResult(null)
     try {
       // 与比赛中心复用同一组遥测规则，防止两个页面给出互相矛盾的建议。
-      const recommendationRes = await fetch(`/api/analysis/${sessionId}/tuning-recommendations`)
-      if (recommendationRes.ok) {
-        const result = await recommendationRes.json()
+      let result
+      try {
+        result = await api.analysis.getTuningRecommendations(sessionId)
+      } catch (error) {
+        // 原实现仅在服务端非成功响应时使用本地诊断；网络错误仍应直接报错。
+        if (error.status === undefined) throw error
+      }
+      if (result) {
         const hasSavedTune = Boolean(editingTune?.id || editingTune?.tuneId)
         setDiagnosisResult({
           ...result,
@@ -134,9 +102,13 @@ export function useTuneDiagnosis({
         })
         return
       }
-      const res = await fetch(`/api/sessions/${sessionId}/telemetry`)
-      if (!res.ok) throw new Error('加载遥测数据失败')
-      const telemetryData = await res.json()
+      let telemetryData
+      try {
+        telemetryData = await api.sessions.getTelemetry(sessionId)
+      } catch (error) {
+        if (error.status !== undefined) throw new Error('加载遥测数据失败')
+        throw error
+      }
 
       const adaptedTelemetry = (telemetryData || []).map(f => {
         const formatTireTemp = (tempF) => (tempF === undefined || tempF === null) ? 0 : (tempF - 32) * 5 / 9
@@ -283,4 +255,3 @@ export function useTuneDiagnosis({
     applyDiagnosisFix
   }
 }
-export { convertFixesToSuggestedChanges }
