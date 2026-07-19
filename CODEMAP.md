@@ -12,6 +12,7 @@
 
 - 📄 [CLAUDE.md](file:///forza-telemetry/CLAUDE.md)
 - 📄 [README.md](file:///forza-telemetry/README.md)
+- 📄 [改装配件 PI 方法论](file:///forza-telemetry/docs/upgrade-pi-methodology.md)
 - 📂 **client/**
   - 📄 [index.html](file:///forza-telemetry/client/index.html)
   - 📄 [package-lock.json](file:///forza-telemetry/client/package-lock.json)
@@ -89,6 +90,7 @@
   - 📄 [track-round1.md](file:///forza-telemetry/docs/track-round1.md)
   - 📄 [track-round2-5.md](file:///forza-telemetry/docs/track-round2-5.md)
   - 📄 [track-round6-10.md](file:///forza-telemetry/docs/track-round6-10.md)
+  - 📄 [upgrade-pi-methodology.md](file:///forza-telemetry/docs/upgrade-pi-methodology.md)
   - 📄 [workshop-deep-round1-5.md](file:///forza-telemetry/docs/workshop-deep-round1-5.md)
   - 📄 [workshop-deep-round6-10.md](file:///forza-telemetry/docs/workshop-deep-round6-10.md)
   - 📄 [workshop-round1.md](file:///forza-telemetry/docs/workshop-round1.md)
