@@ -63,6 +63,7 @@ export const api = {
   analysis: {
     getOverview: (sessionId) => get(`/api/analysis/${sessionId}`),
     getDiagnosis: (sessionId) => get(`/api/analysis/${sessionId}/diagnosis`),
+    getTuningRecommendations: (sessionId) => get(`/api/analysis/${sessionId}/tuning-recommendations`),
     getChannels: (sessionId, step = 4) => get(`/api/analysis/${sessionId}/telemetry-channels?downsampleStep=${step}`),
     getAdvanced: (sessionId, sectors = 10) => get(`/api/analysis/${sessionId}/advanced?sectors=${sectors}`),
     getTurns: (sessionId) => get(`/api/analysis/${sessionId}/turns`),

@@ -4,6 +4,7 @@ import { loadSession, readTrackDetail, writeTrackDetail, deleteTrackDetail } fro
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
 
 const router = express.Router();
 
@@ -546,6 +547,14 @@ router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
 
 
 
+}));
+
+// 无需保存调校方案的遥测调教建议。返回相对当前游戏数值的增减量；
+// 客户端若能找到本地方案，再将其换算为“当前值 → 目标值”。
+router.get('/:sessionId/tuning-recommendations', asyncHandler(async (req, res) => {
+  const session = loadSession(req.params.sessionId, stateManager.tracks);
+  if (!session) return res.status(404).json({ error: '未找到比赛记录。' });
+  res.json(generateTelemetryTuningRecommendations(session.data || []));
 }));
 
 // 辅助函数：计算轮胎温度和滑移的物理状态特征
