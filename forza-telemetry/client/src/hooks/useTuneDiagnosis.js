@@ -38,6 +38,28 @@ function convertFixesToSuggestedChanges(fixes) {
   return result
 }
 
+const RECOMMENDATION_PATHS = {
+  frontTirePressure: ['tires', 'frontPressure'], rearTirePressure: ['tires', 'rearPressure'],
+  frontSpring: ['suspension', 'frontSpring'], rearSpring: ['suspension', 'rearSpring'],
+  frontRideHeight: ['suspension', 'frontRideHeight'], rearRideHeight: ['suspension', 'rearRideHeight'],
+  frontARB: ['suspension', 'frontARB'], rearARB: ['suspension', 'rearARB'],
+  diffAccel: ['drivetrain', 'diffAccel'], finalDrive: ['drivetrain', 'finalDrive'],
+  brakePressure: ['brakes', 'pressure'], brakeBalance: ['brakes', 'balance']
+}
+
+function attachAbsoluteTargets(recommendations, formData, hasSavedTune) {
+  return (recommendations || []).map(item => ({
+    ...item,
+    changes: item.changes.map(change => {
+      const path = RECOMMENDATION_PATHS[change.key]
+      const current = path ? Number(formData?.[path[0]]?.[path[1]]) : NaN
+      if (!hasSavedTune || !Number.isFinite(current)) return { ...change, current: null, target: null }
+      const target = change.relative ? current * (1 + change.delta / 100) : current + change.delta
+      return { ...change, current, target }
+    })
+  }))
+}
+
 export function useTuneDiagnosis({
   formData,
   setFormData,
@@ -98,6 +120,20 @@ export function useTuneDiagnosis({
     setDiagnosing(true)
     setDiagnosisResult(null)
     try {
+      // 与比赛中心复用同一组遥测规则，防止两个页面给出互相矛盾的建议。
+      const recommendationRes = await fetch(`/api/analysis/${sessionId}/tuning-recommendations`)
+      if (recommendationRes.ok) {
+        const result = await recommendationRes.json()
+        const hasSavedTune = Boolean(editingTune?.id || editingTune?.tuneId)
+        setDiagnosisResult({
+          ...result,
+          mode: hasSavedTune ? 'absolute' : 'delta',
+          recommendations: attachAbsoluteTargets(result.recommendations, formData, hasSavedTune),
+          issues: [],
+          suggestedChanges: {}
+        })
+        return
+      }
       const res = await fetch(`/api/sessions/${sessionId}/telemetry`)
       if (!res.ok) throw new Error('加载遥测数据失败')
       const telemetryData = await res.json()
