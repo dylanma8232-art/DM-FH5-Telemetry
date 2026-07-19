@@ -14,11 +14,12 @@ export function useTuneUpgrade({
 }) {
   const [autoUpgradeLoading, setAutoUpgradeLoading] = useState(false)
   const [aiRaceType, setAiRaceType] = useState('road')
+  const [segmentType, setSegmentType] = useState('balanced')
   const [aiDriveType, setAiDriveType] = useState('awd')
 
   // 一键升级：在用户选择的 PI 上限内寻找最高 PI 的组合。只有现有改装项
   // 组合确实无法再提高时，才允许低于目标 PI。
-  const handleAutoUpgrade = async ({ preferredDriveType, raceType } = {}) => {
+  const handleAutoUpgrade = async ({ preferredDriveType, raceType, selectedSegmentType } = {}) => {
     if (!formData.vehicleId || !upgradeShop) {
       alert('请先选择一辆车辆。')
       return false
@@ -26,25 +27,26 @@ export function useTuneUpgrade({
     const draftVersion = draftVersionRef.current
     try {
       setAutoUpgradeLoading(true)
-      // AI 只负责在服务端已解析、且 PI 有实测或样本校准依据的候选中做取舍。
-      // 最终构型必须由服务端再校验，客户端绝不自行拼凑或估算。
-      const aiResult = await api.vehicles.aiSolve(formData.vehicleId, {
+      // 配件选择由可复现的约束求解器完成；它只使用已验证的车辆档案和 PI 模型。
+      // 大模型不参与离散配件决策，避免不可复现或编造游戏内不存在的选项。
+      const autoResult = await api.vehicles.autoSolve(formData.vehicleId, {
         parts: formData.parts || {}, targetPi,
         raceType: raceType || aiRaceType,
+        segmentType: selectedSegmentType || segmentType,
         driveType: preferredDriveType || aiDriveType
       })
       if (draftVersion !== draftVersionRef.current) return false
-      if (aiResult.withinTarget === false) {
-        throw new Error(`当前车辆在目标 ${targetPi} PI 内没有可行方案，模型返回 ${aiResult.prediction?.totalPi ?? '未知'} PI，未应用该方案。`)
+      if (autoResult.withinTarget === false) {
+        throw new Error(`当前车辆在目标 ${targetPi} PI 内没有可行方案，求解器返回 ${autoResult.prediction?.totalPi ?? '未知'} PI，未应用该方案。`)
       }
       const resolvedShop = await api.vehicles.getUpgrades(formData.vehicleId, {
-        selections: JSON.stringify(aiResult.parts || {}),
+        selections: JSON.stringify(autoResult.parts || {}),
         driveType: preferredDriveType || aiDriveType
       })
-      const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType || aiRaceType)
+      const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType || aiRaceType, selectedSegmentType || segmentType)
       setFormData(prev => ({
         ...prev,
-        parts: resolvedShop.effectiveSelections || aiResult.parts || {},
+        parts: resolvedShop.effectiveSelections || autoResult.parts || {},
         tires: prev.tires && Object.keys(prev.tires).length > 0 ? prev.tires : initRecommendations.tires,
         suspension: prev.suspension && Object.keys(prev.suspension).length > 0 ? prev.suspension : initRecommendations.suspension,
         drivetrain: prev.drivetrain && Object.keys(prev.drivetrain).length > 0 ? prev.drivetrain : initRecommendations.drivetrain,
@@ -66,13 +68,15 @@ export function useTuneUpgrade({
     autoUpgradeLoading,
     aiRaceType,
     setAiRaceType,
+    segmentType,
+    setSegmentType,
     aiDriveType,
     setAiDriveType,
     handleAutoUpgrade
   }
 }
 
-function getInitialParameterRecommendations(resolvedShop, raceType = 'road') {
+function getInitialParameterRecommendations(resolvedShop, raceType = 'road', segmentType = 'balanced') {
   const driveType = (resolvedShop.effectiveDriveType || resolvedShop.baseDriveType || 'awd').toLowerCase();
   
   const tires = {};
@@ -117,6 +121,9 @@ function getInitialParameterRecommendations(resolvedShop, raceType = 'road') {
     else if (id === 'diff_center') val = 70.0;
     else if (id === 'brake_balance') val = 50.0;
     else if (id === 'brake_pressure') val = 100.0;
+
+    if (segmentType === 'rough' && (id === 'rebound_front' || id === 'rebound_rear' || id === 'bump_front' || id === 'bump_rear')) val *= 0.85;
+    if ((segmentType === 'technical' || segmentType === 'tarmac_bias') && (id === 'arb_front' || id === 'arb_rear')) val *= 1.1;
     
     if (param.range) {
       val = Math.max(min, Math.min(max, val));

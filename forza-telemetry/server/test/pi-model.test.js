@@ -45,6 +45,15 @@ test('公式自动改装不会超过点预测目标 PI', () => {
   assert.ok(result.prediction.totalPi >= profile.basePi);
 });
 
+test('赛段特点只接受当前赛事类型支持的选项，并保留在自动方案结果中', () => {
+  const profile = readProfile('1264');
+  const technical = solveFormulaBuild(profile, {}, { targetPi: 700, raceType: 'road', segmentType: 'technical' });
+  const fallback = solveFormulaBuild(profile, {}, { targetPi: 700, raceType: 'road', segmentType: 'rough' });
+  assert.equal(technical.segmentType, 'technical');
+  assert.equal(fallback.segmentType, 'balanced');
+  assert.ok(technical.prediction.totalPi <= 700);
+});
+
 test('统一配件 PI 模型在稳定样本上满足 5 PI 留一误差目标，并隔离高方差项', () => {
   const diagnostics = getPiCalibrationDiagnostics();
   const stable = diagnostics.filter(item => item.key !== 'weight_reduction/sport');

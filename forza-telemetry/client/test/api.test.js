@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { api } from '../src/services/api.js';
 
-test('AI 改装请求保持既有接口、方法和请求体', async () => {
+test('自动改装请求使用确定性求解接口、方法和请求体', async () => {
   let request;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, options) => {
@@ -11,8 +11,8 @@ test('AI 改装请求保持既有接口、方法和请求体', async () => {
   };
 
   try {
-    const result = await api.vehicles.aiSolve('123', { targetPi: 900, raceType: 'road' });
-    assert.equal(request.url, '/api/vehicles/123/upgrades/ai-solve');
+    const result = await api.vehicles.autoSolve('123', { targetPi: 900, raceType: 'road' });
+    assert.equal(request.url, '/api/vehicles/123/upgrades/solve');
     assert.equal(request.options.method, 'POST');
     assert.deepEqual(JSON.parse(request.options.body), { targetPi: 900, raceType: 'road' });
     assert.equal(result.withinTarget, true);
@@ -26,7 +26,7 @@ test('API 错误保留状态码和服务端信息', async () => {
   globalThis.fetch = async () => new Response(JSON.stringify({ error: '方案无效' }), { status: 422 });
 
   try {
-    await assert.rejects(api.vehicles.aiSolve('123', {}), error => error.status === 422 && error.message === '方案无效');
+    await assert.rejects(api.vehicles.autoSolve('123', {}), error => error.status === 422 && error.message === '方案无效');
   } finally {
     globalThis.fetch = originalFetch;
   }

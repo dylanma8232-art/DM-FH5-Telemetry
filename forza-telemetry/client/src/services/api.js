@@ -60,8 +60,7 @@ export const api = {
       const params = new URLSearchParams(query).toString();
       return get(`/api/vehicles/${id}/upgrades${params ? '?' + params : ''}`);
     },
-    aiSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/ai-solve`, body),
-    solveUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/solve`, body),
+    autoSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/solve`, body),
     validateUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/validate`, body),
   },
   tunes: {

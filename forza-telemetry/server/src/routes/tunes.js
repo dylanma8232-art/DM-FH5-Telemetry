@@ -182,6 +182,7 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     validationWarnings: validation.warnings,
     generationMode: body.generationMode === 'ai' ? 'ai' : 'manual',
     raceType: body.generationMode === 'ai' ? body.raceType || 'road' : null,
+    segmentType: body.generationMode === 'ai' ? body.segmentType || 'balanced' : null,
     driveType: ['fwd', 'rwd', 'awd'].includes(body.driveType) ? body.driveType : validation.resolved.effectiveDriveType,
     createdAt: now,
     updatedAt: now,
@@ -257,6 +258,7 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   tune.validationWarnings = validation.warnings;
   tune.generationMode = candidate.generationMode === 'ai' ? 'ai' : 'manual';
   tune.raceType = candidate.generationMode === 'ai' ? candidate.raceType || 'road' : null;
+  tune.segmentType = candidate.generationMode === 'ai' ? candidate.segmentType || 'balanced' : null;
   tune.driveType = ['fwd', 'rwd', 'awd'].includes(candidate.driveType) ? candidate.driveType : validation.resolved.effectiveDriveType;
   if (body.params !== undefined) tune.params = body.params;
   if (body.tires !== undefined) tune.tires = body.tires;

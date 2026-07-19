@@ -489,14 +489,41 @@ export function validateBuild(profile, selections = {}) {
  * 公式模型的一键改装求解器。每轮都以完整构建重算 PI，避免旧版把动态边际
  * PI 静态相加造成的双算；同时反复 resolve，以处理增压等会解锁新插槽的联动。
  */
-export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, driveType, raceType = 'road' } = {}) {
+const SEGMENT_TYPES = {
+  road: new Set(['technical', 'balanced', 'high_speed']),
+  dirt: new Set(['technical', 'balanced', 'fast_flow']),
+  rally: new Set(['tarmac_bias', 'balanced', 'dirt_bias']),
+  cross_country: new Set(['flat_fast', 'balanced', 'rough']),
+  drift: new Set(['technical', 'balanced', 'high_speed'])
+};
+
+function normalizeSegmentType(raceType, segmentType) {
+  return SEGMENT_TYPES[raceType]?.has(segmentType) ? segmentType : 'balanced';
+}
+
+function segmentSlotBonus(segmentType, slotId) {
+  const groups = {
+    technical: new Set(['tires_width_front', 'tires_width_rear', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear', 'weight_reduction']),
+    high_speed: new Set(['transmission', 'driveline', 'engine_camshaft', 'engine_forced_induction', 'engine_intake', 'engine_exhaust', 'front_aero', 'rear_aero']),
+    fast_flow: new Set(['transmission', 'driveline', 'weight_reduction', 'front_aero', 'rear_aero']),
+    tarmac_bias: new Set(['tires_width_front', 'tires_width_rear', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear']),
+    dirt_bias: new Set(['weight_reduction', 'differential', 'roll_cage']),
+    flat_fast: new Set(['transmission', 'driveline', 'weight_reduction']),
+    rough: new Set(['roll_cage', 'weight_reduction', 'differential', 'tires_width_front', 'tires_width_rear'])
+  };
+  return groups[segmentType]?.has(slotId) ? 18 : 0;
+}
+
+export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, driveType, raceType = 'road', segmentType } = {}) {
   const priority = {
     road: ['tires_compound', 'tires_width_front', 'tires_width_rear', 'weight_reduction', 'suspension', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
     dirt: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
+    rally: ['tires_compound', 'suspension', 'differential', 'weight_reduction', 'brakes', 'anti_roll_bar_front', 'anti_roll_bar_rear'],
     cross_country: ['tires_compound', 'suspension', 'differential', 'roll_cage', 'weight_reduction', 'brakes'],
     drift: ['suspension', 'differential', 'tires_width_rear', 'transmission', 'engine_camshaft']
   };
   
+  const normalizedSegmentType = normalizeSegmentType(raceType, segmentType);
   let parts = { ...selections };
   const limit = Math.min(999, Number(targetPi) || 800);
 
@@ -557,7 +584,7 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
         if (candidate.totalPi > limit || candidate.totalPi <= current.totalPi) continue;
         
         const rank = priority[raceType]?.indexOf(slot.id);
-        const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 12 : 0) - candidate.uncertainty * 0.15;
+        const utility = (candidate.totalPi - current.totalPi) + (rank >= 0 ? (priority[raceType].length - rank) * 12 : 0) + segmentSlotBonus(normalizedSegmentType, slot.id) - candidate.uncertainty * 0.15;
         if (!best || utility > best.utility) {
           best = { slotId: slot.id, optionId: option.id, utility, targetPi: candidate.totalPi };
         }
@@ -662,6 +689,7 @@ export function solveFormulaBuild(profile, selections = {}, { targetPi = 800, dr
     prediction: resolved.prediction,
     slots: resolved.slots,
     targetPi: limit,
+    segmentType: normalizedSegmentType,
     withinTarget: Number.isFinite(predictedPi) && predictedPi <= limit,
     overBy: Number.isFinite(predictedPi) ? Math.max(0, predictedPi - limit) : null,
     solverStatus: Number.isFinite(predictedPi) && predictedPi <= limit ? 'feasible' : 'no_feasible_build'

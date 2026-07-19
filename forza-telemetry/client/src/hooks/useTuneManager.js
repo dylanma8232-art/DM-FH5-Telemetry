@@ -138,6 +138,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     autoUpgradeLoading,
     aiRaceType,
     setAiRaceType,
+    segmentType,
+    setSegmentType,
     aiDriveType,
     setAiDriveType,
     handleAutoUpgrade
@@ -390,6 +392,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
         if (parameter.id.startsWith('spring_')) value = Number(((range.min + range.max) * 0.4).toFixed(1))
         if (parameter.id.startsWith('ride_height_')) value = Number((range.min + (range.max - range.min) * (aiRaceType === 'cross_country' ? 0.75 : 0.2)).toFixed(1))
         if (parameter.id.startsWith('downforce_')) value = Number((range.min + (range.max - range.min) * 0.55).toFixed(0))
+        if (segmentType === 'rough' && (parameter.id.startsWith('rebound_') || parameter.id.startsWith('bump_'))) value = Number((value * 0.85).toFixed(2))
+        if ((segmentType === 'technical' || segmentType === 'tarmac_bias') && parameter.id.startsWith('arb_')) value = Number((value * 1.1).toFixed(2))
         if (value != null) defaults[parameter.id] = Math.min(range.max, Math.max(range.min, value))
       })
       if (Object.keys(defaults).length) {
@@ -417,7 +421,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     } catch (e) {
       // getTuneDefaults 可能尚未就绪或参数不匹配，静默忽略
     }
-  }, [formData.parts, currentVehicleStats, buildMode, upgradeShop, aiRaceType])
+  }, [formData.parts, currentVehicleStats, buildMode, upgradeShop, aiRaceType, segmentType])
 
 
 
@@ -478,6 +482,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       piConfirmed: solutionPi !== null,
       generationMode: buildMode === 'ai' ? 'ai' : 'manual',
       raceType: buildMode === 'ai' ? aiRaceType : null,
+      segmentType: buildMode === 'ai' ? segmentType : null,
       driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
       ...normalizedTune,
       parts: { ...formData.parts },
@@ -523,6 +528,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         totalPi: tune.totalPi ?? tune.estimatedPi ?? null,
         generationMode: tune.generationMode === 'ai' ? 'ai' : 'manual',
         raceType: tune.raceType || null,
+        segmentType: tune.segmentType || null,
         driveType: tune.driveType || null,
         tires: { ...tune.tires },
         suspension: { ...tune.suspension },
@@ -573,6 +579,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setEditingTune(tune.id)
     setWizardStep(2)
     _setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
+    setAiRaceType(tune.raceType || 'road')
+    setSegmentType(tune.segmentType || 'balanced')
+    setAiDriveType(tune.driveType || 'awd')
     setShowModal(true)
     setDrivingProblemsOpen(false)
     setSelectedProblem(null)
@@ -590,6 +599,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setWizardStep(1)
     _setBuildMode(null)
     setAiRaceType('road')
+    setSegmentType('balanced')
     setAiDriveType('awd')
     setShowModal(true)
     setBasePi(500)
@@ -1377,6 +1387,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     chooseBuildMode,
     aiRaceType,
     setAiRaceType,
+    segmentType,
+    setSegmentType,
     aiDriveType,
     setAiDriveType,
     drivingProblemsOpen,
