@@ -75,7 +75,6 @@ let recognitionHistory = [];
 let packetCount = 0;
 let lastPacketTime = null;
 let lastPacketSize = 0;
-let currentTuneId = null;
 let currentData = null;
 let leaderboardCache = null;
 let leaderboardCacheTime = 0;

@@ -435,8 +435,6 @@ DashboardPage → 各子组件渲染
 | POST | `/api/tunes` | 创建调校 |
 | PUT | `/api/tunes/:tuneId` | 更新调校 |
 | DELETE | `/api/tunes/:tuneId` | 删除调校 |
-| POST | `/api/tunes/active` | 激活调校 |
-| GET | `/api/tunes/active` | 获取当前激活的调校 |
 | GET | `/api/tunes/compare` | 对比两个调校 |
 
 ### 6.5 比赛记录

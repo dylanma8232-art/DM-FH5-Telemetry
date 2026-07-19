@@ -130,37 +130,6 @@ router.get('/', asyncHandler(async (req, res) => {
 
 }));
 
-// 设置当前活跃调校
-router.post('/active', express.json(), asyncHandler(async (req, res) => {
-
-  const { tuneId } = req.body || {};
-  if (tuneId === null || tuneId === undefined) {
-    stateManager.setCurrentTuneId(null);
-    return res.json({ status: 'ok', currentTuneId: null });
-  }
-  if (!stateManager.tunes[tuneId]) {
-    return res.status(404).json({ error: 'Tune not found' });
-  }
-  stateManager.setCurrentTuneId(tuneId);
-  res.json({ status: 'ok', currentTuneId: tuneId, tune: stateManager.tunes[tuneId] });
-
-
-
-}));
-
-// 获取当前活跃调校
-router.get('/active', asyncHandler(async (req, res) => {
-
-  const curId = stateManager.getCurrentTuneId();
-  if (!curId || !stateManager.tunes[curId]) {
-    return res.json({ currentTuneId: null, tune: null });
-  }
-  res.json({ currentTuneId: curId, tune: stateManager.tunes[curId] });
-
-
-
-}));
-
 // 调校对比
 router.get('/compare', asyncHandler(async (req, res) => {
 

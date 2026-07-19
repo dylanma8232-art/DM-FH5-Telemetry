@@ -24,7 +24,7 @@ def scan_project(path):
             rel_root = ''
             
         for f in files:
-            if f.startswith('.') or f.endswith(('.png', '.ico', '.log', '.command')):
+            if f.startswith('.') or f.endswith(('.png', '.ico', '.log', '.command', '.bak', '.tmp', '.swp')):
                 continue
             
             filepath = os.path.join(root, f)
@@ -68,8 +68,10 @@ def render_tree(tree, file_info, level=0):
             lines.extend(render_tree(val, file_info, level + 1))
         else:
             info = file_info.get(val, [])
-            info_str = f"  *({', '.join(info)})*" if info else ""
-            lines.append(f"{indent}- 📄 [{name}](file:///forza-telemetry/{val}) {info_str}")
+            line = f"{indent}- 📄 [{name}](file:///forza-telemetry/{val})"
+            if info:
+                line += f"  *({', '.join(info)})*"
+            lines.append(line)
     return lines
 
 tree, file_info = scan_project(project_dir)

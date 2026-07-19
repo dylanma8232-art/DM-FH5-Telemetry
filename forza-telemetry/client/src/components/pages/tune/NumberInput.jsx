@@ -45,7 +45,14 @@ export const NumberInput = React.memo(function NumberInput({
   const isOffDefault = defaultValue !== undefined && value !== undefined && parseFloat(value) !== parseFloat(defaultValue);
 
   return (
-    <div style={{ position: 'relative', marginBottom: 12 }}>
+    <div className="param-row" style={{
+      position: 'relative',
+      marginBottom: 12,
+      padding: '4px 6px',
+      borderRadius: 6,
+      border: '1px solid transparent',
+      transition: 'all 0.18s ease'
+    }}>
       <style>{`
         @keyframes recommendedGlow {
           0% { box-shadow: 0 0 4px rgba(63, 185, 80, 0.3), inset 0 0 2px rgba(63, 185, 80, 0.2); border-color: rgba(63, 185, 80, 0.4); }
@@ -81,6 +88,42 @@ export const NumberInput = React.memo(function NumberInput({
         .fh5-range-slider::-webkit-slider-thumb:hover {
           transform: scale(1.35);
         }
+        
+        .param-row {
+          background: transparent;
+        }
+        .param-row:hover {
+          background: rgba(255, 255, 255, 0.02);
+          border-color: rgba(255, 255, 255, 0.04);
+        }
+        .param-row .reset-icon-btn {
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(88, 166, 255, 0.08);
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          color: #58a6ff;
+          cursor: pointer;
+          border-radius: 4px;
+          width: 18px;
+          height: 18px;
+          font-size: 10px;
+          padding: 0;
+          line-height: 1;
+        }
+        .param-row:hover .reset-icon-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .param-row .reset-icon-btn:hover {
+          background: #58a6ff;
+          color: #0d1117;
+          border-color: #58a6ff;
+          transform: rotate(-180deg);
+        }
       `}</style>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -89,6 +132,16 @@ export const NumberInput = React.memo(function NumberInput({
           {locked && <span style={{ color: '#da3633', marginLeft: 4, fontSize: 9, fontWeight: 400 }} title={lockedHint}>🔒 {lockedHint || '需升级'}</span>}
           {highlighted && <span style={{ color: '#3fb950', marginLeft: 4, fontSize: 9, fontWeight: 600 }}>遥测推荐</span>}
         </label>
+        {defaultValue !== undefined && !locked && isOffDefault && onResetDefault && (
+          <button
+            type="button"
+            className="reset-icon-btn"
+            onClick={(e) => { e.stopPropagation(); onResetDefault(); }}
+            title={`重置到默认推荐值: ${defaultValue}`}
+          >
+            ↺
+          </button>
+        )}
       </div>
 
       {suggestedValue !== undefined && !locked ? (
