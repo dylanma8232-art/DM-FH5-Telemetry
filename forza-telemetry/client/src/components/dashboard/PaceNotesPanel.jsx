@@ -528,10 +528,22 @@ export function PaceNotesPanel({
   onExit,
 }) {
   const [activeTurnIdx, setActiveTurnIdx] = useState(-1);
+  const hasRaceStarted = isRaceOn && (racePosition > 0 || currentSpeed > 5);
   const [nextTurnIdx, setNextTurnIdx] = useState(-1);
   const [showExport, setShowExport] = useState(false);
   const [scrollToActive, setScrollToActive] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const handleExitConfirm = async () => {
+    try {
+      await fetch('/api/trackMode/stop', { method: 'POST' });
+      if (onExit) onExit();
+    } catch (e) {
+      console.error(e);
+    }
+    setShowExitConfirm(false);
+  };
   const listRef = useRef(null);
   const activeItemRef = useRef(null);
 
@@ -687,7 +699,6 @@ export function PaceNotesPanel({
     }
 
     // --- D. 独立的语音提前播报逻辑 (时速前瞻 + 真实WRC等级同步) ---
-    const hasRaceStarted = isRaceOn && (racePosition > 0 || currentSpeed > 5);
 
     if (hasRaceStarted && gear !== 0 && currentSpeed > 20) {
       // 找到前方第一个尚未播报的弯道
@@ -876,16 +887,7 @@ export function PaceNotesPanel({
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {/* 退出按钮 */}
             <button
-              onClick={async () => {
-                if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
-                  try {
-                    await fetch('/api/trackMode/stop', { method: 'POST' });
-                    if (onExit) onExit();
-                  } catch (e) {
-                    console.error(e);
-                  }
-                }
-              }}
+              onClick={() => setShowExitConfirm(true)}
               style={{
                 background: 'rgba(248,81,73,0.1)',
                 border: '1px solid rgba(248,81,73,0.3)',
@@ -988,6 +990,12 @@ export function PaceNotesPanel({
           </div>
         )}
         {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
+        {showExitConfirm && (
+          <ExitConfirmModal
+            onConfirm={handleExitConfirm}
+            onCancel={() => setShowExitConfirm(false)}
+          />
+        )}
       </div>
     );
   }
@@ -1054,16 +1062,7 @@ export function PaceNotesPanel({
           </span>
           {/* 退出按钮 */}
           <button
-            onClick={async () => {
-              if (window.confirm('确定要退出当前路书/赛道模式吗？')) {
-                try {
-                  await fetch('/api/trackMode/stop', { method: 'POST' });
-                  if (onExit) onExit();
-                } catch (e) {
-                  console.error(e);
-                }
-              }
-            }}
+            onClick={() => setShowExitConfirm(true)}
             style={{
               background: 'rgba(248,81,73,0.1)',
               border: '1px solid rgba(248,81,73,0.3)',
@@ -1202,6 +1201,12 @@ export function PaceNotesPanel({
         </div>
       )}
       {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
+      {showExitConfirm && (
+        <ExitConfirmModal
+          onConfirm={handleExitConfirm}
+          onCancel={() => setShowExitConfirm(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1303,6 +1308,74 @@ export function PaceNoteGlossaryModal({ onClose }) {
               <div><strong>合并</strong>: 将当前弯道与下一个弯道融合为一个弯道，系统重新合并它们的物理特征及推荐速度。</div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExitConfirmModal({ onConfirm, onCancel }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(13, 17, 23, 0.8)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+    }}>
+      <div style={{
+        background: '#161b22',
+        border: '1px solid #30363d',
+        borderRadius: 8,
+        padding: '16px 20px',
+        width: 280,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
+          确定要退出当前路书/赛道模式吗？
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              background: '#f85149',
+              border: '1px solid rgba(248,81,73,0.4)',
+              borderRadius: 6,
+              padding: '6px 12px',
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            确定退出
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              background: '#21262d',
+              border: '1px solid #30363d',
+              borderRadius: 6,
+              padding: '6px 12px',
+              color: '#c9d1d9',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            取消
+          </button>
         </div>
       </div>
     </div>
