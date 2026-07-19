@@ -101,6 +101,8 @@ app.use('/api/vehicles', vehiclesRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api', navigationRouter);
 app.use('/api/system', systemRouter);
+// 兼容旧版设置页的调用路径，避免已打开的页面保存 AI 配置时直接 404。
+app.use('/api/settings', systemRouter);
 app.use('/api', recordModule.router);
 app.use('/', sessionsRouter);
 

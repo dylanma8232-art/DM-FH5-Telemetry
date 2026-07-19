@@ -89,7 +89,7 @@ export const api = {
   system: {
     getStatus: () => get('/api/status'),
     getCurrent: () => get('/api/current'),
-    getDashscopeKey: () => get('/api/settings/dashscope-key'),
-    setDashscopeKey: (body) => post('/api/settings/dashscope-key', body)
+    getDashscopeKey: () => get('/api/system/settings/dashscope-key'),
+    setDashscopeKey: (body) => post('/api/system/settings/dashscope-key', body)
   }
 };

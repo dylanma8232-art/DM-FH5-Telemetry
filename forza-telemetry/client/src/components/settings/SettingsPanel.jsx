@@ -34,7 +34,7 @@ export function SettingsPanel({ onClose }) {
   useEffect(() => {
     if (activeTab === 'ai') {
       setLoadingKey(true);
-      fetch('/api/settings/dashscope-key')
+      fetch('/api/system/settings/dashscope-key')
         .then(res => res.json())
         .then(data => {
           setApiKey(data.apiKey || '');
@@ -54,7 +54,7 @@ export function SettingsPanel({ onClose }) {
     }
     setSavingKey(true);
     try {
-      const res = await fetch('/api/settings/dashscope-key', {
+      const res = await fetch('/api/system/settings/dashscope-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() })
