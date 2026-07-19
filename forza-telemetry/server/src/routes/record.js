@@ -202,7 +202,6 @@ const calculateTrackLength = (pts) => {
       savedAt: new Date().toISOString(),
       autoRecorded: true,
       trackMode: !!trackMode,
-      tuneId: stateManager.getCurrentTuneId(),
       duration: duration,
       vehicle: vehicleToSave
     };
@@ -486,7 +485,6 @@ const calculateTrackLength = (pts) => {
       trackId: trackId || null,
       savedAt: new Date().toISOString(),
       autoRecorded: false,
-      tuneId: stateManager.getCurrentTuneId(),
       duration: 0,
       vehicle: manVehicleToSave
     };

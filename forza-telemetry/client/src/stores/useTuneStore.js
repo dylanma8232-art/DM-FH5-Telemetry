@@ -5,8 +5,6 @@ export const useTuneStore = create((set, get) => ({
   tunes: [],
   vehicles: {},
   tracks: [],
-  activeTune: null,
-  activeTuneLoading: false,
   tuneSessionStats: {},
   loading: false,
 
@@ -63,34 +61,4 @@ export const useTuneStore = create((set, get) => ({
     }
   },
 
-  loadActiveTune: async () => {
-    try {
-      const data = await api.tunes.getActive()
-      set({ activeTune: data.tune || null })
-    } catch (e) {
-      // 加载活跃调校失败
-    }
-  },
-
-  setActiveTuneById: async (tuneId) => {
-    set({ activeTuneLoading: true })
-    try {
-      await api.tunes.setActive({ tuneId })
-      await get().loadActiveTune()
-      alert('已设为当前活跃调校')
-    } catch (e) {
-      alert('设置活跃调校失败')
-    } finally {
-      set({ activeTuneLoading: false })
-    }
-  },
-
-  clearActiveTune: async () => {
-    try {
-      await api.tunes.setActive({ tuneId: null })
-      set({ activeTune: null })
-    } catch (e) {
-      // 取消活跃调校失败
-    }
-  }
 }))

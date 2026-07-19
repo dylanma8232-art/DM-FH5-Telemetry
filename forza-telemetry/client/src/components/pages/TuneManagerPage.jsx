@@ -170,8 +170,6 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setShowModal,
     editingTune,
     setEditingTune,
-    expandedTune,
-    setExpandedTune,
     searchQuery,
     setSearchQuery,
     vehicleFilter,
@@ -218,10 +216,6 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setDrivingProblemsOpen,
     selectedProblem,
     setSelectedProblem,
-    activeTune,
-    setActiveTune,
-    activeTuneLoading,
-    setActiveTuneLoading,
     telemetryPanelOpen,
     setTelemetryPanelOpen,
     availableSessions,
@@ -249,16 +243,12 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     loadVehicles,
     loadTracks,
     loadTuneSessionStats,
-    loadActiveTune,
-    setActiveTuneById,
-    clearActiveTune,
     saveTune,
     deleteTune,
     duplicateTune,
     startEdit,
     startCreate,
     closeModal,
-    toggleExpand,
     toggleCompareMode,
     toggleSelectForCompare,
     runCompare,
@@ -300,6 +290,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const hasAiOption = (slotId, optionId) => upgradeShop?.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === optionId && option.aiEligible === true && Number.isFinite(Number(option.piUpperEstimate)))
   const [activePartTab, setActivePartTab] = useState('置换');
   const [activeParamTab, setActiveParamTab] = useState('tires');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPartsList, setAiPartsList] = useState([]);
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   const partGroups = React.useMemo(() => {
     if (!upgradeShop || upgradeShop.status === 'unverified') return { data: {}, tabs: [], current: '' };
@@ -678,41 +671,6 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
         )}
       </div>
 
-      {/* Round 4: 当前活跃调校 */}
-      {activeTune && (
-        <div style={{
-          background: 'rgba(35, 134, 54, 0.1)',
-          border: '1px solid rgba(35, 134, 54, 0.35)',
-          borderRadius: 8,
-          padding: '10px 14px',
-          marginBottom: 16,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>当前活跃调校:</span>
-            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--success)' }}>{activeTune.name}</span>
-            {activeTune.vehicleId && (
-              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                / {getVehicleName(activeTune.vehicleId)}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={clearActiveTune}
-            style={{
-              ...btnSmallStyle,
-              background: 'rgba(218, 54, 51, 0.15)',
-              borderColor: 'rgba(218, 54, 51, 0.3)',
-              color: '#da3633'
-            }}
-          >
-            取消活跃
-          </button>
-        </div>
-      )}
-
       {/* 对比控制栏 */}
       {compareMode && (
         <div style={{
@@ -828,82 +786,101 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
           gap: 12
         }}>
-          {filteredTunes.map(tune => (
-            <div
-              key={tune.id}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: 14,
-                transition: 'all 0.15s'
-              }}
-            >
-              {/* 卡片头部 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                {compareMode && (
-                  <div
-                    onClick={() => toggleSelectForCompare(tune.id)}
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 4,
-                      border: `2px solid ${compareSelected.includes(tune.id) ? 'var(--accent)' : 'var(--border)'}`,
-                      background: compareSelected.includes(tune.id) ? 'var(--accent)' : 'transparent',
-                      marginRight: 10,
-                      flexShrink: 0,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      color: '#fff',
-                      fontWeight: 700
-                    }}
-                  >
-                    {compareSelected.includes(tune.id) ? '✓' : ''}
+          {filteredTunes.map(tune => {
+            return (
+              <div
+                key={tune.id}
+                style={{
+                  background: 'rgba(22, 27, 34, 0.4)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  padding: 16,
+                  transition: 'all 0.25s ease',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: 'none',
+                  position: 'relative'
+                }}
+              >
+                {/* 卡片头部 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  {compareMode && (
+                    <div
+                      onClick={() => toggleSelectForCompare(tune.id)}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 4,
+                        border: `2px solid ${compareSelected.includes(tune.id) ? 'var(--accent)' : 'var(--border)'}`,
+                        background: compareSelected.includes(tune.id) ? 'var(--accent)' : 'transparent',
+                        marginRight: 10,
+                        flexShrink: 0,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 12,
+                        color: '#fff',
+                        fontWeight: 700
+                      }}
+                    >
+                      {compareSelected.includes(tune.id) ? '✓' : ''}
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <div style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {tune.name}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {formatDate(tune.createdAt)}
+                    </div>
                   </div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {tune.name}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                    {formatDate(tune.createdAt)}
+                  
+                  {/* 高频按钮 */}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button onClick={() => startEdit(tune)} style={btnSmallStyle}>编辑</button>
+                    
+                    {/* 操作按钮组 */}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); duplicateTune(tune); }}
+                        style={{ ...btnSmallStyle, fontSize: 11, padding: '3px 10px' }}
+                        title="复制一份副本"
+                      >
+                        复制
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); exportTune(tune); }}
+                        style={{ ...btnSmallStyle, fontSize: 11, padding: '3px 10px' }}
+                        title="导出为文件"
+                      >
+                        导出
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteTune(tune.id); }}
+                        style={{
+                          ...btnSmallStyle,
+                          fontSize: 11,
+                          padding: '3px 10px',
+                          color: '#f85149',
+                          borderColor: 'rgba(248, 81, 73, 0.3)'
+                        }}
+                        title="删除此调校"
+                      >
+                        删除
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <button onClick={() => duplicateTune(tune)} style={btnSmallStyle}>复制</button>
-                  <button onClick={() => exportTune(tune)} style={btnSmallStyle}>导出</button>
-                  <button onClick={() => {
-                    const code = generateShareCode(tune)
-                    if (code) {
-                      navigator.clipboard?.writeText(code).then(() => alert('分享码已复制到剪贴板')).catch(() => alert(code))
-                    }
-                  }} style={btnSmallStyle}>分享码</button>
-                  <button onClick={() => startEdit(tune)} style={btnSmallStyle}>编辑</button>
-                  <button
-                    onClick={() => setActiveTuneById(tune.id)}
-                    disabled={activeTuneLoading || (activeTune && activeTune.id === tune.id)}
-                    style={{
-                      ...btnSmallStyle,
-                      background: (activeTune && activeTune.id === tune.id) ? 'rgba(35, 134, 54, 0.15)' : 'var(--bg-tertiary)',
-                      borderColor: (activeTune && activeTune.id === tune.id) ? 'rgba(35, 134, 54, 0.3)' : 'var(--border)',
-                      color: (activeTune && activeTune.id === tune.id) ? '#3fb950' : 'var(--text-primary)'
-                    }}
-                  >
-                    {activeTune && activeTune.id === tune.id ? '活跃中' : '设为活跃'}
-                  </button>
-                  <button onClick={() => deleteTune(tune.id)} style={btnDangerSmallStyle}>删除</button>
-                </div>
-              </div>
+
 
               {/* 标签 */}
               {(tune.tags || []).length > 0 && (
@@ -986,18 +963,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 );
               })()}
 
-              {/* 操作栏 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  onClick={() => toggleExpand(tune.id)}
-                  style={btnSmallStyle}
-                >
-                  {expandedTune === tune.id ? '收起详情' : '展开详情'}
-                </button>
-              </div>
-
-              {/* 详情展开区域 */}
-              {expandedTune === tune.id && (() => {
+              {/* 详情展开区域已禁用 */}
+              {false && (() => {
                 // Round 5: 计算调校默认值用于差异对比
                 const tuneDefaultsForView = (() => {
                   try {
@@ -1016,149 +983,214 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 })()
 
                 return (
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                  {/* 配件改装摘要 */}
+                <div style={{ marginTop: 14, borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* 1. 改装配件展示 */}
                   {tune.parts && (
-                    <div style={{ marginBottom: 12 }}>
+                    <div style={{
+                      background: 'rgba(0, 0, 0, 0.15)',
+                      borderRadius: 8,
+                      padding: 12,
+                      border: '1px solid rgba(255, 255, 255, 0.02)'
+                    }}>
                       <div style={{
-                        fontSize: 11, fontWeight: 600, color: '#8b949e',
-                        marginBottom: 8, borderBottom: '1px solid #21262d', paddingBottom: 4
+                        fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)',
+                        marginBottom: 8, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: 4,
+                        letterSpacing: 0.5
                       }}>
-                        改装配件
+                        ⚙️ 已配置的改装组件
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: 6 }}>
                         {PART_CATEGORIES.map(cat => {
-                          const part = tune.parts[cat.id]
+                          const part = tune.parts[cat.id];
                           const isStock = cat.tierSystem
                             ? (!part?.tier || part.tier === 'stock')
-                            : (!part?.optionId || part.optionId === 'stock')
+                            : (!part?.optionId || part.optionId === 'stock');
                           const partLabel = cat.tierSystem
                             ? (part?.tier ? (TIER_LABELS[part.tier]?.zh || part.tier) : cat.label)
-                            : (cat.options?.find(o => o.id === part?.optionId)?.label || cat.label)
+                            : (cat.options?.find(o => o.id === part?.optionId)?.label || cat.label);
+                          
                           return (
                             <div key={cat.id} style={{
                               fontSize: 9,
-                              color: isStock ? 'var(--text-muted)' : 'var(--text-primary)',
-                              background: isStock ? 'transparent' : 'var(--bg-tertiary)',
-                              padding: '3px 6px', borderRadius: 3,
-                              display: 'flex', alignItems: 'center', gap: 3
+                              color: isStock ? 'rgba(139, 148, 158, 0.4)' : '#58a6ff',
+                              background: isStock ? 'transparent' : 'rgba(88, 166, 255, 0.06)',
+                              border: isStock ? '1px solid rgba(48, 54, 66, 0.2)' : '1px dashed rgba(88, 166, 255, 0.25)',
+                              padding: '4px 6px', borderRadius: 4,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              overflow: 'hidden'
                             }}>
-                              <span>{cat.icon}</span>
-                              <span style={{ fontWeight: isStock ? 400 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{ filter: isStock ? 'grayscale(100%) opacity(0.4)' : 'none' }}>{cat.icon}</span>
+                              <span style={{ fontWeight: isStock ? 400 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={partLabel}>
                                 {partLabel}
                               </span>
                             </div>
-                          )
+                          );
                         })}
                       </div>
                     </div>
                   )}
 
-                  {/* Round 5: 轮胎参数 - 蓝色分区 */}
-                  <div style={{ marginBottom: 12, borderLeft: '3px solid #58a6ff', paddingLeft: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#58a6ff', marginBottom: 8 }}>
-                      轮胎参数
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <ParamItem label="前胎压" value={tune.tires?.frontPressure} unit="PSI" defaultValue={tuneDefaultsForView['tires.frontPressure']} />
-                      <ParamItem label="后胎压" value={tune.tires?.rearPressure} unit="PSI" defaultValue={tuneDefaultsForView['tires.rearPressure']} />
+                  {/* 2. 参数分组网格 (3x2 响应式网格) */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                    gap: 12
+                  }}>
+                    {/* 2.1 轮胎 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff', borderBottom: '1px solid rgba(88,166,255,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        🛞 轮胎与定位
+                      </div>
+                      <ParamItem label="前胎压" value={tune.tires?.frontPressure} unit=" bar" defaultValue={tuneDefaultsForView['tires.frontPressure']} />
+                      <ParamItem label="后胎压" value={tune.tires?.rearPressure} unit=" bar" defaultValue={tuneDefaultsForView['tires.rearPressure']} />
                       <ParamItem label="前外倾角" value={tune.tires?.frontCamber} unit="°" defaultValue={tuneDefaultsForView['tires.frontCamber']} />
                       <ParamItem label="后外倾角" value={tune.tires?.rearCamber} unit="°" defaultValue={tuneDefaultsForView['tires.rearCamber']} />
                       <ParamItem label="前束角" value={tune.tires?.frontToe} unit="°" defaultValue={tuneDefaultsForView['tires.frontToe']} />
                       <ParamItem label="后束角" value={tune.tires?.rearToe} unit="°" defaultValue={tuneDefaultsForView['tires.rearToe']} />
                       <ParamItem label="主销后倾角" value={tune.tires?.frontCaster} unit="°" defaultValue={tuneDefaultsForView['tires.frontCaster']} />
                     </div>
-                  </div>
 
-                  {/* Round 5: 悬挂参数 - 橙色分区 */}
-                  <div style={{ marginBottom: 12, borderLeft: '3px solid #d29922', paddingLeft: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#d29922', marginBottom: 8 }}>
-                      悬挂参数
+                    {/* 2.2 避震弹簧 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#d29922', borderBottom: '1px solid rgba(210,153,34,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        🔩 悬挂、弹簧与防倾杆
+                      </div>
+                      <ParamItem label="前弹簧硬度" value={tune.suspension?.frontSpring} unit=" kgf/mm" defaultValue={tuneDefaultsForView['suspension.frontSpring']} />
+                      <ParamItem label="后弹簧硬度" value={tune.suspension?.rearSpring} unit=" kgf/mm" defaultValue={tuneDefaultsForView['suspension.rearSpring']} />
+                      <ParamItem label="前防倾杆" value={tune.suspension?.frontARB} defaultValue={tuneDefaultsForView['suspension.frontARB']} />
+                      <ParamItem label="后防倾杆" value={tune.suspension?.rearARB} defaultValue={tuneDefaultsForView['suspension.rearARB']} />
+                      <ParamItem label="前车身高度" value={tune.suspension?.frontRideHeight} unit=" cm" defaultValue={tuneDefaultsForView['suspension.frontRideHeight']} />
+                      <ParamItem label="后车身高度" value={tune.suspension?.rearRideHeight} unit=" cm" defaultValue={tuneDefaultsForView['suspension.rearRideHeight']} />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <ParamItem label="前弹簧硬度" value={tune.suspension?.frontSpring} defaultValue={tuneDefaultsForView['suspension.frontSpring']} />
-                      <ParamItem label="后弹簧硬度" value={tune.suspension?.rearSpring} defaultValue={tuneDefaultsForView['suspension.rearSpring']} />
+
+                    {/* 2.3 阻尼避震 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#bc8cff', borderBottom: '1px solid rgba(188,140,255,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        ⚡ 阻尼硬度
+                      </div>
                       <ParamItem label="前回弹阻尼" value={tune.suspension?.frontRebound} defaultValue={tuneDefaultsForView['suspension.frontRebound']} />
                       <ParamItem label="后回弹阻尼" value={tune.suspension?.rearRebound} defaultValue={tuneDefaultsForView['suspension.rearRebound']} />
                       <ParamItem label="前压缩阻尼" value={tune.suspension?.frontBump} defaultValue={tuneDefaultsForView['suspension.frontBump']} />
                       <ParamItem label="后压缩阻尼" value={tune.suspension?.rearBump} defaultValue={tuneDefaultsForView['suspension.rearBump']} />
-                      <ParamItem label="前防倾杆" value={tune.suspension?.frontARB} defaultValue={tuneDefaultsForView['suspension.frontARB']} />
-                      <ParamItem label="后防倾杆" value={tune.suspension?.rearARB} defaultValue={tuneDefaultsForView['suspension.rearARB']} />
-                      <ParamItem label="前车身高度" value={tune.suspension?.frontRideHeight} unit="cm" defaultValue={tuneDefaultsForView['suspension.frontRideHeight']} />
-                      <ParamItem label="后车身高度" value={tune.suspension?.rearRideHeight} unit="cm" defaultValue={tuneDefaultsForView['suspension.rearRideHeight']} />
                     </div>
-                  </div>
 
-                  {/* Round 5: 传动系统 - 绿色分区 */}
-                  <div style={{ marginBottom: 12, borderLeft: '3px solid #3fb950', paddingLeft: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#3fb950', marginBottom: 8 }}>
-                      传动系统
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <ParamItem label="前差速器加速" value={tune.drivetrain?.frontDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffAccel']} />
-                      <ParamItem label="前差速器减速" value={tune.drivetrain?.frontDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffDecel']} />
-                      <ParamItem label="后差速器加速" value={tune.drivetrain?.rearDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffAccel']} />
-                      <ParamItem label="后差速器减速" value={tune.drivetrain?.rearDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffDecel']} />
+                    {/* 2.4 传动与差速 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#3fb950', borderBottom: '1px solid rgba(63,185,80,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        🔄 差速器锁定
+                      </div>
+                      <ParamItem label="前差速加速" value={tune.drivetrain?.frontDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffAccel']} />
+                      <ParamItem label="前差速减速" value={tune.drivetrain?.frontDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.frontDiffDecel']} />
+                      <ParamItem label="后差速加速" value={tune.drivetrain?.rearDiffAccel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffAccel']} />
+                      <ParamItem label="后差速减速" value={tune.drivetrain?.rearDiffDecel} unit="%" defaultValue={tuneDefaultsForView['drivetrain.rearDiffDecel']} />
                       <ParamItem label="中央差速器" value={tune.drivetrain?.diffCenter} unit="%" defaultValue={tuneDefaultsForView['drivetrain.diffCenter']} />
-                      <ParamItem label="终传比" value={tune.drivetrain?.finalDrive} defaultValue={tuneDefaultsForView['drivetrain.finalDrive']} />
                     </div>
-                    <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                      <ParamItem label="1档齿比" value={tune.drivetrain?.gear1} defaultValue={tuneDefaultsForView['drivetrain.gear1']} />
-                      <ParamItem label="2档齿比" value={tune.drivetrain?.gear2} defaultValue={tuneDefaultsForView['drivetrain.gear2']} />
-                      <ParamItem label="3档齿比" value={tune.drivetrain?.gear3} defaultValue={tuneDefaultsForView['drivetrain.gear3']} />
-                      <ParamItem label="4档齿比" value={tune.drivetrain?.gear4} defaultValue={tuneDefaultsForView['drivetrain.gear4']} />
-                      <ParamItem label="5档齿比" value={tune.drivetrain?.gear5} defaultValue={tuneDefaultsForView['drivetrain.gear5']} />
-                      <ParamItem label="6档齿比" value={tune.drivetrain?.gear6} defaultValue={tuneDefaultsForView['drivetrain.gear6']} />
-                      {[7, 8, 9, 10].map(gear => <ParamItem key={gear} label={`${gear}档齿比`} value={tune.drivetrain?.[`gear${gear}`]} defaultValue={tuneDefaultsForView[`drivetrain.gear${gear}`]} />)}
-                    </div>
-                  </div>
 
-                  <div style={{ marginBottom: 12, borderLeft: '3px solid #f85149', paddingLeft: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#f85149', marginBottom: 8 }}>制动系统</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {/* 2.5 空力与制动 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#f85149', borderBottom: '1px solid rgba(248,81,73,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        🌪️ 制动与空气动力学
+                      </div>
                       <ParamItem label="制动力平衡" value={tune.brakes?.balance} unit="%" defaultValue={tuneDefaultsForView['brakes.balance']} />
                       <ParamItem label="制动力压力" value={tune.brakes?.pressure} unit="%" defaultValue={tuneDefaultsForView['brakes.pressure']} />
+                      <ParamItem label="前下压力" value={tune.aero?.frontDownforce} unit=" kgf" defaultValue={tuneDefaultsForView['aero.frontDownforce']} />
+                      <ParamItem label="后下压力" value={tune.aero?.rearDownforce} unit=" kgf" defaultValue={tuneDefaultsForView['aero.rearDownforce']} />
+                    </div>
+
+                    {/* 2.6 传动齿轮比 */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderRadius: 8,
+                      padding: 10,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 5
+                        }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff', borderBottom: '1px solid rgba(88,166,255,0.15)', paddingBottom: 4, marginBottom: 2 }}>
+                        ⚙️ 传动齿轮比
+                      </div>
+                      <ParamItem label="终传比" value={tune.drivetrain?.finalDrive} defaultValue={tuneDefaultsForView['drivetrain.finalDrive']} />
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginTop: 2 }}>
+                        {[1, 2, 3, 4, 5, 6].map(g => (
+                          <ParamItem key={g} label={`${g}档`} value={tune.drivetrain?.[`gear${g}`]} defaultValue={tuneDefaultsForView[`drivetrain.gear${g}`]} />
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Round 5: 空气动力学 - 紫色分区 */}
-                  <div style={{ marginBottom: 12, borderLeft: '3px solid #bc8cff', paddingLeft: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#bc8cff', marginBottom: 8 }}>
-                      空气动力学
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <ParamItem label="前下压力" value={tune.aero?.frontDownforce} unit="kg" defaultValue={tuneDefaultsForView['aero.frontDownforce']} />
-                      <ParamItem label="后下压力" value={tune.aero?.rearDownforce} unit="kg" defaultValue={tuneDefaultsForView['aero.rearDownforce']} />
-                    </div>
-                  </div>
-
-                  {/* Round 5: 调校笔记 */}
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#8b949e', marginBottom: 6 }}>
-                      调校笔记
+                  {/* 3. 调校笔记 */}
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.01)',
+                    border: '1px solid rgba(255, 255, 255, 0.04)',
+                    borderRadius: 8,
+                    padding: 10
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                      📝 调校笔记与参数说明
                     </div>
                     <div style={{
                       fontSize: 10, color: 'var(--text-primary)',
-                      background: 'var(--bg-primary)', borderRadius: 4,
-                      padding: 8, minHeight: 30, lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word'
+                      background: 'rgba(0,0,0,0.15)', borderRadius: 4,
+                      padding: '8px 12px', minHeight: 30, lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      border: '1px solid rgba(255, 255, 255, 0.01)'
                     }}>
-                      {tune.notes || '暂无笔记'}
+                      {tune.notes || '暂无详细描述'}
                     </div>
                   </div>
 
-                  {/* Round 8: 赛道表现 + 调校历史 */}
+                  {/* 4. 赛道表现 + 调校历史 */}
                   {tuneSessionStats[tune.id]?.sessions?.length > 0 && (() => {
                     const st = tuneSessionStats[tune.id];
                     const trackPerf = {};
                     st.sessions.forEach(s => {
                       if (!s.trackName) return;
                       if (!trackPerf[s.trackName]) {
-                        trackPerf[s.trackName] = { count: 0, bestLap: Infinity, totalLaps: 0 };
+                        trackPerf[s.trackName] = { count: 0, bestLap: Infinity };
                       }
                       const tp = trackPerf[s.trackName];
                       tp.count++;
-                      tp.totalLaps += s.laps?.count || 0;
                       if (s.laps?.best > 0 && s.laps.best < tp.bestLap) {
                         tp.bestLap = s.laps.best;
                       }
@@ -1168,25 +1200,33 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       .sort((a, b) => a[1].bestLap - b[1].bestLap);
 
                     return (
-                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#58a6ff', marginBottom: 6 }}>
-                          赛道表现 ({trackEntries.length} 条赛道)
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.01)',
+                        border: '1px solid rgba(255, 255, 255, 0.04)',
+                        borderRadius: 8,
+                        padding: 10
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff', marginBottom: 6 }}>
+                          🏁 历史赛道表现 ({trackEntries.length} 条赛道)
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', gap: 6, fontSize: 10, padding: '6px 0', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 50px', gap: 6, fontSize: 9, padding: '4px 6px', background: 'rgba(0,0,0,0.15)', borderRadius: 4, color: 'var(--text-secondary)' }}>
                           <div>赛道</div>
                           <div style={{ textAlign: 'right' }}>最佳圈速</div>
-                          <div style={{ textAlign: 'right' }}>次数</div>
+                          <div style={{ textAlign: 'right' }}>频次</div>
                         </div>
-                        {trackEntries.slice(0, 8).map(([track, perf]) => (
-                          <div key={track} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 60px', gap: 6, fontSize: 10, padding: '4px 0', borderBottom: '1px solid #21262d', alignItems: 'center' }}>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track}</div>
-                            <div style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: '#d29922' }}>{formatTime(perf.bestLap)}</div>
-                            <div style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{perf.count}</div>
-                          </div>
-                        ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                          {trackEntries.slice(0, 5).map(([track, perf]) => (
+                            <div key={track} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 50px', gap: 6, fontSize: 9.5, padding: '4px 6px', borderBottom: '1px solid rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track}</div>
+                              <div style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#d29922' }}>{formatTime(perf.bestLap)}</div>
+                              <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{perf.count}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
+
 
                   {/* 遥测诊断与常见驾驶问题优化调优面板 */}
                   <div style={{
@@ -1430,7 +1470,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 )
               })()}
             </div>
-          ))}
+          );
+        }) }
         </div>
       )}
 
@@ -1453,8 +1494,69 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
       {showModal && (
         <div style={drawerOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
           <div style={drawerContentStyle}>
-            {/* 1. 全屏工坊页面级顶栏 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexShrink: 0 }}>
+            {aiLoading && (
+              <div className="ai-loading-mask" style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(13, 17, 23, 0.9)',
+                backdropFilter: 'blur(6px)',
+                zIndex: 999,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 16
+              }}>
+                <div style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  border: '2px solid rgba(88, 166, 255, 0.2)',
+                  borderTopColor: '#58a6ff',
+                  animation: 'spin 1s linear infinite',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: '50%',
+                    background: 'rgba(88, 166, 255, 0.1)',
+                    boxShadow: '0 0 15px rgba(88, 166, 255, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 20
+                  }}>
+                    🧠
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#58a6ff', letterSpacing: 0.5 }}>
+                  AI 多智能代理正在进行遗传算法寻优...
+                </div>
+                <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>
+                  正在模拟风洞试验、胎温胎压抓地力平衡与最优齿比传动曲线
+                </div>
+              </div>
+            )}
+            {/* 固定顶栏 */}
+            <div style={{
+              height: 54,
+              flexShrink: 0,
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '0 20px',
+              background: 'rgba(21, 26, 34, 0.6)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 10
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <button
                   onClick={closeModal}
@@ -1462,78 +1564,76 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     ...btnSmallStyle,
                     background: 'rgba(255,255,255,0.03)',
                     borderColor: 'rgba(255,255,255,0.08)',
-                    padding: '6px 14px',
-                    fontSize: 12,
+                    padding: '5px 12px',
+                    fontSize: 11,
                     fontWeight: 600,
                     color: 'var(--text-secondary)'
                   }}
                 >
                   ← 返回调校库
                 </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {editingTune ? `编辑调校: ${formData.name || '未命名'}` : '新建调校工坊'}
+                  </span>
+                  {formData.vehicleId && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>|</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                        {vehicles[formData.vehicleId]?.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              <button
-                onClick={saveTune}
-                style={{
-                  ...btnPrimaryStyle,
-                  background: 'var(--success)',
-                  padding: '6px 16px',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                💾 {editingTune ? '保存此调校' : '完成并保存'}
-              </button>
             </div>
 
-            {/* 2. 新版 3 步分步导航（编辑与新建均展示） */}
-            {showModal && (
-              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexShrink: 0 }}>
+            {/* 3 步分步进度条 */}
+            <div style={{ padding: '16px 20px 0 20px', flexShrink: 0, background: 'rgba(21, 26, 34, 0.2)' }}>
+              <div style={{ display: 'flex', gap: 12 }}>
                 {[
-                  { step: 1, label: editingTune ? '选定车辆 (只读)' : '配置车辆与改装方式' },
-                  { step: 2, label: editingTune ? '更改配件升级' : '确认配件升级' },
-                  { step: 3, label: '填写与微调参数' }
+                  { step: 1, label: editingTune ? '选定车辆 (已锁定)' : '选择车辆与改装方式' },
+                  { step: 2, label: '配置升级配件' },
+                  { step: 3, label: '调试与填写参数' }
                 ].map((item) => {
                   const isStep1 = item.step === 1;
-                  const isClickable = !isStep1 || !editingTune;
+                  const isClickable = !editingTune && !isStep1; 
+                  const clickable = !editingTune || item.step !== 1;
                   return (
                     <div
                       key={item.step}
                       onClick={() => {
-                        if (isClickable) setWizardStep(item.step);
+                        if (clickable) setWizardStep(item.step);
                       }}
                       style={{
                         flex: 1,
-                        padding: '8px 12px',
+                        padding: '6px 12px',
                         borderRadius: 6,
                         fontSize: 10,
                         fontWeight: 700,
-                        cursor: isClickable ? 'pointer' : 'not-allowed',
+                        cursor: clickable ? 'pointer' : 'not-allowed',
                         transition: 'all 0.25s ease',
                         background: wizardStep === item.step
                           ? 'var(--accent)'
-                          : (wizardStep > item.step ? 'rgba(63,185,80,.15)' : 'rgba(255,255,255,0.03)'),
+                          : (wizardStep > item.step ? 'rgba(63,185,80,.12)' : 'rgba(255,255,255,0.02)'),
                         border: `1px solid ${wizardStep === item.step ? 'var(--accent)' : 'rgba(255,255,255,0.05)'}`,
                         color: wizardStep >= item.step ? '#fff' : 'var(--text-muted)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
-                        opacity: isClickable ? 1 : 0.4
+                        opacity: clickable ? 1 : 0.4
                       }}
                     >
                       <span style={{
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         borderRadius: '50%',
                         background: wizardStep > item.step ? '#3fb950' : (wizardStep === item.step ? '#fff' : 'rgba(255,255,255,0.1)'),
                         color: wizardStep === item.step ? 'var(--accent)' : '#fff',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 10
+                        fontSize: 9
                       }}>
                         {wizardStep > item.step ? '✓' : item.step}
                       </span>
@@ -1542,9 +1642,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   );
                 })}
               </div>
-            )}
+            </div>
 
-            {/* 3.1 步骤 1：选车与方式合并 */}
+            {/* 滚动 Body 内容区 */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column' }}>
             {!editingTune && wizardStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, overflow: 'visible' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 20, overflow: 'visible' }}>
@@ -1573,7 +1674,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         animation: 'drawerFadeIn 0.3s ease'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>原厂性能指数</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>原厂 PI（未改装）</span>
                           <div>
                             {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
                           </div>
@@ -1690,11 +1791,32 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <button
                           type="button"
                           onClick={async () => {
-                            const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
-                            if (generated) {
-                              setFormData(prev => ({ ...prev, tags: prev.tags || aiRaceType }));
-                              setWizardStep(2); // 跳往确认升级改装这一步
-                            }
+                            setAiLoading(true);
+                            setTimeout(async () => {
+                              try {
+                                const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
+                                if (generated) {
+                                  setFormData(prev => {
+                                    const modifiedParts = [];
+                                    if (prev.parts) {
+                                      Object.entries(prev.parts).forEach(([k, v]) => {
+                                        const isStock = v.tier === 'stock' || v.optionId === 'stock' || (!v.tier && !v.optionId);
+                                        if (!isStock) {
+                                          modifiedParts.push(k);
+                                        }
+                                      });
+                                    }
+                                    setAiPartsList(modifiedParts);
+                                    return { ...prev, tags: prev.tags ? (prev.tags.includes(aiRaceType) ? prev.tags : [...prev.tags, aiRaceType]) : [aiRaceType] };
+                                  });
+                                  setWizardStep(2); 
+                                }
+                              } catch (e) {
+                                console.error(e);
+                              } finally {
+                                setAiLoading(false);
+                              }
+                            }, 1500);
                           }}
                           style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636', borderColor: '#2ea44f' }}
                         >
@@ -1705,27 +1827,23 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 </div>
 
-                <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                  {buildMode === 'manual' && (
-                    <button
-                      type="button"
-                      onClick={() => setWizardStep(2)}
-                      disabled={!formData.vehicleId || !upgradeShop}
-                      style={{ ...btnPrimaryStyle, width: 140 }}
-                    >
-                      {(!upgradeShop && formData.vehicleId) ? '加载配件中...' : '继续选配升级组件'}
-                    </button>
-                  )}
-                </div>
+
               </div>
             )}
 
             {/* 3.2 步骤 2：确认配件改装 */}
             {wizardStep === 2 && (
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px 18px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>估算改装后 PI 级</span>
-                  {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px 18px', borderRadius: 8, border: '1px solid var(--border)', gap: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                    <span>原厂</span>
+                    {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>→</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700 }}>
+                    <span>改装后预估</span>
+                    {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                  </div>
                 </div>
                 
                 {buildMode === 'ai' && (
@@ -1752,13 +1870,40 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     alignItems: 'center'
                   }}>
                     <span>升级组件选配</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
-                      已选择 {visiblePartCategories.filter(c => {
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
+                        已选择 {visiblePartCategories.filter(c => {
+                          const p = formData.parts[c.id];
+                          if (c.tierSystem) return p?.tier && p.tier !== 'stock';
+                          return p?.optionId && p.optionId !== 'stock';
+                        }).length} 项升级
+                      </span>
+                      {visiblePartCategories.some(c => {
                         const p = formData.parts[c.id];
                         if (c.tierSystem) return p?.tier && p.tier !== 'stock';
                         return p?.optionId && p.optionId !== 'stock';
-                      }).length} 项升级
-                    </span>
+                      }) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('确定要恢复所有改装组件为原厂状态吗？')) {
+                              setFormData(prev => ({ ...prev, parts: getDefaultParts() }));
+                              setAiPartsList([]);
+                            }
+                          }}
+                          style={{
+                            ...btnSmallStyle,
+                            padding: '3px 8px',
+                            fontSize: 9,
+                            background: 'rgba(248, 81, 73, 0.12)',
+                            borderColor: 'rgba(248, 81, 73, 0.25)',
+                            color: '#f85149'
+                          }}
+                        >
+                          ↺ 一键恢复原厂
+                        </button>
+                      )}
+                    </div>
                   </div>
                   
                   {(() => {
@@ -1835,6 +1980,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                                   slotInfo={slotInfo}
                                   onChange={(tier, optionId) => updatePartSelection(cat.id, tier, optionId)}
                                   defaultDrivetrain={upgradeShop?.baseDriveType}
+                                  isAiMeta={aiPartsList.includes(cat.id)}
                                 />
                               );
                             })}
@@ -1844,10 +1990,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 </div>
                 
-                <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                  <button onClick={() => setWizardStep(1)} style={{ ...btnSmallStyle, flex: 1 }}>上一步</button>
-                  <button onClick={() => setWizardStep(3)} style={{ ...btnPrimaryStyle, flex: 2 }}>确认配件去调试参数</button>
-                </div>
+
               </div>
             )}
 
@@ -2008,11 +2151,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               </div>
                             </div>
                           </div>
-              )
+              );
             })}
-                    </>
-                  )}
-                </div>
+            </>)}
+            </div>
 
                 {/* 右栏：评级、基本信息与诊断工具面板 (可滚动) */}
                 <div style={{ flex: 0.85, overflow: 'auto', background: 'rgba(10, 10, 15, 0.35)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 16, backdropFilter: 'blur(10px)' }}>
@@ -2029,8 +2171,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>调校最终 PI 级别</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>改装后预估 PI</span>
                       {renderPiBadge(solutionPi === null ? totalPi : solutionPi)}
+                    </div>
+
+                    <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>原厂 PI（未改装）</span>
+                      {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2475,30 +2622,103 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     )}
                   </div>
                 )}
-                
-                {showModal && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-                    <button
-                      type="button"
-                      onClick={() => setWizardStep(2)}
-                      style={{ ...btnSmallStyle, width: '100%', display: 'block' }}
-                    >
-                      ← 上一步 (返回选配)
-                    </button>
-                  </div>
+                </div>
+                </div>
+                )}
+                </div>
+                </div>
+            )}
+            </div> {/* 闭合滚动 Body 内容区 */}
+
+            {/* 固定 Footer */}
+            <div style={{
+              height: 52,
+              flexShrink: 0,
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '0 20px',
+              background: 'rgba(21, 26, 34, 0.95)',
+              zIndex: 10
+            }}>
+              {/* 左侧：快捷键提示 */}
+              <div style={{ display: 'flex', gap: 12, fontSize: 9, color: 'var(--text-muted)' }}>
+                <div><span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: 3 }}>Esc</span> 关闭工作台</div>
+                <div><span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: 3 }}>Ctrl+S</span> 保存</div>
+                <div><span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: 3 }}>Ctrl+D</span> 复制草稿</div>
+              </div>
+
+              {/* 右侧：操作按钮 */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {wizardStep > 1 && !editingTune && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(wizardStep - 1)}
+                    style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
+                  >
+                    ← 上一步
+                  </button>
+                )}
+                {wizardStep === 3 && editingTune && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(2)}
+                    style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
+                  >
+                    ← 修改配件升级
+                  </button>
+                )}
+                {wizardStep === 2 && editingTune && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(3)}
+                    style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
+                  >
+                    ← 返回参数调试
+                  </button>
+                )}
+
+                {wizardStep === 1 && !editingTune && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(2)}
+                    disabled={!formData.vehicleId || !upgradeShop}
+                    style={{ ...btnPrimaryStyle, padding: '5px 16px', fontSize: 11, fontWeight: 700 }}
+                  >
+                    {(!upgradeShop && formData.vehicleId) ? '加载配件中...' : '继续选配升级组件 →'}
+                  </button>
+                )}
+
+                {wizardStep === 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(3)}
+                    style={{ ...btnPrimaryStyle, padding: '5px 16px', fontSize: 11, fontWeight: 700 }}
+                  >
+                    确认配件去调试参数 →
+                  </button>
+                )}
+
+                {(wizardStep === 3 || editingTune) && (
+                  <button
+                    onClick={saveTune}
+                    style={{
+                      ...btnPrimaryStyle,
+                      background: 'var(--success)',
+                      borderColor: '#2ea44f',
+                      padding: '5px 16px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    💾 {editingTune ? '保存此调校' : '完成并保存'}
+                  </button>
                 )}
               </div>
-              </div>
-            )}
-            </div>
-            </div>
-            )}
-
-            {/* 4. 快捷键提示与页脚 */}
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 12, textAlign: 'center', lineHeight: 1.4, flexShrink: 0 }}>
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Esc</span> 关闭工作台 &nbsp;&nbsp;
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+S</span> 保存调校 &nbsp;&nbsp;
-              <span style={{ fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '0 3px', borderRadius: 2 }}>Ctrl+D</span> 复制草稿
             </div>
           </div>
         </div>

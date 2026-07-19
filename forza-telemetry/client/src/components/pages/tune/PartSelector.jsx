@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TIER_LABELS } from '../../../data/parts';
 
-export const PartSelector = React.memo(function PartSelector({ category: rawCategory, selected, onChange, defaultDrivetrain = null, slotInfo = null }) {
+export const PartSelector = React.memo(function PartSelector({ category: rawCategory, selected, onChange, defaultDrivetrain = null, slotInfo = null, isAiMeta = false }) {
   const [expanded, setExpanded] = useState(false)
 
   const category = useMemo(() => {
@@ -74,7 +74,7 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
       style={isStock ? {} : { '--glow-color': selectedColor + '18', borderColor: selectedColor + '44' }}
     >
       <div className="part-header" onClick={() => setExpanded(!expanded)}>
-        <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <span className="part-title" style={{ color: isStock ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
           {!isStock && (
             <span style={{
               width: 5,
@@ -87,6 +87,22 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
             }} />
           )}
           {category.label}
+          {isAiMeta && !isStock && (
+            <span style={{
+              background: 'linear-gradient(135deg, #ffd700, #ffaa00)',
+              color: '#0d1117',
+              fontSize: '8px',
+              fontWeight: 900,
+              padding: '1px 4px',
+              borderRadius: '3px',
+              boxShadow: '0 0 8px rgba(255, 215, 0, 0.4)',
+              lineHeight: 1,
+              marginLeft: '4px',
+              display: 'inline-block'
+            }}>
+              AI推荐
+            </span>
+          )}
         </span>
         <span 
           className="badge-selected"

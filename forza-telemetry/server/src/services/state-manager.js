@@ -17,7 +17,6 @@ class StateManager {
     this.manualRecordedData = [];
     this.manualRacePositions = [];
     
-    this.currentTuneId = null;
     this.trackMode = false;
     this.autoRecordState = 'IDLE';
     this.packetCount = 0;
@@ -33,8 +32,6 @@ class StateManager {
   
   setIO(io) { this.io = io; }
   getCurrentData() { return this.currentData; }
-  getCurrentTuneId() { return this.currentTuneId; }
-  setCurrentTuneId(id) { this.currentTuneId = id; }
   getTrackMode() { return this.trackMode; }
   setTrackMode(mode) { this.trackMode = mode; }
   getLastRecognitionResult() { return this.lastRecognitionResult; }

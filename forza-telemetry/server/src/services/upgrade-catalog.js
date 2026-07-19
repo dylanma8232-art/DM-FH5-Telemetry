@@ -1,6 +1,7 @@
 import { applyPiPredictions, predictBuildPi } from './pi-model.js';
 
 const option = (id, label, piEstimate = 0, extra = {}) => ({ id, label, piEstimate, ...extra });
+const TIER_INDEX = { stock: 0, street: 1, sport: 2, race: 3, extreme: 4 };
 const levels = (street = 2, sport = 4, race = 7) => [
   option('stock', '原厂', 0), option('street', '街车级', street), option('sport', '跑车级', sport), option('race', '赛车级', race)
 ];
@@ -615,12 +616,14 @@ const readTuneValue = (payload, path) => payload?.[path[0]]?.[path[1]];
 /** 服务端保存前的统一校验；basePi 以车辆档案为准，totalPi 是用户确认的方案最终 PI。 */
 export function validateTunePayload(profile, payload = {}) {
   const mode = payload.generationMode === 'ai' ? 'ai' : 'manual';
-  const declaredDriveType = ['fwd', 'rwd', 'awd'].includes(payload.driveType) ? payload.driveType : null;
   const parts = Object.fromEntries(Object.entries(payload.parts || {}).flatMap(([slotId, selection]) => {
     const optionId = selection?.optionId || selection?.tier;
     return optionId ? [[slotId, { optionId }]] : [];
   }));
-  const resolvedForDrive = resolveUpgradeProfile(profile, parts, { driveType: declaredDriveType });
+  // driveType 表示当前构型的派生结果，不能反向当成车辆原厂驱动。
+  // 否则例如原厂后驱置换为四驱后，校验器会把四驱误判为原厂项并过滤掉。
+  // 当前驱动必须始终由已保存的 drivetrain_swap 选择推导。
+  const resolvedForDrive = resolveUpgradeProfile(profile, parts);
   const buildValidation = validateBuild(profile, parts);
   const build = { ...buildValidation, resolved: resolvedForDrive };
   const errors = [...build.errors];

@@ -90,28 +90,20 @@ export function useTuneManager({ onNavigate, navIntent }) {
     tunes,
     vehicles,
     tracks,
-    activeTune,
-    activeTuneLoading,
     tuneSessionStats,
     loadTunes,
     loadVehicles,
     loadTracks,
-    loadTuneSessionStats,
-    loadActiveTune,
-    setActiveTuneById,
-    clearActiveTune
+    loadTuneSessionStats
   } = useTuneStore()
 
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingTune, setEditingTune] = useState(null)
-  const [expandedTune, setExpandedTune] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const setTunes = () => {}
   const setVehicles = () => {}
   const setTracks = () => {}
-  const setActiveTune = () => {}
-  const setActiveTuneLoading = () => {}
   const setTuneSessionStats = () => {}
 
   const [vehicleFilter, setVehicleFilter] = useState('')
@@ -128,6 +120,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const importFileRef = useRef(null)
   const upgradeRequestRef = useRef(0)
   const draftVersionRef = useRef(0)
+  // 编辑已有调校时，先存配件选项，等 vehicleId effect 触发后再用，避免异步覆盖问题
+  const pendingPartsRef = useRef(null)
 
   // Round 2: 记录用户手动修改过的参数（嵌套路径如 "tires.frontPressure"）
   const dirtyParamsRef = useRef(new Set())
@@ -258,7 +252,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
     loadTunes()
     loadVehicles()
     loadTracks()
-    loadActiveTune()
     loadTuneSessionStats()
   }, [])
 
@@ -289,7 +282,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   useEffect(() => {
-    refreshUpgradeShop(formData.vehicleId, formData.parts)
+    // 如果是编辑模式加载，使用已保存的配件；否则用当前 formData.parts（可能是空的）
+    const partsToLoad = pendingPartsRef.current !== null ? pendingPartsRef.current : formData.parts
+    pendingPartsRef.current = null
+    refreshUpgradeShop(formData.vehicleId, partsToLoad)
   }, [formData.vehicleId])
 
   useEffect(() => {
@@ -571,7 +567,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
     try {
       await api.tunes.delete(id);
       await loadTunes()
-      if (expandedTune === id) setExpandedTune(null)
     } catch (e) { /* 删除调校失败 */
       alert('删除失败')
     }
@@ -616,6 +611,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
 
   const startEdit = (tune) => {
+    // 在 setFormData 之前把 parts 存入 ref，vehicleId effect 会在 formData 更新后读取它
+    pendingPartsRef.current = { ...getDefaultParts(), ...(tune.parts || {}) }
     setFormData({
       name: tune.name || '',
       tags: (tune.tags || []).join(', '),
@@ -648,6 +645,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   const startCreate = () => {
     draftVersionRef.current += 1
+    pendingPartsRef.current = null
     setFormData(createDefaultFormData())
     setEditingTune(null)
     setWizardStep(1)
@@ -692,6 +690,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   const chooseBuildMode = mode => {
     draftVersionRef.current += 1
+    pendingPartsRef.current = null
     setFormData(prev => ({
       ...createDefaultFormData(),
       vehicleId: prev.vehicleId,
@@ -729,10 +728,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setHighlightedParams(newHighlighted)
       return updated
     })
-  }
-
-  const toggleExpand = (id) => {
-    setExpandedTune(expandedTune === id ? null : id)
   }
 
   const toggleCompareMode = () => {
@@ -1382,8 +1377,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setShowModal,
     editingTune,
     setEditingTune,
-    expandedTune,
-    setExpandedTune,
     searchQuery,
     setSearchQuery,
     vehicleFilter,
@@ -1431,10 +1424,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setDrivingProblemsOpen,
     selectedProblem,
     setSelectedProblem,
-    activeTune,
-    setActiveTune,
-    activeTuneLoading,
-    setActiveTuneLoading,
     telemetryPanelOpen,
     setTelemetryPanelOpen,
     availableSessions,
@@ -1463,16 +1452,12 @@ export function useTuneManager({ onNavigate, navIntent }) {
     loadVehicles,
     loadTracks,
     loadTuneSessionStats,
-    loadActiveTune,
-    setActiveTuneById,
-    clearActiveTune,
     saveTune,
     deleteTune,
     duplicateTune,
     startEdit,
     startCreate,
     closeModal,
-    toggleExpand,
     toggleCompareMode,
     toggleSelectForCompare,
     runCompare,
