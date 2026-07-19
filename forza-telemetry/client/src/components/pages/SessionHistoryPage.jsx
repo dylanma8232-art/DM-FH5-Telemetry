@@ -115,6 +115,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
   const [customQuestion, setCustomQuestion] = useState('');
   const [keyConfigured, setKeyConfigured] = useState(false);
   const [checkingKey, setCheckingKey] = useState(false);
+  const [telemetryTuning, setTelemetryTuning] = useState(null);
+  const [telemetryTuningLoading, setTelemetryTuningLoading] = useState(false);
   const selectedSessionRef = useRef(null);
 
   // AI 配置输入状态
@@ -165,6 +167,18 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     if (selectedSession) {
       fetchCachedDiagnosis(selectedSession);
     }
+  }, [selectedSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTelemetryTuning(null);
+    if (!selectedSession) return undefined;
+    setTelemetryTuningLoading(true);
+    api.analysis.getTuningRecommendations(selectedSession)
+      .then(result => { if (!cancelled) setTelemetryTuning(result); })
+      .catch(() => { if (!cancelled) setTelemetryTuning({ summary: '暂时无法生成遥测调教建议。', recommendations: [] }); })
+      .finally(() => { if (!cancelled) setTelemetryTuningLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedSession]);
 
   const startTipRotation = () => {
@@ -268,6 +282,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       diffDecel: tune.drivetrain?.diffDecel,
       diffCenter: tune.drivetrain?.diffCenter,
       finalDrive: tune.drivetrain?.finalDrive,
+      brakePressure: tune.brakes?.pressure,
+      brakeBalance: tune.brakes?.balance,
       frontDownforce: tune.aero?.frontDownforce,
       rearDownforce: tune.aero?.rearDownforce
     };
@@ -1227,7 +1243,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       { id: 'tires', label: '③ 轮胎抓地' },
                       { id: 'suspension', label: '④ 底盘悬挂' },
                       { id: 'differential', label: '⑤ 动力传动' },
-                      { id: 'aero', label: '⑥ 空气动力' }
+                      { id: 'aero', label: '⑥ 空气动力' },
+                      { id: 'tuning', label: '⑦ 遥测调教' }
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -1247,6 +1264,50 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       </button>
                     ))}
                   </div>
+                  {reviewSubTab === 'tuning' && (
+                    <div style={{ ...sectionStyle, margin: '0 0 12px', padding: 14, borderColor: 'rgba(63,185,80,0.42)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
+                        <div>
+                          <h3 style={{ ...sectionTitleStyle, margin: 0, color: '#3fb950' }}>遥测调教建议</h3>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginTop: 4 }}>
+                            {sessionTune ? '已关联本地调教方案：显示当前值与目标值。' : '未关联本地调教方案：以下为在游戏当前数值基础上的增减量。'}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 9, color: '#8b949e' }}>不改配件 PI，仅给调教参数建议</span>
+                      </div>
+                      {telemetryTuningLoading && <LoadingSpinner text="正在从本场遥测提取调教证据..." />}
+                      {!telemetryTuningLoading && telemetryTuning && (
+                        <>
+                          <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(88,166,255,0.07)', color: '#c9d1d9', fontSize: 10, marginBottom: 10 }}>
+                            {telemetryTuning.summary}
+                          </div>
+                          {telemetryTuning.recommendations?.length === 0 ? (
+                            <div style={{ color: '#8b949e', fontSize: 10 }}>暂无自动调教项；可以继续在其他复盘页签查看轮胎、悬挂和传动证据。</div>
+                          ) : telemetryTuning.recommendations.map(item => (
+                            <div key={item.id} style={{ marginBottom: 10, padding: 10, borderRadius: 7, background: '#0d1117', border: '1px solid #30363d' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                                <strong style={{ fontSize: 11, color: '#e6edf3' }}>{item.title}</strong>
+                                <span style={{ fontSize: 9, color: item.confidence === '高' ? '#f0883e' : '#58a6ff' }}>{item.category} · 证据强度{item.confidence}</span>
+                              </div>
+                              <div style={{ marginTop: 5, color: '#8b949e', fontSize: 9.5 }}>{item.evidence}</div>
+                              <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 6 }}>
+                                {item.changes.map(change => {
+                                  const current = getParamValue(sessionTune, change.key);
+                                  const target = current === null ? null : (change.relative ? current * (1 + change.delta / 100) : current + change.delta);
+                                  const deltaText = `${change.delta > 0 ? '+' : ''}${change.delta}${change.unit}`;
+                                  return <div key={change.key} style={{ padding: '6px 8px', borderRadius: 5, background: 'rgba(63,185,80,0.08)', fontSize: 10 }}>
+                                    <div style={{ color: '#8b949e' }}>{change.parameter}</div>
+                                    {target === null ? <strong style={{ color: '#3fb950' }}>当前值 {change.direction} {deltaText}</strong> : <strong style={{ color: '#3fb950' }}>{Number(current).toFixed(2)} → {target.toFixed(2)}{change.unit}</strong>}
+                                  </div>;
+                                })}
+                              </div>
+                              <div style={{ marginTop: 7, color: '#8b949e', fontSize: 9 }}>{item.prerequisite}</div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
                   {reviewSubTab !== 'corners' && <div style={{ ...sectionStyle, margin: '0 0 12px', padding: 12, borderColor: 'rgba(88,166,255,0.35)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                       <div>
