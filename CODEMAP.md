@@ -1041,7 +1041,7 @@
         - 📄 [scoring.js](file:///forza-telemetry/server/src/services/physics/scoring.js)  *(函数/组件: `calculateDrivingLineAnalysis`, 函数/组件: `calculateDrivingScore`, 函数/组件: `getBestLapNum`)*
         - 📄 [telemetry-stats.js](file:///forza-telemetry/server/src/services/physics/telemetry-stats.js)  *(函数/组件: `calculateDrivingStyle`, 函数/组件: `calculateDetailedStats`, 函数/组件: `calculateGearingAnalysis`, 函数/组件: `calculateSuspensionAnalysis`, 函数/组件: `calculateDifferentialAnalysis`, 函数/组件: `calculateSectorAnalysis`, 函数/组件: `analyzeSectors`)*
       - 📄 [physics-analyzer.js](file:///forza-telemetry/server/src/services/physics-analyzer.js)
-      - 📄 [pi-model.js](file:///forza-telemetry/server/src/services/pi-model.js)  *(函数/组件: `makeStockState`, 函数/组件: `applyOption`, 函数/组件: `fixedOptionDelta`, 函数/组件: `predictBuildPi`, 函数/组件: `applyPiPredictions`)*
+      - 📄 [pi-model.js](file:///forza-telemetry/server/src/services/pi-model.js)  *(函数/组件: `getPiCalibrationDiagnostics`, 函数/组件: `makeStockState`, 函数/组件: `applyOption`, 函数/组件: `fixedOptionDelta`, 函数/组件: `predictBuildPi`, 函数/组件: `applyPiPredictions`)*
       - 📄 [retention.js](file:///forza-telemetry/server/src/services/retention.js)  *(函数/组件: `runSessionRetentionCleanup`)*
       - 📄 [state-manager.js](file:///forza-telemetry/server/src/services/state-manager.js)  *(常量/方法: `stateManager`)*
       - 📂 **track/**

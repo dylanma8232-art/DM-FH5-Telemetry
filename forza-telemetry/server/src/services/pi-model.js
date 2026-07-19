@@ -131,7 +131,13 @@ function fitCandidate(samples, kind) {
 }
 
 function selectComponentModel(samples) {
-  const candidates = ['mean', 'drive_mean', 'pi_mass', 'pi_mass_drive'];
+  // 样本量以“车型数”计。12 辆之前不允许用多特征回归；20 辆之前不允许
+  // 同时拟合 PI、车重和驱动哑变量，避免把少数车型的偶然值当成规律。
+  const candidates = samples.length < 12
+    ? ['mean', 'drive_mean']
+    : samples.length < 20
+      ? ['mean', 'drive_mean', 'pi_mass']
+      : ['mean', 'drive_mean', 'pi_mass', 'pi_mass_drive'];
   const scores = candidates.map(kind => {
     let error = 0; let count = 0;
     for (let index = 0; index < samples.length; index++) {
@@ -157,7 +163,9 @@ function componentPopulationEstimate(profile, slotId, optionId) {
   if (!model) return null;
   const point = model.predict(vehicleFeatures(profile));
   const residuals = samples.map(sample => Math.abs(model.predict(sample.features) - sample.pi));
-  const spread = residuals.reduce((sum, value) => sum + value, 0) / residuals.length;
+  const inSampleMae = residuals.reduce((sum, value) => sum + value, 0) / residuals.length;
+  // 对外的误差带必须使用留一误差，不使用看起来更好看的训练内误差。
+  const spread = Math.max(inSampleMae, model.mae);
   return {
     pi: Math.round(point), sampleCount: samples.length, spread,
     validationMae: model.mae, algorithm: `unified_${model.kind}_v1`
