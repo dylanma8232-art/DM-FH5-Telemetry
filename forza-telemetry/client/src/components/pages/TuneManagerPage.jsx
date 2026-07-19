@@ -68,6 +68,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     chooseBuildMode,
     aiRaceType,
     setAiRaceType,
+    segmentType,
+    setSegmentType,
     aiDriveType,
     setAiDriveType,
     drivingProblemsOpen,
@@ -1118,7 +1120,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   })()}
 
 
-                  {/* 遥测诊断与常见驾驶问题优化调优面板 */}
+                  {false && <>
+                  {/* 已移除：遥测诊断与常见驾驶问题优化调优面板 */}
                   <div style={{
                     marginTop: 16,
                     borderTop: '1px dashed rgba(255, 255, 255, 0.1)',
@@ -1358,6 +1361,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       </div>
                     </div>
                   </div>
+                  </>}
                 </div>
                 )
               })()}
@@ -1429,10 +1433,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#58a6ff', letterSpacing: 0.5 }}>
-                  智能改装推荐正在计算...
+                  自动改装正在计算...
                 </div>
                 <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>
-                  正在根据车辆资料、目标 PI 和赛事类型筛选可行配件
+                  正在根据车辆资料、目标 PI、赛事类型和驱动形式筛选可行配件
                 </div>
               </div>
             )}
@@ -1601,7 +1605,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                       <span style={{ color: '#3fb950' }}>⚡</span> 升级改装方式
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 16 }}>
-                      您可以手动点选每一项升级配件，或者使用启发式算法智能生成 META 改装。
+                      您可以手动点选每一项升级配件，或者使用自动改装生成一套可继续微调的方案。
                     </div>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
@@ -1635,22 +1639,39 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           borderRadius: 6
                         }}
                       >
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>智能改装推荐</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>按照您期望的 PI 评级与赛事路面倾向为您智能装配。</div>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>自动改装</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>按目标 PI、赛事类型和驱动形式生成可验证的配件方案。</div>
                       </button>
                     </div>
 
                     {buildMode === 'ai' && (
                       <div style={{ padding: 14, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: 6, animation: 'drawerFadeIn 0.3s ease' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
                           <div>
                             <label style={labelStyle}>赛道用途</label>
-                            <select value={aiRaceType} onChange={e => setAiRaceType(e.target.value)} style={inputStyle}>
+                            <select value={aiRaceType} onChange={e => {
+                              const raceType = e.target.value;
+                              const defaults = { road: 'balanced', dirt: 'balanced', rally: 'balanced', cross_country: 'balanced', drift: 'balanced' };
+                              setAiRaceType(raceType);
+                              setSegmentType(defaults[raceType]);
+                            }} style={inputStyle}>
                               <option value="road">公路/街头赛</option>
                               <option value="dirt">泥地拉力赛</option>
                               <option value="rally">混合路拉力</option>
                               <option value="cross_country">越野拉力赛</option>
                               <option value="drift">漂移横滑</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>赛段特点</label>
+                            <select value={segmentType} onChange={e => setSegmentType(e.target.value)} style={inputStyle}>
+                              {({
+                                road: [['technical', '技术弯'], ['balanced', '均衡'], ['high_speed', '高速']],
+                                dirt: [['technical', '技术多弯'], ['balanced', '均衡'], ['fast_flow', '高速流畅']],
+                                rally: [['tarmac_bias', '柏油偏多'], ['balanced', '均衡'], ['dirt_bias', '泥地偏多']],
+                                cross_country: [['flat_fast', '平整高速'], ['balanced', '均衡'], ['rough', '颠簸起伏']],
+                                drift: [['technical', '低速技术'], ['balanced', '均衡'], ['high_speed', '高速大角度']]
+                              })[aiRaceType].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                             </select>
                           </div>
                           <div>
@@ -1685,7 +1706,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           onClick={async () => {
                             setAiLoading(true);
                             try {
-                              const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType });
+                              const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType, selectedSegmentType: segmentType });
                               if (generated) {
                                 setFormData(prev => {
                                   const modifiedParts = [];
@@ -1708,7 +1729,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           }}
                           style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636', borderColor: '#2ea44f' }}
                         >
-                          AI 生成并回填方案
+                          生成并回填方案
                         </button>
                       </div>
                     )}
@@ -1736,7 +1757,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                 
                 {buildMode === 'ai' && (
                   <div style={{ padding: '6px 12px', background: 'rgba(35,134,54,0.1)', border: '1px solid rgba(35,134,54,0.3)', borderRadius: 6, color: '#3fb950', fontSize: 10 }}>
-                    💡 这是根据车辆资料和目标 PI 计算出的预选方案，尚未保存。您可以任意更改配件；完成保存后才会进入调校库。
+                    💡 这是根据车辆资料、目标 PI、赛事类型和驱动形式计算出的预选方案，尚未保存。您可以任意更改配件；完成保存后才会进入调校库。
                   </div>
                 )}
                 
@@ -2152,7 +2173,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
 
                   {/* 常用驾驶问题面板 + 遥测诊断面板 */}
-                  {editingTune && (
+                  {editingTune && false && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {/* 常用驾驶问题面板 */}
               <div style={{

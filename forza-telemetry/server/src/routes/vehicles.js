@@ -105,6 +105,7 @@ router.post('/:id/upgrades/solve', express.json(), (req, res) => {
   const result = solveFormulaBuild(profile, body.parts || {}, {
     targetPi: body.targetPi,
     raceType: body.raceType || 'road',
+    segmentType: body.segmentType,
     driveType
   });
   res.json({ vehicleId, ...result });

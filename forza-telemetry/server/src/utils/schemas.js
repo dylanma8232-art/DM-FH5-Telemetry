@@ -42,6 +42,7 @@ export const saveTuneSchema = z.object({
   carOrdinal: z.any().nullable().optional(),
   generationMode: z.enum(['ai', 'manual']).optional().default('manual'),
   raceType: z.string().nullable().optional(),
+  segmentType: z.string().nullable().optional(),
   driveType: z.enum(['fwd', 'rwd', 'awd']).nullable().optional(),
   targetPi: z.number().nullable().optional(),
   totalPi: z.number().nullable().optional(),
