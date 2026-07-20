@@ -4,7 +4,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { resolveUpgradeProfile, solveFormulaBuild, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
+import { resolveUpgradeProfile, resolveTuningCapabilities, solveFormulaBuild, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
@@ -89,9 +89,20 @@ router.get('/:id/upgrades', (req, res) => {
 
   const basePi = Number(meta.basePi) || Number(vehicleState.pi) || 500;
 
+  let capabilities = null;
+  try {
+    capabilities = req.query.capabilities ? JSON.parse(req.query.capabilities) : null;
+  } catch (_) {
+    return res.status(400).json({ error: '可调项目参数格式无效。' });
+  }
+  const resolved = resolveUpgradeProfile(profile, selections, { driveType, basePi });
+  const capabilityResult = capabilities && typeof capabilities === 'object'
+    ? resolveTuningCapabilities(profile, capabilities, { driveType })
+    : null;
   res.json({
     vehicleId,
-    ...resolveUpgradeProfile(profile, selections, { driveType, basePi })
+    ...resolved,
+    ...(capabilityResult ? { tuningCapabilities: capabilityResult.capabilities, tuneParameters: capabilityResult.tuneParameters } : {})
   });
 });
 

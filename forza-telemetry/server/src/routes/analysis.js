@@ -541,7 +541,8 @@ router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
 
   const session = loadSession(req.params.sessionId, stateManager.tracks);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  const tune = session.tuneId ? stateManager.tunes[session.tuneId] : null;
+  // 编辑页可明确指定当前正在编辑的方案，不能误用该比赛历史关联的其它调教。
+  const tune = req.body?.tuneId ? stateManager.tunes[req.body.tuneId] : (session.tuneId ? stateManager.tunes[session.tuneId] : null);
   const diagnoses = generateTuneDiagnosis(session, tune);
   res.json({ tuneId: session.tuneId, tuneName: tune?.name, diagnoses });
 

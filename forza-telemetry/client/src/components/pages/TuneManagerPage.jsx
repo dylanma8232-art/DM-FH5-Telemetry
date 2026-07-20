@@ -64,6 +64,8 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     setWizardStep,
     buildMode,
     setBuildMode,
+    updateTuningCapabilities,
+    generateAssistedTune,
     selectVehicleForDraft,
     chooseBuildMode,
     aiRaceType,
@@ -99,6 +101,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     loadTelemetrySessions,
     runTelemetryDiagnosis,
     applyDiagnosisFix,
+    aiDiagnosis,
+    aiDiagnosing,
+    runAiProblemDiagnosis,
+    runAiTelemetryDiagnosis,
     loadTunes,
     loadVehicles,
     loadTracks,
@@ -155,6 +161,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const [aiPartsList, setAiPartsList] = useState([]);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
+  const [adviceSubTab, setAdviceSubTab] = useState('feel');
+
+  useEffect(() => {
+    if (navIntent?.openTelemetry) setAdviceSubTab('telemetry');
+  }, [navIntent]);
 
   const partGroups = React.useMemo(() => {
     if (!upgradeShop || upgradeShop.status === 'unverified') return { data: {}, tabs: [], current: '' };
@@ -473,7 +484,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
       {!showModal && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8, padding: '0 6px' }}>
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>调校管理</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#c9d1d9' }}>调教工坊</h2>
           <div style={{ fontSize: 9, color: '#484f58', marginTop: 2 }}>
             {tunes.length} 个调校方案
           </div>
@@ -1488,9 +1499,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             <div style={{ padding: '16px 20px 0 20px', flexShrink: 0, background: 'rgba(21, 26, 34, 0.2)' }}>
               <div style={{ display: 'flex', gap: 12 }}>
                 {[
-                  { step: 1, label: editingTune ? '选定车辆 (已锁定)' : '选择车辆与改装方式' },
-                  { step: 2, label: '配置升级配件' },
-                  { step: 3, label: '调试与填写参数' }
+                  { step: 1, label: editingTune ? '选定车辆（已锁定）' : '选择车辆' },
+                  { step: 2, label: '确认可调项目' },
+                  { step: 3, label: '生成并微调参数' }
                 ].map((item) => {
                   const isStep1 = item.step === 1;
                   const isClickable = !editingTune && !isStep1; 
@@ -1602,10 +1613,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   {/* 右：选择升级模式 */}
                   <div style={{ padding: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 8 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ color: '#3fb950' }}>⚡</span> 升级改装方式
+                      <span style={{ color: '#3fb950' }}>⚡</span> 选择调教方式
                     </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 16 }}>
-                      您可以手动点选每一项升级配件，或者使用自动改装生成一套可继续微调的方案。
+                      自主改装由您完整选择配件；自动调教只读取您确认的可调项目并生成参数，不会替您购买或猜测配件。
                     </div>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
@@ -1622,115 +1633,53 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           borderRadius: 6
                         }}
                       >
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'manual' ? 'var(--accent)' : 'var(--text-primary)' }}>手动升级改装</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>在下一步中逐个选择发动机、轮胎和悬挂组件。</div>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'manual' ? 'var(--accent)' : 'var(--text-primary)' }}>自主改装</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>由您逐项选择发动机、轮胎、悬挂等配件，再自行调教。</div>
                       </button>
-                      
-                      <button
-                        type="button"
-                        onClick={() => chooseBuildMode('ai')}
-                        style={{
-                          ...btnSmallStyle,
-                          padding: '16px 12px',
-                          textAlign: 'left',
-                          background: buildMode === 'ai' ? 'rgba(63,185,80,0.1)' : 'transparent',
-                          borderColor: buildMode === 'ai' ? '#3fb950' : 'var(--border)',
-                          height: 'auto',
-                          borderRadius: 6
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'ai' ? '#3fb950' : 'var(--text-primary)' }}>自动改装</div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>按目标 PI、赛事类型和驱动形式生成可验证的配件方案。</div>
+                      <button type="button" onClick={() => chooseBuildMode('capability')} style={{ ...btnSmallStyle, padding: '16px 12px', textAlign: 'left', background: buildMode === 'capability' ? 'rgba(63,185,80,.1)' : 'transparent', borderColor: buildMode === 'capability' ? '#3fb950' : 'var(--border)', height: 'auto', borderRadius: 6 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: buildMode === 'capability' ? '#3fb950' : 'var(--text-primary)' }}>自动调教</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'normal', lineHeight: 1.4 }}>确认当前能调什么，系统只生成基础调教参数。</div>
                       </button>
                     </div>
 
-                    {buildMode === 'ai' && (
+                    {buildMode === 'capability' && (
                       <div style={{ padding: 14, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: 6, animation: 'drawerFadeIn 0.3s ease' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>自动调教会保留当前构型：请填写游戏内此车当前 PI，并选择本次方案的用途与偏好。</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                           <div>
-                            <label style={labelStyle}>赛道用途</label>
+                            <label style={labelStyle}>当前实际 PI</label>
+                            <input type="number" min="100" max="999" value={solutionPi ?? ''} placeholder={`原厂参考 ${basePi}`} onChange={e => setSolutionPi(e.target.value === '' ? null : Number(e.target.value))} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>用途</label>
                             <select value={aiRaceType} onChange={e => {
                               const raceType = e.target.value;
                               const defaults = { road: 'balanced', dirt: 'balanced', rally: 'balanced', cross_country: 'balanced', drift: 'balanced' };
                               setAiRaceType(raceType);
                               setSegmentType(defaults[raceType]);
                             }} style={inputStyle}>
-                              <option value="road">公路/街头赛</option>
+                              <option value="road">公路</option>
+                              <option value="street">街头</option>
+                              <option value="rally">山地拉力</option>
                               <option value="dirt">泥地拉力赛</option>
-                              <option value="rally">混合路拉力</option>
-                              <option value="cross_country">越野拉力赛</option>
-                              <option value="drift">漂移横滑</option>
+                              <option value="cross_country">越野</option>
+                              <option value="drift">漂移</option>
                             </select>
                           </div>
                           <div>
-                            <label style={labelStyle}>赛段特点</label>
+                            <label style={labelStyle}>调教偏好</label>
                             <select value={segmentType} onChange={e => setSegmentType(e.target.value)} style={inputStyle}>
                               {({
-                                road: [['technical', '技术弯'], ['balanced', '均衡'], ['high_speed', '高速']],
-                                dirt: [['technical', '技术多弯'], ['balanced', '均衡'], ['fast_flow', '高速流畅']],
-                                rally: [['tarmac_bias', '柏油偏多'], ['balanced', '均衡'], ['dirt_bias', '泥地偏多']],
-                                cross_country: [['flat_fast', '平整高速'], ['balanced', '均衡'], ['rough', '颠簸起伏']],
-                                drift: [['technical', '低速技术'], ['balanced', '均衡'], ['high_speed', '高速大角度']]
+                                road: [['balanced', '均衡'], ['technical', '抓地与技术弯'], ['high_speed', '极速']],
+                                street: [['balanced', '均衡'], ['technical', '抓地与技术弯'], ['high_speed', '加速与极速']],
+                                dirt: [['balanced', '均衡'], ['technical', '抓地与稳定'], ['fast_flow', '加速']],
+                                rally: [['balanced', '均衡'], ['tarmac_bias', '抓地'], ['dirt_bias', '颠簸适应']],
+                                cross_country: [['balanced', '均衡'], ['flat_fast', '极速'], ['rough', '通过性']],
+                                drift: [['balanced', '均衡'], ['technical', '低速控制'], ['high_speed', '高速角度']]
                               })[aiRaceType].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                             </select>
                           </div>
-                          <div>
-                            <label style={labelStyle}>驱动形式</label>
-                            {(() => {
-                              const stock = (upgradeShop?.baseDriveType || '').toUpperCase();
-                              return (
-                                <select value={aiDriveType} onChange={e => setAiDriveType(e.target.value)} style={inputStyle}>
-                                  <option value="fwd">前驱 FWD {stock === 'FWD' ? '(原厂)' : ''}</option>
-                                  <option value="rwd">后驱 RWD {stock === 'RWD' ? '(原厂)' : ''}</option>
-                                  <option value="awd">四驱 AWD {stock === 'AWD' ? '(原厂)' : ''}</option>
-                                </select>
-                              );
-                            })()}
-                          </div>
-                          <div>
-                            <label style={labelStyle}>目标 PI 等级</label>
-                            <select value={targetPi} onChange={e => setTargetPi(Number(e.target.value))} style={inputStyle}>
-                              {basePi <= 500 && <option value="500">D 500</option>}
-                              {basePi <= 600 && <option value="600">C 600</option>}
-                              {basePi <= 700 && <option value="700">B 700</option>}
-                              {basePi <= 800 && <option value="800">A 800</option>}
-                              {basePi <= 900 && <option value="900">S1 900</option>}
-                              {basePi <= 998 && <option value="998">S2 998</option>}
-                              <option value="999">X 999 (无上限)</option>
-                            </select>
-                          </div>
                         </div>
-                        
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            setAiLoading(true);
-                            try {
-                              const generated = await handleAutoUpgrade({ preferredDriveType: aiDriveType, raceType: aiRaceType, selectedSegmentType: segmentType });
-                              if (generated) {
-                                setFormData(prev => {
-                                  const modifiedParts = [];
-                                  if (prev.parts) {
-                                    Object.entries(prev.parts).forEach(([k, v]) => {
-                                      const isStock = v.tier === 'stock' || v.optionId === 'stock' || (!v.tier && !v.optionId);
-                                      if (!isStock) modifiedParts.push(k);
-                                    });
-                                  }
-                                  setAiPartsList(modifiedParts);
-                                  return { ...prev, tags: prev.tags ? (prev.tags.includes(aiRaceType) ? prev.tags : [...prev.tags, aiRaceType]) : [aiRaceType] };
-                                });
-                                setWizardStep(2);
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            } finally {
-                              setAiLoading(false);
-                            }
-                          }}
-                          style={{ ...btnPrimaryStyle, width: '100%', marginTop: 12, background: '#238636', borderColor: '#2ea44f' }}
-                        >
-                          生成并回填方案
-                        </button>
                       </div>
                     )}
                   </div>
@@ -1740,8 +1689,49 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               </div>
             )}
 
-            {/* 3.2 步骤 2：确认配件改装 */}
-            {wizardStep === 2 && (
+            {/* 步骤 2：按游戏内菜单确认当前构型真正解锁的调教项目。 */}
+            {wizardStep === 2 && buildMode === 'capability' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 920 }}>
+                <div style={{ padding: 12, borderRadius: 7, border: '1px solid rgba(88,166,255,.35)', background: 'rgba(88,166,255,.08)', color: 'var(--text-secondary)', fontSize: 11, lineHeight: 1.55 }}>
+                  请以游戏内“调教”页面为准勾选。这里记录的是当前车辆能调什么，不会改动配件、PI 或驱动置换。
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
+                  {[
+                    ['alignment', '定位与悬挂', '外倾角、前束角、后倾角、弹簧、车高和阻尼'],
+                    ['frontAntiRollBar', '前防倾杆', '前轴防倾杆'],
+                    ['rearAntiRollBar', '后防倾杆', '后轴防倾杆'],
+                    ['brakes', '制动', '制动力平衡与压力'],
+                    ['differential', '差速器', '会按当前驱动形式展开对应前、后或中央差速器'],
+                    ['frontAero', '前下压力', '前部空气动力'],
+                    ['rearAero', '后下压力', '后部空气动力']
+                  ].map(([id, title, detail]) => {
+                    const enabled = formData.tuningCapabilities?.[id] === true;
+                    return <button key={id} type="button" onClick={() => updateTuningCapabilities({ [id]: !enabled })} style={{ textAlign: 'left', padding: 13, borderRadius: 7, cursor: 'pointer', border: `1px solid ${enabled ? 'var(--accent)' : 'var(--border)'}`, background: enabled ? 'rgba(88,166,255,.11)' : 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12 }}>{enabled ? '✓ ' : ''}{title}</div>
+                      <div style={{ marginTop: 5, fontSize: 10, lineHeight: 1.4, color: 'var(--text-muted)' }}>{detail}</div>
+                    </button>
+                  })}
+                  <div style={{ padding: 13, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>变速箱</div>
+                    <select value={formData.tuningCapabilities?.transmission || 'none'} onChange={e => updateTuningCapabilities({ transmission: e.target.value })} style={inputStyle}>
+                      <option value="none">不可调</option><option value="finalDrive">仅终传比</option><option value="gears">终传比与各档齿比</option>
+                    </select>
+                    {formData.tuningCapabilities?.transmission === 'gears' && <select value={formData.tuningCapabilities?.gearCount || 6} onChange={e => updateTuningCapabilities({ gearCount: Number(e.target.value) })} style={{ ...inputStyle, marginTop: 8 }}>
+                      {[4, 5, 6, 7, 8, 9, 10].map(count => <option key={count} value={count}>{count} 档</option>)}
+                    </select>}
+                  </div>
+                  <div style={{ padding: 13, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-primary)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>当前驱动形式</div>
+                    <select value={formData.tuningCapabilities?.driveType || 'awd'} onChange={e => updateTuningCapabilities({ driveType: e.target.value })} style={inputStyle}>
+                      <option value="fwd">前驱 FWD</option><option value="rwd">后驱 RWD</option><option value="awd">四驱 AWD</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 历史调校仍保留原有配件记录界面，避免破坏旧方案。 */}
+            {wizardStep === 2 && buildMode !== 'capability' && (
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '10px 18px', borderRadius: 8, border: '1px solid var(--border)', gap: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)' }}>
@@ -2172,9 +2162,32 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     </div>
                   </div>
 
-                  {/* 常用驾驶问题面板 + 遥测诊断面板 */}
-                  {editingTune && false && (
+                  {/* 调校建议：主观驾驶感受与完整遥测证据分开，避免混淆。 */}
+                  {editingTune && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 6, padding: 4, borderRadius: 7, background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
+                      {[
+                        { id: 'feel', label: '驾驶感受调校', color: '#58a6ff' },
+                        { id: 'telemetry', label: '遥测调校', color: '#3fb950' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            setAdviceSubTab(tab.id)
+                            if (tab.id === 'telemetry') loadTelemetrySessions()
+                          }}
+                          style={{
+                            flex: 1, padding: '6px 8px', borderRadius: 5, border: '1px solid',
+                            borderColor: adviceSubTab === tab.id ? tab.color : 'transparent',
+                            background: adviceSubTab === tab.id ? `${tab.color}22` : 'transparent',
+                            color: adviceSubTab === tab.id ? tab.color : 'var(--text-muted)', fontSize: 10,
+                            fontWeight: 700, cursor: 'pointer'
+                          }}
+                        >{tab.label}</button>
+                      ))}
+                    </div>
+                    {adviceSubTab === 'feel' && <>
                     {/* 常用驾驶问题面板 */}
               <div style={{
                 background: 'var(--bg-primary)',
@@ -2195,12 +2208,15 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     userSelect: 'none'
                   }}
                 >
-                  <span>常见问题调校</span>
+                  <span>驾驶感受调校</span>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{drivingProblemsOpen ? '▲ 收起' : '▼ 展开'}</span>
                 </div>
 
                 {drivingProblemsOpen && (
                   <div style={{ marginTop: 10 }}>
+                    <div style={{ marginBottom: 8, fontSize: 9, lineHeight: 1.45, color: 'var(--text-muted)' }}>
+                      根据驾驶感受选择最接近的现象。每次只应用一组相关参数，并在同赛道复跑验证；胎温问题请在“遥测调校”中处理。
+                    </div>
                     {/* 分类筛选 */}
                     <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                       {Array.isArray(DRIVING_PROBLEMS) && (() => {
@@ -2333,6 +2349,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                                   )}
                                 </div>
                               )}
+                              <button onClick={() => runAiProblemDiagnosis(problem)} disabled={aiDiagnosing} style={{ ...btnSmallStyle, width: '100%', marginTop: 6, background: 'rgba(188,140,255,.15)', borderColor: 'rgba(188,140,255,.35)', color: '#bc8cff', fontWeight: 600 }}>
+                                {aiDiagnosing ? 'AI 正在诊断...' : 'AI 诊断当前调教'}
+                              </button>
                               {(problem.suggestedChanges || problem.fixes) && (
                                 <button
                                   onClick={() => applyProblemFix(problem)}
@@ -2355,9 +2374,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     </div>
                   </div>
                 )}
-              </div>
+                  </div>
+                  </>}
 
-              {/* 遥测诊断面板 */}
+                  {/* 遥测诊断面板 */}
+                  {adviceSubTab === 'telemetry' && <>
               <div style={{
                 background: 'var(--bg-primary)',
                 borderRadius: 8,
@@ -2380,14 +2401,17 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     userSelect: 'none'
                   }}
                 >
-                  <span>遥测诊断</span>
+                  <span>完整遥测调校</span>
                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{telemetryPanelOpen ? '▲ 收起' : '▼ 展开'}</span>
                 </div>
 
                 {telemetryPanelOpen && (
                   <div style={{ marginTop: 10 }}>
+                    <div style={{ marginBottom: 8, fontSize: 9, lineHeight: 1.45, color: 'var(--text-muted)' }}>
+                      系统读取所选比赛的完整遥测数据，基于油门、制动、滑移、胎温、悬挂和转速给出车辆参数建议；不修改配件与 PI。
+                    </div>
                     <div style={{ marginBottom: 8 }}>
-                      <label style={labelStyle}>选择遥测Session</label>
+                      <label style={labelStyle}>选择比赛记录</label>
                       <select
                         value={selectedSessionId}
                         onChange={e => {
@@ -2411,17 +2435,19 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     </div>
 
                     <button
-                      onClick={runTelemetryDiagnosis}
-                      disabled={!selectedSessionId || diagnosing}
+                      onClick={runAiTelemetryDiagnosis}
+                      disabled={!selectedSessionId || aiDiagnosing}
                       style={{
                         ...btnPrimaryStyle,
                         width: '100%',
-                        background: diagnosing ? '#484f58' : '#238636',
+                        background: aiDiagnosing ? '#484f58' : '#238636',
                         marginBottom: 10
                       }}
                     >
-                      {diagnosing ? '诊断中...' : '开始诊断'}
+                      {aiDiagnosing ? 'AI 正在分析遥测...' : 'AI 诊断当前调教'}
                     </button>
+
+                    {aiDiagnosis && <div style={{ whiteSpace: 'pre-wrap', padding: 10, marginBottom: 10, background: 'rgba(188,140,255,.08)', border: '1px solid rgba(188,140,255,.3)', borderRadius: 6, color: 'var(--text-secondary)', fontSize: 10, lineHeight: 1.55 }}>{aiDiagnosis}</div>}
 
                     {diagnosisResult && (
                       <div style={{
@@ -2433,7 +2459,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         overflow: 'auto'
                       }}>
                         <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
-                          诊断结果
+                          遥测调校建议
                         </div>
                         {diagnosisResult.summary && (
                           <div style={{
@@ -2514,7 +2540,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               fontWeight: 600
                             }}
                           >
-                            应用全部建议
+                            应用全部参数建议
                           </button>
                         )}
                         {/* Round 2: 重新诊断按钮 */}
@@ -2538,6 +2564,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   </div>
                 )}
                 </div>
+                </>}
                 </div>
                 )}
                 </div>
@@ -2601,17 +2628,19 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     disabled={!formData.vehicleId || !upgradeShop}
                     style={{ ...btnPrimaryStyle, padding: '5px 16px', fontSize: 11, fontWeight: 700 }}
                   >
-                    {(!upgradeShop && formData.vehicleId) ? '加载配件中...' : '继续选配升级组件 →'}
+                    {(!upgradeShop && formData.vehicleId) ? '加载调教资料中...' : '确认可调项目 →'}
                   </button>
                 )}
 
                 {wizardStep === 2 && (
                   <button
                     type="button"
-                    onClick={() => setWizardStep(3)}
+                    onClick={() => {
+                      if (buildMode !== 'capability' || generateAssistedTune()) setWizardStep(3)
+                    }}
                     style={{ ...btnPrimaryStyle, padding: '5px 16px', fontSize: 11, fontWeight: 700 }}
                   >
-                    确认配件去调试参数 →
+                    确认项目并生成参数 →
                   </button>
                 )}
 

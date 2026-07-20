@@ -39,6 +39,31 @@ export function useTuneDiagnosis({
   const [diagnosing, setDiagnosing] = useState(false)
   const [diagnosisResult, setDiagnosisResult] = useState(null)
   const [telemetrySuggestions, setTelemetrySuggestions] = useState(null)
+  const [aiDiagnosis, setAiDiagnosis] = useState(null)
+  const [aiDiagnosing, setAiDiagnosing] = useState(false)
+
+  const runAiProblemDiagnosis = async (problem) => {
+    const tuneId = typeof editingTune === 'object' ? (editingTune.id || editingTune.tuneId) : editingTune
+    if (!tuneId) return alert('请先保存调教方案，再使用 AI 诊断。')
+    try {
+      setAiDiagnosing(true); setAiDiagnosis(null)
+      const result = await api.tunes.aiDiagnose(tuneId, { problem })
+      setAiDiagnosis(result.diagnosis)
+    } catch (error) { setAiDiagnosis(`AI 诊断失败：${error.message}`) }
+    finally { setAiDiagnosing(false) }
+  }
+
+  const runAiTelemetryDiagnosis = async () => {
+    const tuneId = typeof editingTune === 'object' ? (editingTune.id || editingTune.tuneId) : editingTune
+    if (!tuneId) return alert('请先保存调教方案，再使用 AI 诊断。')
+    if (!selectedSessionId) return alert('请先选择一场比赛。')
+    try {
+      setAiDiagnosing(true); setAiDiagnosis(null)
+      const result = await api.analysis.generateAiDiagnosis(selectedSessionId, { tuneId })
+      setAiDiagnosis(result.diagnosis || 'AI 未返回诊断内容。')
+    } catch (error) { setAiDiagnosis(`AI 诊断失败：${error.message}`) }
+    finally { setAiDiagnosing(false) }
+  }
 
   // 应用自愈建议预设
   const applyProblemFix = (problem) => {
@@ -249,6 +274,10 @@ export function useTuneDiagnosis({
     setDiagnosisResult,
     telemetrySuggestions,
     setTelemetrySuggestions,
+    aiDiagnosis,
+    aiDiagnosing,
+    runAiProblemDiagnosis,
+    runAiTelemetryDiagnosis,
     applyProblemFix,
     loadTelemetrySessions,
     runTelemetryDiagnosis,

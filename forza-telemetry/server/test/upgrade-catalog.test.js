@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { validateTunePayload } from '../src/services/upgrade-catalog.js';
+import { resolveTuningCapabilities, validateTunePayload } from '../src/services/upgrade-catalog.js';
 import { resolveUpgradeProfile } from '../src/services/upgrade-catalog.js';
 
 const profile = {
@@ -11,6 +11,20 @@ const profile = {
   commonSlotOverrides: { drivetrain_swap: { availability: 'verified_present' } },
   slots: []
 };
+
+test('可调能力声明只解锁参数，不推断或写入改装配件', () => {
+  const result = resolveTuningCapabilities(profile, {
+    suspension: true, frontAntiRollBar: true, transmission: 'gears', gearCount: 7,
+    differential: true, driveType: 'awd'
+  });
+  const ids = result.tuneParameters.map(item => item.id);
+  assert.ok(ids.includes('tire_pressure_front'));
+  assert.ok(ids.includes('spring_front'));
+  assert.ok(ids.includes('arb_front'));
+  assert.ok(ids.includes('gear_7'));
+  assert.ok(ids.includes('diff_center'));
+  assert.ok(!ids.includes('downforce_front'));
+});
 
 test('保存调校时保留驱动置换和其他有效配件选择', () => {
   const result = validateTunePayload(profile, {

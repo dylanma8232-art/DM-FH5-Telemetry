@@ -76,7 +76,7 @@ export function useTuneUpgrade({
   }
 }
 
-function getInitialParameterRecommendations(resolvedShop, raceType = 'road', segmentType = 'balanced') {
+export function getInitialParameterRecommendations(resolvedShop, raceType = 'road', segmentType = 'balanced') {
   const driveType = (resolvedShop.effectiveDriveType || resolvedShop.baseDriveType || 'awd').toLowerCase();
   
   const tires = {};

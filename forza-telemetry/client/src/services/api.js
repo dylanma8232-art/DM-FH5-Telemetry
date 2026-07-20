@@ -69,6 +69,7 @@ export const api = {
     create: (data) => post('/api/tunes', data),
     update: (id, data) => put(`/api/tunes/${id}`, data),
     delete: (id) => del(`/api/tunes/${id}`),
+    aiDiagnose: (id, body) => post(`/api/tunes/${id}/ai-diagnosis`, body),
     compare: (query = {}) => {
       const params = new URLSearchParams(query).toString();
       return get(`/api/tunes/compare${params ? '?' + params : ''}`);

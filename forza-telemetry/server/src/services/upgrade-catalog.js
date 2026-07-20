@@ -262,6 +262,41 @@ function buildTuneParameters(profile, selections, slots, declaredDriveType = nul
   return parameters;
 }
 
+// 调教工坊的能力声明不等同于改装清单：它只记录玩家已在游戏中确认可调的项目，
+// 因而绝不能参与 PI 预测或自动选配件。范围仍由同一参数目录输出。
+export function resolveTuningCapabilities(profile, capabilities = {}, context = {}) {
+  const normalized = {
+    alignment: capabilities.alignment === true,
+    suspension: capabilities.suspension === true,
+    frontAntiRollBar: capabilities.frontAntiRollBar === true,
+    rearAntiRollBar: capabilities.rearAntiRollBar === true,
+    transmission: capabilities.transmission === 'gears' ? 'gears' : (capabilities.transmission === 'finalDrive' ? 'finalDrive' : 'none'),
+    gearCount: Math.max(4, Math.min(10, Number(capabilities.gearCount) || 6)),
+    brakes: capabilities.brakes === true,
+    differential: capabilities.differential === true,
+    frontAero: capabilities.frontAero === true,
+    rearAero: capabilities.rearAero === true,
+    driveType: ['fwd', 'rwd', 'awd'].includes(capabilities.driveType) ? capabilities.driveType : context.driveType
+  };
+  const slots = [
+    { id: 'suspension', options: [{ id: 'confirmed', adjustable: normalized.alignment || normalized.suspension }] },
+    { id: 'anti_roll_bar_front', options: [{ id: 'confirmed', adjustable: normalized.frontAntiRollBar }] },
+    { id: 'anti_roll_bar_rear', options: [{ id: 'confirmed', adjustable: normalized.rearAntiRollBar }] },
+    { id: 'transmission', options: [{ id: normalized.transmission, adjustable: normalized.transmission === 'gears', adjustableFinalDrive: normalized.transmission !== 'none', gearCount: normalized.gearCount }] },
+    { id: 'brakes', options: [{ id: 'confirmed', adjustable: normalized.brakes }] },
+    { id: 'differential', options: [{ id: 'confirmed', adjustable: normalized.differential }] },
+    { id: 'front_aero', options: [{ id: 'confirmed', adjustable: normalized.frontAero }] },
+    { id: 'rear_aero', options: [{ id: 'confirmed', adjustable: normalized.rearAero }] }
+  ];
+  const selections = Object.fromEntries(slots.map(slot => [slot.id, { optionId: slot.options[0].id }]));
+  const profileWithoutStockUnlocks = {
+    ...(profile || {}), stockAdjustableSuspension: false, stockAdjustableAntiRollBarFront: false,
+    stockAdjustableAntiRollBarRear: false, stockAdjustableTransmission: false, stockAdjustableBrakes: false,
+    stockAdjustableDifferential: false, stockAdjustableAeroFront: false, stockAdjustableAeroRear: false
+  };
+  return { capabilities: normalized, tuneParameters: buildTuneParameters(profileWithoutStockUnlocks, selections, slots, normalized.driveType) };
+}
+
 /** Resolve one vehicle's special options plus FH5's broadly shared upgrade shop. */
 export function isConditionMet(condition, selections = {}) {
   if (!condition) return true;
@@ -719,7 +754,7 @@ const readTuneValue = (payload, path) => payload?.[path[0]]?.[path[1]];
 
 /** 服务端保存前的统一校验；basePi 以车辆档案为准，totalPi 是用户确认的方案最终 PI。 */
 export function validateTunePayload(profile, payload = {}) {
-  const mode = payload.generationMode === 'ai' ? 'ai' : 'manual';
+  const mode = payload.generationMode === 'ai' ? 'ai' : (payload.generationMode === 'assisted' ? 'assisted' : 'manual');
   const parts = Object.fromEntries(Object.entries(payload.parts || {}).flatMap(([slotId, selection]) => {
     const optionId = selection?.optionId || selection?.tier;
     return optionId ? [[slotId, { optionId }]] : [];
@@ -728,6 +763,11 @@ export function validateTunePayload(profile, payload = {}) {
   // 否则例如原厂后驱置换为四驱后，校验器会把四驱误判为原厂项并过滤掉。
   // 当前驱动必须始终由已保存的 drivetrain_swap 选择推导。
   const resolvedForDrive = resolveUpgradeProfile(profile, parts);
+  if (payload.tuningCapabilities && typeof payload.tuningCapabilities === 'object') {
+    const capabilityResult = resolveTuningCapabilities(profile, payload.tuningCapabilities, { driveType: payload.driveType });
+    resolvedForDrive.tuneParameters = capabilityResult.tuneParameters;
+    resolvedForDrive.effectiveDriveType = capabilityResult.capabilities.driveType || resolvedForDrive.effectiveDriveType;
+  }
   const buildValidation = validateBuild(profile, parts);
   const build = { ...buildValidation, resolved: resolvedForDrive };
   const errors = [...build.errors];
