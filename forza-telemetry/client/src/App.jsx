@@ -40,7 +40,7 @@ export default function App() {
     { id: 'tracks', label: '赛道管理' },
     { id: 'sessions', label: '比赛中心' },
     { id: 'vehicles', label: '车辆管理' },
-    { id: 'tunes', label: '调校管理' }
+    { id: 'tunes', label: '调教工坊' }
   ];
 
   const navigateTo = (tabId, intent = null) => {

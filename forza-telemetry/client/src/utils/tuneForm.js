@@ -57,6 +57,7 @@ export const createDefaultFormData = () => ({
   brakes: { balance: '', pressure: '' },
   aero: { frontDownforce: '', rearDownforce: '' },
   parts: getDefaultParts(),
+  tuningCapabilities: null,
   freeMode: false,
   notes: ''
 })

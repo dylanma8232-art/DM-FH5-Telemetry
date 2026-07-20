@@ -42,6 +42,26 @@ const loadUpgradeProfile = vehicleId => {
   return fs.existsSync(profilePath) ? { ...loadJSON(profilePath), id: String(vehicleId) } : null;
 };
 
+router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
+  const tune = stateManager.tunes[req.params.tuneId];
+  if (!tune) return res.status(404).json({ error: '调教方案不存在。' });
+  const apiKey = process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) return res.status(403).json({ error: '尚未配置 AI 密钥。' });
+  const problem = req.body?.problem;
+  if (!problem?.name) return res.status(400).json({ error: '请选择一个常见问题。' });
+  const vehicle = stateManager.vehicles[tune.vehicleId] || {};
+  const editable = Object.entries({ ...tune.tires, ...tune.suspension, ...tune.drivetrain, ...tune.brakes, ...tune.aero })
+    .filter(([, value]) => Number.isFinite(Number(value))).map(([key]) => key);
+  const prompt = `当前已保存调教方案：${JSON.stringify({ name: tune.name, vehicleId: tune.vehicleId, pi: tune.totalPi, driveType: tune.driveType, tuningCapabilities: tune.tuningCapabilities, tires: tune.tires, suspension: tune.suspension, drivetrain: tune.drivetrain, brakes: tune.brakes, aero: tune.aero })}\n车辆信息：${JSON.stringify({ name: vehicle.name, stats: vehicle.stats, drivetrain: vehicle.drivetrain })}\n驾驶问题：${JSON.stringify(problem)}\n允许建议的字段：${JSON.stringify(editable)}\n只针对这套已保存调教给出修改。不得建议配件、PI 或未列出的字段。每项必须写“字段、当前值、建议值、原因”，使用中文。`;
+  const response = await fetch(`${process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}/chat/completions`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是赛车调教诊断助手。只评估当前保存方案，不重做改装。' }, { role: 'user', content: prompt }] })
+  });
+  if (!response.ok) return res.status(response.status).json({ error: `AI 诊断请求失败：${response.statusText}` });
+  const json = await response.json();
+  res.json({ diagnosis: json.choices?.[0]?.message?.content || 'AI 未返回诊断内容。' });
+}));
+
 const nestedTuneKeys = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero'];
 const mergeTunePayload = (current, patch) => {
   const merged = { ...current, ...patch };
@@ -180,7 +200,7 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     piStatus: validation.computed.status,
     piConfirmed: body.piConfirmed === true,
     validationWarnings: validation.warnings,
-    generationMode: body.generationMode === 'ai' ? 'ai' : 'manual',
+    generationMode: body.generationMode === 'assisted' ? 'assisted' : (body.generationMode === 'ai' ? 'ai' : 'manual'),
     raceType: body.generationMode === 'ai' ? body.raceType || 'road' : null,
     segmentType: body.generationMode === 'ai' ? body.segmentType || 'balanced' : null,
     driveType: ['fwd', 'rwd', 'awd'].includes(body.driveType) ? body.driveType : validation.resolved.effectiveDriveType,
@@ -192,7 +212,8 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     drivetrain: body.drivetrain || null,
     brakes: body.brakes || null,
     aero: body.aero || null,
-    parts: validation.normalizedParts
+    parts: validation.normalizedParts,
+    tuningCapabilities: body.tuningCapabilities || null
   };
 
   // 触发 PI 增量自学习校准
@@ -256,9 +277,10 @@ router.put('/:tuneId', express.json(), asyncHandler(async (req, res) => {
   tune.piStatus = validation.computed.status;
   if (body.piConfirmed !== undefined) tune.piConfirmed = body.piConfirmed === true;
   tune.validationWarnings = validation.warnings;
-  tune.generationMode = candidate.generationMode === 'ai' ? 'ai' : 'manual';
+  tune.generationMode = candidate.generationMode === 'assisted' ? 'assisted' : (candidate.generationMode === 'ai' ? 'ai' : 'manual');
   tune.raceType = candidate.generationMode === 'ai' ? candidate.raceType || 'road' : null;
   tune.segmentType = candidate.generationMode === 'ai' ? candidate.segmentType || 'balanced' : null;
+  if (body.tuningCapabilities !== undefined) tune.tuningCapabilities = body.tuningCapabilities || null;
   tune.driveType = ['fwd', 'rwd', 'awd'].includes(candidate.driveType) ? candidate.driveType : validation.resolved.effectiveDriveType;
   if (body.params !== undefined) tune.params = body.params;
   if (body.tires !== undefined) tune.tires = body.tires;

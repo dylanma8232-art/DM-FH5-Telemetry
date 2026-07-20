@@ -8,7 +8,7 @@ import {
 } from '../data/parts'
 import { api } from '../services/api'
 import { useTuneStore } from '../stores/useTuneStore'
-import { useTuneUpgrade } from './useTuneUpgrade'
+import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade'
 import { useTuneDiagnosis } from './useTuneDiagnosis'
 import {
   FIX_PARAM_MAP,
@@ -178,7 +178,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     applyProblemFix,
     loadTelemetrySessions,
     runTelemetryDiagnosis,
-    applyDiagnosisFix
+    applyDiagnosisFix,
+    aiDiagnosis, aiDiagnosing, runAiProblemDiagnosis, runAiTelemetryDiagnosis
   } = useTuneDiagnosis({
     formData,
     setFormData,
@@ -194,7 +195,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     loadTuneSessionStats()
   }, [])
 
-  const refreshUpgradeShop = async (vehicleId, parts = {}, driveType = null) => {
+  const refreshUpgradeShop = async (vehicleId, parts = {}, driveType = null, tuningCapabilities = null) => {
     const requestId = ++upgradeRequestRef.current
     if (!vehicleId) {
       setUpgradeShop(null)
@@ -203,7 +204,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     try {
       const resolved = await api.vehicles.getUpgrades(vehicleId, {
         selections: JSON.stringify(parts),
-        ...(driveType ? { driveType } : {})
+        ...(driveType ? { driveType } : {}),
+        ...(tuningCapabilities ? { capabilities: JSON.stringify(tuningCapabilities) } : {})
       })
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop(resolved)
@@ -224,7 +226,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     // 如果是编辑模式加载，使用已保存的配件；否则用当前 formData.parts（可能是空的）
     const partsToLoad = pendingPartsRef.current !== null ? pendingPartsRef.current : formData.parts
     pendingPartsRef.current = null
-    refreshUpgradeShop(formData.vehicleId, partsToLoad)
+    refreshUpgradeShop(formData.vehicleId, partsToLoad, null, formData.tuningCapabilities)
   }, [formData.vehicleId])
 
   useEffect(() => {
@@ -301,6 +303,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
           setSelectedSessionId('')
           dirtyParamsRef.current.clear()
         }
+      }
+      if (navIntent.openTelemetry) {
+        setTelemetryPanelOpen(true)
+        setSelectedSessionId(navIntent.sessionId ? String(navIntent.sessionId) : '')
+        loadTelemetrySessions()
       }
     }
   }, [navIntent, vehicles, tunes])
@@ -438,6 +445,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
 
+    if (buildMode === 'capability' && solutionPi === null) {
+      alert('自动调教需要当前车辆在游戏内显示的实际 PI。')
+      return
+    }
+
     try {
       await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
     } catch (e) {
@@ -480,12 +492,13 @@ export function useTuneManager({ onNavigate, navIntent }) {
       targetPi: buildMode === 'ai' ? targetPi : null,
       totalPi: confirmedPi,
       piConfirmed: solutionPi !== null,
-      generationMode: buildMode === 'ai' ? 'ai' : 'manual',
+      generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
       raceType: buildMode === 'ai' ? aiRaceType : null,
       segmentType: buildMode === 'ai' ? segmentType : null,
       driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
       ...normalizedTune,
       parts: { ...formData.parts },
+      tuningCapabilities: formData.tuningCapabilities,
       freeMode: !!formData.freeMode,
       notes: formData.notes || ''
     }
@@ -568,6 +581,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       brakes: { ...defaultFormData.brakes, ...(tune.brakes || {}) },
       aero: { ...defaultFormData.aero, ...(tune.aero || {}) },
       parts: { ...getDefaultParts(), ...(tune.parts || {}) },
+      tuningCapabilities: tune.tuningCapabilities || null,
       freeMode: !!tune.freeMode,
       notes: tune.notes || ''
     })
@@ -578,7 +592,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setTargetPi(isPiClassCap(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
     setWizardStep(2)
-    _setBuildMode(tune.generationMode === 'ai' ? 'ai' : 'manual')
+    _setBuildMode(tune.generationMode === 'ai' ? 'ai' : (tune.generationMode === 'assisted' ? 'capability' : 'manual'))
     setAiRaceType(tune.raceType || 'road')
     setSegmentType(tune.segmentType || 'balanced')
     setAiDriveType(tune.driveType || 'awd')
@@ -645,13 +659,45 @@ export function useTuneManager({ onNavigate, navIntent }) {
       vehicleId: prev.vehicleId,
       name: prev.name,
       tags: prev.tags,
-      notes: prev.notes
+      notes: prev.notes,
+      tuningCapabilities: mode === 'capability' ? {
+        alignment: false, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+        transmission: 'none', gearCount: 6, brakes: false, differential: false,
+        frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
+      } : null
     }))
     setSolutionPi(null)
     setUpgradeShop(null)
     dirtyParamsRef.current.clear()
     _setBuildMode(mode)  // 同步更新 ref，防止异步 effect 竞争
-    refreshUpgradeShop(formData.vehicleId, {})
+    refreshUpgradeShop(formData.vehicleId, {}, null, mode === 'capability' ? {
+      alignment: false, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+      transmission: 'none', gearCount: 6, brakes: false, differential: false,
+      frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
+    } : null)
+  }
+
+  const updateTuningCapabilities = async (patch) => {
+    const capabilities = { ...(formData.tuningCapabilities || {}), ...patch }
+    setFormData(prev => ({ ...prev, tuningCapabilities: capabilities }))
+    await refreshUpgradeShop(formData.vehicleId, formData.parts, capabilities.driveType, capabilities)
+  }
+
+  const generateAssistedTune = () => {
+    if (!upgradeShop?.tuneParameters?.length) {
+      alert('请先确认至少一个可调项目。')
+      return false
+    }
+    const recommended = getInitialParameterRecommendations(upgradeShop, aiRaceType, segmentType)
+    setFormData(prev => ({
+      ...prev,
+      tires: { ...prev.tires, ...recommended.tires },
+      suspension: { ...prev.suspension, ...recommended.suspension },
+      drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
+      brakes: { ...prev.brakes, ...recommended.brakes },
+      aero: { ...prev.aero, ...recommended.aero }
+    }))
+    return true
   }
 
   const applyTelemetrySuggestions = (suggestions) => {
@@ -1385,6 +1431,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     setBuildMode,
     selectVehicleForDraft,
     chooseBuildMode,
+    updateTuningCapabilities,
+    generateAssistedTune,
     aiRaceType,
     setAiRaceType,
     segmentType,
@@ -1419,6 +1467,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
     loadTelemetrySessions,
     runTelemetryDiagnosis,
     applyDiagnosisFix,
+    aiDiagnosis,
+    aiDiagnosing,
+    runAiProblemDiagnosis,
+    runAiTelemetryDiagnosis,
     loadTunes,
     loadVehicles,
     loadTracks,

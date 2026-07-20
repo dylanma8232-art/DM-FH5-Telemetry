@@ -2,7 +2,7 @@
  * FH5 调校预设 - 驾驶问题诊断与遥测数据分析
  *
  * 功能说明:
- * 1. 常用驾驶问题 → 调校参数建议 (25个预设问题)
+ * 1. 驾驶感受 → 调校参数建议（仅保留 FH5 常规比赛中可验证的问题）
  * 2. 遥测数据诊断 → 自动检测问题并返回调校建议
  */
 
@@ -18,8 +18,7 @@ export const PROBLEM_CATEGORIES = [
   { id: 'acceleration', label: '加速', color: '#f778ba' },
   { id: 'speed', label: '速度', color: '#79c0ff' },
   { id: 'gearbox', label: '变速', color: '#ffa657' },
-  { id: 'aero', label: '空力', color: '#56d4dd' },
-  { id: 'tires', label: '轮胎', color: '#8b949e' }
+  { id: 'aero', label: '空力', color: '#56d4dd' }
 ]
 
 // ============================================================
@@ -397,41 +396,6 @@ export const DRIVING_PROBLEMS = [
       diffDecel: { delta: 5, reason: '提高减速差速锁，防止高速收油时后轮突然失去稳定性' }
     },
     requiresParts: ['sport_suspension', 'sport_aero', 'sport_diff']
-  },
-
-  // ========== 轮胎类 ==========
-  {
-    id: 'tire_wear_fast',
-    name: '轮胎磨损过快',
-    category: 'tires',
-    description: '轮胎温度上升过快或磨损过快',
-    symptoms: '比赛中段轮胎温度就达到过热区间，抓地力明显下降',
-    fixes: {
-      frontTirePressure: { delta: 2, reason: '提高前胎压，减少胎面弯曲变形产生的热量' },
-      rearTirePressure: { delta: 2, reason: '提高后胎压，减少胎面弯曲变形产生的热量' },
-      frontCamber: { delta: 0.3, reason: '减小前轮负外倾角(趋于0)，减少弯道中胎面内侧过度磨损' },
-      rearCamber: { delta: 0.3, reason: '减小后轮负外倾角，减少后轮磨损' },
-      frontARB: { delta: -2, reason: '减小前防倾杆，让轮胎在弯道中更均匀接地，减少局部磨损' },
-      rearARB: { delta: -2, reason: '减小后防倾杆，均匀分布后轮接地压力' },
-      tireCompound: { delta: -1, reason: '使用更耐久的轮胎配方（牺牲少量抓地力换取耐久性）' }
-    },
-    requiresParts: ['street_tires'],
-    upgradeAdvice: '如果需要兼顾抓地力和耐久，赛车级轮胎是最平衡的选择'
-  },
-  {
-    id: 'tire_wear_uneven',
-    name: '轮胎磨损不均',
-    category: 'tires',
-    description: '内侧或外侧磨损明显多于另一侧',
-    symptoms: '轮胎一侧磨损严重，另一侧几乎没有磨损，胎面呈锥形',
-    fixes: {
-      frontCamber: { delta: 0.5, reason: '减小前轮负外倾角，减少胎面内侧过度磨损（如果内侧磨损大）' },
-      rearCamber: { delta: 0.5, reason: '减小后轮负外倾角，减少后轮内侧磨损' },
-      frontToe: { delta: 0.1, reason: '微调前束角校正左右磨损不均（外八字磨损内侧则减小）' },
-      rearToe: { delta: 0.1, reason: '微调后束角校正磨损方向' }
-    },
-    requiresParts: ['street_tires'],
-    upgradeAdvice: '磨损不均通常是外倾角或束角设置不当导致，建议逐项微调并观察'
   }
 ]
 

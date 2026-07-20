@@ -40,7 +40,7 @@ export const saveTuneSchema = z.object({
   description: z.string().optional().default(''),
   tags: z.array(z.string()).optional().default([]),
   carOrdinal: z.any().nullable().optional(),
-  generationMode: z.enum(['ai', 'manual']).optional().default('manual'),
+  generationMode: z.enum(['ai', 'manual', 'assisted']).optional().default('manual'),
   raceType: z.string().nullable().optional(),
   segmentType: z.string().nullable().optional(),
   driveType: z.enum(['fwd', 'rwd', 'awd']).nullable().optional(),
@@ -55,7 +55,8 @@ export const saveTuneSchema = z.object({
   drivetrain: z.any().nullable().optional(),
   brakes: z.any().nullable().optional(),
   aero: z.any().nullable().optional(),
-  parts: z.record(z.any()).optional().default({})
+  parts: z.record(z.any()).optional().default({}),
+  tuningCapabilities: z.record(z.any()).nullable().optional()
 });
 
 // Zod 异常格式化 Helper
