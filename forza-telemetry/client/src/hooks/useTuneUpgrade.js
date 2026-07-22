@@ -103,7 +103,12 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     basePressureRear -= 0.05;
   }
 
-  // 构建默认全套物理推导基准字典
+  // 构建默认全套物理推导基准字典（基于质量与前后配重比例）
+  const baseSpringFront = (massKg * weightRatio * 0.165) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  const baseSpringRear = (massKg * (1 - weightRatio) * 0.165) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  const baseReboundFront = Math.max(3.0, Math.min(20.0, baseSpringFront * 0.08 + 2.5));
+  const baseReboundRear = Math.max(3.0, Math.min(20.0, baseSpringRear * 0.08 + 2.5));
+
   const baseValues = {
     tire_pressure_front: basePressureFront,
     tire_pressure_rear: basePressureRear,
@@ -116,12 +121,12 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     arb_front: (driveType === 'awd' ? (raceType === 'drift' ? 35.0 : (raceType === 'dirt' ? 15.0 : 18.0)) : (driveType === 'fwd' ? 12.0 : 30.0)) * (hasWidebody ? 1.05 : 1.0),
     arb_rear: (driveType === 'awd' ? (raceType === 'drift' ? 55.0 : (raceType === 'dirt' ? 35.0 : 48.0)) : (driveType === 'fwd' ? 55.0 : 22.0)) * (hasWidebody ? 1.05 : 1.0),
 
-    spring_front: (115.0 * weightRatio * 2) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0)),
-    spring_rear: (105.0 * (1 - weightRatio) * 2) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0)),
-    rebound_front: 11.5 * weightRatio * 2,
-    rebound_rear: 10.5 * (1 - weightRatio) * 2,
-    bump_front: (11.5 * weightRatio * 2) * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55),
-    bump_rear: (10.5 * (1 - weightRatio) * 2) * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55),
+    spring_front: baseSpringFront,
+    spring_rear: baseSpringRear,
+    rebound_front: baseReboundFront,
+    rebound_rear: baseReboundRear,
+    bump_front: baseReboundFront * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55),
+    bump_rear: baseReboundRear * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55),
     ride_height_front: raceType === 'cross_country' ? 25.0 : (raceType === 'dirt' || raceType === 'rally' ? 18.0 : 12.0),
     ride_height_rear: raceType === 'cross_country' ? 25.0 : (raceType === 'dirt' || raceType === 'rally' ? 18.0 : 12.0),
 
@@ -152,7 +157,7 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     downforce_rear: segmentType === 'high_speed' ? 70.0 : 120.0
   };
 
-  // 若 resolvedShop 中包含参数的限制范围，对基准值进行约束插值
+  // 若 resolvedShop 中包含参数的限制范围，对基准值进行物理区间插值
   const paramMap = {};
   for (const param of (resolvedShop.tuneParameters || [])) {
     if (param?.id) paramMap[param.id] = param;
@@ -171,6 +176,27 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
       const min = Number(param.range.min);
       const max = Number(param.range.max);
       if (!isNaN(min) && !isNaN(max) && max > min) {
+        // 对于弹簧与阻尼，优先基于车辆实际配重比例在 [min, max] 区间进行插值
+        if (id === 'spring_front' || id === 'rebound_front') {
+          val = (max - min) * weightRatio + min;
+          if (id === 'spring_front' && (raceType === 'cross_country' || raceType === 'dirt')) val *= (raceType === 'cross_country' ? 0.6 : 0.75);
+        } else if (id === 'spring_rear' || id === 'rebound_rear') {
+          val = (max - min) * (1 - weightRatio) + min;
+          if (id === 'spring_rear' && (raceType === 'cross_country' || raceType === 'dirt')) val *= (raceType === 'cross_country' ? 0.6 : 0.75);
+        } else if (id === 'bump_front') {
+          const rf = paramMap['rebound_front']?.range ? ((Number(paramMap['rebound_front'].range.max) - Number(paramMap['rebound_front'].range.min)) * weightRatio + Number(paramMap['rebound_front'].range.min)) : val / 0.55;
+          val = rf * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55);
+        } else if (id === 'bump_rear') {
+          const rr = paramMap['rebound_rear']?.range ? ((Number(paramMap['rebound_rear'].range.max) - Number(paramMap['rebound_rear'].range.min)) * (1 - weightRatio) + Number(paramMap['rebound_rear'].range.min)) : val / 0.55;
+          val = rr * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55);
+        } else if (id === 'downforce_front') {
+          val = segmentType === 'high_speed' ? min : min + (max - min) * 0.45;
+        } else if (id === 'downforce_rear') {
+          val = segmentType === 'high_speed' ? min : min + (max - min) * 0.60;
+        } else {
+          val = Math.max(min, Math.min(max, val));
+        }
+
         val = Math.max(min, Math.min(max, val));
         const step = Number(param.range.step);
         if (step > 0) {
