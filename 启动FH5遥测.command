@@ -8,7 +8,9 @@ cd "$(dirname "$0")"
 PROJECT_DIR="$(pwd)"
 
 # 自动补全可能未加载的环境变量路径
-export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/*/bin:$PATH"
+export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$PATH"
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
 # ANSI 终端色彩
 GREEN='\033[0;32m'
@@ -26,7 +28,7 @@ get_local_ip() {
     if [ -n "$ip" ]; then
         echo "$ip"
     else
-        echo "无法获取 (请确保电脑已连接无线局域网)"
+        echo "无法获取"
     fi
 }
 
@@ -36,7 +38,7 @@ kill_port() {
     if [ -n "$pid" ]; then
         echo -e "[$(get_time)] ${YELLOW}正在清理被占用的 $port 端口...${NC}"
         kill -9 $pid 2>/dev/null
-        sleep 1
+        sleep 0.5
     fi
 }
 
@@ -74,14 +76,13 @@ NEED_BUILD=0
 if [ ! -d "forza-telemetry/client/dist" ]; then
     NEED_BUILD=1
 else
-    # 检查前端源码 src 文件夹中是否有比打包后的静态资源更新的文件
     if [ -n "$(find forza-telemetry/client/src -newer forza-telemetry/client/dist -print -quit 2>/dev/null)" ]; then
         NEED_BUILD=1
     fi
 fi
 
 if [ "$NEED_BUILD" -eq 1 ]; then
-    echo -e "[$(get_time)] ${YELLOW}检测到前端页面需要编译或有源码更新，正在进行编译打包...${NC}"
+    echo -e "[$(get_time)] ${YELLOW}检测到前端页面有源码更新，正在进行编译打包...${NC}"
     cd forza-telemetry/client && npm run build && cd "$PROJECT_DIR"
 fi
 
@@ -92,7 +93,7 @@ udp_pid=$(lsof -t -iUDP:9996 2>/dev/null)
 if [ -n "$udp_pid" ]; then
     echo -e "[$(get_time)] ${YELLOW}正在清理占用的 UDP 9996 遥测端口...${NC}"
     kill -9 $udp_pid 2>/dev/null
-    sleep 1
+    sleep 0.5
 fi
 
 # 5. 后台延时打开浏览器
@@ -124,25 +125,14 @@ cd forza-telemetry/server
 node src/index.js
 EXIT_CODE=$?
 
-# 如果 Node 进程异常退出且返回码非 0，可能存在权限或运行时问题，进行友好提示
 if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 130 ]; then
     echo ""
     echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${RED}║                     ❌ 服务异常退出                      ║${NC}"
     echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "常见原因及解决方案："
-    echo -e "1️⃣  ${BOLD}权限受限 (EPERM)${NC}：由于 macOS 的文件沙箱保护，终端需要桌面文件夹访问权限。"
-    echo -e "    一键修复："
-    echo -e "    - 点击屏幕左上角苹果图标  -> 进入 ${BOLD}系统设置${NC}"
-    echo -e "    - 选择 ${BOLD}隐私与安全性${NC} -> 找到 ${BOLD}文件和文件夹${NC}"
-    echo -e "    - 找到 ${BOLD}终端${NC}，开启下方的 ${BOLD}桌面文件夹${NC} 访问开关"
-    echo -e "2️⃣  ${BOLD}局域网防火墙限制${NC}：请确保未开启限制本地端口通信的防火墙工具。"
-    echo ""
-    
-    # 弹出 macOS 系统弹窗提示
-    osascript -e 'display alert "FH5 遥测服务启动失败" message "服务异常退出。如果是权限原因 (EPERM)，请前往：\n【系统设置】->【隐私与安全性】->【文件和文件夹】下，开启【终端】的桌面文件夹访问权限。" as critical' &
-    
-    echo "按任意键退出..."
+    echo -e "正在尝试自动重构后端 C++ 原生模块依赖..."
+    npm rebuild
+    echo "请重新双击运行本脚本。"
     read -rsn 1
 fi
