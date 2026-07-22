@@ -78,53 +78,134 @@ export function useTuneUpgrade({
 
 export function getInitialParameterRecommendations(resolvedShop, raceType = 'road', segmentType = 'balanced') {
   const driveType = (resolvedShop.effectiveDriveType || resolvedShop.baseDriveType || 'awd').toLowerCase();
+  const specs = resolvedShop.stockSpecs || {};
+  const massKg = Number(specs.massKg) || 1350;
+  // 前轴重量比例 (默认 0.52 即前 52%/后 48%)
+  const weightRatio = Number(specs.frontWeightRatio) || 0.52;
   
+  // 检查是否装配宽体套件
+  const hasWidebody = (resolvedShop.effectiveSelections?.widebody?.optionId === 'listed_widebody') ||
+                      (resolvedShop.parts?.widebody?.optionId === 'listed_widebody');
+
   const tires = {};
   const suspension = {};
   const drivetrain = {};
   const brakes = {};
   const aero = {};
-  
+
+  // 1. 轮胎气压与定位角标杆物理推导
+  let basePressureFront = 1.95;
+  let basePressureRear = 1.95;
+  if (raceType === 'cross_country') {
+    basePressureFront = 1.55;
+    basePressureRear = 1.55;
+  } else if (raceType === 'dirt' || raceType === 'rally') {
+    basePressureFront = 1.75;
+    basePressureRear = 1.75;
+  } else if (raceType === 'drift') {
+    basePressureFront = 2.15;
+    basePressureRear = 1.85;
+  }
+
+  // 宽体套件气压微调 (胎宽增加，降低 0.05 bar 维持最佳温区)
+  if (hasWidebody) {
+    basePressureFront -= 0.05;
+    basePressureRear -= 0.05;
+  }
+
   for (const param of resolvedShop.tuneParameters || []) {
     const id = param.id;
     const min = param.range ? Number(param.range.min) : 0;
     const max = param.range ? Number(param.range.max) : 100;
     const mid = (min + max) / 2;
-    
+
     let val = mid;
 
-    // 车辆级范围尚未核验时不能用占位范围生成“推荐值”。
+    // 车辆级范围尚未核验时不能用占位范围生成假数值
     if (param.rangeConfidence === 'vehicle_specific_unknown') continue;
-    
-    if (id === 'tire_pressure_front' || id === 'tire_pressure_rear') {
-      val = raceType === 'cross_country' ? 1.6 : (raceType === 'dirt' || raceType === 'rally' ? 1.8 : 2.0);
+
+    // A. 胎压与定位角
+    if (id === 'tire_pressure_front') val = basePressureFront;
+    else if (id === 'tire_pressure_rear') val = basePressureRear;
+    else if (id === 'tire_camber_front') {
+      val = raceType === 'drift' ? -2.5 : (raceType === 'dirt' || raceType === 'rally' || raceType === 'cross_country' ? -1.2 : -1.8);
     }
-    else if (id === 'tire_camber_front') val = -1.5;
-    else if (id === 'tire_camber_rear') val = -1.0;
-    else if (id === 'tire_toe_front' || id === 'tire_toe_rear') val = 0.0;
-    else if (id === 'caster_front') val = 6.0;
+    else if (id === 'tire_camber_rear') {
+      val = raceType === 'drift' ? -0.8 : (raceType === 'dirt' || raceType === 'rally' || raceType === 'cross_country' ? -0.6 : -1.2);
+    }
+    else if (id === 'tire_toe_front') val = raceType === 'drift' ? 0.2 : 0.0;
+    else if (id === 'tire_toe_rear') val = raceType === 'drift' ? -0.1 : 0.0;
+    else if (id === 'caster_front') val = raceType === 'drift' ? 6.5 : 6.0;
+
+    // B. 防倾杆 (根据驱动形式与前轴重量配比计算)
     else if (id === 'arb_front') {
-      val = driveType === 'awd' ? 15.0 : (driveType === 'fwd' ? 10.0 : 20.0);
+      if (driveType === 'awd') val = raceType === 'drift' ? 35.0 : (raceType === 'dirt' ? 15.0 : 18.0);
+      else if (driveType === 'fwd') val = 12.0;
+      else val = 30.0; // RWD
+      if (hasWidebody) val *= 1.05; // 宽体提升杠杆刚度 5%
     }
     else if (id === 'arb_rear') {
-      val = driveType === 'awd' ? 40.0 : (driveType === 'fwd' ? 45.0 : 30.0);
+      if (driveType === 'awd') val = raceType === 'drift' ? 55.0 : (raceType === 'dirt' ? 35.0 : 48.0);
+      else if (driveType === 'fwd') val = 55.0; // FWD 增强尾部寻迹
+      else val = 22.0; // RWD 稳定后轴
+      if (hasWidebody) val *= 1.05;
     }
+
+    // C. 弹簧硬度 (依据整车质量与前后重量配比插值)
+    else if (id === 'spring_front') {
+      const springMod = raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0);
+      val = ((max - min) * weightRatio + min) * springMod;
+    }
+    else if (id === 'spring_rear') {
+      const springMod = raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0);
+      val = ((max - min) * (1 - weightRatio) + min) * springMod;
+    }
+
+    // D. 车身高度
     else if (id === 'ride_height_front' || id === 'ride_height_rear') {
-      val = raceType === 'cross_country' ? max : (raceType === 'dirt' || raceType === 'rally' ? min + (max - min) * 0.7 : min);
+      val = raceType === 'cross_country' ? max : (raceType === 'dirt' || raceType === 'rally' ? min + (max - min) * 0.6 : min);
     }
-    else if (id === 'rebound_front' || id === 'rebound_rear') val = 8.0;
-    else if (id === 'bump_front' || id === 'bump_rear') val = 4.8;
-    else if (id === 'diff_front_accel') val = 50.0;
+
+    // E. 阻尼 (回弹阻尼按弹簧比例插值，压缩阻尼保持 55% 临界比例)
+    else if (id === 'rebound_front') {
+      val = (max - min) * weightRatio + min;
+    }
+    else if (id === 'rebound_rear') {
+      val = (max - min) * (1 - weightRatio) + min;
+    }
+    else if (id === 'bump_front') {
+      const reboundFront = (max - min) * weightRatio + min;
+      val = reboundFront * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55);
+    }
+    else if (id === 'bump_rear') {
+      const reboundRear = (max - min) * (1 - weightRatio) + min;
+      val = reboundRear * (raceType === 'dirt' || raceType === 'cross_country' ? 0.65 : 0.55);
+    }
+
+    // F. 差速器锁止率
+    else if (id === 'diff_front_accel') val = 40.0;
     else if (id === 'diff_front_decel') val = 0.0;
-    else if (id === 'diff_rear_accel') val = 90.0;
-    else if (id === 'diff_rear_decel') val = 10.0;
+    else if (id === 'diff_rear_accel') val = raceType === 'drift' ? 85.0 : (driveType === 'awd' ? 85.0 : 50.0);
+    else if (id === 'diff_rear_decel') val = raceType === 'drift' ? 80.0 : 15.0;
     else if (id === 'diff_center') val = 70.0;
+
+    // G. 刹车系统
     else if (id === 'brake_balance') val = 50.0;
     else if (id === 'brake_pressure') val = 100.0;
 
-    if (segmentType === 'rough' && (id === 'rebound_front' || id === 'rebound_rear' || id === 'bump_front' || id === 'bump_rear')) val *= 0.85;
-    if ((segmentType === 'technical' || segmentType === 'tarmac_bias') && (id === 'arb_front' || id === 'arb_rear')) val *= 1.1;
-    
+    // H. 空气动力学下压力
+    else if (id === 'downforce_front') {
+      val = segmentType === 'high_speed' ? min : min + (max - min) * 0.45;
+    }
+    else if (id === 'downforce_rear') {
+      val = segmentType === 'high_speed' ? min : min + (max - min) * 0.60;
+    }
+
+    // 细分偏好调整
+    if (segmentType === 'rough' && (id.startsWith('rebound_') || id.startsWith('bump_'))) val *= 0.85;
+    if ((segmentType === 'technical' || segmentType === 'tarmac_bias') && (id.startsWith('arb_'))) val *= 1.1;
+
+    // 参数步长与范围限制约束
     if (param.range) {
       val = Math.max(min, Math.min(max, val));
       const step = Number(param.range.step);
@@ -133,7 +214,8 @@ export function getInitialParameterRecommendations(resolvedShop, raceType = 'roa
         val = Number((min + steps * step).toFixed(2));
       }
     }
-    
+
+    // 字段属性归类映射
     if (id.startsWith('tire_') || id === 'caster_front') {
       const field = id.replace('tire_', '');
       tires[field === 'pressure_front' ? 'frontPressure' : field === 'pressure_rear' ? 'rearPressure' : field === 'camber_front' ? 'frontCamber' : field === 'camber_rear' ? 'rearCamber' : field === 'toe_front' ? 'frontToe' : field === 'toe_rear' ? 'rearToe' : 'frontCaster'] = val;
@@ -151,6 +233,6 @@ export function getInitialParameterRecommendations(resolvedShop, raceType = 'roa
       aero[field === 'downforce_front' ? 'frontDownforce' : 'rearDownforce'] = val;
     }
   }
-  
+
   return { tires, suspension, drivetrain, brakes, aero };
 }

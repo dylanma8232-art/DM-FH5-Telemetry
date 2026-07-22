@@ -591,7 +591,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     const savedTargetPi = Number(tune.targetPi)
     setTargetPi(isPiClassCap(savedTargetPi) ? savedTargetPi : nextPiClassCap(tune.basePi || 500))
     setEditingTune(tune.id)
-    setWizardStep(2)
+    setWizardStep(3)
     _setBuildMode(tune.generationMode === 'ai' ? 'ai' : (tune.generationMode === 'assisted' ? 'capability' : 'manual'))
     setAiRaceType(tune.raceType || 'road')
     setSegmentType(tune.segmentType || 'balanced')
