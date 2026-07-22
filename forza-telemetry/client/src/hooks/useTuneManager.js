@@ -230,8 +230,10 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [formData.vehicleId])
 
   useEffect(() => {
-    if (upgradeShop?.baseDriveType) setAiDriveType(upgradeShop.baseDriveType)
-  }, [upgradeShop?.baseDriveType])
+    if (upgradeShop?.baseDriveType && !formData.parts?.drivetrain_swap?.optionId) {
+      setAiDriveType(upgradeShop.baseDriveType)
+    }
+  }, [upgradeShop?.baseDriveType, formData.parts?.drivetrain_swap?.optionId])
 
   useEffect(() => {
     const officialBasePi = Number(upgradeShop?.basePi)
@@ -955,11 +957,16 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setTimeout(() => { setUnlockToast(null); setHighlightedParams([]) }, 4000)
     }
 
+    const activeDriveType = categoryId === 'drivetrain_swap' ? optionId : (newParts.drivetrain_swap?.optionId || aiDriveType)
+    if (categoryId === 'drivetrain_swap' && optionId) {
+      setAiDriveType(optionId)
+    }
+
     setFormData(prev => ({
       ...prev,
       parts: newParts
     }))
-    refreshUpgradeShop(formData.vehicleId, newParts, buildMode === 'ai' ? aiDriveType : null)
+    refreshUpgradeShop(formData.vehicleId, newParts, activeDriveType, formData.tuningCapabilities)
   }
 
   // 根据当前配件计算调校参数约束

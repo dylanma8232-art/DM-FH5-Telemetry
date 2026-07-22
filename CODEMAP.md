@@ -11,7 +11,6 @@
 ## 📂 项目模块结构树与导出分析
 
 - 📄 [CLAUDE.md](file:///forza-telemetry/CLAUDE.md)
-- 📄 [README.md](file:///forza-telemetry/README.md)
 - 📂 **client/**
   - 📄 [index.html](file:///forza-telemetry/client/index.html)
   - 📄 [package-lock.json](file:///forza-telemetry/client/package-lock.json)

@@ -1584,7 +1584,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                           <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>驱动形式</span>
                           <select
-                            value={formData.parts?.drivetrain_swap?.optionId || upgradeShop?.baseDriveType || aiDriveType || 'awd'}
+                            value={formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.baseDriveType || 'awd'}
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
@@ -2127,7 +2127,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div>
                           <label style={labelStyle}>驱动形式</label>
                           <select
-                            value={formData.parts?.drivetrain_swap?.optionId || upgradeShop?.baseDriveType || aiDriveType || 'awd'}
+                            value={formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.baseDriveType || 'awd'}
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
