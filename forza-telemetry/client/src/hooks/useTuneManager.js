@@ -690,7 +690,14 @@ export function useTuneManager({ onNavigate, navIntent }) {
       alert('请先确认至少一个可调项目。')
       return false
     }
-    const recommended = getInitialParameterRecommendations(upgradeShop, aiRaceType, segmentType)
+    const mergedShop = {
+      ...upgradeShop,
+      targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
+      parts: formData.parts || upgradeShop.parts,
+      capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
+      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || formData.tuningCapabilities?.driveType || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+    }
+    const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
     setFormData(prev => ({
       ...prev,
       tires: { ...prev.tires, ...recommended.tires },
