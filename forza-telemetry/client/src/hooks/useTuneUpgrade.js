@@ -56,7 +56,7 @@ export function useTuneUpgrade({
       setUpgradeShop(resolvedShop)
       return true
     } catch (e) { /* 一键升级失败 */
-      if (draftVersionRef.current !== draftVersion) return false
+      if (draftVersionRef.current !== draftVersionRef.current) return false
       alert('一键升级失败: ' + e.message)
       return false
     } finally {
@@ -81,10 +81,16 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   const specs = resolvedShop.stockSpecs || {};
   const massKg = Number(specs.massKg) || 1350;
   const weightRatio = Number(specs.frontWeightRatio) || 0.52;
-  
+  const pi = Number(resolvedShop.targetPi || resolvedShop.basePi || 700);
+
   const hasWidebody = (resolvedShop.effectiveSelections?.widebody?.optionId === 'listed_widebody') ||
                       (resolvedShop.parts?.widebody?.optionId === 'listed_widebody');
 
+  const hasTurboOrSupercharger = resolvedShop.parts?.aspiration_swap?.optionId &&
+                                resolvedShop.parts.aspiration_swap.optionId !== 'stock' &&
+                                resolvedShop.parts.aspiration_swap.optionId !== 'none';
+
+  // 1. 轮胎冷气压推导
   let basePressureFront = 1.95;
   let basePressureRear = 1.95;
   if (raceType === 'cross_country') {
@@ -103,11 +109,23 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     basePressureRear -= 0.05;
   }
 
-  // 构建默认全套物理推导基准字典（基于质量与前后配重比例）
-  const baseSpringFront = (massKg * weightRatio * 0.165) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
-  const baseSpringRear = (massKg * (1 - weightRatio) * 0.165) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  // 2. PI 级别悬挂与刚度调整系数
+  const piScaleFactor = 0.85 + 0.30 * Math.max(0, Math.min(1, (pi - 500) / 498));
+
+  // 3. 弹簧与阻尼物理基础推导
+  const baseSpringFront = (massKg * weightRatio * 0.165 * piScaleFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  const baseSpringRear = (massKg * (1 - weightRatio) * 0.165 * piScaleFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
   const baseReboundFront = Math.max(3.0, Math.min(20.0, baseSpringFront * 0.08 + 2.5));
   const baseReboundRear = Math.max(3.0, Math.min(20.0, baseSpringRear * 0.08 + 2.5));
+
+  // 4. 驱动形式刹车解耦（AWD 48%帮助重刹弯心切入，RWD 52%防止甩尾）
+  const brakeBalanceValue = driveType === 'awd' ? 48.0 : (driveType === 'rwd' ? 52.0 : 50.0);
+
+  // 5. 终传比基于 PI 目标与极速需求缩放
+  const finalDriveValue = pi >= 900 ? 3.35 : (pi >= 800 ? 3.65 : (pi >= 700 ? 3.85 : 4.20));
+
+  // 6. 差速器保护：针对增压/大马力后驱下调 5% 锁止，防止突发涡轮迟滞后爆扭甩尾
+  const rwdAccelLock = raceType === 'drift' ? 85.0 : (hasTurboOrSupercharger ? 45.0 : 52.0);
 
   const baseValues = {
     tire_pressure_front: basePressureFront,
@@ -130,7 +148,7 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     ride_height_front: raceType === 'cross_country' ? 25.0 : (raceType === 'dirt' || raceType === 'rally' ? 18.0 : 12.0),
     ride_height_rear: raceType === 'cross_country' ? 25.0 : (raceType === 'dirt' || raceType === 'rally' ? 18.0 : 12.0),
 
-    final_drive: 3.80,
+    final_drive: finalDriveValue,
     gear_1: 3.40,
     gear_2: 2.40,
     gear_3: 1.75,
@@ -144,13 +162,13 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
 
     diff_front_accel: 40.0,
     diff_front_decel: 0.0,
-    diff_rear_accel: raceType === 'drift' ? 85.0 : (driveType === 'awd' ? 85.0 : 50.0),
+    diff_rear_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
     diff_rear_decel: raceType === 'drift' ? 80.0 : 15.0,
     diff_center: 70.0,
-    diff_accel: raceType === 'drift' ? 85.0 : (driveType === 'awd' ? 85.0 : 50.0),
+    diff_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
     diff_decel: 15.0,
 
-    brake_balance: 50.0,
+    brake_balance: brakeBalanceValue,
     brake_pressure: 100.0,
 
     downforce_front: segmentType === 'high_speed' ? 45.0 : 75.0,
