@@ -83,6 +83,12 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   const weightRatio = Number(specs.frontWeightRatio) || 0.52;
   const pi = Number(resolvedShop.targetPi || resolvedShop.basePi || 700);
 
+  // 获取用户在 Step 1 指定的档位数 (默认为 6 档)
+  const gearCount = Number(resolvedShop.capabilities?.gearCount || resolvedShop.drivetrain?.gearCount || 6);
+
+  // 检查是否为中置 MR 或后置 RR 引擎 / 后配重车型 (前轴配重 < 48%)
+  const isRearOrMidEngine = weightRatio < 0.48 || (specs.enginePos && (specs.enginePos === 'MR' || specs.enginePos === 'RR'));
+
   const hasWidebody = (resolvedShop.effectiveSelections?.widebody?.optionId === 'listed_widebody') ||
                       (resolvedShop.parts?.widebody?.optionId === 'listed_widebody');
 
@@ -112,9 +118,10 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   // 2. PI 级别悬挂与刚度调整系数
   const piScaleFactor = 0.85 + 0.30 * Math.max(0, Math.min(1, (pi - 500) / 498));
 
-  // 3. 弹簧与阻尼物理基础推导
-  const baseSpringFront = (massKg * weightRatio * 0.165 * piScaleFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
-  const baseSpringRear = (massKg * (1 - weightRatio) * 0.165 * piScaleFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  // 3. 弹簧与阻尼物理基础推导（底盘极低时触发支撑保护，防底盘擦地失抓）
+  const rideHeightFactor = raceType === 'road' ? 1.08 : 1.0;
+  const baseSpringFront = (massKg * weightRatio * 0.165 * piScaleFactor * rideHeightFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
+  const baseSpringRear = (massKg * (1 - weightRatio) * 0.165 * piScaleFactor * rideHeightFactor) * (raceType === 'cross_country' ? 0.60 : (raceType === 'dirt' || raceType === 'rally' ? 0.75 : 1.0));
   const baseReboundFront = Math.max(3.0, Math.min(20.0, baseSpringFront * 0.08 + 2.5));
   const baseReboundRear = Math.max(3.0, Math.min(20.0, baseSpringRear * 0.08 + 2.5));
 
@@ -124,8 +131,32 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   // 5. 终传比基于 PI 目标与极速需求缩放
   const finalDriveValue = pi >= 900 ? 3.35 : (pi >= 800 ? 3.65 : (pi >= 700 ? 3.85 : 4.20));
 
-  // 6. 差速器保护：针对增压/大马力后驱下调 5% 锁止，防止突发涡轮迟滞后爆扭甩尾
+  // 6. 动态按用户指定的 N 档分配递减齿轮比曲线 (确保几档车的最高档都能拉到极速)
+  const dynamicGears = {};
+  const gCount = Math.max(4, Math.min(10, gearCount));
+  const startRatio = 3.50;
+  const endRatio = gCount >= 8 ? 0.65 : (gCount >= 6 ? 0.78 : 0.88);
+  for (let g = 1; g <= 10; g++) {
+    if (g <= gCount) {
+      const progress = (g - 1) / Math.max(1, gCount - 1);
+      // 几何等比平滑曲线插值
+      const ratio = startRatio * Math.pow(endRatio / startRatio, progress);
+      dynamicGears[`gear_${g}`] = Number(ratio.toFixed(2));
+    } else {
+      dynamicGears[`gear_${g}`] = 0.55;
+    }
+  }
+
+  // 7. 差速器保护与中置/后置引擎布局解耦
+  // 针对增压/大马力后驱下调 5% 加速锁止，防止突发爆扭甩尾
   const rwdAccelLock = raceType === 'drift' ? 85.0 : (hasTurboOrSupercharger ? 45.0 : 52.0);
+  // 中置/后置引擎在松油门时容易发生 Coast 甩尾，因此后减速锁止从 15% 上调至 22% 维持入弯稳定
+  const rearDecelLock = raceType === 'drift' ? 80.0 : (isRearOrMidEngine ? 24.0 : 15.0);
+  // 中央差速偏置根据赛事类型解耦：漂移 85% 偏后，泥地/越野 60% 增强四轮拉力，公路 70%
+  const diffCenterValue = raceType === 'drift' ? 85.0 : (raceType === 'dirt' || raceType === 'cross_country' ? 60.0 : 70.0);
+
+  // 8. 引擎位置对防倾杆刚度微调 (中置/后置稍微收紧后防倾杆，防 Snap Oversteer)
+  const rearArbMod = isRearOrMidEngine ? 0.90 : 1.0;
 
   const baseValues = {
     tire_pressure_front: basePressureFront,
@@ -137,7 +168,7 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     caster_front: raceType === 'drift' ? 6.5 : 6.0,
 
     arb_front: (driveType === 'awd' ? (raceType === 'drift' ? 35.0 : (raceType === 'dirt' ? 15.0 : 18.0)) : (driveType === 'fwd' ? 12.0 : 30.0)) * (hasWidebody ? 1.05 : 1.0),
-    arb_rear: (driveType === 'awd' ? (raceType === 'drift' ? 55.0 : (raceType === 'dirt' ? 35.0 : 48.0)) : (driveType === 'fwd' ? 55.0 : 22.0)) * (hasWidebody ? 1.05 : 1.0),
+    arb_rear: (driveType === 'awd' ? (raceType === 'drift' ? 55.0 : (raceType === 'dirt' ? 35.0 : 48.0)) : (driveType === 'fwd' ? 55.0 : 22.0)) * (hasWidebody ? 1.05 : 1.0) * rearArbMod,
 
     spring_front: baseSpringFront,
     spring_rear: baseSpringRear,
@@ -149,24 +180,15 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     ride_height_rear: raceType === 'cross_country' ? 25.0 : (raceType === 'dirt' || raceType === 'rally' ? 18.0 : 12.0),
 
     final_drive: finalDriveValue,
-    gear_1: 3.40,
-    gear_2: 2.40,
-    gear_3: 1.75,
-    gear_4: 1.35,
-    gear_5: 1.08,
-    gear_6: 0.90,
-    gear_7: 0.78,
-    gear_8: 0.69,
-    gear_9: 0.61,
-    gear_10: 0.55,
+    ...dynamicGears,
 
     diff_front_accel: 40.0,
     diff_front_decel: 0.0,
     diff_rear_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
-    diff_rear_decel: raceType === 'drift' ? 80.0 : 15.0,
-    diff_center: 70.0,
+    diff_rear_decel: rearDecelLock,
+    diff_center: diffCenterValue,
     diff_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
-    diff_decel: 15.0,
+    diff_decel: rearDecelLock,
 
     brake_balance: brakeBalanceValue,
     brake_pressure: 100.0,
