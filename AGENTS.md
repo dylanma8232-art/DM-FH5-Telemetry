@@ -12,9 +12,9 @@
 
 ### 快速开始
 
-1. **安装 CodeGraph CLI**（如果尚未安装）：
+1. **安装 CodeGraph CLI**（建议安装 v1.5.0+ 版本以获得 Rust 原生内核解析与毫秒级增量同步加速）：
    ```bash
-   npm install -g @colbymchenry/codegraph
+   npm install -g @colbymchenry/codegraph@latest
    ```
 
 2. **初始化项目索引**：
