@@ -163,6 +163,20 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [adviceSubTab, setAdviceSubTab] = useState('feel');
 
+  const baseDriveType = (
+    upgradeShop?.baseDriveType ||
+    (formData.vehicleId && vehicles[formData.vehicleId]?.drivetrain) ||
+    'awd'
+  ).toLowerCase();
+
+  const currentDriveType = (() => {
+    const optId = formData.parts?.drivetrain_swap?.optionId;
+    if (!optId || optId === 'stock') {
+      return baseDriveType;
+    }
+    return optId.toLowerCase();
+  })();
+
   useEffect(() => {
     if (navIntent?.openTelemetry) setAdviceSubTab('telemetry');
   }, [navIntent]);
@@ -1584,7 +1598,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                           <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>驱动形式</span>
                           <select
-                            value={formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.baseDriveType || 'awd'}
+                            value={currentDriveType}
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
@@ -1593,9 +1607,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             }}
                             style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: 11 }}
                           >
-                            <option value="fwd">前驱 FWD</option>
-                            <option value="rwd">后驱 RWD</option>
-                            <option value="awd">四驱 AWD</option>
+                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? ' (原厂)' : ''}</option>
+                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? ' (原厂)' : ''}</option>
+                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? ' (原厂)' : ''}</option>
                           </select>
                         </div>
 
@@ -2127,7 +2141,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div>
                           <label style={labelStyle}>驱动形式</label>
                           <select
-                            value={formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.baseDriveType || 'awd'}
+                            value={currentDriveType}
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
@@ -2136,9 +2150,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             }}
                             style={inputStyle}
                           >
-                            <option value="fwd">前驱 FWD</option>
-                            <option value="rwd">后驱 RWD</option>
-                            <option value="awd">四驱 AWD</option>
+                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? ' (原厂)' : ''}</option>
+                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? ' (原厂)' : ''}</option>
+                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? ' (原厂)' : ''}</option>
                           </select>
                         </div>
 
