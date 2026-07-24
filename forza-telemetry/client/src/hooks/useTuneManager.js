@@ -230,7 +230,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [formData.vehicleId])
 
   useEffect(() => {
-    if (upgradeShop?.baseDriveType && !formData.parts?.drivetrain_swap?.optionId) {
+    if (upgradeShop?.baseDriveType && (!formData.parts?.drivetrain_swap?.optionId || formData.parts?.drivetrain_swap?.optionId === 'stock')) {
       setAiDriveType(upgradeShop.baseDriveType)
     }
   }, [upgradeShop?.baseDriveType, formData.parts?.drivetrain_swap?.optionId])

@@ -12,6 +12,12 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/.nvm/versions/node/$(ls $HOM
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+# better-sqlite3 的预编译模块与 Node 22 长期支持版匹配。
+# 不跟随系统中可能更新到的非长期支持版 Node，避免启动时找不到原生模块。
+if command -v nvm &>/dev/null && [ "$(nvm version 22 2>/dev/null)" != "N/A" ]; then
+    nvm use 22 >/dev/null
+fi
+
 # ANSI 终端色彩
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
