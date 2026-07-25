@@ -216,6 +216,28 @@ export function useTuneManager({ onNavigate, navIntent }) {
           setTimeout(() => setUnlockToast(null), 4000)
         }
       }
+
+      // 改装配件或能力变更后，自动实时更新参数推荐
+      if (resolved?.tuneParameters?.length) {
+        const mergedShop = {
+          ...resolved,
+          targetPi: targetPi || basePi || resolved.targetPi || resolved.basePi,
+          parts: resolved.effectiveSelections || parts,
+          capabilities: tuningCapabilities || resolved.capabilities,
+          effectiveDriveType: driveType || resolved.effectiveDriveType || resolved.baseDriveType
+        }
+        const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
+        if (recommended) {
+          setFormData(prev => ({
+            ...prev,
+            tires: { ...prev.tires, ...recommended.tires },
+            suspension: { ...prev.suspension, ...recommended.suspension },
+            drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
+            brakes: { ...prev.brakes, ...recommended.brakes },
+            aero: { ...prev.aero, ...recommended.aero }
+          }))
+        }
+      }
     } catch (_) {
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop({ status: 'unverified', message: '无法读取该车辆的改装资料。', slots: [], tuneParameters: [] })
@@ -226,7 +248,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     // 如果是编辑模式加载，使用已保存的配件；否则用当前 formData.parts（可能是空的）
     const partsToLoad = pendingPartsRef.current !== null ? pendingPartsRef.current : formData.parts
     pendingPartsRef.current = null
-    refreshUpgradeShop(formData.vehicleId, partsToLoad, null, formData.tuningCapabilities)
+    const isCapabilityMode = _buildMode === 'capability'
+    refreshUpgradeShop(formData.vehicleId, partsToLoad, null, isCapabilityMode ? formData.tuningCapabilities : null)
   }, [formData.vehicleId])
 
   useEffect(() => {
@@ -851,7 +874,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
           // 旧推荐表的胎压是 PSI；调校表单统一使用 bar。
           const isTirePressure = flatKey === 'tire_pressure_front' || flatKey === 'tire_pressure_rear'
           mapped[`${path[0]}.${path[1]}`] = isTirePressure && Number.isFinite(Number(value))
-            ? Number((Number(value) * 0.0689476).toFixed(2))
+            ? Number((Number(value) * 0.0689476).toFixed(1))
             : value
         }
       }
@@ -973,7 +996,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
       ...prev,
       parts: newParts
     }))
-    refreshUpgradeShop(formData.vehicleId, newParts, activeDriveType, formData.tuningCapabilities)
+    const isCapMode = _buildMode === 'capability'
+    refreshUpgradeShop(formData.vehicleId, newParts, activeDriveType, isCapMode ? formData.tuningCapabilities : null)
   }
 
   // 根据当前配件计算调校参数约束

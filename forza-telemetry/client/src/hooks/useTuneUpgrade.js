@@ -96,18 +96,18 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
                                 resolvedShop.parts.aspiration_swap.optionId !== 'stock' &&
                                 resolvedShop.parts.aspiration_swap.optionId !== 'none';
 
-  // 1. 轮胎冷气压推导
-  let basePressureFront = 1.95;
-  let basePressureRear = 1.95;
+  // 1. 轮胎冷气压推导（FH5 游戏内精度为 0.1 bar，全部保留小数点后1位）
+  let basePressureFront = 2.0;
+  let basePressureRear = 2.0;
   if (raceType === 'cross_country') {
-    basePressureFront = 1.55;
-    basePressureRear = 1.55;
+    basePressureFront = 1.6;
+    basePressureRear = 1.6;
   } else if (raceType === 'dirt' || raceType === 'rally') {
-    basePressureFront = 1.75;
-    basePressureRear = 1.75;
+    basePressureFront = 1.8;
+    basePressureRear = 1.8;
   } else if (raceType === 'drift') {
-    basePressureFront = 2.15;
-    basePressureRear = 1.85;
+    basePressureFront = 2.2;
+    basePressureRear = 1.9;
   }
 
   if (hasWidebody) {
@@ -182,20 +182,30 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     final_drive: finalDriveValue,
     ...dynamicGears,
 
-    diff_front_accel: 40.0,
-    diff_front_decel: 0.0,
-    diff_rear_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
-    diff_rear_decel: rearDecelLock,
-    diff_center: diffCenterValue,
-    diff_accel: driveType === 'awd' ? 85.0 : rwdAccelLock,
-    diff_decel: rearDecelLock,
-
     brake_balance: brakeBalanceValue,
     brake_pressure: 100.0,
 
     downforce_front: segmentType === 'high_speed' ? 45.0 : 75.0,
     downforce_rear: segmentType === 'high_speed' ? 70.0 : 120.0
   };
+
+  const isAwd = driveType === 'awd';
+  const isFwd = driveType === 'fwd';
+
+  if (isAwd) {
+    baseValues.diff_front_accel = 40.0;
+    baseValues.diff_front_decel = 0.0;
+    baseValues.diff_rear_accel = 85.0;
+    baseValues.diff_rear_decel = rearDecelLock;
+    baseValues.diff_center = diffCenterValue;
+  } else if (isFwd) {
+    baseValues.diff_front_accel = 45.0;
+    baseValues.diff_front_decel = 5.0;
+  } else {
+    // RWD 后驱车仅生成后差速器加速/减速
+    baseValues.diff_rear_accel = rwdAccelLock;
+    baseValues.diff_rear_decel = rearDecelLock;
+  }
 
   // 若 resolvedShop 中包含参数的限制范围，对基准值进行物理区间插值
   const paramMap = {};
@@ -212,6 +222,9 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   for (const [id, rawVal] of Object.entries(baseValues)) {
     let val = rawVal;
     const param = paramMap[id];
+    const isAlwaysUnlocked = id.startsWith('tire_') || id === 'caster_front';
+    // 只有当该参数在当前配件/能力配置下真正被解锁时，才填入推荐值
+    if (!param && !isAlwaysUnlocked) continue;
     if (param?.range) {
       const min = Number(param.range.min);
       const max = Number(param.range.max);
@@ -241,7 +254,8 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
         const step = Number(param.range.step);
         if (step > 0) {
           const steps = Math.round((val - min) / step);
-          val = Number((min + steps * step).toFixed(2));
+          const precision = id.includes('pressure') ? 1 : 2;
+          val = Number((min + steps * step).toFixed(precision));
         }
       }
     }

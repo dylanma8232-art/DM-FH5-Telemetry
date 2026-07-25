@@ -447,10 +447,18 @@ const TUNE_REQUIREMENTS = {
   arb_front:              { category: 'anti_roll_bars', minTier: 'street' },
   arb_rear:               { category: 'anti_roll_bars', minTier: 'street' },
 
+  // 刹车
+  brake_balance:          { category: 'brakes', minTier: 'race' },
+  brake_pressure:         { category: 'brakes', minTier: 'race' },
+
   // 差速器
   diff_accel:             { category: 'differential', minTier: 'street' },
   diff_decel:             { category: 'differential', minTier: 'sport'  },
-  diff_center:           { category: 'differential', minTier: 'race'   },
+  diff_front_accel:       { category: 'differential', minTier: 'street' },
+  diff_front_decel:       { category: 'differential', minTier: 'sport'  },
+  diff_rear_accel:        { category: 'differential', minTier: 'street' },
+  diff_rear_decel:        { category: 'differential', minTier: 'sport'  },
+  diff_center:            { category: 'differential', minTier: 'race'   },
 
   // 传动
   final_drive:            { category: null,         minTier: 'stock'  }, // 始终可用
@@ -462,8 +470,8 @@ const TUNE_REQUIREMENTS = {
   gear_6:                 { category: 'transmission', minTier: 'sport'  },
 
   // 空力
-  downforce_front:        { category: 'aero_front', minTier: 'street' },
-  downforce_rear:         { category: 'aero_rear',  minTier: 'street' }
+  downforce_front:        { category: 'front_aero', minTier: 'street' },
+  downforce_rear:         { category: 'rear_aero',  minTier: 'street' }
 };
 
 // ============================================================
@@ -857,8 +865,18 @@ export function getTuneConstraints(parts, freeMode = false) {
     const categoryId = requirement.category;
     const minTierIndex = TIERS.indexOf(requirement.minTier);
 
-    // 获取当前配件的等级
-    const currentTier = parts?.[categoryId]?.tier || 'stock';
+    // 获取当前配件的等级 (包含别名与 optionId 兼容)
+    const getPartTier = catId => {
+      const p = parts?.[catId];
+      if (p?.tier) return p.tier;
+      if (p?.optionId && p.optionId !== 'stock') return 'race';
+      if (catId === 'front_aero' && parts?.aero_front) return parts.aero_front.tier || (parts.aero_front.optionId !== 'stock' ? 'race' : 'stock');
+      if (catId === 'aero_front' && parts?.front_aero) return parts.front_aero.tier || (parts.front_aero.optionId !== 'stock' ? 'race' : 'stock');
+      if (catId === 'rear_aero' && parts?.aero_rear) return parts.aero_rear.tier || (parts.aero_rear.optionId !== 'stock' ? 'race' : 'stock');
+      if (catId === 'aero_rear' && parts?.rear_aero) return parts.rear_aero.tier || (parts.rear_aero.optionId !== 'stock' ? 'race' : 'stock');
+      return 'stock';
+    };
+    const currentTier = getPartTier(categoryId);
     const currentTierIndex = TIERS.indexOf(currentTier);
 
     if (currentTierIndex < minTierIndex) {
