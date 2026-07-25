@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateSectorAnalysis, analyzeSectors, generateDrivingAdvice, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
 import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
@@ -8,10 +9,9 @@ import path from 'path';
 
 const router = express.Router();
 
-
-
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
+const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 const calculateTrackLength = (pts) => {
   if (!pts || pts.length < 2) return 0;
@@ -31,6 +31,8 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
 
   const sessionsDir = DATA_DIR + '/sessions';
   const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+  const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+
   const sessions = files.map((f) => {
     try {
       const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
@@ -38,12 +40,52 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
       const trackName = typeof stateManager.tracks !== 'undefined' && data.trackId && stateManager.tracks[data.trackId] ?
       stateManager.tracks[data.trackId].name :
       data.trackName || '未知赛道';
+
+      let vehicle = data.vehicle || null;
+      let ordinalKey = vehicle?.ordinal || data.carOrdinal;
+
+      // 若车辆信息缺失，自动按 savedAt 时间戳匹配 stateManager.vehicles 中最近使用的车辆
+      if ((!ordinalKey || ordinalKey <= 0) && data.savedAt && stateManager.vehicles) {
+        const sTime = new Date(data.savedAt).getTime();
+        let closestOrd = null;
+        let minDiff = Infinity;
+        Object.entries(stateManager.vehicles).forEach(([ord, vInfo]) => {
+          if (vInfo.lastUsed) {
+            const diff = Math.abs(new Date(vInfo.lastUsed).getTime() - sTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestOrd = ord;
+            }
+          }
+        });
+        if (closestOrd) {
+          ordinalKey = Number(closestOrd);
+        }
+      }
+
+      if (ordinalKey && ordinalKey > 0) {
+        const vehicleFromState = stateManager.vehicles ? stateManager.vehicles[String(ordinalKey)] : null;
+        const carName = vehicle?.name || vehicleFromState?.name || carsDatabase[String(ordinalKey)] || `车辆 #${ordinalKey}`;
+        const carClass = vehicle?.class ?? vehicleFromState?.class ?? 0;
+        const carPI = vehicle?.performanceIndex ?? vehicleFromState?.pi ?? 0;
+        const drivetrain = vehicle?.drivetrain || vehicleFromState?.drivetrain || '';
+
+        vehicle = {
+          ...(vehicle || {}),
+          ordinal: Number(ordinalKey),
+          name: carName,
+          class: carClass,
+          performanceIndex: carPI,
+          drivetrain: drivetrain
+        };
+      }
+
       return {
         id: data.id,
         filename: f,
         trackName: trackName,
         trackId: data.trackId || null,
-        vehicle: data.vehicle || null,
+        vehicle: vehicle,
         laps: data.laps || {},
         summary: data.summary || {},
         savedAt: data.savedAt,
@@ -58,9 +100,6 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
 
   sessions.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
   res.json(sessions);
-
-
-
 }));
 
 // 获取全赛道最佳圈速与历史排名

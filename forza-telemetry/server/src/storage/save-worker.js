@@ -1,4 +1,5 @@
 import { parentPort, workerData } from 'worker_threads';
+import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
@@ -346,9 +347,55 @@ async function main() {
 
   let maxLap = hifiData.length > 0 ? Math.max(...hifiData.map(d => d.lapNumber || d.lapNum || 0)) : 0;
 
+  // 恢复丢失的车辆数据并根据静态车辆库补全名称
+  let vehicleToSave = sessionDataMeta.vehicle || null;
+  let carOrdinalToSave = vehicleToSave?.ordinal || 0;
+
+  if ((!carOrdinalToSave || carOrdinalToSave === 0) && hifiData.length > 0) {
+    for (const pt of hifiData) {
+      if (pt.carOrdinal !== undefined && pt.carOrdinal > 0) {
+        carOrdinalToSave = pt.carOrdinal;
+        break;
+      }
+      if (pt.car && pt.car.ordinal !== undefined && pt.car.ordinal > 0) {
+        carOrdinalToSave = pt.car.ordinal;
+        break;
+      }
+    }
+  }
+
+  if (carOrdinalToSave > 0) {
+    let carsDatabase = {};
+    const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
+    if (existsSync(carsDbPath)) {
+      try { carsDatabase = JSON.parse(readFileSync(carsDbPath, 'utf8')); } catch {}
+    }
+    const vehiclesPath = path.join(DATA_DIR, 'vehicles.json');
+    let vehiclesData = {};
+    if (existsSync(vehiclesPath)) {
+      try { vehiclesData = JSON.parse(readFileSync(vehiclesPath, 'utf8')); } catch {}
+    }
+
+    const vState = vehiclesData[String(carOrdinalToSave)] || {};
+    const carName = vehicleToSave?.name || vState.name || carsDatabase[String(carOrdinalToSave)] || `车辆 #${carOrdinalToSave}`;
+    const carClass = vehicleToSave?.class ?? vState.class ?? 0;
+    const carPI = vehicleToSave?.performanceIndex ?? vState.pi ?? 0;
+    const drivetrain = vehicleToSave?.drivetrain || vState.drivetrain || '';
+
+    vehicleToSave = {
+      ...(vehicleToSave || {}),
+      ordinal: Number(carOrdinalToSave),
+      name: carName,
+      class: carClass,
+      performanceIndex: carPI,
+      drivetrain: drivetrain
+    };
+  }
+
   const summaryData = {
     ...sessionDataMeta,
     trackId: finalTrackId, // 确保 trackId 正确关联
+    vehicle: vehicleToSave,
     summary: {
       dataCount: hifiData.length,
       positionCount: positions.length,

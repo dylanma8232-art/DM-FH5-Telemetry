@@ -663,7 +663,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       tags: prev.tags,
       notes: prev.notes,
       tuningCapabilities: mode === 'capability' ? {
-        alignment: false, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+        alignment: true, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
         transmission: 'none', gearCount: 6, brakes: false, differential: false,
         frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
       } : null
@@ -673,7 +673,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     dirtyParamsRef.current.clear()
     _setBuildMode(mode)  // 同步更新 ref，防止异步 effect 竞争
     refreshUpgradeShop(formData.vehicleId, {}, null, mode === 'capability' ? {
-      alignment: false, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+      alignment: true, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
       transmission: 'none', gearCount: 6, brakes: false, differential: false,
       frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
     } : null)

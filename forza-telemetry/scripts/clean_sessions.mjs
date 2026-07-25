@@ -126,18 +126,24 @@ async function main() {
       }
     }
 
-    if (session.vehicle) {
-      const ordinal = session.vehicle.ordinal;
-      if (ordinal && vehiclesData[ordinal]) {
-        const vInfo = vehiclesData[ordinal];
-        // 补全名字等信息
-        if (!session.vehicle.name || session.vehicle.name !== vInfo.name) {
-          session.vehicle.name = vInfo.name;
-          session.vehicle.class = vInfo.class;
-          session.vehicle.performanceIndex = vInfo.pi;
-          modified = true;
-          console.log(`[会话 ${session.id}] 车辆信息补全: Car #${ordinal} -> ${vInfo.name}`);
-        }
+    if (session.vehicle && session.vehicle.ordinal) {
+      const ordinal = String(session.vehicle.ordinal);
+      const vInfo = vehiclesData[ordinal] || {};
+      const carName = session.vehicle.name || vInfo.name || carsDatabase[ordinal] || `车辆 #${ordinal}`;
+      const carClass = session.vehicle.class ?? vInfo.class ?? 0;
+      const carPI = session.vehicle.performanceIndex ?? vInfo.pi ?? 0;
+      const drivetrain = session.vehicle.drivetrain || vInfo.drivetrain || '';
+
+      if (!session.vehicle.name || session.vehicle.name !== carName || session.vehicle.class !== carClass) {
+        session.vehicle = {
+          ordinal: Number(ordinal),
+          name: carName,
+          class: carClass,
+          performanceIndex: carPI,
+          drivetrain: drivetrain
+        };
+        modified = true;
+        console.log(`[会话 ${session.id}] 车辆信息补全: Car #${ordinal} -> ${carName}`);
       }
     } else {
       // console.log(`[会话 ${session.id}] 无车辆信息 (null)`);

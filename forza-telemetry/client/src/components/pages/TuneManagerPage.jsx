@@ -1590,7 +1590,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>原厂 PI（未改装）</span>
                           <div>
-                            {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
+                            {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.basePi || vehicles[formData.vehicleId]?.pi)}
                           </div>
                         </div>
 
@@ -2074,12 +2074,12 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>调校 PI</span>
-                      {renderPiBadge(solutionPi || upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
+                      {renderPiBadge(solutionPi || upgradeShop?.basePi || vehicles[formData.vehicleId]?.basePi || vehicles[formData.vehicleId]?.pi)}
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>原厂 PI（未改装）</span>
-                      {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.pi || vehicles[formData.vehicleId]?.basePi)}
+                      {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.basePi || vehicles[formData.vehicleId]?.pi)}
                     </div>
                   </div>
 
