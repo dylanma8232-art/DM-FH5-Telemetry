@@ -248,7 +248,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     // 如果是编辑模式加载，使用已保存的配件；否则用当前 formData.parts（可能是空的）
     const partsToLoad = pendingPartsRef.current !== null ? pendingPartsRef.current : formData.parts
     pendingPartsRef.current = null
-    const isCapabilityMode = _buildMode === 'capability'
+    const isCapabilityMode = buildModeRef.current === 'capability'
     refreshUpgradeShop(formData.vehicleId, partsToLoad, null, isCapabilityMode ? formData.tuningCapabilities : null)
   }, [formData.vehicleId])
 
@@ -862,27 +862,38 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const [highlightedParams, setHighlightedParams] = useState([])
 
   // Round 1: 获取当前推荐的默认值（嵌套路径格式）
+  // 使用 getInitialParameterRecommendations 作为推荐值来源，与页面首次生成推荐时逻辑一致
   const tuneDefaults = useMemo(() => {
-    if (!formData.parts) return {}
+    if (!upgradeShop || !formData.parts) return {}
     try {
-      const raw = getTuneDefaults(formData.parts, currentVehicleStats)
-      if (!raw) return {}
+      const mergedShop = {
+        ...upgradeShop,
+        targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
+        parts: formData.parts || upgradeShop.effectiveSelections,
+        capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
+        effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+      }
+      const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
+      if (!recommended) return {}
+      // 将 getInitialParameterRecommendations 的嵌套结构展平为 "category.field" key 映射
       const mapped = {}
-      for (const [flatKey, value] of Object.entries(raw)) {
-        const path = TUNE_DEFAULT_KEY_MAP[flatKey]
-        if (path) {
-          // 旧推荐表的胎压是 PSI；调校表单统一使用 bar。
-          const isTirePressure = flatKey === 'tire_pressure_front' || flatKey === 'tire_pressure_rear'
-          mapped[`${path[0]}.${path[1]}`] = isTirePressure && Number.isFinite(Number(value))
-            ? Number((Number(value) * 0.0689476).toFixed(1))
-            : value
+      const isGearKey = (cat, field) => cat === 'drivetrain' && (field.startsWith('gear') || field === 'finalDrive')
+      for (const [cat, fields] of Object.entries(recommended)) {
+        for (const [field, val] of Object.entries(fields || {})) {
+          if (val === undefined || val === null) continue
+          const isGear = isGearKey(cat, field)
+          // 齿比保留2位小数；其余参数限1位小数
+          const displayVal = typeof val === 'number'
+            ? Number(val.toFixed(isGear ? 2 : 1))
+            : val
+          mapped[`${cat}.${field}`] = displayVal
         }
       }
       return mapped
     } catch (e) {
       return {}
     }
-  }, [formData.parts, currentVehicleStats])
+  }, [upgradeShop, formData.parts, formData.tuningCapabilities, aiRaceType, segmentType, aiDriveType, targetPi, basePi])
 
   // Round 1: 重置单个参数为推荐值
   const resetParamToDefault = (category, field) => {
@@ -894,23 +905,26 @@ export function useTuneManager({ onNavigate, navIntent }) {
     }
   }
 
-  // Round 1: 重置所有参数为推荐值
+  // Round 1: 重置所有参数为推荐值（使用 getInitialParameterRecommendations 的结果，与首次生成时一致）
   const resetAllToDefaults = () => {
-    if (Object.keys(tuneDefaults).length === 0) return
-    setFormData(prev => {
-      const updated = { ...prev }
-      for (const category of ['tires', 'suspension', 'drivetrain', 'brakes', 'aero']) {
-        if (!updated[category]) continue
-        updated[category] = { ...updated[category] }
-        for (const field of Object.keys(updated[category])) {
-          const key = `${category}.${field}`
-          if (tuneDefaults[key] !== undefined) {
-            updated[category][field] = tuneDefaults[key]
-          }
-        }
-      }
-      return updated
-    })
+    if (!upgradeShop || Object.keys(tuneDefaults).length === 0) return
+    const mergedShop = {
+      ...upgradeShop,
+      targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
+      parts: formData.parts || upgradeShop.effectiveSelections,
+      capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
+      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+    }
+    const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
+    if (!recommended) return
+    setFormData(prev => ({
+      ...prev,
+      tires: { ...prev.tires, ...recommended.tires },
+      suspension: { ...prev.suspension, ...recommended.suspension },
+      drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
+      brakes: { ...prev.brakes, ...recommended.brakes },
+      aero: { ...prev.aero, ...recommended.aero }
+    }))
     dirtyParamsRef.current.clear()
   }
 
@@ -996,7 +1010,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       ...prev,
       parts: newParts
     }))
-    const isCapMode = _buildMode === 'capability'
+    const isCapMode = buildModeRef.current === 'capability'
     refreshUpgradeShop(formData.vehicleId, newParts, activeDriveType, isCapMode ? formData.tuningCapabilities : null)
   }
 
