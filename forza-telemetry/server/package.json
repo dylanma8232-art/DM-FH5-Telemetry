@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "npm rebuild better-sqlite3 --silent && node src/index.js",
+    "dev": "npm rebuild better-sqlite3 --silent && node --watch src/index.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "debug-udp": "node src/utils/listen-and-classify.js",
     "recompress": "node recompress-background.js"

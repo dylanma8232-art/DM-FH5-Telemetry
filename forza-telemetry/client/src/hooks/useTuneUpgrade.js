@@ -254,8 +254,12 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
         const step = Number(param.range.step);
         if (step > 0) {
           const steps = Math.round((val - min) / step);
-          const precision = id.includes('pressure') ? 1 : 2;
+          const isGearing = id === 'final_drive' || id.startsWith('gear_');
+          const precision = isGearing ? 2 : 1;
           val = Number((min + steps * step).toFixed(precision));
+        } else {
+          const isGearing = id === 'final_drive' || id.startsWith('gear_');
+          val = Number(val.toFixed(isGearing ? 2 : 1));
         }
       }
     }
