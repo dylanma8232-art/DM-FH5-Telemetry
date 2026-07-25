@@ -219,14 +219,20 @@ function buildCommonSlots(profile, selections) {
 }
 
 function buildTuneParameters(profile, selections, slots, declaredDriveType = null) {
-  // 胎压单位：bar（FH5 游戏内实际使用 bar，范围约 1.0~3.8 bar）
-  const parameters = [tune('tire_pressure_front', 1.0, 3.8, 0.01), tune('tire_pressure_rear', 1.0, 3.8, 0.01)];
+  // 胎压与车轮定位（FH5 游戏全车系出厂默认可调）
+  const parameters = [
+    tune('tire_pressure_front', 1.0, 3.8, 0.01),
+    tune('tire_pressure_rear', 1.0, 3.8, 0.01),
+    tune('tire_camber_front', -5, 5, 0.1),
+    tune('tire_camber_rear', -5, 5, 0.1),
+    tune('tire_toe_front', -5, 5, 0.1),
+    tune('tire_toe_rear', -5, 5, 0.1),
+    tune('caster_front', 1, 7, 0.1)
+  ];
   const selectedOption = slotId => slots.find(slot => slot.id === slotId)?.options.find(item => item.id === selections[slotId]?.optionId);
   const suspensionOption = selectedOption('suspension');
   if (suspensionOption?.adjustable || profile.stockAdjustableSuspension) {
     parameters.push(
-      tune('tire_camber_front', -5, 5, 0.1), tune('tire_camber_rear', -5, 5, 0.1),
-      tune('tire_toe_front', -5, 5, 0.1), tune('tire_toe_rear', -5, 5, 0.1), tune('caster_front', 1, 7, 0.1),
       // 未录入车辆级游戏范围时使用保守边界，禁止把占位范围插值成假推荐值。
       tune('spring_front', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'), tune('spring_rear', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'),
       tune('ride_height_front', 3, 20, 1, null, 'vehicle_specific_unknown'), tune('ride_height_rear', 3, 20, 1, null, 'vehicle_specific_unknown'),
@@ -266,7 +272,7 @@ function buildTuneParameters(profile, selections, slots, declaredDriveType = nul
 // 因而绝不能参与 PI 预测或自动选配件。范围仍由同一参数目录输出。
 export function resolveTuningCapabilities(profile, capabilities = {}, context = {}) {
   const normalized = {
-    alignment: capabilities.alignment === true,
+    alignment: capabilities.alignment !== false,
     suspension: capabilities.suspension === true,
     frontAntiRollBar: capabilities.frontAntiRollBar === true,
     rearAntiRollBar: capabilities.rearAntiRollBar === true,
@@ -279,7 +285,8 @@ export function resolveTuningCapabilities(profile, capabilities = {}, context = 
     driveType: ['fwd', 'rwd', 'awd'].includes(capabilities.driveType) ? capabilities.driveType : context.driveType
   };
   const slots = [
-    { id: 'suspension', options: [{ id: 'confirmed', adjustable: normalized.alignment || normalized.suspension }] },
+    { id: 'alignment', options: [{ id: 'confirmed', adjustable: normalized.alignment }] },
+    { id: 'suspension', options: [{ id: 'confirmed', adjustable: normalized.suspension }] },
     { id: 'anti_roll_bar_front', options: [{ id: 'confirmed', adjustable: normalized.frontAntiRollBar }] },
     { id: 'anti_roll_bar_rear', options: [{ id: 'confirmed', adjustable: normalized.rearAntiRollBar }] },
     { id: 'transmission', options: [{ id: normalized.transmission, adjustable: normalized.transmission === 'gears', adjustableFinalDrive: normalized.transmission !== 'none', gearCount: normalized.gearCount }] },

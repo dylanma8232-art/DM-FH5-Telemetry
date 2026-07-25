@@ -118,7 +118,10 @@ export function filterSessions(sessions, sessionSearchQuery, trackFilter) {
   const normalizedSearch = sessionSearchQuery.trim().toLowerCase();
   return sessions.filter(session => {
     const trackName = session.trackName || '未知赛道';
-    const matchSearch = !normalizedSearch || trackName.toLowerCase().includes(normalizedSearch);
+    const vehicleName = session.vehicle?.name || '';
+    const matchSearch = !normalizedSearch ||
+      trackName.toLowerCase().includes(normalizedSearch) ||
+      vehicleName.toLowerCase().includes(normalizedSearch);
     const matchTrack = !trackFilter || session.trackId === trackFilter || trackName === trackFilter;
     return matchSearch && matchTrack;
   });

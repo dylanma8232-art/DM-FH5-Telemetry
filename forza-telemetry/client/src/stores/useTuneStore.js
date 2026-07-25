@@ -25,7 +25,7 @@ export const useTuneStore = create((set, get) => ({
         api.vehicles.list(),
         api.vehicles.getCatalog()
       ])
-      // 调教中心必须可选择游戏完整车辆目录；已接收车辆的实时信息覆盖目录基础信息。
+      // 调教中心必须可选择游戏完整车辆目录；已接收车辆的实时信息覆盖目录基础信息，但保留原厂出厂 basePi。
       const directory = Object.fromEntries((catalog || []).map(vehicle => [String(vehicle.ordinal), {
         name: vehicle.name,
         manufacturer: vehicle.manufacturer,
@@ -33,7 +33,18 @@ export const useTuneStore = create((set, get) => ({
         pi: vehicle.basePi,
         catalogOnly: true
       }]))
-      set({ vehicles: { ...directory, ...(received || {}) } })
+
+      const mergedVehicles = { ...directory };
+      if (received && typeof received === 'object') {
+        Object.entries(received).forEach(([ord, vData]) => {
+          mergedVehicles[ord] = {
+            ...mergedVehicles[ord],
+            ...vData,
+            basePi: mergedVehicles[ord]?.basePi || vData.basePi || null
+          };
+        });
+      }
+      set({ vehicles: mergedVehicles })
     } catch (e) {
       // 加载车辆失败
     }

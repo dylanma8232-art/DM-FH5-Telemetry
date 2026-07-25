@@ -8,6 +8,13 @@ import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets';
 import { api } from '../../services/api';
 import { TrackThumbnail, InteractiveTrackMap } from './session/TrackMaps';
 
+const VEHICLE_CLASSES = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
+const formatVehicleClass = (cls) => {
+  if (typeof cls === 'string' && cls.trim() && cls !== '?') return cls;
+  if (typeof cls === 'number' && cls >= 0 && cls < VEHICLE_CLASSES.length) return VEHICLE_CLASSES[cls];
+  return '?';
+};
+
 const inputStyle = {
   width: '100%',
   padding: 8,
@@ -1140,7 +1147,9 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                   'X': { bg: 'rgba(255,123,114,0.15)', border: '#ff7b72', text: '#ff7b72' }
                 };
                 const cls = piColors[piClass] || { bg: 'rgba(255,255,255,0.04)', border: '#30363d', text: '#8b949e' };
-                const vehicle = analysis.vehicle;
+                const vOrd = analysis.vehicle?.ordinal || analysis.carOrdinal;
+                const vehicle = analysis.vehicle || (vOrd ? vehiclesList[vOrd] : null);
+                const vehicleName = vehicle?.name || (vOrd && vehiclesList[vOrd]?.name) || (vOrd ? `车辆 #${vOrd}` : '未知车辆');
                 return (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
@@ -1150,7 +1159,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 9, color: '#8b949e', marginBottom: 2 }}>当前赛车</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {vehicle?.name || `车辆 #${vehicle?.ordinal || '未知'}`}
+                        {vehicleName}
                       </div>
                       {vehicle?.drivetrain && (
                         <div style={{ fontSize: 9, color: '#8b949e', marginTop: 2 }}>驱动系统: {vehicle.drivetrain}</div>

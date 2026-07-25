@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateGearingAnalysis, calculateSuspensionAnalysis, calculateDifferentialAnalysis, generateTuneDiagnosis, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
 import { stateManager } from '../services/state-manager.js';
 import { loadSession, readTrackDetail, writeTrackDetail, deleteTrackDetail } from '../storage/session-db.js';
@@ -5,25 +6,13 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
+import { loadJSON } from '../utils/helpers.js';
 
 const router = express.Router();
 
-
-
 const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i - 1].x;
-    const dy = (pts[i].y || 0) - (pts[i - 1].y || 0);
-    const dz = pts[i].z - pts[i - 1].z;
-    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  return Math.round(len);
-};
+const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 
 // 赛后分析API
@@ -34,11 +23,50 @@ router.get('/:sessionId', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
+  let vehicle = session.vehicle || null;
+  let ordinalKey = vehicle?.ordinal || session.carOrdinal;
+
+  if ((!ordinalKey || ordinalKey <= 0) && session.savedAt && stateManager.vehicles) {
+    const sTime = new Date(session.savedAt).getTime();
+    let closestOrd = null;
+    let minDiff = Infinity;
+    Object.entries(stateManager.vehicles).forEach(([ord, vInfo]) => {
+      if (vInfo.lastUsed) {
+        const diff = Math.abs(new Date(vInfo.lastUsed).getTime() - sTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestOrd = ord;
+        }
+      }
+    });
+    if (closestOrd) {
+      ordinalKey = Number(closestOrd);
+    }
+  }
+
+  if (ordinalKey && ordinalKey > 0) {
+    const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+    const vehicleFromState = stateManager.vehicles ? stateManager.vehicles[String(ordinalKey)] : null;
+    const carName = vehicle?.name || vehicleFromState?.name || carsDatabase[String(ordinalKey)] || `车辆 #${ordinalKey}`;
+    const carClass = vehicle?.class ?? vehicleFromState?.class ?? 0;
+    const carPI = vehicle?.performanceIndex ?? vehicleFromState?.pi ?? 0;
+    const drivetrain = vehicle?.drivetrain || vehicleFromState?.drivetrain || '';
+
+    vehicle = {
+      ...(vehicle || {}),
+      ordinal: Number(ordinalKey),
+      name: carName,
+      class: carClass,
+      performanceIndex: carPI,
+      drivetrain: drivetrain
+    };
+  }
+
   const analysis = {
     sessionId: session.id,
     trackName: session.trackName || '未知赛道',
     trackId: session.trackId || null,
-    vehicle: session.vehicle || null,
+    vehicle: vehicle,
     date: session.savedAt,
 
     成绩: {
@@ -58,10 +86,6 @@ router.get('/:sessionId', asyncHandler(async (req, res) => {
   };
 
   res.json(analysis);
-
-
-
-
 }));
 
 
