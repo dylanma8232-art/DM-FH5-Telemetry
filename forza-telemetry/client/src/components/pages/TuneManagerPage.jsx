@@ -1939,34 +1939,54 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                                 marginTop: collapsedSections.has('differential') ? 0 : 8
                               }}>
                                 <div style={formGridStyle}>
-                                  {[
-                                    ['frontDiffAccel', '前差速器加速'], ['frontDiffDecel', '前差速器减速'],
-                                    ['rearDiffAccel', '后差速器加速'], ['rearDiffDecel', '后差速器减速']
-                                  ].map(([field, label]) => (
-                                    <NumberInput
-                                      key={field}
-                                      label={label}
-                                      value={formData.drivetrain[field]}
-                                      onChange={v => updateFormField('drivetrain', field, v)}
-                                      min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
-                                      max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
-                                      step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
-                                      unit="%"
-                                      locked={tuneConstraints[`drivetrain.${field}`]?.locked}
-                                      {...ni('drivetrain', field)}
-                                    />
-                                  ))}
-                                  <NumberInput
-                                    label="中央差速偏置"
-                                    value={formData.drivetrain.diffCenter}
-                                    onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
-                                    min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
-                                    max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
-                                    step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
-                                    unit="%"
-                                    locked={tuneConstraints['drivetrain.diffCenter']?.locked}
-                                    {...ni('drivetrain', 'diffCenter')}
-                                  />
+                                  {(() => {
+                                    const effectiveDrive = (formData.parts?.drivetrain_swap?.optionId || formData.tuningCapabilities?.driveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || 'rwd').toLowerCase();
+                                    const isAwd = effectiveDrive === 'awd';
+                                    const isFwd = effectiveDrive === 'fwd';
+                                    const isRwd = effectiveDrive === 'rwd';
+
+                                    const fields = [
+                                      ['frontDiffAccel', '前差速器加速', !isFwd && !isAwd, '仅前驱/四驱支持'],
+                                      ['frontDiffDecel', '前差速器减速', !isFwd && !isAwd, '仅前驱/四驱支持'],
+                                      ['rearDiffAccel', '后差速器加速', !isRwd && !isAwd, '仅后驱/四驱支持'],
+                                      ['rearDiffDecel', '后差速器减速', !isRwd && !isAwd, '仅后驱/四驱支持']
+                                    ];
+
+                                    return (
+                                      <>
+                                        {fields.map(([field, label, forceLocked, lockMsg]) => {
+                                          const isLocked = forceLocked || tuneConstraints[`drivetrain.${field}`]?.locked;
+                                          return (
+                                            <NumberInput
+                                              key={field}
+                                              label={label}
+                                              value={isLocked ? '' : formData.drivetrain[field]}
+                                              onChange={v => updateFormField('drivetrain', field, v)}
+                                              min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
+                                              max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
+                                              step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
+                                              unit="%"
+                                              locked={isLocked}
+                                              lockedHint={forceLocked ? lockMsg : tuneConstraints[`drivetrain.${field}`]?.lockedHint}
+                                              {...ni('drivetrain', field)}
+                                            />
+                                          );
+                                        })}
+                                        <NumberInput
+                                          label="中央差速偏置"
+                                          value={!isAwd ? '' : formData.drivetrain.diffCenter}
+                                          onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
+                                          min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
+                                          max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
+                                          step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
+                                          unit="%"
+                                          locked={!isAwd || tuneConstraints['drivetrain.diffCenter']?.locked}
+                                          lockedHint={!isAwd ? '仅四驱车型支持' : tuneConstraints['drivetrain.diffCenter']?.lockedHint}
+                                          {...ni('drivetrain', 'diffCenter')}
+                                        />
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>

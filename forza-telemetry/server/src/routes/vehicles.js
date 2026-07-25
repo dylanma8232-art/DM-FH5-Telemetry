@@ -95,8 +95,8 @@ router.get('/:id/upgrades', (req, res) => {
   } catch (_) {
     return res.status(400).json({ error: '可调项目参数格式无效。' });
   }
-  const resolved = resolveUpgradeProfile(profile, selections, { driveType, basePi });
-  const capabilityResult = capabilities && typeof capabilities === 'object'
+  const hasPartsSelections = req.query.selections && req.query.selections !== '{}' && req.query.selections !== 'null';
+  const capabilityResult = (capabilities && typeof capabilities === 'object' && !hasPartsSelections)
     ? resolveTuningCapabilities(profile, capabilities, { driveType })
     : null;
   res.json({
