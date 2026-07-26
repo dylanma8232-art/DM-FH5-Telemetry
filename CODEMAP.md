@@ -79,6 +79,7 @@
   - 📂 **test/**
     - 📄 [api.test.js](file:///forza-telemetry/client/test/api.test.js)
   - 📄 [vite.config.js](file:///forza-telemetry/client/vite.config.js)  *(默认导出: `defineConfig`)*
+- 📄 [data.zip](file:///forza-telemetry/data.zip)
 - 📂 **docs/**
   - 📄 [ARCHITECTURE_BOUNDARIES.md](file:///forza-telemetry/docs/ARCHITECTURE_BOUNDARIES.md)
   - 📄 [TRACK_AND_ROUTEBOOK_WORKFLOW.md](file:///forza-telemetry/docs/TRACK_AND_ROUTEBOOK_WORKFLOW.md)

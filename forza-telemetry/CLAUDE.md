@@ -771,3 +771,19 @@ toast('合并成功', 'success');
 
 > [!NOTE]
 > 车身高度 `cm` 单位原本已正确，本次无需修改。
+
+---
+
+### 11.8 赛道即时保存与调教工坊硬件清单解算深度修复（2026-07-26 优化/修复）
+
+1. **赛道保存与合并即时列表更新优化**：
+   - **服务端即时响应**：将 `POST /api/tracks/merge` 改造为 20ms 内优先写入 `stateManager.tracks` 内存数据库与存盘，并触发 Socket.io 的 `trackUpdated` 和 `trackDeleted` 广播；耗时的 RDP 简化、高精中心线提取与弯道路书构建全量移至后台 `setImmediate` 异步线程处理。
+   - **前端即时交互**：`TrackManagerPage` 接入 Socket 实时监听，合并指令发出后赛道瞬间在列表中上架并选中，用户无需等待地图渲染，可第一时间直接修改赛道名称。
+
+2. **调教工坊硬件清单与参数推荐解算重构**：
+   - **后端协议归一化兼容**：在 `resolveTuningCapabilities` 中引入了兼容映射层，统一将前端发来的 `springs`, `antiRollBars`, `aero`, `transmission` 等结构映射为后端的精准可调标识。
+   - **解除路由屏蔽门禁**：修正了 `GET /api/vehicles/:id/upgrades` 中 `!hasPartsSelections` 的硬性约束，实现了配件解算与清单解算的并集合并。
+   - **重构 `buildTuneParameters` 动态解算**：增加 `isAdjustable` 检测，不论通过选装配件还是清单能力声明，均能正确解算出全套 33 个核心参数与 `gear_1`~`gear_10` 档位。
+   - **修补前端齿轮比推荐值属性名**：在 `getInitialParameterRecommendations` 中修复了档位推荐键名缺少 `gear1`（无下划线）绑定的 Bug，确保齿轮比推荐值完美填入 UI 表单。
+
+---

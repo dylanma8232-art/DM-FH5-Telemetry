@@ -152,7 +152,7 @@ export default function App() {
             {activeTab === 'dashboard' && (
               <DashboardPage socket={socket} connected={connected} packetCount={packetCount} />
             )}
-            {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} />}
+            {activeTab === 'tracks' && <TrackManagerPage onNavigate={navigateTo} socket={socket} />}
             {activeTab === 'sessions' && <SessionHistoryPage onNavigate={navigateTo} navIntent={navIntent} />}
             {activeTab === 'vehicles' && <VehicleManagerPage onNavigate={navigateTo} navIntent={navIntent} socket={socket} />}
             {activeTab === 'tunes' && <TuneManagerPage onNavigate={navigateTo} navIntent={navIntent} />}

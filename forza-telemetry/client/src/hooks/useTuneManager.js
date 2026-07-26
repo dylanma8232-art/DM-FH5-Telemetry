@@ -1001,7 +1001,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setTimeout(() => { setUnlockToast(null); setHighlightedParams([]) }, 4000)
     }
 
-    const activeDriveType = categoryId === 'drivetrain_swap' ? optionId : (newParts.drivetrain_swap?.optionId || aiDriveType)
+    // driveType 参数只用于缺少车型原厂资料时的回退，不能把玩家的置换选择
+    // 当成原厂驱动传回服务端，否则服务端会把该选项视为冗余并清回原厂。
+    const activeDriveType = null
     if (categoryId === 'drivetrain_swap' && optionId) {
       setAiDriveType(optionId)
     }

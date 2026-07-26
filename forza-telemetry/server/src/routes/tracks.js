@@ -392,7 +392,7 @@ router.put('/:id/turns/:index/bounds', express.json(), asyncHandler(async (req, 
 
 }));
 
-// 合并赛道：将源赛道的轨迹合并到目标赛道
+// 合并赛道：将源赛道的轨迹合并到目标赛道 (即时响应，异步处理重型几何)
 router.post('/merge', express.json(), asyncHandler(async (req, res) => {
   const { sourceTrackId, targetTrackId } = req.body;
 
@@ -403,7 +403,6 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
   if (!stateManager.tracks[sourceTrackId] || !stateManager.tracks[targetTrackId]) {
     return res.status(404).json({ error: 'Track not found' });
   }
-
 
   let sourceDetail = readTrackDetail(sourceTrackId);
   if (!sourceDetail) {
@@ -419,92 +418,124 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
   const targetTrajectories = targetDetail.trajectories || [targetDetail.points || []];
   const rawMerged = [...targetTrajectories, ...sourceTrajectories];
 
-  const mergedTrajectories = rawMerged.map((traj) => simplifyRDP(traj, 0.25));
+  // 1. 优先立即更新内存数据库与列表状态（毫秒级）
+  deleteTrackDetail(sourceTrackId);
+  delete stateManager.tracks[sourceTrackId];
 
-  const trackData = buildTrackFromTrajectories(mergedTrajectories, {
-    oldTurns: targetDetail.turns || [],
-    isPaceNoteLocked: targetDetail.isPaceNoteLocked || false,
-    deletedTurns: targetDetail.deletedTurns || []
-  });
-
-  targetDetail.trajectories = mergedTrajectories;
-  targetDetail.trajectoryCount = mergedTrajectories.length;
+  targetDetail.trajectories = rawMerged;
+  targetDetail.trajectoryCount = rawMerged.length;
   targetDetail.updatedAt = new Date().toISOString();
 
-  if (trackData) {
-    targetDetail.points = trackData.centerline;
-    targetDetail.centerline = trackData.centerline;
-    targetDetail.turns = trackData.turns;
-    targetDetail.length = trackData.length;
-    targetDetail.isLoop = trackData.isLoop || false;
-    targetDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
-    targetDetail.routeBook = trackData.routeBook;
-    targetDetail.referenceGeometry = {
-      ...trackData.geometry,
-      status: 'active',
-      revision: (targetDetail.referenceGeometry?.revision || 0) + 1,
-      activatedAt: new Date().toISOString()
-    };
-    delete targetDetail.geometryCandidate;
-  }
-
-  deleteTrackDetail(sourceTrackId);
-
-  writeTrackDetail(targetTrackId, targetDetail);
-
-  delete stateManager.tracks[sourceTrackId];
   stateManager.tracks[targetTrackId] = {
     id: targetTrackId,
     name: targetDetail.name || '未命名赛道',
     length: targetDetail.length || 0,
     pointCount: targetDetail.points ? targetDetail.points.length : 0,
     turnCount: targetDetail.turns ? targetDetail.turns.length : 0,
-    trajectoryCount: mergedTrajectories.length,
+    trajectoryCount: rawMerged.length,
     isLoop: targetDetail.isLoop || false,
     createdAt: targetDetail.createdAt || (stateManager.tracks[targetTrackId] ? stateManager.tracks[targetTrackId].createdAt : null) || new Date().toISOString(),
     updatedAt: targetDetail.updatedAt
   };
   saveTracksDatabase(stateManager.tracks);
 
-  try {
-    const sessionsDir = DATA_DIR + '/sessions';
-    if (fs.existsSync(sessionsDir)) {
-      const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
-      let updatedCount = 0;
-      const targetName = targetDetail.name || '未命名赛道';
-      sessionFiles.forEach((file) => {
-        try {
-          const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
-          if (session.trackId === sourceTrackId) {
-            session.trackId = targetTrackId;
-            session.trackName = targetName;
-            saveJSON(sessionsDir + '/' + file, session);
-            updatedCount++;
-            stateManager.incrementSessionCount(targetTrackId);
-            stateManager.decrementSessionCount(sourceTrackId);
-          }
-        } catch (e) {
-
-          // ignore
-        }});
-      if (updatedCount > 0) {
-        console.log(`已将 ${updatedCount} 个会话的赛道关联从 ${sourceTrackId} 合并至 ${targetTrackId}`);
-      }
-    }
-  } catch (e) {
-    console.error('合并赛道同步更新会话失败:', e.message);
+  // 立即推送 Socket 广播，通知前端更新列表
+  if (stateManager.io) {
+    stateManager.io.emit('trackDeleted', { trackId: sourceTrackId });
+    stateManager.io.emit('trackUpdated', { trackId: targetTrackId, name: stateManager.tracks[targetTrackId].name });
   }
 
+  // 2. 立即响应客户端，解锁 UI
   res.json({
     status: 'ok',
     targetTrackId: targetTrackId,
-    trajectoryCount: mergedTrajectories.length,
-    trackLength: targetDetail.length || 0
+    trajectoryCount: rawMerged.length,
+    trackLength: targetDetail.length || 0,
+    processing: true
   });
 
+  // 3. 后台异步执行高耗时中心线、弯道路书计算与文件持久化
+  setImmediate(async () => {
+    try {
+      const mergedTrajectories = rawMerged.map((traj) => simplifyRDP(traj, 0.25));
 
+      const trackData = buildTrackFromTrajectories(mergedTrajectories, {
+        oldTurns: targetDetail.turns || [],
+        isPaceNoteLocked: targetDetail.isPaceNoteLocked || false,
+        deletedTurns: targetDetail.deletedTurns || []
+      });
 
+      // 重新从内存中获取 targetDetail，防止用户在异步计算期间修改了赛道名称
+      const currentTargetDetail = readTrackDetail(targetTrackId) || targetDetail;
+      currentTargetDetail.trajectories = mergedTrajectories;
+      currentTargetDetail.trajectoryCount = mergedTrajectories.length;
+      currentTargetDetail.updatedAt = new Date().toISOString();
 
+      if (trackData) {
+        currentTargetDetail.points = trackData.centerline;
+        currentTargetDetail.centerline = trackData.centerline;
+        currentTargetDetail.turns = trackData.turns;
+        currentTargetDetail.length = trackData.length;
+        currentTargetDetail.isLoop = trackData.isLoop || false;
+        currentTargetDetail.sectors = generateSectors(trackData.centerline, trackData.turns);
+        currentTargetDetail.routeBook = trackData.routeBook;
+        currentTargetDetail.referenceGeometry = {
+          ...trackData.geometry,
+          status: 'active',
+          revision: (currentTargetDetail.referenceGeometry?.revision || 0) + 1,
+          activatedAt: new Date().toISOString()
+        };
+        delete currentTargetDetail.geometryCandidate;
+      }
+
+      writeTrackDetail(targetTrackId, currentTargetDetail);
+
+      if (stateManager.tracks[targetTrackId]) {
+        stateManager.tracks[targetTrackId] = {
+          ...stateManager.tracks[targetTrackId],
+          length: currentTargetDetail.length || 0,
+          pointCount: currentTargetDetail.points ? currentTargetDetail.points.length : 0,
+          turnCount: currentTargetDetail.turns ? currentTargetDetail.turns.length : 0,
+          trajectoryCount: mergedTrajectories.length,
+          isLoop: currentTargetDetail.isLoop || false,
+          updatedAt: currentTargetDetail.updatedAt
+        };
+        saveTracksDatabase(stateManager.tracks);
+      }
+
+      // 同步更新关联的 sessions
+      const sessionsDir = DATA_DIR + '/sessions';
+      if (fs.existsSync(sessionsDir)) {
+        const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+        let updatedCount = 0;
+        const targetName = stateManager.tracks[targetTrackId]?.name || currentTargetDetail.name || '未命名赛道';
+        sessionFiles.forEach((file) => {
+          try {
+            const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
+            if (session.trackId === sourceTrackId) {
+              session.trackId = targetTrackId;
+              session.trackName = targetName;
+              saveJSON(sessionsDir + '/' + file, session);
+              updatedCount++;
+              stateManager.incrementSessionCount(targetTrackId);
+              stateManager.decrementSessionCount(sourceTrackId);
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+        if (updatedCount > 0) {
+          console.log(`[后台异步] 已将 ${updatedCount} 个会话的赛道关联从 ${sourceTrackId} 合并至 ${targetTrackId}`);
+        }
+      }
+
+      if (stateManager.io) {
+        stateManager.io.emit('trackUpdated', { trackId: targetTrackId, name: stateManager.tracks[targetTrackId]?.name });
+      }
+    } catch (err) {
+      console.error('[后台异步] 合并赛道后台几何计算失败:', err.message);
+    }
+  });
 }));
 
 // 合并相邻弯道并重新计算几何属性
