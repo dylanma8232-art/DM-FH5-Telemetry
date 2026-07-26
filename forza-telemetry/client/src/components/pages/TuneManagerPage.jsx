@@ -1602,14 +1602,14 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
-                              updatePartSelection('drivetrain_swap', 'stock', dt);
+                              updatePartSelection('drivetrain_swap', 'stock', dt === baseDriveType ? 'stock' : dt);
                               updateTuningCapabilities({ driveType: dt });
                             }}
                             style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: 11 }}
                           >
-                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? ' (原厂)' : ''}</option>
-                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? ' (原厂)' : ''}</option>
-                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? ' (原厂)' : ''}</option>
+                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? '（原厂）' : ''}</option>
+                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? '（原厂）' : ''}</option>
+                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? '（原厂）' : ''}</option>
                           </select>
                         </div>
 
@@ -1940,7 +1940,11 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               }}>
                                 <div style={formGridStyle}>
                                   {(() => {
-                                    const effectiveDrive = (formData.parts?.drivetrain_swap?.optionId || formData.tuningCapabilities?.driveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || 'rwd').toLowerCase();
+                                    const selectedDriveSwap = formData.parts?.drivetrain_swap?.optionId;
+                                    const effectiveDrive = (
+                                      ['fwd', 'rwd', 'awd'].includes(selectedDriveSwap) ? selectedDriveSwap :
+                                        formData.tuningCapabilities?.driveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || 'rwd'
+                                    ).toLowerCase();
                                     const isAwd = effectiveDrive === 'awd';
                                     const isFwd = effectiveDrive === 'fwd';
                                     const isRwd = effectiveDrive === 'rwd';
@@ -2165,14 +2169,14 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             onChange={e => {
                               const dt = e.target.value;
                               setAiDriveType(dt);
-                              updatePartSelection('drivetrain_swap', 'stock', dt);
+                              updatePartSelection('drivetrain_swap', 'stock', dt === baseDriveType ? 'stock' : dt);
                               updateTuningCapabilities({ driveType: dt });
                             }}
                             style={inputStyle}
                           >
-                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? ' (原厂)' : ''}</option>
-                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? ' (原厂)' : ''}</option>
-                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? ' (原厂)' : ''}</option>
+                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? '（原厂）' : ''}</option>
+                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? '（原厂）' : ''}</option>
+                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? '（原厂）' : ''}</option>
                           </select>
                         </div>
 

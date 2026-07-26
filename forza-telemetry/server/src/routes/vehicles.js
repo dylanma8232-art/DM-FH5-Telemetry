@@ -95,15 +95,26 @@ router.get('/:id/upgrades', (req, res) => {
   } catch (_) {
     return res.status(400).json({ error: '可调项目参数格式无效。' });
   }
-  const hasPartsSelections = req.query.selections && req.query.selections !== '{}' && req.query.selections !== 'null';
   const resolved = resolveUpgradeProfile(profile, selections, { driveType });
-  const capabilityResult = (capabilities && typeof capabilities === 'object' && !hasPartsSelections)
+  const capabilityResult = (capabilities && typeof capabilities === 'object')
     ? resolveTuningCapabilities(profile, capabilities, { driveType })
     : null;
+
+  // 合并与解算 tuneParameters：取配件解算和清单能力解算的并集，确保无论通过配件还是清单声明解锁的项目都能被前端感知
+  let mergedParameters = resolved.tuneParameters || [];
+  if (capabilityResult?.tuneParameters?.length) {
+    const paramMap = new Map(mergedParameters.map(p => [p.id, p]));
+    for (const p of capabilityResult.tuneParameters) {
+      paramMap.set(p.id, { ...(paramMap.get(p.id) || {}), ...p });
+    }
+    mergedParameters = Array.from(paramMap.values());
+  }
+
   res.json({
     vehicleId,
     ...resolved,
-    ...(capabilityResult ? { tuningCapabilities: capabilityResult.capabilities, tuneParameters: capabilityResult.tuneParameters } : {})
+    tuneParameters: mergedParameters,
+    ...(capabilityResult ? { tuningCapabilities: capabilityResult.capabilities } : {})
   });
 });
 

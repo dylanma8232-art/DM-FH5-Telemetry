@@ -229,61 +229,124 @@ function buildTuneParameters(profile, selections, slots, declaredDriveType = nul
     tune('tire_toe_rear', -5, 5, 0.1),
     tune('caster_front', 1, 7, 0.1)
   ];
-  const selectedOption = slotId => slots.find(slot => slot.id === slotId)?.options.find(item => item.id === selections[slotId]?.optionId);
-  const suspensionOption = selectedOption('suspension');
-  if (suspensionOption?.adjustable || profile.stockAdjustableSuspension) {
+
+  // 辅助检测：支持兼顾配件选装模式（selections[slotId].optionId）与能力清单声明模式（slots[slotId].options.adjustable）
+  const isAdjustable = (slotId, checkProperty = 'adjustable') => {
+    const slot = slots.find(s => s.id === slotId);
+    if (!slot) return false;
+    const selected = slot.options?.find(item => item.id === selections[slotId]?.optionId);
+    if (selected && selected[checkProperty]) return true;
+    return (slot.options || []).some(opt => opt[checkProperty] === true);
+  };
+
+  // 1. 悬挂与弹簧/阻尼解算
+  if (isAdjustable('suspension') || profile.stockAdjustableSuspension) {
     parameters.push(
-      // 未录入车辆级游戏范围时使用保守边界，禁止把占位范围插值成假推荐值。
-      tune('spring_front', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'), tune('spring_rear', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'),
-      tune('ride_height_front', 3, 20, 1, null, 'vehicle_specific_unknown'), tune('ride_height_rear', 3, 20, 1, null, 'vehicle_specific_unknown'),
+      tune('spring_front', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'),
+      tune('spring_rear', 0.1, 200, 0.1, null, 'vehicle_specific_unknown'),
+      tune('ride_height_front', 3, 20, 1, null, 'vehicle_specific_unknown'),
+      tune('ride_height_rear', 3, 20, 1, null, 'vehicle_specific_unknown'),
       tune('rebound_front', 1, 20, 0.1), tune('rebound_rear', 1, 20, 0.1),
       tune('bump_front', 1, 20, 0.1), tune('bump_rear', 1, 20, 0.1)
     );
   }
-  if (selectedOption('anti_roll_bar_front')?.adjustable || profile.stockAdjustableAntiRollBarFront) parameters.push(tune('arb_front', 1, 65, 0.1));
-  if (selectedOption('anti_roll_bar_rear')?.adjustable || profile.stockAdjustableAntiRollBarRear) parameters.push(tune('arb_rear', 1, 65, 0.1));
-  const transmissionId = selections.transmission?.optionId || 'stock';
-  const transmissionOption = selectedOption('transmission');
-  const fullyAdjustableTransmission = transmissionOption?.adjustable === true;
-  if (transmissionOption?.adjustableFinalDrive || fullyAdjustableTransmission || profile.stockAdjustableTransmission) parameters.push(tune('final_drive', 1, 6, 0.01));
-  if (fullyAdjustableTransmission) {
-    const gearCount = slots.find(slot => slot.id === 'transmission')?.options.find(item => item.id === transmissionId)?.gearCount || 6;
-    for (let gear = 1; gear <= gearCount; gear++) parameters.push(tune(`gear_${gear}`, 0.5, 6, 0.01, null, 'vehicle_specific_unknown'));
+
+  // 2. 防倾杆解算
+  if (isAdjustable('anti_roll_bar_front') || profile.stockAdjustableAntiRollBarFront) parameters.push(tune('arb_front', 1, 65, 0.1));
+  if (isAdjustable('anti_roll_bar_rear') || profile.stockAdjustableAntiRollBarRear) parameters.push(tune('arb_rear', 1, 65, 0.1));
+
+  // 3. 变速箱/终传比与各档位齿轮比解算
+  const isFinalDriveAdjustable = isAdjustable('transmission', 'adjustableFinalDrive') || isAdjustable('transmission', 'adjustable') || profile.stockAdjustableTransmission;
+  if (isFinalDriveAdjustable) {
+    parameters.push(tune('final_drive', 1, 6, 0.01));
   }
-  if (selectedOption('brakes')?.adjustable || profile.stockAdjustableBrakes) {
+
+  const isGearsAdjustable = isAdjustable('transmission', 'adjustable') || profile.stockAdjustableTransmission;
+  if (isGearsAdjustable) {
+    const transSlot = slots.find(slot => slot.id === 'transmission');
+    const selectedOpt = transSlot?.options?.find(item => item.id === selections.transmission?.optionId);
+    const firstOptWithGear = transSlot?.options?.find(item => item.gearCount);
+    const gearCount = selectedOpt?.gearCount || firstOptWithGear?.gearCount || 6;
+    for (let gear = 1; gear <= gearCount; gear++) {
+      parameters.push(tune(`gear_${gear}`, 0.5, 6, 0.01, null, 'vehicle_specific_unknown'));
+    }
+  }
+
+  // 4. 刹车解算
+  if (isAdjustable('brakes') || profile.stockAdjustableBrakes) {
     parameters.push(tune('brake_balance', 0, 100, 1), tune('brake_pressure', 20, 200, 1));
   }
-  if (selectedOption('differential')?.adjustable || profile.stockAdjustableDifferential) {
+
+  // 5. 差速器解算（结合当前驱动形式出解）
+  if (isAdjustable('differential') || profile.stockAdjustableDifferential) {
     const driveSwap = slots.find(slot => slot.id === 'drivetrain_swap')?.options
       ?.find(item => item.id === selections.drivetrain_swap?.optionId);
-    const currentDriveType = driveSwap?.driveType || declaredDriveType || profile.baseDriveType;
-    if (currentDriveType === 'fwd' || currentDriveType === 'awd') parameters.push(tune('diff_front_accel', 0, 100, 1), tune('diff_front_decel', 0, 100, 1));
-    if (currentDriveType === 'rwd' || currentDriveType === 'awd') parameters.push(tune('diff_rear_accel', 0, 100, 1), tune('diff_rear_decel', 0, 100, 1));
-    if (currentDriveType === 'awd') parameters.push(tune('diff_center', 0, 100, 1));
+    const currentDriveType = (driveSwap?.driveType || declaredDriveType || profile.baseDriveType || 'awd').toLowerCase();
+    if (currentDriveType === 'fwd' || currentDriveType === 'awd') {
+      parameters.push(tune('diff_front_accel', 0, 100, 1), tune('diff_front_decel', 0, 100, 1));
+    }
+    if (currentDriveType === 'rwd' || currentDriveType === 'awd') {
+      parameters.push(tune('diff_rear_accel', 0, 100, 1), tune('diff_rear_decel', 0, 100, 1));
+    }
+    if (currentDriveType === 'awd') {
+      parameters.push(tune('diff_center', 0, 100, 1));
+    }
   }
-  const frontAero = slots.find(slot => slot.id === 'front_aero')?.options.find(item => item.id === selections.front_aero?.optionId);
-  const rearAero = slots.find(slot => slot.id === 'rear_aero')?.options.find(item => item.id === selections.rear_aero?.optionId);
-  if (frontAero?.adjustable || profile.stockAdjustableAeroFront) parameters.push(tune('downforce_front', 0, 1000, 1, null, 'vehicle_specific_unknown'));
-  if (rearAero?.adjustable || profile.stockAdjustableAeroRear) parameters.push(tune('downforce_rear', 0, 1000, 1, null, 'vehicle_specific_unknown'));
+
+  // 6. 空气下压力解算
+  if (isAdjustable('front_aero') || profile.stockAdjustableAeroFront) parameters.push(tune('downforce_front', 0, 1000, 1, null, 'vehicle_specific_unknown'));
+  if (isAdjustable('rear_aero') || profile.stockAdjustableAeroRear) parameters.push(tune('downforce_rear', 0, 1000, 1, null, 'vehicle_specific_unknown'));
+
   return parameters;
 }
 
 // 调教工坊的能力声明不等同于改装清单：它只记录玩家已在游戏中确认可调的项目，
 // 因而绝不能参与 PI 预测或自动选配件。范围仍由同一参数目录输出。
 export function resolveTuningCapabilities(profile, capabilities = {}, context = {}) {
+  const caps = capabilities || {};
+
+  // 1. 悬挂/弹簧归一化：支持 suspension: true 或 springs: 'race'/'sport'/'street'/true
+  const isSuspensionAdjustable = caps.suspension === true ||
+    caps.springs === 'race' || caps.springs === 'sport' || caps.springs === 'street' || caps.springs === true;
+
+  // 2. 防倾杆归一化：支持 frontAntiRollBar/rearAntiRollBar 为 true，或 antiRollBars 为 'both'/'front'/'rear'/true
+  const isFrontArbAdjustable = caps.frontAntiRollBar === true ||
+    caps.antiRollBars === 'both' || caps.antiRollBars === 'front' || caps.antiRollBars === true;
+  const isRearArbAdjustable = caps.rearAntiRollBar === true ||
+    caps.antiRollBars === 'both' || caps.antiRollBars === 'rear' || caps.antiRollBars === true;
+
+  // 3. 空气下压力归一化：支持 frontAero/rearAero 为 true，或 aero 为 'both'/'front'/'rear'/true
+  const isFrontAeroAdjustable = caps.frontAero === true ||
+    caps.aero === 'both' || caps.aero === 'front' || caps.aero === true;
+  const isRearAeroAdjustable = caps.rearAero === true ||
+    caps.aero === 'both' || caps.aero === 'rear' || caps.aero === true;
+
+  // 4. 变速箱/齿轮比归一化：支持 'gears'/'race'/'both'/true (全齿轮可调)，'finalDrive'/'sport' (仅终传比可调)
+  let transmissionMode = 'none';
+  if (['gears', 'race', 'both'].includes(caps.transmission) || caps.transmission === true) {
+    transmissionMode = 'gears';
+  } else if (['finalDrive', 'sport'].includes(caps.transmission)) {
+    transmissionMode = 'finalDrive';
+  }
+
+  // 5. 刹车与差速器归一化
+  const isBrakesAdjustable = caps.brakes === true || caps.brake === true;
+  const isDifferentialAdjustable = caps.differential === true || caps.diff === true;
+
   const normalized = {
-    alignment: capabilities.alignment !== false,
-    suspension: capabilities.suspension === true,
-    frontAntiRollBar: capabilities.frontAntiRollBar === true,
-    rearAntiRollBar: capabilities.rearAntiRollBar === true,
-    transmission: capabilities.transmission === 'gears' ? 'gears' : (capabilities.transmission === 'finalDrive' ? 'finalDrive' : 'none'),
-    gearCount: Math.max(4, Math.min(10, Number(capabilities.gearCount) || 6)),
-    brakes: capabilities.brakes === true,
-    differential: capabilities.differential === true,
-    frontAero: capabilities.frontAero === true,
-    rearAero: capabilities.rearAero === true,
-    driveType: ['fwd', 'rwd', 'awd'].includes(capabilities.driveType) ? capabilities.driveType : context.driveType
+    alignment: caps.alignment !== false,
+    suspension: isSuspensionAdjustable,
+    frontAntiRollBar: isFrontArbAdjustable,
+    rearAntiRollBar: isRearArbAdjustable,
+    transmission: transmissionMode,
+    gearCount: Math.max(4, Math.min(10, Number(caps.gearCount) || 6)),
+    brakes: isBrakesAdjustable,
+    differential: isDifferentialAdjustable,
+    frontAero: isFrontAeroAdjustable,
+    rearAero: isRearAeroAdjustable,
+    driveType: ['fwd', 'rwd', 'awd'].includes(caps.driveType) ? caps.driveType : context.driveType
   };
+
   const slots = [
     { id: 'alignment', options: [{ id: 'confirmed', adjustable: normalized.alignment }] },
     { id: 'suspension', options: [{ id: 'confirmed', adjustable: normalized.suspension }] },
@@ -295,12 +358,14 @@ export function resolveTuningCapabilities(profile, capabilities = {}, context = 
     { id: 'front_aero', options: [{ id: 'confirmed', adjustable: normalized.frontAero }] },
     { id: 'rear_aero', options: [{ id: 'confirmed', adjustable: normalized.rearAero }] }
   ];
+
   const selections = Object.fromEntries(slots.map(slot => [slot.id, { optionId: slot.options[0].id }]));
   const profileWithoutStockUnlocks = {
     ...(profile || {}), stockAdjustableSuspension: false, stockAdjustableAntiRollBarFront: false,
     stockAdjustableAntiRollBarRear: false, stockAdjustableTransmission: false, stockAdjustableBrakes: false,
     stockAdjustableDifferential: false, stockAdjustableAeroFront: false, stockAdjustableAeroRear: false
   };
+
   return { capabilities: normalized, tuneParameters: buildTuneParameters(profileWithoutStockUnlocks, selections, slots, normalized.driveType) };
 }
 
@@ -404,7 +469,12 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   const slots = [...mergedSpecialSlots, ...commonSlots.filter(slot => !specialIds.has(slot.id))];
 
   // Dynamically update 'stock' option label for 'drivetrain_swap' and filter out redundant options
-  const finalBaseDriveType = (context.driveType || profile?.baseDriveType || 'awd').toLowerCase();
+  // 原厂驱动必须由车辆档案决定；context.driveType 仅供缺少档案时回退。
+  // 不能用玩家当前置换的驱动覆盖它，否则该置换会被误判为“原厂冗余项”。
+  const profileBaseDriveType = String(profile?.baseDriveType || '').toLowerCase();
+  const finalBaseDriveType = ['fwd', 'rwd', 'awd'].includes(profileBaseDriveType)
+    ? profileBaseDriveType
+    : (context.driveType || 'awd').toLowerCase();
   const driveTypeLabels = { fwd: '原厂 (前驱)', rwd: '原厂 (后驱)', awd: '原厂 (四驱)' };
   const driveTypeLabel = driveTypeLabels[finalBaseDriveType] || '原厂';
   const driveSwapSlot = slots.find(slot => slot.id === 'drivetrain_swap');

@@ -141,8 +141,11 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
       const progress = (g - 1) / Math.max(1, gCount - 1);
       // 几何等比平滑曲线插值
       const ratio = startRatio * Math.pow(endRatio / startRatio, progress);
-      dynamicGears[`gear_${g}`] = Number(ratio.toFixed(2));
+      const val = Number(ratio.toFixed(2));
+      dynamicGears[`gear${g}`] = val;
+      dynamicGears[`gear_${g}`] = val;
     } else {
+      dynamicGears[`gear${g}`] = 0.55;
       dynamicGears[`gear_${g}`] = 0.55;
     }
   }
@@ -272,7 +275,7 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
       suspension[field === 'spring_front' ? 'frontSpring' : field === 'spring_rear' ? 'rearSpring' : field === 'rebound_front' ? 'frontRebound' : field === 'rebound_rear' ? 'rearRebound' : field === 'bump_front' ? 'frontBump' : field === 'bump_rear' ? 'rearBump' : field === 'arb_front' ? 'frontARB' : field === 'arb_rear' ? 'rearARB' : field === 'ride_height_front' ? 'frontRideHeight' : 'rearRideHeight'] = val;
     } else if (id.startsWith('diff_') || id === 'final_drive' || id.startsWith('gear_')) {
       const field = id;
-      drivetrain[field === 'diff_front_accel' ? 'frontDiffAccel' : field === 'diff_front_decel' ? 'frontDiffDecel' : field === 'diff_rear_accel' ? 'rearDiffAccel' : field === 'diff_rear_decel' ? 'rearDiffDecel' : field === 'diff_center' ? 'diffCenter' : field === 'final_drive' ? 'finalDrive' : field] = val;
+      drivetrain[field === 'diff_front_accel' ? 'frontDiffAccel' : field === 'diff_front_decel' ? 'frontDiffDecel' : field === 'diff_rear_accel' ? 'rearDiffAccel' : field === 'diff_rear_decel' ? 'rearDiffDecel' : field === 'diff_center' ? 'diffCenter' : field === 'final_drive' ? 'finalDrive' : `gear${field.slice('gear_'.length)}`] = val;
     } else if (id.startsWith('brake_')) {
       const field = id.replace('brake_', '');
       brakes[field] = val;

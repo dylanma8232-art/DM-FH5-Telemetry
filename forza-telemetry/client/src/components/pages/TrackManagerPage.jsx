@@ -41,7 +41,7 @@ const modalContentStyle = {
   boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
 };
 
-export function TrackManagerPage({ onNavigate }) {
+export function TrackManagerPage({ onNavigate, socket }) {
   const [tracks, setTracks] = useState({});
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
@@ -75,6 +75,23 @@ export function TrackManagerPage({ onNavigate }) {
   useEffect(() => {
     loadTracks();
   }, []);
+
+  // 监听后端赛道实时更新事件，自动刷出最新赛道列表
+  useEffect(() => {
+    if (!socket) return;
+    const handleTrackUpdate = (data) => {
+      loadTracks();
+      if (data && data.trackId && selectedTrack === data.trackId) {
+        previewTrack(selectedTrack);
+      }
+    };
+    socket.on('trackUpdated', handleTrackUpdate);
+    socket.on('trackDeleted', loadTracks);
+    return () => {
+      socket.off('trackUpdated', handleTrackUpdate);
+      socket.off('trackDeleted', loadTracks);
+    };
+  }, [socket, selectedTrack]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -515,9 +532,10 @@ export function TrackManagerPage({ onNavigate }) {
         toast('合并失败: ' + (data.error || '服务器错误'), 'error');
         return;
       }
-      loadTracks();
+      await loadTracks();
+      setSelectedTrack(mergeTarget);
       setShowMergeModal(false);
-      toast('赛道合并成功', 'success');
+      toast('赛道已成功合并并已显示在列表中，您可以直接修改赛道名称！地图与路书后台生成中...', 'success');
     } catch (e) {
       toast('合并失败: ' + e.message, 'error');
     }
@@ -1085,6 +1103,20 @@ export function TrackManagerPage({ onNavigate }) {
     }, 100);
   };
 
+  // 搜索结果与左侧列表共用同一筛选状态：选择结果后列表立即收窄到该赛道，
+  // 让选中高亮、地图和右侧详情始终指向同一个对象。
+  const selectTrackFromSearch = (id) => {
+    if (!id) {
+      setSearchQuery('');
+      setDebouncedQuery('');
+      return;
+    }
+    const query = tracks[id]?.name || id;
+    setSearchQuery(query);
+    setDebouncedQuery(query);
+    previewTrack(id);
+  };
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !selectedTrack) return;
@@ -1501,15 +1533,13 @@ export function TrackManagerPage({ onNavigate }) {
               <SearchableTrackSelect
                 tracks={tracks}
                 value={selectedTrack || ''}
-                onChange={id => { if (id) previewTrack(id); }}
+                onChange={selectTrackFromSearch}
                 placeholder="搜索赛道名称..."
               />
             </div>
             {[
               { key: 'time', label: '时间' },
-              { key: 'name', label: '名称' },
-              { key: 'length', label: '长度' },
-              { key: 'trajectory', label: '轨迹数' }
+              { key: 'trajectory', label: '轨迹' }
             ].map(s => (
               <button
                 key={s.key}
