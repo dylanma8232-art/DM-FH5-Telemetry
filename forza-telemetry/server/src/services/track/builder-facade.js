@@ -549,9 +549,46 @@ export function buildRouteBook(centerline, turns, allPoints) {
 
   // 空间距离计算与最接近中线点查找的辅助函数
   const getDist2D = (p1, p2) => Math.sqrt((p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2);
+  let lastHintIdx = -1;
+  let lastTrajIdx = -1;
   const findNearestCenterlineIndex = (p, cl) => {
+    if (!cl || cl.length === 0) return -1;
+    if (p.trajIndex !== undefined && lastTrajIdx !== -1 && p.trajIndex !== lastTrajIdx) {
+      lastHintIdx = -1;
+    }
+    if (p.trajIndex !== undefined) {
+      lastTrajIdx = p.trajIndex;
+    }
+
     let minD = Infinity;
     let nearestIdx = -1;
+
+    // 1. 优先在上次索引附近窗口查找
+    if (lastHintIdx >= 0 && lastHintIdx < cl.length) {
+      const start = Math.max(0, lastHintIdx - 40);
+      const end = Math.min(cl.length - 1, lastHintIdx + 40);
+      const pYaw = p.yaw || 0;
+      for (let i = start; i <= end; i++) {
+        const clYaw = cl[i].yaw || 0;
+        if (Math.cos(pYaw - clYaw) > 0.5) {
+          const dx = p.x - cl[i].x;
+          const dz = p.z - cl[i].z;
+          const d = dx * dx + dz * dz;
+          if (d < minD) {
+            minD = d;
+            nearestIdx = i;
+          }
+        }
+      }
+      if (minD < 144) { // 12米内同向
+        lastHintIdx = nearestIdx;
+        return nearestIdx;
+      }
+    }
+
+    // 2. 退回原全表遍历 (100% 数学与逻辑一致)
+    minD = Infinity;
+    nearestIdx = -1;
     for (let i = 0; i < cl.length; i++) {
       const dx = p.x - cl[i].x;
       const dz = p.z - cl[i].z;
@@ -560,6 +597,9 @@ export function buildRouteBook(centerline, turns, allPoints) {
         minD = d;
         nearestIdx = i;
       }
+    }
+    if (nearestIdx !== -1) {
+      lastHintIdx = nearestIdx;
     }
     return nearestIdx;
   };
