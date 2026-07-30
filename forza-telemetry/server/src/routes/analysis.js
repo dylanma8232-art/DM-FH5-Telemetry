@@ -14,9 +14,29 @@ const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
+// 内存分析结果高效缓存机制
+const analysisCache = new Map();
+const MAX_CACHE_SIZE = 100;
+
+function getFromCache(key) {
+  return analysisCache.get(key) || null;
+}
+
+function setToCache(key, data) {
+  if (analysisCache.size > MAX_CACHE_SIZE) {
+    const firstKey = analysisCache.keys().next().value;
+    analysisCache.delete(firstKey);
+  }
+  analysisCache.set(key, data);
+}
 
 // 赛后分析API
 router.get('/:sessionId', asyncHandler(async (req, res) => {
+  const cacheKey = `overview_${req.params.sessionId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
   const session = loadSession(req.params.sessionId);
   if (!session) {
@@ -85,6 +105,7 @@ router.get('/:sessionId', asyncHandler(async (req, res) => {
     差速抓地力: calculateDifferentialAnalysis(session.data || [])
   };
 
+  setToCache(cacheKey, analysis);
   res.json(analysis);
 }));
 
@@ -112,7 +133,9 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
     return res.json({ lapNum: targetLapNum, channels: [] });
   }
 
-  const step = parseInt(req.query.downsampleStep) || 4;
+  const requestedStep = parseInt(req.query.downsampleStep) || 4;
+  // 避免样本过度庞大导致前端 SVG DOM 爆炸，点数收敛控制在 350 个以内
+  const step = Math.max(requestedStep, Math.ceil(lapFrames.length / 350));
   let cumulativeDistance = 0;
   const channels = [];
 
@@ -441,6 +464,9 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
 
 // 弯道速度分析与历史对比接口
 router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
+  const cacheKey = `turns_${req.params.sessionId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.json(cached);
 
   const session = loadSession(req.params.sessionId);
   if (!session) {
@@ -460,7 +486,10 @@ router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
 
   const rawData = session.data || [];
   const bestLapNum = getBestLapNum(rawData);
-  const currentLapFrames = rawData.filter((d) => (d.lapNumber || d.lapNum || 0) === bestLapNum);
+  let currentLapFrames = rawData.filter((d) => (d.lapNumber || d.lapNum || 0) === bestLapNum);
+  if (currentLapFrames.length === 0) {
+    currentLapFrames = rawData;
+  }
 
   const sessionsDir = path.join(DATA_DIR, 'sessions');
   const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
@@ -552,7 +581,9 @@ router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ turns: analysisTurns });
+  const resObj = { turns: analysisTurns };
+  setToCache(cacheKey, resObj);
+  res.json(resObj);
 
 
 
@@ -561,7 +592,10 @@ router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
 
 
 // 调校诊断接口
-router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
+router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
+  const cacheKey = `advanced_${req.params.sessionId}_${req.query.sectors || 10}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.json(cached);
 
   const session = loadSession(req.params.sessionId, stateManager.tracks);
   if (!session) return res.status(404).json({ error: 'Session not found' });

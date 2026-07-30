@@ -25,6 +25,7 @@ db.exec(`
     lowfi_data_br BLOB,
     updated_at TEXT
   );
+  CREATE INDEX IF NOT EXISTS idx_sessions_detail_updated ON sessions_detail(updated_at);
 
   CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
     vehicle_id TEXT,

@@ -26,8 +26,20 @@ const calculateTrackLength = (pts) => {
 };
 
 
+let cachedSessionsList = null;
+let lastSessionsFetchTime = 0;
+
+export function invalidateSessionsCache() {
+  cachedSessionsList = null;
+  lastSessionsFetchTime = 0;
+}
+
 // 获取比赛记录列表
 router.get('/api/sessions', asyncHandler(async (req, res) => {
+  const now = Date.now();
+  if (cachedSessionsList && (now - lastSessionsFetchTime < 5000)) {
+    return res.json(cachedSessionsList);
+  }
 
   const sessionsDir = DATA_DIR + '/sessions';
   const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
@@ -99,6 +111,8 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
   }).filter((s) => s !== null);
 
   sessions.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+  cachedSessionsList = sessions;
+  lastSessionsFetchTime = Date.now();
   res.json(sessions);
 }));
 
