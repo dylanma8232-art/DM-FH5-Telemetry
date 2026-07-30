@@ -212,7 +212,7 @@ export function loadSession(sessionId, tracks) {
           this._data = val;
         },
         configurable: true,
-        enumerable: true
+        enumerable: false
       });
 
       Object.defineProperty(summary, 'positions', {
@@ -269,7 +269,7 @@ export function loadSession(sessionId, tracks) {
           this._positions = val;
         },
         configurable: true,
-        enumerable: true
+        enumerable: false
       });
 
       return summary;

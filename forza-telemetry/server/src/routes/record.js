@@ -53,7 +53,7 @@ const calculateTrackLength = (pts) => {
   let lastRecognitionCheckTime = 0;
   const RECOGNITION_INTERVAL_MS = 5000;
   const START_DEBOUNCE_MS = 500;
-  const STOP_DEBOUNCE_MS = 5000;
+  const STOP_DEBOUNCE_MS = 25000;
   const MIN_RACE_DURATION_MS = 30000;
 
   let lastSignificantPosition = null;
@@ -574,8 +574,8 @@ const calculateTrackLength = (pts) => {
     const now = Date.now();
     if (autoRecordState !== 'IDLE' && autoRecordStartTime) {
       // 如果最后一包是比赛中（可能是暂停），给更宽容的超时时间（比如 40 秒）
-      // 如果最后一包不是比赛中（已经退出/结束），给 5 秒超时
-      const timeoutLimit = (lastTelemetryPacket && lastTelemetryPacket.isRaceOn) ? 40000 : 5000;
+      // 如果最后一包不是比赛中（可能在倒转/重置菜单），给 25 秒防抖超时
+      const timeoutLimit = (lastTelemetryPacket && lastTelemetryPacket.isRaceOn) ? 40000 : 25000;
       if (now - lastTelemetryPacketTime > timeoutLimit) {
         console.log(`[自动录制] 超过 ${timeoutLimit / 1000} 秒未收到游戏数据包，看门狗强制结束并保存录制`);
         if (autoRecordStopTimer) {

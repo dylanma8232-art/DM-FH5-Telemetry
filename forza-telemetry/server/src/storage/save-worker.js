@@ -429,9 +429,10 @@ async function main() {
     const hifiJsonStr = JSON.stringify(hifiPayload);
     const lowfiJsonStr = JSON.stringify(lowfiPayload);
     
-    // 执行后台线程中 Brotli 压缩以提速
-    const hifiBr = zlib.brotliCompressSync(Buffer.from(hifiJsonStr));
-    const lowfiBr = zlib.brotliCompressSync(Buffer.from(lowfiJsonStr));
+    // 执行后台线程中 Brotli 压缩以提速 (设置 Quality 为 4 兼顾极速与压缩比)
+    const brotliOptions = { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } };
+    const hifiBr = zlib.brotliCompressSync(Buffer.from(hifiJsonStr), brotliOptions);
+    const lowfiBr = zlib.brotliCompressSync(Buffer.from(lowfiJsonStr), brotliOptions);
     
     sqliteDb.saveSessionDetail(sessionId, hifiBr, lowfiBr);
     console.log(`[Worker] SQLite 写入时序细节成功: ${sessionId}`);
