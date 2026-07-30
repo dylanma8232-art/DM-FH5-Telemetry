@@ -33,12 +33,50 @@ router.get('/', (req, res) => {
   res.json(getEnrichedTracks());
 });
 
+function sanitizeTrackPoint(p) {
+  if (!p) return null;
+  return {
+    x: p.x,
+    y: p.y || 0,
+    z: p.z,
+    yaw: p.yaw || 0,
+    speed: p.speed || 0,
+    brake: p.brake || 0,
+    gear: p.gear || 0
+  };
+}
+
+function sanitizeTrackForRender(trackDetail) {
+  if (!trackDetail) return null;
+  const points = (trackDetail.points || []).map(sanitizeTrackPoint);
+  const centerline = (trackDetail.centerline || []).map(sanitizeTrackPoint);
+  
+  // 轨迹做适度降采样瘦身，供前端画图使用
+  const trajectories = (trackDetail.trajectories || []).map(t => {
+    if (!Array.isArray(t)) return [];
+    if (t.length <= 1000) return t.map(sanitizeTrackPoint);
+    const step = Math.ceil(t.length / 1000);
+    const res = [];
+    for (let i = 0; i < t.length; i += step) {
+      res.push(sanitizeTrackPoint(t[i]));
+    }
+    return res;
+  });
+
+  return {
+    ...trackDetail,
+    points,
+    centerline,
+    trajectories
+  };
+}
+
 // 获取赛道详情 - 从独立小分包文件读取几何坐标点
 router.get('/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
   const trackDetail = getTrackDetail(id);
   if (trackDetail) {
-    res.json(trackDetail);
+    res.json(sanitizeTrackForRender(trackDetail));
   } else {
     res.status(404).json({ error: 'Track not found' });
   }

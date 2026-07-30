@@ -18,7 +18,15 @@ const recommendation = (id, category, title, changes, evidence, confidence = '�
  * 输出的是相对当前游戏数值的安全小步调整；页面若拿到本地方案，再把同一变化量换算为绝对目标值。
  */
 export function generateTelemetryTuningRecommendations(data = []) {
-  const frames = data.filter(frame => Number.isFinite(Number(frame.speedKmh ?? frame.speedMs)));
+  let targetData = data;
+  if (data.length > 5000) {
+    const step = Math.ceil(data.length / 5000);
+    targetData = [];
+    for (let i = 0; i < data.length; i += step) {
+      targetData.push(data[i]);
+    }
+  }
+  const frames = targetData.filter(frame => Number.isFinite(Number(frame.speedKmh ?? frame.speedMs)));
   if (frames.length < 80) return { recommendations: [], summary: '遥测样本不足，至少录制一段包含制动、过弯和加速的有效圈。', sampleCount: frames.length };
 
   const throttleFrames = frames.filter(frame => control(frame, 'accel') >= 0.72 && Number(frame.speedKmh || 0) > 25);
