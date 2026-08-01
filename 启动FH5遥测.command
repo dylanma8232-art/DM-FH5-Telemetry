@@ -127,18 +127,18 @@ echo ""
 echo -e "[$(get_time)] 开始接收遥测数据并输出服务日志..."
 
 # 7. 前台启动服务以打印实时日志
-cd forza-telemetry/server
+cd "$PROJECT_DIR/forza-telemetry/server"
+
+# 自动保持 better-sqlite3 原生模块与当前 Node.js 版本 ABI 契合
+npm rebuild better-sqlite3 --silent 2>/dev/null
+
 node src/index.js
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 130 ]; then
     echo ""
-    echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${RED}║                     ❌ 服务异常退出                      ║${NC}"
-    echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "正在尝试自动重构后端 C++ 原生模块依赖..."
-    npm rebuild
-    echo "请重新双击运行本脚本。"
-    read -rsn 1
+    echo -e "${YELLOW}[$(get_time)] 检测到 Node.js 模块 ABI 不匹配，正在自动为您编译修复原生依赖...${NC}"
+    npm rebuild better-sqlite3
+    echo -e "${GREEN}[$(get_time)] 依赖重构完成，正在重新拉起遥测分析服务...${NC}"
+    node src/index.js
 fi
