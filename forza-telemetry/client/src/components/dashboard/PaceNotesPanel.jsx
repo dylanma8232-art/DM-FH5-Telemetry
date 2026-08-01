@@ -1303,7 +1303,7 @@ export function PaceNoteGlossaryModal({ onClose }) {
               <div><strong>路面倾角</strong>:</div>
               <div style={{ paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div>• <strong style={{ color: '#3fb950' }}>向心倾角</strong>: 弯道向内侧倾斜，增加过弯贴合度与抓地极限。</div>
-                <div>• <strong style={{ color: '#f85149' }}>离心反坡 (Off-camber)</strong>: 弯道向外侧倾斜，向心抓地力极易突破，需提前减速。</div>
+                <div>• <strong style={{ color: '#f85149' }}>离心反坡</strong>: 弯道向外侧倾斜，向心抓地力极易突破，需提前减速。</div>
               </div>
             </div>
           </div>

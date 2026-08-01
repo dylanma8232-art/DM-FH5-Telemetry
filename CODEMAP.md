@@ -113,10 +113,12 @@
 - 📄 [monitor.sh](file:///forza-telemetry/monitor.sh)
 - 📄 [package.json](file:///forza-telemetry/package.json)
 - 📂 **scripts/**
+  - 📄 [clean-sessions.mjs](file:///forza-telemetry/scripts/clean-sessions.mjs)
   - 📄 [clean_sessions.mjs](file:///forza-telemetry/scripts/clean_sessions.mjs)
   - 📄 [generate_codemap.py](file:///forza-telemetry/scripts/generate_codemap.py)
   - 📄 [normalize_runtime_data.mjs](file:///forza-telemetry/scripts/normalize_runtime_data.mjs)
   - 📄 [rebuild_tracks.mjs](file:///forza-telemetry/scripts/rebuild_tracks.mjs)
+  - 📄 [recalibrate-session.mjs](file:///forza-telemetry/scripts/recalibrate-session.mjs)
   - 📄 [sync_tracks.js](file:///forza-telemetry/scripts/sync_tracks.js)
 - 📂 **server/**
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json)
@@ -1039,7 +1041,7 @@
       - 📄 [leaderboard.js](file:///forza-telemetry/server/src/routes/leaderboard.js)  *(默认导出: `router`)*
       - 📄 [navigation.js](file:///forza-telemetry/server/src/routes/navigation.js)  *(默认导出: `router`)*
       - 📄 [record.js](file:///forza-telemetry/server/src/routes/record.js)  *(默认导出: `默认导出`)*
-      - 📄 [sessions.js](file:///forza-telemetry/server/src/routes/sessions.js)  *(默认导出: `router`)*
+      - 📄 [sessions.js](file:///forza-telemetry/server/src/routes/sessions.js)  *(函数/组件: `invalidateSessionsCache`, 默认导出: `router`)*
       - 📄 [system.js](file:///forza-telemetry/server/src/routes/system.js)  *(默认导出: `router`)*
       - 📄 [tracks.js](file:///forza-telemetry/server/src/routes/tracks.js)  *(默认导出: `router`)*
       - 📄 [tunes.js](file:///forza-telemetry/server/src/routes/tunes.js)  *(默认导出: `router`)*
@@ -1075,6 +1077,7 @@
     - 📂 **utils/**
       - 📄 [asyncHandler.js](file:///forza-telemetry/server/src/utils/asyncHandler.js)  *(常量/方法: `asyncHandler`)*
       - 📄 [helpers.js](file:///forza-telemetry/server/src/utils/helpers.js)  *(函数/组件: `getLocalIPs`, 函数/组件: `loadJSON`, 函数/组件: `saveJSON`)*
+      - 📄 [lttb.js](file:///forza-telemetry/server/src/utils/lttb.js)  *(函数/组件: `lttbDownsample`)*
       - 📄 [rdp.js](file:///forza-telemetry/server/src/utils/rdp.js)  *(函数/组件: `simplifyRDP`)*
       - 📄 [schemas.js](file:///forza-telemetry/server/src/utils/schemas.js)  *(函数/组件: `formatZodError`, 常量/方法: `tuneParamSchema`, 常量/方法: `saveTuneSchema`)*
   - 📂 **test/**

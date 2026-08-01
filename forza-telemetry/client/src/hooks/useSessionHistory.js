@@ -303,12 +303,13 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     }
   };
 
-  const loadTelemetryChannels = async () => {
+  const loadTelemetryChannels = async (startDist = null, endDist = null, force = false) => {
     if (!selectedSession) return;
-    if (channelsData && channelsData.sessionId === selectedSession) return;
+    if (!force && channelsData && channelsData.sessionId === selectedSession && startDist === null && endDist === null) return;
     setChannelsLoading(true);
     try {
-      const data = await api.analysis.getChannels(selectedSession, 4);
+      const data = await api.analysis.getChannels(selectedSession, 4, startDist, endDist);
+      if (data) data.sessionId = selectedSession;
       setChannelsData(data);
     } catch (e) {
       toast('加载遥测数据失败', 'error');
@@ -317,13 +318,13 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     }
   };
 
-  const loadAdvancedAnalysis = async () => {
+  const loadAdvancedAnalysis = async (startDist = null, endDist = null, force = false) => {
     if (!selectedSession) return;
-    if (advancedData && advancedData.sessionId === selectedSession) return;
+    if (!force && advancedData && advancedData.sessionId === selectedSession && startDist === null && endDist === null) return;
     setAdvancedLoading(true);
     try {
-      const data = await api.analysis.getAdvanced(selectedSession, 10);
-      data.sessionId = selectedSession;
+      const data = await api.analysis.getAdvanced(selectedSession, 10, startDist, endDist);
+      if (data) data.sessionId = selectedSession;
       setAdvancedData(data);
     } catch (e) {
       console.error('加载高级分析失败', e);
@@ -356,7 +357,7 @@ export function useSessionHistory({ onNavigate, navIntent }) {
       loadTurnsData();
       loadTelemetryChannels();
       loadAdvancedAnalysis();
-      loadSessionDetail(selectedSession);
+      // 专业复盘已使用轻量级降采样通道，无需强制触发 100MB 全量底层文件解压
     }
   }, [activeTab, selectedSession]);
 

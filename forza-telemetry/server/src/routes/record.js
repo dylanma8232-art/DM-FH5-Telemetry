@@ -380,6 +380,23 @@ const calculateTrackLength = (pts) => {
         }
 
         if (isPositionValid) {
+          const currLapTime = telemetry.currentLap || 0;
+          // 倒转 (Rewind) 实时防护：当圈时间回退超过 0.5 秒时，自动裁剪倒转期间多余的轨迹打点
+          if (autoRacePositions.length > 0 && currLapTime > 0) {
+            const lastPtLap = autoRacePositions[autoRacePositions.length - 1].lapTime || 0;
+            if (lastPtLap > 0 && currLapTime < lastPtLap - 0.5) {
+              console.log(`[自动录制] 检测到玩家触发倒转 (${lastPtLap.toFixed(2)}s ➡️ ${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
+              while (autoRacePositions.length > 0) {
+                const topPt = autoRacePositions[autoRacePositions.length - 1];
+                if (topPt.lapTime && topPt.lapTime > currLapTime) {
+                  autoRacePositions.pop();
+                } else {
+                  break;
+                }
+              }
+            }
+          }
+
           if (nowTime - lastAutoPositionSaveTime >= 100) {
             autoRacePositions.push(extractTrackPoint(telemetry));
             lastAutoPositionSaveTime = nowTime;
@@ -606,6 +623,22 @@ const calculateTrackLength = (pts) => {
           lastManualRecordSaveTime = nowTime;
         }
         if (telemetry.position && (telemetry.position.x !== 0 || telemetry.position.z !== 0)) {
+          const currLapTime = telemetry.currentLap || 0;
+          if (manualRacePositions.length > 0 && currLapTime > 0) {
+            const lastPtLap = manualRacePositions[manualRacePositions.length - 1].lapTime || 0;
+            if (lastPtLap > 0 && currLapTime < lastPtLap - 0.5) {
+              console.log(`[手动录制] 检测到玩家触发倒转 (${lastPtLap.toFixed(2)}s ➡️ ${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
+              while (manualRacePositions.length > 0) {
+                const topPt = manualRacePositions[manualRacePositions.length - 1];
+                if (topPt.lapTime && topPt.lapTime > currLapTime) {
+                  manualRacePositions.pop();
+                } else {
+                  break;
+                }
+              }
+            }
+          }
+
           if (nowTime - lastManualPositionSaveTime >= 100) {
             manualRacePositions.push(extractTrackPoint(telemetry));
             lastManualPositionSaveTime = nowTime;

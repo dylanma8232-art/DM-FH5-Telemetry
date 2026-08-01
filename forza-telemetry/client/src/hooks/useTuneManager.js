@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react'
 import {
   PART_CATEGORIES,
   TIER_LABELS,
@@ -810,14 +810,17 @@ export function useTuneManager({ onNavigate, navIntent }) {
     return Array.from(tagSet).sort()
   }, [tunes])
 
+  const deferredSearchQuery = useDeferredValue(searchQuery)
+
   const filteredTunes = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase()
     return tunes.filter(t => {
-      const matchSearch = !searchQuery.trim() || (t.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+      const matchSearch = !q || (t.name || '').toLowerCase().includes(q)
       const matchVehicle = !vehicleFilter || t.vehicleId === vehicleFilter
       const matchTag = !tagFilter || (t.tags || []).includes(tagFilter)
       return matchSearch && matchVehicle && matchTag
     })
-  }, [tunes, searchQuery, vehicleFilter, tagFilter])
+  }, [tunes, deferredSearchQuery, vehicleFilter, tagFilter])
 
   const vehicleOptions = useMemo(() => {
     return Object.entries(vehicles).map(([id, v]) => ({
