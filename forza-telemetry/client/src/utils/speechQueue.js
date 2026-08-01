@@ -129,8 +129,8 @@ class SpeechQueueManager {
       window.speechSynthesis.cancel();
       this.isPlaying = false;
       this.currentPriority = 0;
-      if (this.currentUtterance && window._activeUtterances) {
-        window._activeUtterances.delete(this.currentUtterance);
+      if (window._activeUtterances) {
+        window._activeUtterances.clear();
       }
       this.currentUtterance = null;
       if (this.safeguardTimer) {

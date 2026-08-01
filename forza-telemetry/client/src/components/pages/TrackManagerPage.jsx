@@ -57,6 +57,7 @@ export function TrackManagerPage({ onNavigate, socket }) {
   const [recordStartTime, setRecordStartTime] = useState(null);
   const [editName, setEditName] = useState('');
   const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
   const mapContextRef = useRef({});
   const [dragMode, setDragMode] = useState(null); // null, "start", "end"
   const [isHoveringHandle, setIsHoveringHandle] = useState(false); // 是否悬停在拖拽手柄上
@@ -1118,14 +1119,19 @@ export function TrackManagerPage({ onNavigate, socket }) {
   };
 
   const drawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !selectedTrack) return;
-    const ctx = canvas.getContext('2d');
-    const track = tracks[selectedTrack];
-    if (!track) return;
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight || 300;
-    drawTrack(ctx, canvas, track, transform);
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+    animFrameRef.current = requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas || !selectedTrack) return;
+      const ctx = canvas.getContext('2d');
+      const track = tracks[selectedTrack];
+      if (!track) return;
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight || 300;
+      drawTrack(ctx, canvas, track, transform);
+    });
   }, [selectedTrack, tracks, transform, drawTrack]);
 
   // 候选地图由比赛保存线程在每次完赛后写入；轮询完整详情，确保管理页无需刷新即可看到变化。

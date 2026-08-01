@@ -87,8 +87,20 @@ export const api = {
     getOverview: (sessionId) => get(`/api/analysis/${sessionId}`),
     getDiagnosis: (sessionId) => get(`/api/analysis/${sessionId}/diagnosis`),
     getTuningRecommendations: (sessionId) => get(`/api/analysis/${sessionId}/tuning-recommendations`),
-    getChannels: (sessionId, step = 4) => get(`/api/analysis/${sessionId}/telemetry-channels?downsampleStep=${step}`),
-    getAdvanced: (sessionId, sectors = 10) => get(`/api/analysis/${sessionId}/advanced?sectors=${sectors}`),
+    getChannels: (sessionId, step = 4, startDist = null, endDist = null) => {
+      let url = `/api/analysis/${sessionId}/telemetry-channels?downsampleStep=${step}`;
+      if (startDist !== null && endDist !== null && !isNaN(startDist) && !isNaN(endDist)) {
+        url += `&startDist=${startDist}&endDist=${endDist}`;
+      }
+      return get(url);
+    },
+    getAdvanced: (sessionId, sectors = 10, startDist = null, endDist = null) => {
+      let url = `/api/analysis/${sessionId}/advanced?sectors=${sectors}`;
+      if (startDist !== null && endDist !== null && !isNaN(startDist) && !isNaN(endDist)) {
+        url += `&startDist=${startDist}&endDist=${endDist}`;
+      }
+      return get(url);
+    },
     getTurns: (sessionId) => get(`/api/analysis/${sessionId}/turns`),
     getAiDiagnosis: (sessionId) => get(`/api/analysis/${sessionId}/ai-diagnosis`),
     generateAiDiagnosis: (sessionId, body) => post(`/api/analysis/${sessionId}/ai-diagnosis`, body)

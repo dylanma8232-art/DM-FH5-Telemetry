@@ -65,6 +65,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     toggleSessionSelect,
     loadAnalysis,
     deleteSession,
+    loadTelemetryChannels,
+    loadAdvancedAnalysis,
     totalPages,
     sessionTune,
     myFilteredSessions,
@@ -73,6 +75,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
 
   // 子页签状态
   const [reviewSubTab, setReviewSubTab] = useState('corners');
+  const [activeSegmentId, setActiveSegmentId] = useState('all');
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [selectedIssueCategory, setSelectedIssueCategory] = useState('steering');
   const [selectedIssueId, setSelectedIssueId] = useState(null);
   const [chartCursorPoint, setChartCursorPoint] = useState(null);
@@ -768,27 +772,10 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     }));
   }, [advancedData]);
 
-  // 新增：制动区证据，锁死点以红色散点叠加在车速曲线上。
-  const brakingEvidenceData = useMemo(() => {
-    if (!channelsData?.channels) return [];
-    return channelsData.channels.map((channel) => {
-      const speed = channel.speed ?? channel.speedKmh ?? 0;
-      const minSlip = Math.min(channel.slipFL || 0, channel.slipFR || 0, channel.slipRL || 0, channel.slipRR || 0);
-      const isLockup = (channel.brake || 0) > 40 && minSlip < -0.15;
-      return {
-        distance: channel.distance,
-        speed,
-        brake: channel.brake || 0,
-        decel: Math.abs(channel.gLong || 0),
-        lockupSpeed: isLockup ? speed : null
-      };
-    });
-  }, [channelsData]);
-
   // 转换华氏度为摄氏度，并作为图表数据源使用
   const formattedChannels = useMemo(() => {
     if (!channelsData?.channels) return [];
-    return channelsData.channels.map(c => ({
+    let channels = channelsData.channels.map(c => ({
       ...c,
       tempFL: Math.round((c.tempFL - 32) * 5 / 9),
       tempFR: Math.round((c.tempFR - 32) * 5 / 9),
@@ -800,7 +787,30 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       suspRL: c.suspRL ?? c.suspensionNormRL ?? c.suspensionRL,
       suspRR: c.suspRR ?? c.suspensionNormRR ?? c.suspensionRR,
     }));
+    // 前端 DOM 安全防线：如果点数超出 600 点，自动进行二次抽样，确保 Recharts DOM 零卡顿
+    if (channels.length > 600) {
+      const step = Math.ceil(channels.length / 450);
+      channels = channels.filter((_, idx) => idx % step === 0 || idx === channels.length - 1);
+    }
+    return channels;
   }, [channelsData]);
+
+  // 新增：制动区证据，锁死点以红色散点叠加在车速曲线上。
+  const brakingEvidenceData = useMemo(() => {
+    if (!formattedChannels || !formattedChannels.length) return [];
+    return formattedChannels.map((channel) => {
+      const speed = channel.speed ?? channel.speedKmh ?? 0;
+      const minSlip = Math.min(channel.slipFL || 0, channel.slipFR || 0, channel.slipRL || 0, channel.slipRR || 0);
+      const isLockup = (channel.brake || 0) > 40 && minSlip < -0.15;
+      return {
+        distance: channel.distance,
+        speed,
+        brake: channel.brake || 0,
+        decel: Math.abs(channel.gLong || 0),
+        lockupSpeed: isLockup ? speed : null
+      };
+    });
+  }, [formattedChannels]);
 
   // 根据本场实际滑移峰值扩展纵轴，避免超过正负 40% 的数据被裁掉。
   const slipChartDomain = useMemo(() => {
@@ -815,14 +825,36 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
     return [-limit, limit];
   }, [formattedChannels]);
 
-  // 极简 Markdown 渲染器
+  // 增强型 Markdown 渲染器（全面支持 Markdown 表格、分段卡片高亮与无障碍对比）
   const renderMarkdown = (mdText) => {
     if (!mdText) return null;
 
     const lines = mdText.split('\n');
     let insideList = false;
     let listItems = [];
+    let insideTable = false;
+    let tableRows = [];
     const elements = [];
+
+    const parseInline = (text) => {
+      if (!text) return '';
+      const parts = [];
+      const regex = /\*\*(.*?)\*\*/g;
+      let match;
+      let lastIdx = 0;
+
+      while ((match = regex.exec(text)) !== null) {
+        const before = text.substring(lastIdx, match.index);
+        if (before) parts.push(before);
+        parts.push(<strong key={`bold_${match.index}_${match[1]}`} style={{ color: '#58a6ff', fontWeight: 700 }}>{match[1]}</strong>);
+        lastIdx = regex.lastIndex;
+      }
+
+      const after = text.substring(lastIdx);
+      if (after) parts.push(after);
+
+      return parts.length > 0 ? parts : text;
+    };
 
     const flushList = (keyPrefix) => {
       if (listItems.length > 0) {
@@ -836,27 +868,58 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       }
     };
 
-    lines.forEach((line, idx) => {
+    const flushTable = (keyPrefix) => {
+      if (tableRows.length > 0) {
+        // 分割表头与表体
+        const headerRow = tableRows[0];
+        // 过滤分隔符行 (|---|---|)
+        const bodyRows = tableRows.slice(1).filter(row => !row.every(cell => /^:?-+:?$/.test(cell.trim())));
+
+        elements.push(
+          <div key={`table_wrap_${keyPrefix}`} style={{ overflowX: 'auto', margin: '14px 0', borderRadius: 8, border: '1px solid #30363d', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, textAlign: 'left', background: '#0d1117' }}>
+              <thead>
+                <tr style={{ background: '#161b22', borderBottom: '1px solid #30363d' }}>
+                  {headerRow.map((cell, cIdx) => (
+                    <th key={cIdx} style={{ padding: '10px 12px', color: '#58a6ff', fontWeight: 750, whiteSpace: 'nowrap' }}>
+                      {parseInline(cell.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyRows.map((row, rIdx) => (
+                  <tr key={rIdx} style={{ background: rIdx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)', borderBottom: '1px solid #21262d', transition: 'background 0.15s' }}>
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} style={{ padding: '9px 12px', color: cIdx === 3 ? '#3fb950' : '#c9d1d9', fontWeight: cIdx === 3 ? 750 : 400, lineHeight: 1.5 }}>
+                        {parseInline(cell.trim())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+        insideTable = false;
+      }
+    };
+
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx];
       const trimmed = line.trim();
 
-      const parseInline = (text) => {
-        const parts = [];
-        const regex = /\*\*(.*?)\*\*/g;
-        let match;
-        let lastIdx = 0;
-
-        while ((match = regex.exec(text)) !== null) {
-          const before = text.substring(lastIdx, match.index);
-          if (before) parts.push(before);
-          parts.push(<strong key={`bold_${match.index}`} style={{ color: '#58a6ff' }}>{match[1]}</strong>);
-          lastIdx = regex.lastIndex;
-        }
-
-        const after = text.substring(lastIdx);
-        if (after) parts.push(after);
-
-        return parts.length > 0 ? parts : text;
-      };
+      // 判断是否是 Markdown 表格行 (| col1 | col2 |)
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        flushList(idx);
+        insideTable = true;
+        const cells = trimmed.split('|').slice(1, -1);
+        tableRows.push(cells);
+        continue;
+      } else if (insideTable) {
+        flushTable(idx);
+      }
 
       if (trimmed.startsWith('# ')) {
         flushList(idx);
@@ -866,7 +929,30 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
         elements.push(<h3 key={idx} style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '18px 0 10px' }}>{parseInline(trimmed.substring(3))}</h3>);
       } else if (trimmed.startsWith('### ')) {
         flushList(idx);
-        elements.push(<h4 key={idx} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', margin: '14px 0 8px' }}>{parseInline(trimmed.substring(4))}</h4>);
+        const titleText = trimmed.substring(4);
+        let icon = '📌';
+        let badgeColor = '#58a6ff';
+        let bgTint = 'rgba(88,166,255,0.05)';
+        if (titleText.includes('问题') || titleText.includes('诊断')) {
+          icon = '⚠️';
+          badgeColor = '#d29922';
+          bgTint = 'rgba(210,153,34,0.06)';
+        } else if (titleText.includes('对比表') || titleText.includes('参数')) {
+          icon = '📊';
+          badgeColor = '#58a6ff';
+          bgTint = 'rgba(88,166,255,0.06)';
+        } else if (titleText.includes('驾驶') || titleText.includes('建议')) {
+          icon = '🏎️';
+          badgeColor = '#3fb950';
+          bgTint = 'rgba(63,185,80,0.06)';
+        }
+
+        elements.push(
+          <div key={idx} style={{ margin: '18px 0 10px', padding: '8px 12px', background: bgTint, borderLeft: `3px solid ${badgeColor}`, borderRadius: '0 6px 6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>{icon}</span>
+            <h4 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: badgeColor }}>{parseInline(titleText)}</h4>
+          </div>
+        );
       } else if (trimmed.startsWith('- [ ] ') || trimmed.startsWith('- [x] ')) {
         insideList = true;
         const checked = trimmed.startsWith('- [x] ');
@@ -900,9 +986,10 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
           </p>
         );
       }
-    });
+    }
 
     flushList('end');
+    if (insideTable) flushTable('end');
 
     return (
       <div style={{
@@ -1273,6 +1360,60 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       </button>
                     ))}
                   </div>
+
+                  {/* 里程切片与区间范围选择器（针对 >3km 或超长比赛） */}
+                  {(() => {
+                    const maxDistM = channelsData?.totalDistance || (channelsData?.channels?.length ? Math.max(...channelsData.channels.map(c => c.distance || 0)) : 0);
+                    const totalKmNum = Number((maxDistM / 1000).toFixed(1));
+                    if (maxDistM <= 3000) return null;
+
+                    const stepMeters = maxDistM > 30000 ? 10000 : 5000;
+                    const count = Math.ceil(maxDistM / stepMeters);
+                    const segments = [{ id: 'all', label: `🌐 全局概览 (${totalKmNum} km)`, start: null, end: null }];
+                    for (let i = 0; i < count; i++) {
+                      const start = i * stepMeters;
+                      const end = Math.min((i + 1) * stepMeters, Math.ceil(maxDistM));
+                      segments.push({
+                        id: `seg_${i}`,
+                        label: `📍 ${(start / 1000).toFixed(0)} - ${(end / 1000).toFixed(0)} km`,
+                        start,
+                        end
+                      });
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, margin: '0 0 10px', padding: '8px 12px', background: 'rgba(88,166,255,0.04)', border: '1px solid rgba(88,166,255,0.2)', borderRadius: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff' }}>🔍 遥测切片区间：</span>
+                          {segments.map((seg) => (
+                            <button
+                              key={seg.id}
+                              onClick={() => {
+                                setActiveSegmentId(seg.id);
+                                loadTelemetryChannels(seg.start, seg.end, true);
+                                loadAdvancedAnalysis(seg.start, seg.end, true);
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 12,
+                                border: `1px solid ${activeSegmentId === seg.id ? '#58a6ff' : '#30363d'}`,
+                                background: activeSegmentId === seg.id ? '#1f6feb' : '#161b22',
+                                color: activeSegmentId === seg.id ? '#ffffff' : '#c9d1d9',
+                                fontSize: 9,
+                                fontWeight: activeSegmentId === seg.id ? 700 : 500,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {seg.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#3fb950', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>⚡ LTTB 极值降采样守护中 ({formattedChannels.length} 点)</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {reviewSubTab !== 'corners' && <div style={{ ...sectionStyle, margin: '0 0 12px', padding: 12, borderColor: 'rgba(88,166,255,0.35)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                       <div>
@@ -2712,9 +2853,32 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                       </div>
                     ) : aiDiagnosisReport ? (
                       <div style={{ marginTop: 16 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '8px 8px 0 0', border: '1px solid var(--border)', borderBottom: 'none' }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: '#58a6ff' }}>🤖 AI 遥测大师诊断报告</span>
-                          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>基于当前遥测帧及调校参数诊断</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#161b22', padding: '8px 12px', borderRadius: '8px 8px 0 0', border: '1px solid #30363d', borderBottom: 'none' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#58a6ff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            🤖 AI 赛车教练深度诊断报告
+                          </span>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                              onClick={() => setIsAiModalOpen(true)}
+                              style={{
+                                padding: '3px 10px',
+                                background: '#1f6feb',
+                                border: '1px solid #58a6ff',
+                                borderRadius: 4,
+                                color: '#ffffff',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                boxShadow: '0 2px 6px rgba(31, 111, 235, 0.4)'
+                              }}
+                            >
+                              🔍 全屏沉浸阅读
+                            </button>
+                            <span style={{ fontSize: 9, color: '#8b949e' }}>基于实测遥测与物理模型诊断</span>
+                          </div>
                         </div>
                         {renderMarkdown(aiDiagnosisReport)}
                       </div>
@@ -2743,6 +2907,59 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                     ) : null}
                   </div>
                   </div>
+              )}
+
+              {/* 全屏沉浸式 AI 遥测诊断剧场弹窗 */}
+              {isAiModalOpen && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 99999,
+                    background: 'rgba(13, 17, 23, 0.94)',
+                    backdropFilter: 'blur(16px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '24px 36px'
+                  }}
+                >
+                  {/* 弹窗 Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #30363d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 24 }}>🤖</span>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#58a6ff' }}>AI 赛车教练深度遥测问诊报告（全屏剧场视图）</h3>
+                        <div style={{ fontSize: 11, color: '#8b949e', marginTop: 3 }}>
+                          赛道：{analysis?.track?.name || analysis?.trackName || '本场比赛'} · 车辆：{analysis?.vehicle?.name || '当前车辆'} · 全宽大屏视窗
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsAiModalOpen(false)}
+                      style={{
+                        padding: '6px 18px',
+                        background: '#21262d',
+                        border: '1px solid #30363d',
+                        borderRadius: 6,
+                        color: '#f85149',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      ✕ 退出全屏阅读
+                    </button>
+                  </div>
+
+                  {/* 弹窗 Body */}
+                  <div style={{ flex: 1, overflowY: 'auto', paddingRight: 10 }}>
+                    {renderMarkdown(aiDiagnosisReport)}
+                  </div>
+                </div>
               )}
                 </div>
               </div>

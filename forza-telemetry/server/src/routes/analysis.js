@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
 import { loadJSON } from '../utils/helpers.js';
+import { lttbDownsample } from '../utils/lttb.js';
 
 const router = express.Router();
 
@@ -133,11 +134,15 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
     return res.json({ lapNum: targetLapNum, channels: [] });
   }
 
-  const requestedStep = parseInt(req.query.downsampleStep) || 4;
-  // 避免样本过度庞大导致前端 SVG DOM 爆炸，点数收敛控制在 350 个以内
-  const step = Math.max(requestedStep, Math.ceil(lapFrames.length / 350));
+  const startDist = req.query.startDist !== undefined && req.query.startDist !== '' ? parseFloat(req.query.startDist) : null;
+  const endDist = req.query.endDist !== undefined && req.query.endDist !== '' ? parseFloat(req.query.endDist) : null;
+  const targetMaxPoints = parseInt(req.query.maxPoints) || 450;
+
+  // 1. 计算累计行驶距离与全量通道帧
   let cumulativeDistance = 0;
-  const channels = [];
+  const allChannels = [];
+  // 超长遥测轻量化预抽样步进：若帧数超万，基础构建步进适当提升
+  const baseStep = lapFrames.length > 20000 ? 2 : 1;
 
   for (let i = 0; i < lapFrames.length; i++) {
     const d = lapFrames[i];
@@ -155,8 +160,8 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
       }
     }
 
-    if (i % step === 0 || i === lapFrames.length - 1) {
-      channels.push({
+    if (i % baseStep === 0 || i === lapFrames.length - 1) {
+      allChannels.push({
         distance: Math.round(cumulativeDistance * 10) / 10,
         lapTime: d.currentLap || 0,
         speed: Math.round(d.speedKmh || (d.speed ? d.speed * 3.6 : 0)),
@@ -221,14 +226,26 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
     }
   }
 
+  // 2. 起终点里程区间过滤
+  let filteredChannels = allChannels;
+  if (startDist !== null && !isNaN(startDist) && endDist !== null && !isNaN(endDist)) {
+    filteredChannels = allChannels.filter(c => c.distance >= startDist && c.distance <= endDist);
+  }
+
+  // 3. LTTB 物理极值降采样（将数据点精准收敛在 targetMaxPoints 以内，且完整保留物理极值与拐点）
+  const downsampledChannels = lttbDownsample(
+    filteredChannels,
+    targetMaxPoints,
+    'distance',
+    ['speed', 'brake', 'throttle', 'gLat', 'tempFL', 'slipFL']
+  );
+
   res.json({
     lapNum: targetLapNum,
-    channels
+    totalDistance: Math.round(cumulativeDistance * 10) / 10,
+    totalPoints: allChannels.length,
+    channels: downsampledChannels
   });
-
-
-
-
 }));
 
 // 高级多圈及理论最佳分析
@@ -253,12 +270,16 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
   }
 
   const numSectors = parseInt(req.query.sectors) || 3;
+  const startDist = req.query.startDist !== undefined && req.query.startDist !== '' ? parseFloat(req.query.startDist) : null;
+  const endDist = req.query.endDist !== undefined && req.query.endDist !== '' ? parseFloat(req.query.endDist) : null;
+  const targetMaxPoints = parseInt(req.query.maxPoints) || 450;
 
   let cumulativeDistance = 0;
-  const usOsIndex = [];
-  const differential = [];
+  const allUsOs = [];
+  const allDiff = [];
   let trailBrakingCount = 0;
   let totalFrames = 0;
+  const baseStep = rawData.length > 20000 ? 2 : 1;
 
   for (let i = 0; i < rawData.length; i++) {
     const d = rawData[i];
@@ -282,9 +303,11 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
     const denom = Math.max(Math.abs(expectedYawRate), 0.01);
     const usOsValue = (actualYawRate - expectedYawRate) / denom;
 
-    if (i % 4 === 0 || i === rawData.length - 1) {
-      usOsIndex.push({
-        distance: Math.round(cumulativeDistance * 10) / 10,
+    const currentDist = Math.round(cumulativeDistance * 10) / 10;
+
+    if (i % baseStep === 0 || i === rawData.length - 1) {
+      allUsOs.push({
+        distance: currentDist,
         value: Math.round(usOsValue * 1000) / 1000
       });
     }
@@ -294,9 +317,9 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
     const wRL = d.wheelRotationSpeed?.rearLeft || d.wheelRotationSpeedRearLeft || 0;
     const wRR = d.wheelRotationSpeed?.rearRight || d.wheelRotationSpeedRearRight || 0;
 
-    if (i % 4 === 0 || i === rawData.length - 1) {
-      differential.push({
-        distance: Math.round(cumulativeDistance * 10) / 10,
+    if (i % baseStep === 0 || i === rawData.length - 1) {
+      allDiff.push({
+        distance: currentDist,
         frontDiff: Math.round(Math.abs(wFL - wFR) * 100) / 100,
         rearDiff: Math.round(Math.abs(wRL - wRR) * 100) / 100
       });
@@ -309,6 +332,17 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
     }
     totalFrames++;
   }
+
+  // 起终点里程过滤与 LTTB 物理极值降采样
+  let filteredUsOs = allUsOs;
+  let filteredDiff = allDiff;
+  if (startDist !== null && !isNaN(startDist) && endDist !== null && !isNaN(endDist)) {
+    filteredUsOs = allUsOs.filter(c => c.distance >= startDist && c.distance <= endDist);
+    filteredDiff = allDiff.filter(c => c.distance >= startDist && c.distance <= endDist);
+  }
+
+  const usOsIndex = lttbDownsample(filteredUsOs, targetMaxPoints, 'distance', 'value');
+  const differential = lttbDownsample(filteredDiff, targetMaxPoints, 'distance', ['frontDiff', 'rearDiff']);
 
   const lapsMap = new Map();
   for (const d of rawData) {
@@ -592,8 +626,8 @@ router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
 
 
 // 调校诊断接口
-router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
-  const cacheKey = `advanced_${req.params.sessionId}_${req.query.sectors || 10}`;
+router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
+  const cacheKey = `diagnosis_${req.params.sessionId}`;
   const cached = getFromCache(cacheKey);
   if (cached) return res.json(cached);
 
@@ -602,10 +636,9 @@ router.get('/:sessionId/advanced', asyncHandler(async (req, res) => {
   // 编辑页可明确指定当前正在编辑的方案，不能误用该比赛历史关联的其它调教。
   const tune = req.body?.tuneId ? stateManager.tunes[req.body.tuneId] : (session.tuneId ? stateManager.tunes[session.tuneId] : null);
   const diagnoses = generateTuneDiagnosis(session, tune);
-  res.json({ tuneId: session.tuneId, tuneName: tune?.name, diagnoses });
-
-
-
+  const resObj = { tuneId: session.tuneId, tuneName: tune?.name, diagnoses };
+  setToCache(cacheKey, resObj);
+  res.json(resObj);
 }));
 
 // 无需保存调校方案的遥测调教建议。返回相对当前游戏数值的增减量；
@@ -748,24 +781,33 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   当前车辆的调校参数：
   ${tuneParamsStr}
 
-  车手在本次比赛后反馈的操控问题或自定义提问：
+  车手本次比赛后反馈的操控问题或自定义提问：
   ${issueDescription}
 
-  物理数据反馈：
+  物理遥测数据反馈：
   - 驾驶表现综合评分：${drivingScore.总分 || 0}分 (${drivingScore.等级 || 'N/A'})
   - 严重底盘托底帧数：${suspensionAnalysis.totalBottomingTicks || 0}帧 (悬架得分: ${suspensionAnalysis.bottomingScore || 100})
   - 轮胎最高工作温度：左前 ${tireAnalysis.maxTempFL}°C, 右前 ${tireAnalysis.maxTempFR}°C, 左后 ${tireAnalysis.maxTempRL}°C, 右后 ${tireAnalysis.maxTempRR}°C
   - 轮胎平均工作温度：左前 ${tireAnalysis.avgTempFL}°C, 右前 ${tireAnalysis.avgTempFR}°C, 左后 ${tireAnalysis.avgTempRL}°C, 右后 ${tireAnalysis.avgTempRR}°C
   - 轮胎最高滑移率：左前 ${(tireAnalysis.maxSlipFL*100).toFixed(0)}%, 右前 ${(tireAnalysis.maxSlipFR*100).toFixed(0)}%, 左后 ${(tireAnalysis.maxSlipRL*100).toFixed(0)}%, 右后 ${(tireAnalysis.maxSlipRR*100).toFixed(0)}%
 
-  请作为一名顶尖的模拟赛车调校大师与教练，针对车手所遇到的特定操控问题或自定义疑问，结合当前车辆的具体调校参数与遥测物理数据，提供深度的、定量的分析与改进建议：
-  1. 【物理分析】：分析为什么在当前调校参数与行驶状态下，极易产生或加剧此操控问题。
-  2. 【调校调整方案】：给出具体且定量的调校修改方案。如果当前车辆有具体的参数数值，请给出调整后的目标数值（例如：“将前弹簧从 800 磅降低至 750 磅”），如果使用的是原厂设定，请给出相对的调整方向和幅度。
-  3. 【驾驶行为改善建议】：分析是否有驾驶动作（如刹车过晚、给油过急、打方向过猛等）导致了该问题，并给出可执行的驾驶习惯改善建议。
+  请作为顶尖模拟赛车调校大师与教练，不要输出任何泛泛的文字总结，请严格按照以下 3 个核心板块输出：
+
+  ### 1. 【核心操控问题分析】
+  清晰列出 2~3 个在当前调校与遥测下暴露的最主要物理操控问题（如：中速弯推头转向不足、高强制动阶段刹车抱死、前轮胎温过高滑移）。
+
+  ### 2. 【具体物理遥测与参数调整对比表】
+  必须直接输出标准的 Markdown 表格，列出针对每个具体问题的调校参数修改项、当前数值、推荐目标数值与变化量。格式必须如下：
+  | 解决的问题 | 调校项目 | 当前参数 | 推荐目标数值 | 调整变化量 | 调校物理原理 |
+  |---|---|---|---|---|---|
+  | (针对的具体问题) | (如：前防倾杆/前弹簧/前轮气压/减速差速锁) | (当前数值) | **(推荐目标数值)** | (变化量如 +2.5 / -0.2) | (简明调校原理) |
+
+  ### 3. 【驾驶手法修正要领与建议】
+  用 2~3 句最精炼的语言，提示车手配合该问题的驾驶手法修正要领（如刹车点释放、循迹刹车或给油节奏）。
 
   注意规范：
   - 必须完全使用纯正、地道的中文赛车术语。
-  - 严禁在中文词汇后附加括号英文备注（如禁止出现“外倾角 (Camber)”、“前轮后倾角 (Caster)”、“防倾杆 (ARB)”、“APEX点 (弯心)”、“尾迹制动 (Trail Braking)”等，应当直接写为“外倾角”、“弯心”或“APEX点”、“循迹刹车”或“尾迹制动”）。
+  - 严禁在中文词汇后附加括号英文备注（如禁止出现“外倾角 (Camber)”、“防倾杆 (ARB)”、“APEX点 (弯心)”等，必须直接写为“外倾角”、“弯心”或“防倾杆”）。
   - 全部使用 Markdown 格式输出。
   `;
 
@@ -778,7 +820,7 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
     body: JSON.stringify({
       model: modelName,
       messages: [
-        { role: 'system', content: '你是一位顶尖的模拟赛车调校大师与教练。请根据车手的物理数据和当前调校配置，针对其具体的操控问题进行深度剖析，并提供极其专业、具体的定量调校建议和驾驶技巧改善建议。' },
+        { role: 'system', content: '你是一位顶尖的模拟赛车调校大师与教练。你的任务是直奔主题，针对遥测数据中发现的具体操控问题，直接给出极其具体、可操作的定量参数修改对比表（当前值->推荐目标值），拒绝泛泛无用的文字总结。' },
         { role: 'user', content: promptContent }
       ]
     })
