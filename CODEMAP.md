@@ -1089,6 +1089,7 @@
     - 📄 [upgrade-catalog.test.js](file:///forza-telemetry/server/test/upgrade-catalog.test.js)
 - 📂 **templates/**
   - 📄 [调校导入模板.json](file:///forza-telemetry/templates/调校导入模板.json)
+- 📄 [test-fixes.mjs](file:///forza-telemetry/test-fixes.mjs)
 
 ---
 

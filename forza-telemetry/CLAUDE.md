@@ -809,6 +809,14 @@ toast('合并成功', 'success');
 
 ---
 
+### 11.13 后端 formatZodError 安全校验防空修复（2026-08-02）
+
+1. **`formatZodError` 安全判空防护**：
+   - 修复了当服务器接收到非标准 ZodError 对象或普通 Error 时调用 `error.errors.map` 产生 `Cannot read properties of undefined (reading 'map')` 崩溃的问题。
+   - 增加 `const issues = error?.issues || error?.errors` 数组判定，保障校验提示安全优雅返回。
+
+---
+
 ### 11.7 改装中心四项 Bug 修复（2026-07-17）
 
 #### Bug 1：配件 PI 变化未完整显示
