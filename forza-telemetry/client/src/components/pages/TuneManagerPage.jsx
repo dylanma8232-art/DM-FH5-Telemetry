@@ -165,11 +165,12 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const [diagnosisModalTune, setDiagnosisModalTune] = useState(null);
   const [activeDiagnosisTab, setActiveDiagnosisTab] = useState('telemetry');
   const [tuneToDelete, setTuneToDelete] = useState(null);
+  const [previewFixData, setPreviewFixData] = useState(null);
 
   const openDiagnosisModal = (tune = null) => {
     const targetTune = tune || (tunes.length > 0 ? tunes[0] : null);
     if (!targetTune) {
-      alert('请先新建或选择一个调校方案再进行诊断！');
+      setUnlockToast('⚠️ 请先新建或选择一个调校方案再进行诊断！');
       return;
     }
     setDiagnosisModalTune(targetTune);
@@ -239,50 +240,61 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
     return result;
   };
 
-  const handleApplyDiagnosisInViewOnly = (tune, suggestedChanges) => {
-    setDiagnosisModalTune(null);
-    startEdit(tune);
-    setFormData(prev => {
-      const updated = {
-        ...prev,
-        tires: { ...prev.tires, ...tune.tires },
-        suspension: { ...prev.suspension, ...tune.suspension },
-        drivetrain: { ...prev.drivetrain, ...tune.drivetrain },
-        brakes: { ...prev.brakes, ...tune.brakes },
-        aero: { ...prev.aero, ...tune.aero },
-        parts: tune.parts || prev.parts,
-        vehicleId: tune.vehicleId,
-        name: tune.name || prev.name,
-        notes: tune.notes || prev.notes
-      };
+  const handleGenerateFixPreview = (tune, suggestedChanges, title = '对症参数修正') => {
+    if (!suggestedChanges || Object.keys(suggestedChanges).length === 0) {
+      setUnlockToast('⚠️ 该诊断方案暂无建议的物理参数修改');
+      return;
+    }
+    const items = [];
+    const updatedTune = JSON.parse(JSON.stringify(tune));
 
-      const newHighlighted = [];
-      for (const [category, params] of Object.entries(suggestedChanges)) {
-        if (updated[category]) {
-          updated[category] = { ...updated[category] };
-          for (const [key, value] of Object.entries(params)) {
-            if (key in updated[category]) {
-              const currentVal = Number(updated[category][key] || 0);
-              updated[category][key] = Number((currentVal + value).toFixed(2));
-              newHighlighted.push(`${category}.${key}`);
-            }
-          }
-        }
+    for (const [category, params] of Object.entries(suggestedChanges)) {
+      if (!updatedTune[category]) updatedTune[category] = {};
+      for (const [key, value] of Object.entries(params)) {
+        const curVal = updatedTune[category][key];
+        const oldValNum = Number.isFinite(Number(curVal)) ? Number(curVal) : 0;
+        const newValNum = Number((oldValNum + Number(value)).toFixed(2));
+        updatedTune[category][key] = newValNum;
+
+        items.push({
+          category,
+          key,
+          label: PARAM_NAMES_ZH[key] || key,
+          oldVal: curVal !== undefined ? curVal : '未设置',
+          newVal: newValNum,
+          delta: value,
+          reason: value > 0 ? '增加刚度/硬度/限制' : '降低硬度/释放抓地'
+        });
       }
-      setHighlightedParams(newHighlighted);
-      return updated;
+    }
+
+    setPreviewFixData({
+      tune: updatedTune,
+      originalTune: tune,
+      title,
+      items
     });
-    setWizardStep(3);
   };
 
   const handleApplyProblemFixInViewOnly = (tune, problem) => {
     const suggestedChanges = problem.suggestedChanges || convertFixes(problem.fixes);
     if (!suggestedChanges) {
-      alert('该问题暂无建议的参数修改');
+      setUnlockToast('⚠️ 该问题暂无建议的参数修改');
       return;
     }
-    handleApplyDiagnosisInViewOnly(tune, suggestedChanges);
-    alert(`已自动开启编辑并应用「${problem.name}」的调校建议`);
+    handleGenerateFixPreview(tune, suggestedChanges, `攻坚问题「${problem.name}」`);
+  };
+
+  const handleConfirmSaveFixPreview = async () => {
+    if (!previewFixData) return;
+    try {
+      await saveTune(previewFixData.tune);
+      setUnlockToast(`✅ 参数修正已成功写入并保存至数据库！（修改了 ${previewFixData.items.length} 项物理参数）`);
+      setDiagnosisModalTune(previewFixData.tune);
+      setPreviewFixData(null);
+    } catch (e) {
+      setUnlockToast('❌ 保存失败: ' + (e.message || '系统错误'));
+    }
   };
   const aiRaceAvailability = {
     road: true,
@@ -2629,7 +2641,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             return String(sVehicleId) === String(diagnosisModalTune.vehicleId);
                           });
                           if (carSessions.length === 0) {
-                            alert('未找到该车型的遥测比赛记录。请先去赛道跑几圈录制遥测数据！');
+                            setUnlockToast('ℹ️ 暂未找到该车型的赛道遥测记录，请先去赛道跑几圈录制遥测数据！');
                             return;
                           }
                           setSelectedSessionId(carSessions[0].id);
@@ -2738,7 +2750,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           <button
                             type="button"
                             onClick={() => {
-                              handleApplyDiagnosisInViewOnly(diagnosisModalTune, diagnosisResult.suggestedChanges);
+                              handleGenerateFixPreview(diagnosisModalTune, diagnosisResult.suggestedChanges, '全车遥测深度健康扫描');
                             }}
                             style={{
                               ...btnPrimaryStyle,
@@ -2751,7 +2763,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               borderRadius: 6
                             }}
                           >
-                            ⚡ 一键写入此调校方案并开启编辑
+                            ⚡ 生成并查看拟修正参数明细预览 (Before vs After)
                           </button>
                         </div>
                       )}
@@ -2884,11 +2896,97 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               borderRadius: 6
                             }}
                           >
-                            ⚡ 一键写入对症修正参数并开启编辑
+                            ⚡ 生成问题「{selectedProblem.name}」拟修正对比预览
                           </button>
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ⚡ 拟修正参数明细对决与保存确认面板 (Preview Fix Data Panel) */}
+              {previewFixData && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(35, 134, 54, 0.15) 0%, rgba(13, 17, 23, 0.95) 100%)',
+                  border: '1px solid #3fb950',
+                  borderRadius: 10,
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  marginTop: 8,
+                  animation: 'toastSlideIn 0.3s ease',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(63, 185, 80, 0.2)', paddingBottom: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#3fb950', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚡ {previewFixData.title} · 参数修改明细预览</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>(原来是多少 ➔ 拟更新为多少)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFixData(null)}
+                      style={{ ...btnSmallStyle, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                    {previewFixData.items.map((item, idx) => (
+                      <div key={idx} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '130px 180px 1fr',
+                        gap: 10,
+                        padding: '8px 12px',
+                        background: 'rgba(0, 0, 0, 0.35)',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        alignItems: 'center',
+                        border: '1px solid rgba(255, 255, 255, 0.04)'
+                      }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.label}</span>
+                        <span style={{ fontFamily: 'monospace' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>{item.oldVal}</span> ➔ <strong style={{ color: '#3fb950' }}>{item.newVal}</strong>
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+                          幅度: <strong style={{ color: item.delta > 0 ? '#3fb950' : '#da3633' }}>{item.delta > 0 ? `+${item.delta}` : item.delta}</strong>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4, paddingTop: 8, borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFixData(null)}
+                      style={{
+                        ...btnSmallStyle,
+                        padding: '7px 16px',
+                        fontSize: 11,
+                        background: 'transparent',
+                        borderColor: 'var(--border)',
+                        color: 'var(--text-secondary)',
+                        borderRadius: 6
+                      }}
+                    >
+                      放弃本次修改
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmSaveFixPreview}
+                      style={{
+                        ...btnPrimaryStyle,
+                        padding: '7px 20px',
+                        fontSize: 11,
+                        background: '#238636',
+                        fontWeight: 800,
+                        borderRadius: 6
+                      }}
+                    >
+                      确认写入并直接保存该方案
+                    </button>
                   </div>
                 </div>
               )}
