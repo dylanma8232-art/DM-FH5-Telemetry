@@ -61,5 +61,9 @@ export const saveTuneSchema = z.object({
 
 // Zod 异常格式化 Helper
 export function formatZodError(error) {
-  return error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+  const issues = error?.issues || error?.errors;
+  if (Array.isArray(issues)) {
+    return issues.map(err => `${Array.isArray(err.path) ? err.path.join('.') : err.path}: ${err.message}`);
+  }
+  return [error?.message || '数据格式校验失败'];
 }
