@@ -64,8 +64,10 @@ function loadSessionData(sessionId) {
 
 router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
   const reqTune = req.body?.tune || stateManager.tunes[req.params.tuneId];
-  const problem = req.body?.problem;
-  if (!problem?.name) return res.status(400).json({ error: '请选择一个常见问题。' });
+  const rawProblems = req.body?.problems || (req.body?.problem ? [req.body?.problem] : []);
+  const problems = rawProblems.filter(p => p && p.name);
+
+  if (problems.length === 0) return res.status(400).json({ error: '请至少选择一个驾驶体验问题。' });
 
   const vehicleId = reqTune?.vehicleId;
   const vehicle = stateManager.vehicles[vehicleId] || {};
@@ -86,18 +88,20 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
     }
   }
 
+  const problemNamesStr = problems.map(p => p.name).join(' + ');
+
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) {
     const evidenceText = sessionTelemetryMetrics?.sensorEvidence?.length > 0
       ? `• **遥测传感器实测物理证据**：\n  ${sessionTelemetryMetrics.sensorEvidence.join('\n  ')}\n`
-      : '';
+      : '• **遥测比赛数据**：未绑定遥测记录（已基于该车已有已调物理参数分析）\n';
 
     return res.json({
-      diagnosis: `🔬 **针对驾驶问题「${problem.name}」的赛车工程调校诊断报告**：\n\n` +
+      diagnosis: `🔬 **针对复合驾驶问题「${problemNamesStr}」的赛车工程调校诊断报告**：\n\n` +
         `• **当前已调参数关联**：前/后胎压 ${reqTune?.tires?.frontPressure || '-'}/${reqTune?.tires?.rearPressure || '-'} bar；前/后防倾杆 ${reqTune?.suspension?.frontARB || '-'}/${reqTune?.suspension?.rearARB || '-'}；前/后弹簧 ${reqTune?.suspension?.frontSpring || '-'}/${reqTune?.suspension?.rearSpring || '-'} kgf/mm；差速加速 ${reqTune?.drivetrain?.diffAccel || '-'}%。\n` +
-        (sessionTelemetryMetrics ? `• **实测遥测比赛关联**：赛道 [${sessionTelemetryMetrics.track}] (最佳圈速: ${sessionTelemetryMetrics.bestLap})\n` + evidenceText : '') +
-        `• **物理根因剖析**：${problem.description || '车辆在特定弯道极限载荷下出现质心与抓地转移失衡。'}\n` +
-        `• **对症调整建议**：推荐点击下方「生成拟修正对比预览」查看针对该问题的物理参数调整。`
+        (sessionTelemetryMetrics ? `• **实测遥测比赛关联**：赛道 [${sessionTelemetryMetrics.track}] (最佳圈速: ${sessionTelemetryMetrics.bestLap})\n` + evidenceText : evidenceText) +
+        `• **物理根因剖析**：${problems.map(p => `【${p.name}】${p.description || ''}`).join('；')}\n` +
+        `• **对症调整建议**：推荐点击下方「生成拟修正对比预览」查看针对这 ${problems.length} 项问题的综合物理参数调整。`
     });
   }
 
@@ -109,10 +113,10 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
     (sessionTelemetryMetrics ? `【赛道遥测传感器解算特征 (实测物理数据)】:\n` +
       `- 赛道名称: ${sessionTelemetryMetrics.track}\n` +
       `- 最佳圈速: ${sessionTelemetryMetrics.bestLap}\n` +
-      `- 传感器抓地/悬挂/刹车实测证据:\n  • ${sessionTelemetryMetrics.sensorEvidence.join('\n  • ')}\n` : '【赛道遥测数据】: 暂未绑定遥测记录\n') +
-    `【玩家反馈的驾驶现象】: ${problem.name} (${problem.description || ''})\n` +
+      `- 传感器抓地/悬挂/刹车实测证据:\n  • ${sessionTelemetryMetrics.sensorEvidence.join('\n  • ')}\n` : '【赛道遥测数据】: 玩家未选择绑定遥测比赛记录 (需仅基于已有参数与问题分析)\n') +
+    `【玩家反馈的多项复合驾驶现象 (${problems.length}项)】:\n${problems.map((p, i) => `${i + 1}. ${p.name}: ${p.description || ''}`).join('\n')}\n` +
     `【允许建议调整的字段】: ${JSON.stringify(editable)}\n\n` +
-    `请作为顶尖 FH5 赛车工程师，严格基于上述已有调校参数${sessionTelemetryMetrics ? '以及赛道遥测传感器的真实物理数据' : ''}，深度分析导致「${problem.name}」现象的物理根因，并给出具体的对症调整建议。格式：\n1. 现象与遥测物理原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
+    `请作为顶尖 FH5 赛车工程师，严格基于上述已有调校参数${sessionTelemetryMetrics ? '以及赛道遥测传感器的真实物理数据' : ''}，针对玩家选择的这 ${problems.length} 项复合驾驶问题进行权衡与深度物理分析，并给出兼顾这几项症状的权衡参数调整推荐。格式：\n1. 复合现象与物理原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
 
   const response = await fetch(`${process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}/chat/completions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },

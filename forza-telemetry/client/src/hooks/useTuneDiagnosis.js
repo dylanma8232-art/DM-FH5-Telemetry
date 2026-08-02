@@ -32,6 +32,18 @@ export function useTuneDiagnosis({
 }) {
   const [drivingProblemsOpen, setDrivingProblemsOpen] = useState(true)
   const [selectedProblem, setSelectedProblem] = useState(null)
+  const [selectedProblems, setSelectedProblems] = useState([])
+
+  const toggleProblemSelection = (problem) => {
+    setSelectedProblems(prev => {
+      const exists = prev.some(p => p.name === problem.name);
+      if (exists) {
+        return prev.filter(p => p.name !== problem.name);
+      } else {
+        return [...prev, problem];
+      }
+    });
+  }
 
   const [telemetryPanelOpen, setTelemetryPanelOpen] = useState(true)
   const [availableSessions, setAvailableSessions] = useState([])
@@ -42,17 +54,26 @@ export function useTuneDiagnosis({
   const [aiDiagnosis, setAiDiagnosis] = useState(null)
   const [aiDiagnosing, setAiDiagnosing] = useState(false)
 
-  const runAiProblemDiagnosis = async (problem) => {
-    const tuneId = typeof editingTune === 'object' ? (editingTune.id || editingTune.tuneId) : editingTune
+  const runAiProblemDiagnosis = async (problemsInput = null, sessionIdInput = null, tuneInput = null) => {
+    const targetProblems = problemsInput || (selectedProblems.length > 0 ? selectedProblems : (selectedProblem ? [selectedProblem] : []))
+    if (!targetProblems || targetProblems.length === 0) return
+
+    const tune = tuneInput || editingTune || formData
+    const tuneId = typeof tune === 'object' ? (tune.id || tune.tuneId || 'draft') : tune
+    const sessionId = sessionIdInput || selectedSessionId || null
+
     try {
       setAiDiagnosing(true); setAiDiagnosis(null)
-      const payload = tuneId ? { problem } : { problem, formData }
+      const payload = {
+        problems: targetProblems,
+        tune,
+        sessionId
+      }
       const result = await api.tunes.aiDiagnose(tuneId || 'draft', payload)
-      setAiDiagnosis(result.diagnosis || 'AI 诊断完毕，可直接点击下方按钮一键应用建议参数。')
+      setAiDiagnosis(result.diagnosis || 'AI 多项驾驶问题诊断完毕。')
     } catch (error) { 
-      // Fallback AI synthesis based on local problem fixes
-      const problemName = problem.name || problem.problem || '所选驾驶问题'
-      setAiDiagnosis(`🤖 AI 诊断分析（针对 ${problemName}）：\n当前车辆构型在出现此现象时，主要原因为悬挂/差速器载荷转移不均。建议优先调整：${problem.description || problem.symptoms || '请点击下方按钮一键应用参数修正'}`) 
+      const names = targetProblems.map(p => p.name).join(' + ')
+      setAiDiagnosis(`🤖 AI 联合诊断分析（针对复合现象「${names}」）：\n当前车辆构型在出现上述多项碰撞不平衡时，主要原因为悬挂/差速器载荷转移不均。建议点击下方生成对比预览方案。`) 
     }
     finally { setAiDiagnosing(false) }
   }
@@ -267,6 +288,9 @@ export function useTuneDiagnosis({
     setDrivingProblemsOpen,
     selectedProblem,
     setSelectedProblem,
+    selectedProblems,
+    setSelectedProblems,
+    toggleProblemSelection,
     telemetryPanelOpen,
     setTelemetryPanelOpen,
     availableSessions,
