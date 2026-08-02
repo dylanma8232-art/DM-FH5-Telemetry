@@ -11,46 +11,53 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 const dbPath = path.join(DATA_DIR, 'telemetry.db');
-const db = new Database(dbPath);
+let db = null;
+try {
+  db = new Database(dbPath);
+  // 开启 WAL 极速写入模式，优化高频小写入性能
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+} catch (err) {
+  console.warn('[SQLite Storage] better-sqlite3 模块不可用，系统将自动降级使用纯文件系统存取:', err.message);
+}
 
-// 开启 WAL 极速写入模式，优化高频小写入性能
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL');
+if (db) {
+  // 初始化表结构
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions_detail (
+      id TEXT PRIMARY KEY,
+      hifi_data_br BLOB,
+      lowfi_data_br BLOB,
+      updated_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_detail_updated ON sessions_detail(updated_at);
 
-// 初始化表结构
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions_detail (
-    id TEXT PRIMARY KEY,
-    hifi_data_br BLOB,
-    lowfi_data_br BLOB,
-    updated_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_sessions_detail_updated ON sessions_detail(updated_at);
+    CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
+      vehicle_id TEXT,
+      slot_id TEXT,
+      option_id TEXT,
+      bias_pi INTEGER,
+      PRIMARY KEY (vehicle_id, slot_id, option_id)
+    );
 
-  CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
-    vehicle_id TEXT,
-    slot_id TEXT,
-    option_id TEXT,
-    bias_pi INTEGER,
-    PRIMARY KEY (vehicle_id, slot_id, option_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS vehicle_pi_observations (
-    vehicle_id TEXT,
-    signature TEXT,
-    confirmed_pi INTEGER NOT NULL,
-    estimated_pi INTEGER,
-    source TEXT,
-    observed_at TEXT,
-    PRIMARY KEY (vehicle_id, signature)
-  );
-`);
+    CREATE TABLE IF NOT EXISTS vehicle_pi_observations (
+      vehicle_id TEXT,
+      signature TEXT,
+      confirmed_pi INTEGER NOT NULL,
+      estimated_pi INTEGER,
+      source TEXT,
+      observed_at TEXT,
+      PRIMARY KEY (vehicle_id, signature)
+    );
+  `);
+}
 
 export const sqliteDb = {
   /**
    * 保存特定车型某个改装件的 PI 偏置校准值 (SQLite 增量自学习偏置)
    */
   savePiCalibration: (vehicleId, slotId, optionId, biasPi) => {
+    if (!db) return;
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO vehicle_pi_calibrations (vehicle_id, slot_id, option_id, bias_pi)
       VALUES (?, ?, ?, ?)
@@ -62,6 +69,7 @@ export const sqliteDb = {
    * 获取特定车型的所有改装件 PI 偏置校准值
    */
   getPiCalibrations: (vehicleId) => {
+    if (!db) return [];
     try {
       const stmt = db.prepare(`
         SELECT slot_id, option_id, bias_pi FROM vehicle_pi_calibrations WHERE vehicle_id = ?
@@ -73,6 +81,7 @@ export const sqliteDb = {
     }
   },
   savePiObservation: ({ vehicleId, signature, confirmedPi, estimatedPi, source = '玩家游戏内实测' }) => {
+    if (!db) return;
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO vehicle_pi_observations
         (vehicle_id, signature, confirmed_pi, estimated_pi, source, observed_at)
@@ -81,6 +90,7 @@ export const sqliteDb = {
     stmt.run(String(vehicleId), String(signature), Number(confirmedPi), Number.isFinite(Number(estimatedPi)) ? Number(estimatedPi) : null, String(source), new Date().toISOString());
   },
   getPiObservation: (vehicleId, signature) => {
+    if (!db) return null;
     try {
       const stmt = db.prepare(`SELECT vehicle_id, signature, confirmed_pi, estimated_pi, source, observed_at FROM vehicle_pi_observations WHERE vehicle_id = ? AND signature = ?`);
       return stmt.get(String(vehicleId), String(signature)) || null;
@@ -93,6 +103,7 @@ export const sqliteDb = {
    * 保存 Session 时序细节包 (原子事务写入)
    */
   saveSessionDetail: (sessionId, hifiBrBuffer, lowfiBrBuffer) => {
+    if (!db) return;
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
       VALUES (?, ?, ?, ?)
@@ -110,6 +121,7 @@ export const sqliteDb = {
    * 获取 Session 细节包
    */
   getSessionDetail: (sessionId) => {
+    if (!db) return null;
     const stmt = db.prepare(`
       SELECT hifi_data_br, lowfi_data_br FROM sessions_detail WHERE id = ?
     `);
@@ -120,6 +132,7 @@ export const sqliteDb = {
    * 删除 Session 细节
    */
   deleteSessionDetail: (sessionId) => {
+    if (!db) return;
     const stmt = db.prepare(`
       DELETE FROM sessions_detail WHERE id = ?
     `);
@@ -130,6 +143,7 @@ export const sqliteDb = {
    * 一键静默历史大碎文件全面归并搬迁入库，并彻底删除物理大文件
    */
   migrateAllOldSessions: () => {
+    if (!db) return;
     const sessionsDir = path.join(DATA_DIR, 'sessions');
     if (!fs.existsSync(sessionsDir)) return;
 

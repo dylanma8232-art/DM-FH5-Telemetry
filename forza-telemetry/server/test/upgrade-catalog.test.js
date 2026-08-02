@@ -26,6 +26,37 @@ test('可调能力声明只解锁参数，不推断或写入改装配件', () =>
   assert.ok(!ids.includes('downforce_front'));
 });
 
+test('能力清单未勾选的项目保持锁定，胎压始终可调', () => {
+  const result = resolveTuningCapabilities(profile, {
+    alignment: false,
+    springs: 'none',
+    antiRollBars: 'none',
+    transmission: 'none',
+    brakes: false,
+    differential: false,
+    aero: 'none',
+    driveType: 'rwd'
+  });
+  const ids = result.tuneParameters.map(item => item.id);
+
+  assert.deepEqual(ids, ['tire_pressure_front', 'tire_pressure_rear']);
+});
+
+test('能力清单识别前后单独勾选的防倾杆与空气动力项目', () => {
+  const result = resolveTuningCapabilities(profile, {
+    antiRollBars: 'front_only',
+    aero: 'rear_only',
+    driveType: 'rwd'
+  });
+  const ids = result.tuneParameters.map(item => item.id);
+
+  assert.ok(ids.includes('arb_front'));
+  assert.ok(!ids.includes('arb_rear'));
+  assert.ok(ids.includes('downforce_rear'));
+  assert.ok(!ids.includes('downforce_front'));
+  assert.ok(!ids.includes('tire_camber_front'));
+});
+
 test('保存调校时保留驱动置换和其他有效配件选择', () => {
   const result = validateTunePayload(profile, {
     generationMode: 'manual',
@@ -94,6 +125,29 @@ test('车型专属空气动力件保留验证范围但显示在空气动力学�
   }
 });
 
+test('车型专属引擎置换不会混入通用候选引擎', () => {
+  const profile = {
+    basePi: 600,
+    baseDriveType: 'rwd',
+    commonTemplate: 'combustion_road',
+    slots: [
+      {
+        id: 'engine_swap',
+        group: '车辆专属',
+        scope: 'vehicle_specific',
+        options: [{ id: 'stock' }, { id: 'engine_vehicle_only', label: '该车专属引擎' }]
+      }
+    ]
+  };
+
+  const engineOptions = resolveUpgradeProfile(profile, {}).slots
+    .find(slot => slot.id === 'engine_swap')
+    .options
+    .map(option => option.id);
+
+  assert.deepEqual(engineOptions, ['stock', 'engine_vehicle_only']);
+});
+
 test('未录入专属证据的车辆回退到通用置换，明确不存在时隐藏', () => {
   const genericProfile = { basePi: 600, baseDriveType: 'rwd', commonTemplate: 'combustion_road', slots: [] };
   const generic = resolveUpgradeProfile(genericProfile, {});
@@ -116,3 +170,19 @@ test('未录入专属证据的车辆回退到通用置换，明确不存在时�
     assert.equal(unavailable.slots.some(slot => slot.id === slotId), false);
   }
 });
+
+test('未录入单车Profile的合法车辆能够成功解析通用模版并校验放行', () => {
+  const resolved = resolveUpgradeProfile(null, {}, { basePi: 450, driveType: 'rwd' });
+  assert.equal(resolved.status, 'ok');
+  assert.ok(Array.isArray(resolved.slots));
+  assert.ok(resolved.slots.length > 0);
+
+  const validation = validateTunePayload(null, {
+    parts: {},
+    driveType: 'rwd',
+    tires: { frontPressure: 2.0, rearPressure: 2.0 }
+  });
+  assert.equal(validation.valid, true);
+  assert.deepEqual(validation.errors, []);
+});
+

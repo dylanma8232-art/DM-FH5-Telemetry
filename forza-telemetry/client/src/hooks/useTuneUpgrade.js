@@ -115,8 +115,8 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
     basePressureRear -= 0.05;
   }
 
-  // 2. PI 级别悬挂与刚度调整系数
-  const piScaleFactor = 0.85 + 0.30 * Math.max(0, Math.min(1, (pi - 500) / 498));
+  // 2. PI 级别悬挂与刚度调整系数（支持 100~999 全区间平滑缩放）
+  const piScaleFactor = 0.70 + 0.45 * Math.max(0, Math.min(1, (pi - 100) / 899));
 
   // 3. 弹簧与阻尼物理基础推导（底盘极低时触发支撑保护，防底盘擦地失抓）
   const rideHeightFactor = raceType === 'road' ? 1.08 : 1.0;
@@ -223,11 +223,12 @@ export function getInitialParameterRecommendations(resolvedShop = {}, raceType =
   const aero = {};
 
   for (const [id, rawVal] of Object.entries(baseValues)) {
+    // 推荐值只能覆盖服务端明确确认可调的项目。能力清单模式下，未勾选
+    // 的模块不会出现在 paramMap 中，因此不得写入表单，即使本地存在通用默认值。
+    if (!paramMap[id]) continue;
+
     let val = rawVal;
     const param = paramMap[id];
-    const isAlwaysUnlocked = id.startsWith('tire_') || id === 'caster_front';
-    // 只有当该参数在当前配件/能力配置下真正被解锁时，才填入推荐值
-    if (!param && !isAlwaysUnlocked) continue;
     if (param?.range) {
       const min = Number(param.range.min);
       const max = Number(param.range.max);

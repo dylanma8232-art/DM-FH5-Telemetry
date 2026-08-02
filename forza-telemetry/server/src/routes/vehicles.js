@@ -55,14 +55,19 @@ router.get('/', (req, res) => {
 router.get('/catalog', (req, res) => {
   const cars = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
   const metadata = loadUpgradeMetadata();
-  const catalog = Object.entries(cars).map(([ordinal, name]) => ({
-    ordinal: String(ordinal),
-    name,
-    manufacturer: getManufacturer(name),
-    basePi: Number.isFinite(Number(metadata[String(ordinal)]?.basePi)) && Number(metadata[String(ordinal)]?.basePi) > 0
-      ? Number(metadata[String(ordinal)].basePi)
-      : null
-  }));
+  const catalog = Object.entries(cars).map(([ordinal, name]) => {
+    const vMeta = metadata[String(ordinal)] || {};
+    const singleProf = loadSingleUpgradeProfile(String(ordinal));
+    const basePi = Number(singleProf?.basePi) || Number(vMeta.basePi) || null;
+    const baseDriveType = (singleProf?.baseDriveType || vMeta.baseDriveType || 'rwd').toLowerCase();
+    return {
+      ordinal: String(ordinal),
+      name,
+      manufacturer: getManufacturer(name),
+      basePi,
+      baseDriveType
+    };
+  });
   res.json(catalog);
 });
 
@@ -77,17 +82,27 @@ router.get('/:id/upgrades', (req, res) => {
     return res.status(400).json({ error: '改装选择参数格式无效。' });
   }
 
-  // 从元数据或动态车辆数据库中读取该车辆的默认基本PI和驱动，用作fallback上下文
+  // 从元数据或单车 profile 中读取该车辆的原厂基本 PI 和驱动，确保出厂属性不受当前遥测改装影响
   const metadata = loadUpgradeMetadata() || {};
   const meta = metadata[vehicleId] || {};
   const vehicleState = stateManager.vehicles[vehicleId] || {};
   const dynamicDriveType = String(vehicleState.drivetrain || '').toLowerCase();
   
+  // 车辆静态原生出厂驱动 (profile -> meta -> vehicleState.baseDriveType -> dynamic -> rwd)
+  const stockDrivetrain = (
+    profile?.baseDriveType ||
+    meta.baseDriveType ||
+    vehicleState.baseDriveType ||
+    (['fwd', 'rwd', 'awd'].includes(dynamicDriveType) ? dynamicDriveType : 'rwd')
+  ).toLowerCase();
+
+  // 当前激活/置换的驱动（允许前端覆盖）
   const driveType = ['fwd', 'rwd', 'awd'].includes(req.query.driveType)
     ? req.query.driveType
-    : (meta.baseDriveType || (['fwd', 'rwd', 'awd'].includes(dynamicDriveType) ? dynamicDriveType : 'awd')).toLowerCase();
+    : stockDrivetrain;
 
-  const basePi = Number(meta.basePi) || Number(vehicleState.pi) || 500;
+  // 基础原厂 PI 严禁写死 || 500；优先 profile 与静态元数据，保底 100
+  const basePi = Number(profile?.basePi) || Number(meta.basePi) || Number(vehicleState.basePi) || 100;
 
   let capabilities = null;
   try {
@@ -95,25 +110,24 @@ router.get('/:id/upgrades', (req, res) => {
   } catch (_) {
     return res.status(400).json({ error: '可调项目参数格式无效。' });
   }
-  const resolved = resolveUpgradeProfile(profile, selections, { driveType });
+  const resolved = resolveUpgradeProfile(profile, selections, { driveType, basePi });
+  resolved.stockDrivetrain = stockDrivetrain;
+  resolved.baseDriveType = stockDrivetrain;
+  resolved.basePi = basePi;
   const capabilityResult = (capabilities && typeof capabilities === 'object')
     ? resolveTuningCapabilities(profile, capabilities, { driveType })
     : null;
 
-  // 合并与解算 tuneParameters：取配件解算和清单能力解算的并集，确保无论通过配件还是清单声明解锁的项目都能被前端感知
-  let mergedParameters = resolved.tuneParameters || [];
-  if (capabilityResult?.tuneParameters?.length) {
-    const paramMap = new Map(mergedParameters.map(p => [p.id, p]));
-    for (const p of capabilityResult.tuneParameters) {
-      paramMap.set(p.id, { ...(paramMap.get(p.id) || {}), ...p });
-    }
-    mergedParameters = Array.from(paramMap.values());
-  }
+  // 能力清单模式中，玩家勾选的项目是唯一权限来源。不能和常规改装
+  // 解算结果并集，否则未勾选模块会被重新解锁。
+  const tuneParameters = capabilityResult
+    ? capabilityResult.tuneParameters
+    : (resolved.tuneParameters || []);
 
   res.json({
     vehicleId,
     ...resolved,
-    tuneParameters: mergedParameters,
+    tuneParameters,
     ...(capabilityResult ? { tuningCapabilities: capabilityResult.capabilities } : {})
   });
 });

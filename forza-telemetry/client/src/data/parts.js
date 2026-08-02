@@ -427,27 +427,34 @@ const PART_CATEGORIES = [
  * key: 调校参数ID, value: { category, minTier }
  */
 const TUNE_REQUIREMENTS = {
-  // 轮胎
-  tire_pressure_front:    { category: null,         minTier: 'stock'  }, // 始终可用
+  // 轮胎胎压 (原厂即可调)
+  tire_pressure_front:    { category: null,         minTier: 'stock'  },
   tire_pressure_rear:     { category: null,         minTier: 'stock'  },
-  tire_camber_front:      { category: 'tires_compound', minTier: 'sport' },
-  tire_camber_rear:       { category: 'tires_compound', minTier: 'sport' },
-  tire_toe_front:         { category: 'tires_compound', minTier: 'sport' },
-  tire_toe_rear:          { category: 'tires_compound', minTier: 'sport' },
 
-  // 悬挂
+  // 轮胎定位 / 悬挂对齐 (倾角/束角/前倾角，需升级悬挂/对齐配件)
+  tire_camber_front:      { category: 'suspension', minTier: 'street' },
+  tire_camber_rear:       { category: 'suspension', minTier: 'street' },
+  tire_toe_front:         { category: 'suspension', minTier: 'street' },
+  tire_toe_rear:          { category: 'suspension', minTier: 'street' },
+  caster_front:           { category: 'suspension', minTier: 'street' },
+
+  // 悬挂与避震
   spring_front:           { category: 'suspension', minTier: 'street' },
   spring_rear:            { category: 'suspension', minTier: 'street' },
   damping_front:          { category: 'suspension', minTier: 'sport'  },
   damping_rear:           { category: 'suspension', minTier: 'sport'  },
+  rebound_front:          { category: 'suspension', minTier: 'sport'  },
+  rebound_rear:           { category: 'suspension', minTier: 'sport'  },
+  bump_front:             { category: 'suspension', minTier: 'sport'  },
+  bump_rear:              { category: 'suspension', minTier: 'sport'  },
   ride_height_front:      { category: 'suspension', minTier: 'street' },
   ride_height_rear:       { category: 'suspension', minTier: 'street' },
 
-  // 防倾杆 (防倾杆类别自身)
+  // 防倾杆
   arb_front:              { category: 'anti_roll_bars', minTier: 'street' },
   arb_rear:               { category: 'anti_roll_bars', minTier: 'street' },
 
-  // 刹车
+  // 刹车系统 (需要改竞技级刹车才能调)
   brake_balance:          { category: 'brakes', minTier: 'race' },
   brake_pressure:         { category: 'brakes', minTier: 'race' },
 
@@ -469,9 +476,9 @@ const TUNE_REQUIREMENTS = {
   gear_5:                 { category: 'transmission', minTier: 'sport'  },
   gear_6:                 { category: 'transmission', minTier: 'sport'  },
 
-  // 空力
-  downforce_front:        { category: 'front_aero', minTier: 'street' },
-  downforce_rear:         { category: 'rear_aero',  minTier: 'street' }
+  // 空力 (修正在 PART_CATEGORIES 中的别名匹配: aero_front / aero_rear)
+  downforce_front:        { category: 'aero_front', minTier: 'street' },
+  downforce_rear:         { category: 'aero_rear',  minTier: 'street' }
 };
 
 // ============================================================
@@ -541,19 +548,54 @@ const TUNE_RANGES = {
     race:    { min: 1, max: 150, step: 1 },
     extreme: { min: 1, max: 200, step: 1 }
   },
+  caster_front: {
+    stock:   { min: 1, max: 7, step: 0.1 },
+    street:  { min: 1, max: 7, step: 0.1 },
+    sport:   { min: 1, max: 7, step: 0.1 },
+    race:    { min: 1, max: 7, step: 0.1 },
+    extreme: { min: 1, max: 7, step: 0.1 }
+  },
   damping_front: {
     stock:   null,
     street:  null,
-    sport:   { min: 1, max: 15, step: 1 },
-    race:    { min: 1, max: 25, step: 1 },
-    extreme: { min: 1, max: 30, step: 1 }
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
   },
   damping_rear: {
     stock:   null,
     street:  null,
-    sport:   { min: 1, max: 15, step: 1 },
-    race:    { min: 1, max: 25, step: 1 },
-    extreme: { min: 1, max: 30, step: 1 }
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
+  },
+  rebound_front: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
+  },
+  rebound_rear: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
+  },
+  bump_front: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
+  },
+  bump_rear: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 1, max: 15, step: 0.1 },
+    race:    { min: 1, max: 20, step: 0.1 },
+    extreme: { min: 1, max: 30, step: 0.1 }
   },
   arb_front: {
     stock:   null,
@@ -597,12 +639,54 @@ const TUNE_RANGES = {
     race:    { min: 0, max: 100, step: 1 },
     extreme: { min: 0, max: 100, step: 1 }
   },
+  diff_front_accel: {
+    stock:   null,
+    street:  { min: 0, max: 80, step: 1 },
+    sport:   { min: 0, max: 100, step: 1 },
+    race:    { min: 0, max: 100, step: 1 },
+    extreme: { min: 0, max: 100, step: 1 }
+  },
+  diff_front_decel: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 0, max: 80, step: 1 },
+    race:    { min: 0, max: 100, step: 1 },
+    extreme: { min: 0, max: 100, step: 1 }
+  },
+  diff_rear_accel: {
+    stock:   null,
+    street:  { min: 0, max: 80, step: 1 },
+    sport:   { min: 0, max: 100, step: 1 },
+    race:    { min: 0, max: 100, step: 1 },
+    extreme: { min: 0, max: 100, step: 1 }
+  },
+  diff_rear_decel: {
+    stock:   null,
+    street:  null,
+    sport:   { min: 0, max: 80, step: 1 },
+    race:    { min: 0, max: 100, step: 1 },
+    extreme: { min: 0, max: 100, step: 1 }
+  },
   diff_center: {
     stock:   null,
     street:  null,
     sport:   null,
     race:    { min: 0, max: 80, step: 1 },
     extreme: { min: 0, max: 100, step: 1 }
+  },
+  brake_balance: {
+    stock:   null,
+    street:  null,
+    sport:   null,
+    race:    { min: 0, max: 100, step: 1 },
+    extreme: { min: 0, max: 100, step: 1 }
+  },
+  brake_pressure: {
+    stock:   null,
+    street:  null,
+    sport:   null,
+    race:    { min: 20, max: 200, step: 1 },
+    extreme: { min: 20, max: 200, step: 1 }
   },
   final_drive: {
     stock:   { min: 1.0, max: 6.0, step: 0.01 },
@@ -1006,8 +1090,21 @@ export function getTuneDefaults(parts, rawCarStats) {
 
       case 'damping_front':
       case 'damping_rear':
-        // 阻尼约为弹簧值的40-50%
-        defaults[paramId] = roundToStep(constraint.min + (constraint.max - constraint.min) * 0.45, constraint.step);
+      case 'rebound_front':
+      case 'rebound_rear':
+        // 回弹阻尼约为最大范围的 55-65%
+        defaults[paramId] = roundToStep(constraint.min + (constraint.max - constraint.min) * 0.60, constraint.step);
+        break;
+
+      case 'bump_front':
+      case 'bump_rear':
+        // 压缩阻尼约为回弹阻尼的 50-60%（约为范围的 30-40%）
+        defaults[paramId] = roundToStep(constraint.min + (constraint.max - constraint.min) * 0.35, constraint.step);
+        break;
+
+      case 'caster_front':
+        // 默认前后倾角约为 5.0 至 6.0 度（提升弯道外倾变动）
+        defaults[paramId] = roundToStep(Math.min(constraint.max, Math.max(constraint.min, 5.5)), constraint.step);
         break;
 
       case 'arb_front':

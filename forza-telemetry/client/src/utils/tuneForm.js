@@ -8,10 +8,16 @@ export const FIX_PARAM_MAP = {
   rearCamber: 'tires.rearCamber',
   frontToe: 'tires.frontToe',
   rearToe: 'tires.rearToe',
+  frontCaster: 'tires.frontCaster',
+  caster_front: 'tires.frontCaster',
   frontSpring: 'suspension.frontSpring',
   rearSpring: 'suspension.rearSpring',
   frontDamping: 'suspension.frontDamping',
   rearDamping: 'suspension.rearDamping',
+  frontRebound: 'suspension.frontRebound',
+  rearRebound: 'suspension.rearRebound',
+  frontBump: 'suspension.frontBump',
+  rearBump: 'suspension.rearBump',
   frontARB: 'suspension.frontARB',
   rearARB: 'suspension.rearARB',
   frontRideHeight: 'suspension.frontRideHeight',
@@ -22,7 +28,8 @@ export const FIX_PARAM_MAP = {
   finalDrive: 'drivetrain.finalDrive',
   frontDownforce: 'aero.frontDownforce',
   rearDownforce: 'aero.rearDownforce',
-  brakeBias: 'brakes.bias'
+  brakeBias: 'brakes.balance',
+  brakePressure: 'brakes.pressure'
 }
 
 export function convertFixesToSuggestedChanges(fixes) {

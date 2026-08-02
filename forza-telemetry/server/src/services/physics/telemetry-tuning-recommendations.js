@@ -29,10 +29,27 @@ export function generateTelemetryTuningRecommendations(data = []) {
   const frames = targetData.filter(frame => Number.isFinite(Number(frame.speedKmh ?? frame.speedMs)));
   if (frames.length < 80) return { recommendations: [], summary: '遥测样本不足，至少录制一段包含制动、过弯和加速的有效圈。', sampleCount: frames.length };
 
-  const throttleFrames = frames.filter(frame => control(frame, 'accel') >= 0.72 && Number(frame.speedKmh || 0) > 25);
-  const brakeFrames = frames.filter(frame => control(frame, 'brake') >= 0.62 && Number(frame.speedKmh || 0) > 25);
-  const highLoadFrames = frames.filter(frame => Math.abs(value(frame, ['acceleration', 'x'])) / 9.80665 >= 0.65);
+  // P1 优化：单次扫描归约，消除原来 4 次独立 filter 对同一数组的重复遍历
+  const throttleFrames = [];
+  const brakeFrames = [];
+  const highLoadFrames = [];
+  const validTempRows = [];
+
+  for (const frame of frames) {
+    const spd = Number(frame.speedKmh || 0);
+    const accelRatio = control(frame, 'accel');
+    const brakeRatio = control(frame, 'brake');
+    const latG = Math.abs(value(frame, ['acceleration', 'x'])) / 9.80665;
+    const temps = wheelValues(frame, 'tireTemp');
+
+    if (accelRatio >= 0.72 && spd > 25) throttleFrames.push(frame);
+    if (brakeRatio >= 0.62 && spd > 25) brakeFrames.push(frame);
+    if (latG >= 0.65) highLoadFrames.push(frame);
+    if (temps.some(t => t > 0)) validTempRows.push(temps);
+  }
+
   const recommendations = [];
+
 
   const axleSlip = (pool, axle, predicate) => pool.filter(frame => {
     const wheels = axle === 'front' ? wheelValues(frame, 'tireSlipRatio').slice(0, 2) : wheelValues(frame, 'tireSlipRatio').slice(2);
@@ -66,10 +83,9 @@ export function generateTelemetryTuningRecommendations(data = []) {
     ], `横向负荷超过 0.65G 的样本 ${highLoadFrames.length} 帧，其中接近行程下限的占 ${percent(bottoming.length, highLoadFrames.length)}%。`, '中'));
   }
 
-  const temps = frames.map(frame => wheelValues(frame, 'tireTemp')).filter(items => items.some(item => item > 0));
-  if (temps.length >= 40) {
-    const frontTemp = average(temps.map(items => average(items.slice(0, 2))));
-    const rearTemp = average(temps.map(items => average(items.slice(2))));
+  if (validTempRows.length >= 40) {
+    const frontTemp = average(validTempRows.map(items => average(items.slice(0, 2))));
+    const rearTemp = average(validTempRows.map(items => average(items.slice(2))));
     const difference = frontTemp - rearTemp;
     if (Math.abs(difference) >= 12) {
       const frontHot = difference > 0;

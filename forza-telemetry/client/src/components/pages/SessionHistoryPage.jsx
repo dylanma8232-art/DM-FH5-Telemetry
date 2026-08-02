@@ -1866,8 +1866,8 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             }
                             if (Math.abs(avgFront - avgRear) > 8) {
                               tiresAdvice.push(avgFront > avgRear 
-                                ? '⚠️ 前后轴轮胎温差过大（前轴过热）：车辆存在较严重的转向不足（推头）。建议调软前防倾杆（ARB）或前弹簧刚度，或稍微调硬后悬挂。'
-                                : '⚠️ 前后轴轮胎温差过大（后轴过热）：车辆存在转向过度倾向（甩尾）。建议调软后防倾杆（ARB）或后弹簧刚度，或增大后外倾角。');
+                                ? '⚠️ 前后轴轮胎温差过大（前轴过热）：车辆存在较严重的转向不足（推头）。建议调软前防倾杆或前弹簧刚度，或稍微调硬后悬挂。'
+                                : '⚠️ 前后轴轮胎温差过大（后轴过热）：车辆存在转向过度倾向（甩尾）。建议调软后防倾杆或后弹簧刚度，或增大后外倾角。');
                             }
                             if (tiresAdvice.length === 0) tiresAdvice.push('✅ 四轮工作胎温分配合理，抓地热效应良好。');
 
@@ -2043,7 +2043,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
                             const bangingTime = channelsData.channels.filter(c => c.rpm > maxSessionRpm * 0.98).length * 0.016;
                             const diffAdvice = [];
                             if (bangingTime > 0.6) {
-                              diffAdvice.push('⚠️ 换挡断油超时：检测到引擎多次顶红线断油。换挡晚了，需提前手动升档，或拉长终传比（Final Drive）滑块。');
+                              diffAdvice.push('⚠️ 换挡断油超时：检测到引擎多次顶红线断油。换挡晚了，需提前手动升档，或拉长终传比滑块。');
                             } else {
                               diffAdvice.push('✅ 换挡时机节奏良好，完美落入引擎理想输出带。');
                             }

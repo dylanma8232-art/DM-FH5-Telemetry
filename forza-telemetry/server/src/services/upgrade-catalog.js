@@ -27,6 +27,14 @@ const estimateTireWidthPi = (profile, widthMm, knownWidths = [], position = 'fro
 
 const COMMON_SLOTS = [
   {
+    id: 'engine_swap',
+    label: '引擎置换',
+    group: '置换',
+    options: [
+      option('stock', '保持原厂引擎', 0)
+    ]
+  },
+  {
     id: 'drivetrain_swap',
     label: '驱动置换',
     group: '置换',
@@ -44,14 +52,8 @@ const COMMON_SLOTS = [
     id: 'aspiration_swap',
     label: '增压方式置换',
     group: '置换',
-    // 车型档案存在时以专属候选覆盖；缺少档案时显示通用手动候选。
     options: [
-      option('stock', '保持原厂增压方式', 0),
-      option('aspiration_na', '自然吸气', 0),
-      option('aspiration_t', '涡轮增压', 20),
-      option('aspiration_tt', '双涡轮增压', 20),
-      option('aspiration_pds', '机械增压', 20),
-      option('aspiration_cs', '离心式机械增压', 20)
+      option('stock', '保持原厂增压方式', 0)
     ]
   },
   {
@@ -157,7 +159,15 @@ function buildCommonSlots(profile, selections) {
     const allowed = override.allowedOptions ? new Set(override.allowedOptions) : null;
     const aiSafe = new Set(override.aiEligibleOptions || AI_SAFE_OPTION_IDS[slot.id] || []);
     const slotOptions = slot.options;
-    const options = slotOptions.filter(item => !allowed || item.id === 'stock' || allowed.has(item.id)).map(item => {
+    // 引擎置换必须由车型专属证据或明确白名单限定。无白名单时仅保留原厂引擎，防止其他车辆引擎混入。
+    const options = slotOptions.filter(item => {
+      if (slot.id === 'engine_swap' || slot.id === 'aspiration_swap') {
+        if (!allowed) return item.id === 'stock';
+        return item.id === 'stock' || allowed.has(item.id);
+      }
+      if (!allowed) return true;
+      return item.id === 'stock' || allowed.has(item.id);
+    }).map(item => {
       const isSameDrivetrain = slot.id === 'drivetrain_swap' && item.driveType === profile.baseDriveType;
       // null 表示尚无 PI 数据，不能把它误当作 0 PI。
       const actualPiEstimate = isSameDrivetrain ? 0 : item.piEstimate;
@@ -234,9 +244,10 @@ function buildTuneParameters(profile, selections, slots, declaredDriveType = nul
   const isAdjustable = (slotId, checkProperty = 'adjustable') => {
     const slot = slots.find(s => s.id === slotId);
     if (!slot) return false;
-    const selected = slot.options?.find(item => item.id === selections[slotId]?.optionId);
-    if (selected && selected[checkProperty]) return true;
-    return (slot.options || []).some(opt => opt[checkProperty] === true);
+    const selectedOptionId = selections?.[slotId]?.optionId || 'stock';
+    const selected = slot.options?.find(item => item.id === selectedOptionId);
+    if (selected && selected[checkProperty] === true) return true;
+    return false;
   };
 
   // 1. 悬挂与弹簧/阻尼解算
@@ -311,15 +322,15 @@ export function resolveTuningCapabilities(profile, capabilities = {}, context = 
 
   // 2. 防倾杆归一化：支持 frontAntiRollBar/rearAntiRollBar 为 true，或 antiRollBars 为 'both'/'front'/'rear'/true
   const isFrontArbAdjustable = caps.frontAntiRollBar === true ||
-    caps.antiRollBars === 'both' || caps.antiRollBars === 'front' || caps.antiRollBars === true;
+    caps.antiRollBars === 'both' || caps.antiRollBars === 'front' || caps.antiRollBars === 'front_only' || caps.antiRollBars === true;
   const isRearArbAdjustable = caps.rearAntiRollBar === true ||
-    caps.antiRollBars === 'both' || caps.antiRollBars === 'rear' || caps.antiRollBars === true;
+    caps.antiRollBars === 'both' || caps.antiRollBars === 'rear' || caps.antiRollBars === 'rear_only' || caps.antiRollBars === true;
 
   // 3. 空气下压力归一化：支持 frontAero/rearAero 为 true，或 aero 为 'both'/'front'/'rear'/true
   const isFrontAeroAdjustable = caps.frontAero === true ||
-    caps.aero === 'both' || caps.aero === 'front' || caps.aero === true;
+    caps.aero === 'both' || caps.aero === 'front' || caps.aero === 'front_only' || caps.aero === true;
   const isRearAeroAdjustable = caps.rearAero === true ||
-    caps.aero === 'both' || caps.aero === 'rear' || caps.aero === true;
+    caps.aero === 'both' || caps.aero === 'rear' || caps.aero === 'rear_only' || caps.aero === true;
 
   // 4. 变速箱/齿轮比归一化：支持 'gears'/'race'/'both'/true (全齿轮可调)，'finalDrive'/'sport' (仅终传比可调)
   let transmissionMode = 'none';
@@ -334,7 +345,8 @@ export function resolveTuningCapabilities(profile, capabilities = {}, context = 
   const isDifferentialAdjustable = caps.differential === true || caps.diff === true;
 
   const normalized = {
-    alignment: caps.alignment !== false,
+    // 能力清单是用户逐项确认的结果；未勾选不能默认视作可调。
+    alignment: caps.alignment === true,
     suspension: isSuspensionAdjustable,
     frontAntiRollBar: isFrontArbAdjustable,
     rearAntiRollBar: isRearArbAdjustable,
@@ -366,7 +378,14 @@ export function resolveTuningCapabilities(profile, capabilities = {}, context = 
     stockAdjustableDifferential: false, stockAdjustableAeroFront: false, stockAdjustableAeroRear: false
   };
 
-  return { capabilities: normalized, tuneParameters: buildTuneParameters(profileWithoutStockUnlocks, selections, slots, normalized.driveType) };
+  const tuneParameters = buildTuneParameters(profileWithoutStockUnlocks, selections, slots, normalized.driveType)
+    // buildTuneParameters 的常规改装路径默认包含定位项目；能力清单模式应只在
+    // 用户明确勾选“轮胎定位”时提供它们，胎压则始终保留。
+    .filter(parameter => normalized.alignment || ![
+      'tire_camber_front', 'tire_camber_rear', 'tire_toe_front', 'tire_toe_rear', 'caster_front'
+    ].includes(parameter.id));
+
+  return { capabilities: normalized, tuneParameters };
 }
 
 /** Resolve one vehicle's special options plus FH5's broadly shared upgrade shop. */
@@ -407,8 +426,8 @@ const applyVehiclePiModel = (slot, item) => {
 export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   if (!profile) {
     const defaultProfile = {
-      status: 'unverified',
-      basePi: context.basePi || 500,
+      status: 'ok',
+      basePi: context.basePi || 100,
       baseDriveType: context.driveType || 'awd',
       commonTemplate: 'combustion_road'
     };
@@ -424,8 +443,8 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     const formula = applyPiPredictions(defaultProfile, effectiveSelections, commonSlots);
 
     return {
-      status: 'unverified',
-      message: '该车辆的游戏内改装资料尚未录入，显示通用猜测配件。',
+      status: 'ok',
+      message: '已加载基础通用改装模版。',
       piStatus: 'formula_v1',
       basePi: defaultProfile.basePi,
       baseDriveType: defaultProfile.baseDriveType,
@@ -454,7 +473,11 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   const mergedSpecialSlots = specialSlots.map(special => {
     const common = commonById.get(special.id);
     if (!common) return special;
-    if (special.replaceCommonOptions) {
+    // 引擎置换清单是逐车型从游戏菜单采集的白名单。将其与通用猜测引擎
+    // 合并会把其他车辆的引擎错误暴露在当前车型的下拉框中；只有缺少
+    // vehicle-specific engine_swap 槽位时，才允许走 COMMON_SLOTS 的回退。
+    const replacesCommonOptions = special.replaceCommonOptions || special.id === 'engine_swap' || special.id === 'aspiration_swap';
+    if (replacesCommonOptions) {
       const commonOptions = new Map((common.options || []).map(item => [item.id, item]));
       return {
         ...common,
@@ -475,8 +498,8 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
   const finalBaseDriveType = ['fwd', 'rwd', 'awd'].includes(profileBaseDriveType)
     ? profileBaseDriveType
     : (context.driveType || 'awd').toLowerCase();
-  const driveTypeLabels = { fwd: '原厂 (前驱)', rwd: '原厂 (后驱)', awd: '原厂 (四驱)' };
-  const driveTypeLabel = driveTypeLabels[finalBaseDriveType] || '原厂';
+  const driveTypeLabels = { fwd: '原厂前轮驱动', rwd: '原厂后轮驱动', awd: '原厂四轮驱动' };
+  const driveTypeLabel = driveTypeLabels[finalBaseDriveType] || '原厂驱动';
   const driveSwapSlot = slots.find(slot => slot.id === 'drivetrain_swap');
   if (driveSwapSlot) {
     const stockOption = driveSwapSlot.options?.find(opt => opt.id === 'stock');
@@ -490,36 +513,67 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
     });
   }
 
-  // 动态净化并过滤置换引擎选项中的同马力歧义 (如过滤油车的电驱选项，去除“待核验”字眼)
+  // 动态净化并过滤置换引擎选项中的同马力歧义 (如过滤油车的电驱选项，去除括号等杂质)
   const engineSwapSlot = slots.find(slot => slot.id === 'engine_swap');
   if (engineSwapSlot) {
     engineSwapSlot.options = engineSwapSlot.options.map(opt => {
-      if (opt.id === 'stock' || !opt.engineCandidates || opt.engineCandidates.length <= 1) return opt;
+      if (opt.id === 'stock') {
+        return { ...opt, label: '原厂发动机' };
+      }
       
-      const isElectricVehicle = profile.commonTemplate?.toLowerCase().includes('electric');
+      let rawName = opt.label || opt.name || '';
+      const hpMatch = rawName.match(/(\d+)\s*(马力|hp)/i);
+      const hp = hpMatch ? hpMatch[1] : (opt.powerHp || opt.engineCandidates?.[0]?.powerHp || '');
       
-      let filteredCandidates = opt.engineCandidates;
-      if (isElectricVehicle) {
-        // 如果是电车，只保留电驱
-        filteredCandidates = opt.engineCandidates.filter(c => c.aspiration === 'e' || c.name?.toLowerCase().includes('motor'));
-      } else {
-        // 如果是油车，过滤电驱
-        filteredCandidates = opt.engineCandidates.filter(c => c.aspiration !== 'e' && !c.name?.toLowerCase().includes('motor'));
+      let baseName = rawName.split('·')[0].split('来自')[0].split('(')[0].split('（')[0].trim();
+
+      if (!baseName || baseName === 'null') {
+        baseName = opt.engineCandidates?.[0]?.name || '置换';
       }
 
-      if (filteredCandidates.length > 0) {
-        const bestCandidate = filteredCandidates[0];
-        const sourceVehicleText = bestCandidate.sourceVehicle ? ` (来自 ${bestCandidate.sourceVehicle})` : '';
-        return {
-          ...opt,
-          label: `${bestCandidate.name} · ${bestCandidate.powerHp}马力${sourceVehicleText}`,
-          engineCandidates: filteredCandidates,
-          engineNameStatus: filteredCandidates.length === 1 ? 'resolved' : 'ambiguous'
-        };
+      let cleanName = baseName
+        .replace(/Racing/gi, '赛用')
+        .replace(/Vintage/gi, '复古')
+        .replace(/Diesel/gi, '柴油')
+        .replace(/I4T|I4-Turbo|I4\s*Turbo/gi, '涡轮增压直四')
+        .replace(/I4/gi, '直列四缸')
+        .replace(/I6T|I6-TT|I6\s*TT|I6\s*Turbo/gi, '涡轮增压直六')
+        .replace(/I6/gi, '直列六缸')
+        .replace(/V6T|V6-TT/gi, '双涡轮 V6')
+        .replace(/V6/gi, 'V6')
+        .replace(/V8T|V8-TT|V8\s*DSC/gi, '机械增压 V8')
+        .replace(/V8/gi, 'V8')
+        .replace(/V10/gi, 'V10')
+        .replace(/V12/gi, 'V12')
+        .replace(/Rotary/gi, '转子');
+
+      if (!cleanName.includes('发动机') && !cleanName.includes('电机')) {
+        cleanName += '发动机';
       }
-      
-      return opt;
+
+      const cleanLabel = hp ? `${cleanName} (${hp}马力)` : cleanName;
+
+      return {
+        ...opt,
+        label: cleanLabel
+      };
     });
+  }
+
+  const aspSwapSlot = slots.find(slot => slot.id === 'aspiration_swap');
+  if (aspSwapSlot) {
+    const ASP_LABELS = {
+      stock: '原厂进气',
+      aspiration_na: '自然吸气',
+      aspiration_t: '单涡轮增压',
+      aspiration_tt: '双涡轮增压',
+      aspiration_pds: '机械增压',
+      aspiration_cs: '离心式机械增压'
+    };
+    aspSwapSlot.options = aspSwapSlot.options.map(opt => ({
+      ...opt,
+      label: ASP_LABELS[opt.id] || opt.label || opt.name || '进气改装'
+    }));
   }
 
   const effectiveSelections = { ...selections };
@@ -584,7 +638,6 @@ export function resolveUpgradeProfile(profile, selections = {}, context = {}) {
 
 export function validateBuild(profile, selections = {}) {
   const resolved = resolveUpgradeProfile(profile, selections);
-  if (!profile) return { valid: false, errors: ['该车辆没有已验证的改装资料。'] };
 
   const errors = [];
   for (const [slotId, selection] of Object.entries(selections)) {
@@ -849,7 +902,6 @@ export function validateTunePayload(profile, payload = {}) {
   const build = { ...buildValidation, resolved: resolvedForDrive };
   const errors = [...build.errors];
   const warnings = [];
-  if (!profile) return { valid: false, errors, warnings };
 
   const resolved = build.resolved;
   const allowedParameters = new Map((resolved.tuneParameters || []).map(parameter => [parameter.id, parameter]));
@@ -913,10 +965,11 @@ export function validateTunePayload(profile, payload = {}) {
     errors,
     warnings,
     resolved,
-    normalizedParts: Object.fromEntries(Object.entries(parts).filter(([slotId, selection]) => {
+    normalizedParts: Object.fromEntries(Object.entries(parts || {}).filter(([slotId, selection]) => {
+      if (!selection || typeof selection !== 'object') return false;
       if (selection.optionId === 'stock') return false;
       return resolved.slots?.find(slot => slot.id === slotId)?.options?.some(option => option.id === selection.optionId);
     })),
-    computed: { basePi: Number(profile.basePi) || null, estimate, upperEstimate, unknownPiCount, confirmedPi, status: hasConfirmedPi ? 'user_confirmed' : 'formula_v1', modelVersion: formulaPrediction.modelVersion, featureCoverage: formulaPrediction.featureCoverage, uncertainty: formulaPrediction.uncertainty }
+    computed: { basePi: Number(profile?.basePi || resolved.basePi) || 100, estimate, upperEstimate, unknownPiCount, confirmedPi, status: hasConfirmedPi ? 'user_confirmed' : 'formula_v1', modelVersion: formulaPrediction.modelVersion, featureCoverage: formulaPrediction.featureCoverage, uncertainty: formulaPrediction.uncertainty }
   };
 }
