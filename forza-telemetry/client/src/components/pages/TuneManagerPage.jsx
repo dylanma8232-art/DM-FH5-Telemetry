@@ -311,6 +311,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
       title,
       items
     });
+
+    setTimeout(() => {
+      document.getElementById('fix-preview-panel')?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 50);
   };
 
   const handleApplyProblemFixInViewOnly = (tune, problem) => {
@@ -1695,9 +1699,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             value={currentDriveType}
                             onChange={e => {
                               const dt = e.target.value;
-                              setAiDriveType(dt);
-                              updatePartSelection('drivetrain_swap', 'stock', dt === baseDriveType ? 'stock' : dt);
-                              updateTuningCapabilities({ driveType: dt });
+                              updatePartSelection('drivetrain_swap', 'stock', dt === baseDriveType ? 'stock' : dt, { driveType: dt });
                             }}
                             style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: 11 }}
                           >
@@ -1767,6 +1769,10 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>宽体套件</span>
                           {(() => {
+                            const widebodySlot = upgradeShop?.slots?.find(s => s.id === 'widebody');
+                            if (!widebodySlot) {
+                              return <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>🔒 无宽体套件</span>;
+                            }
                             const isWidebody = (formData.parts?.widebody?.optionId === 'listed_widebody');
                             return (
                               <button
@@ -2352,6 +2358,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                     <button
                       type="button"
                       onClick={saveTune}
+                      disabled={loading}
                       style={{
                         ...btnPrimaryStyle,
                         background: 'var(--success)',
@@ -2364,7 +2371,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         gap: 6
                       }}
                     >
-                      💾 {editingTune ? '保存修改' : '完成并保存调校'}
+                      💾 {loading ? '保存中...' : (editingTune ? '保存修改' : '完成并保存调校')}
                     </button>
                   </>
                 )}
@@ -2999,7 +3006,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
 
               {/* ⚡ 拟修正参数明细对决与保存确认面板 (Preview Fix Data Panel) */}
               {previewFixData && (
-                <div style={{
+                <div id="fix-preview-panel" style={{
                   background: 'linear-gradient(135deg, rgba(35, 134, 54, 0.15) 0%, rgba(13, 17, 23, 0.95) 100%)',
                   border: '1px solid #3fb950',
                   borderRadius: 10,

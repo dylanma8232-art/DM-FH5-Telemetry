@@ -976,7 +976,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     'downforce_front': '前下压力', 'downforce_rear': '后下压力'
   }
 
-  const updatePartSelection = (categoryId, tier, optionId) => {
+  const updatePartSelection = (categoryId, tier, optionId, additionalCaps = null) => {
     // Round 9: 对比升级前后解锁的参数
     const oldParts = formData.parts
     const newParts = {
@@ -1011,11 +1011,19 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setTimeout(() => { setUnlockToast(null); setHighlightedParams([]) }, 4000)
     }
 
-    // driveType 参数只用于缺少车型原厂资料时的回退，不能把玩家的置换选择
-    // 当成原厂驱动传回服务端，否则服务端会把该选项视为冗余并清回原厂。
-    const activeDriveType = null
-    if (categoryId === 'drivetrain_swap' && optionId) {
-      setAiDriveType(optionId)
+    // 安全的驱动形式回退逻辑
+    const activeDriveType = additionalCaps?.driveType || null;
+    if (categoryId === 'drivetrain_swap') {
+      if (optionId && optionId !== 'stock') {
+        setAiDriveType(optionId);
+      } else {
+        const baseDt = upgradeShop?.baseDriveType || (formData.vehicleId && vehicles[formData.vehicleId]?.drivetrain) || 'awd';
+        setAiDriveType(baseDt.toLowerCase());
+      }
+    }
+
+    if (optionId === 'stock' || !optionId) {
+      delete newParts[categoryId]
     }
 
     const newDefaults = getTuneDefaults(newParts, currentVehicleStats)
@@ -1057,6 +1065,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
       const updated = {
         ...prev,
         parts: newParts
+      }
+      if (additionalCaps) {
+        updated.tuningCapabilities = { ...(prev.tuningCapabilities || {}), ...additionalCaps };
       }
       for (const [flatKey, constraint] of Object.entries(newConstraints)) {
         if (!constraint.locked && oldConstraints[flatKey]?.locked) {
