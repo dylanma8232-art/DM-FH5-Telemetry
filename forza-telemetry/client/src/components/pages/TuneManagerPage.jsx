@@ -162,6 +162,20 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [adviceSubTab, setAdviceSubTab] = useState('feel');
+  const [diagnosisModalTune, setDiagnosisModalTune] = useState(null);
+  const [activeDiagnosisTab, setActiveDiagnosisTab] = useState('telemetry');
+  const [tuneToDelete, setTuneToDelete] = useState(null);
+
+  const openDiagnosisModal = (tune = null) => {
+    const targetTune = tune || (tunes.length > 0 ? tunes[0] : null);
+    if (!targetTune) {
+      alert('请先新建或选择一个调校方案再进行诊断！');
+      return;
+    }
+    setDiagnosisModalTune(targetTune);
+    setDiagnosisResult(null);
+    setSelectedSessionId('');
+  };
 
   const baseDriveType = (
     upgradeShop?.baseDriveType ||
@@ -226,6 +240,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   };
 
   const handleApplyDiagnosisInViewOnly = (tune, suggestedChanges) => {
+    setDiagnosisModalTune(null);
     startEdit(tune);
     setFormData(prev => {
       const updated = {
@@ -516,6 +531,20 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
           <button onClick={() => setShareCodeModal('input')} style={{ ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}>
             分享码
           </button>
+          <button
+            onClick={() => openDiagnosisModal()}
+            style={{
+              ...btnSmallStyle,
+              padding: '4px 10px',
+              fontSize: 10,
+              background: 'rgba(63, 185, 80, 0.15)',
+              borderColor: 'rgba(63, 185, 80, 0.35)',
+              color: '#3fb950',
+              fontWeight: 700
+            }}
+          >
+            🔬 遥测与驾驶诊断
+          </button>
           <button onClick={startCreate} style={{ ...btnPrimaryStyle, padding: '4px 12px', fontSize: 11 }}>
             + 新建
           </button>
@@ -763,6 +792,21 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                   
                   {/* 高频按钮 */}
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openDiagnosisModal(tune); }}
+                      style={{
+                        ...btnSmallStyle,
+                        fontSize: 11,
+                        padding: '3px 10px',
+                        background: 'rgba(63, 185, 80, 0.15)',
+                        borderColor: 'rgba(63, 185, 80, 0.35)',
+                        color: '#3fb950',
+                        fontWeight: 700
+                      }}
+                      title="针对该方案进行遥测数据分析与常见问题诊断"
+                    >
+                      🔬 诊断
+                    </button>
                     <button onClick={() => startEdit(tune)} style={btnSmallStyle}>编辑</button>
                     
                     {/* 操作按钮组 */}
@@ -782,7 +826,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         导出
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); deleteTune(tune.id); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTuneToDelete(tune); }}
                         style={{
                           ...btnSmallStyle,
                           fontSize: 11,
@@ -872,7 +916,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           onClick={() => onNavigate && onNavigate('sessions', { trackName: st.sessions[0].trackName })}
                           style={{ fontSize: 9, color: '#58a6ff', background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.2)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer' }}
                         >
-                          查看使用该调校的比赛记录 ({st.count}) &rarr;
+                          查看使用该调校的比赛记录 ({st.count}) →
                         </button>
                       </div>
                     )}
@@ -1376,7 +1420,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                                   padding: '1px 4px',
                                   background: 'rgba(88, 166, 255, 0.05)'
                                 }}>
-                                  一键修复 &rarr;
+                                  一键修复 →
                                 </span>
                               </div>
                               <div style={{ fontSize: 8.5, color: 'var(--text-muted)', lineHeight: 1.3 }}>{prob.description}</div>
@@ -1513,8 +1557,9 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
             <div style={{ padding: '16px 20px 0 20px', flexShrink: 0, background: 'rgba(21, 26, 34, 0.2)' }}>
               <div style={{ display: 'flex', gap: 12 }}>
                 {[
-                  { step: 1, label: editingTune ? '1. 车辆构型与偏好 (允许修改)' : '1. 选择车辆与赛事偏好' },
-                  { step: 3, label: '2. 物理调校大表 Workspace' }
+                  { step: 1, label: editingTune ? '1. 车辆构型与改装 (允许修改)' : '1. 选择车辆与改装构建' },
+                  { step: 2, label: '2. 专注参数调校 Workspace' },
+                  { step: 3, label: '3. 方案命名与保存' }
                 ].map((item) => {
                   return (
                     <div
@@ -1620,6 +1665,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             const engineSlot = upgradeShop?.slots?.find(s => s.id === 'engine_swap');
                             const options = engineSlot?.options || [{ id: 'stock', label: '原厂引擎' }];
                             const currentOptId = formData.parts?.engine_swap?.optionId || 'stock';
+                            if (options.length <= 1) {
+                              return (
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                  🔒 仅原厂发动机
+                                </span>
+                              );
+                            }
                             return (
                               <select
                                 value={currentOptId}
@@ -1873,21 +1925,19 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
 
 
 
-            {/* 3.3 步骤 3 或编辑模式：填写与微调参数（两栏宽屏 Workspace 布局） */}
-            {wizardStep === 3 && (
-              <div style={{ display: 'flex', gap: 20, flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                
-                {/* 左栏：参数设置区域 (可滚动) */}
-                <div style={{ flex: 1.15, overflow: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* 3.2 步骤 2：专注参数调校 Workspace（智能隐藏未升级分类，零重复信息） */}
+            {wizardStep === 2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <div style={{ flex: 1, overflow: 'auto', paddingRight: 8, display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {(!editingTune && !upgradeShop?.tuneParameters?.length) ? (
                     <div style={{ padding: 14, border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11 }}>
                       该车型的可调教参数范围正在收集核对中。当前不展示未经验证的调校项目。
                     </div>
                   ) : (
                     <>
-                      {/* 参数分类选项卡 */}
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'auto', paddingBottom: 4, flexShrink: 0 }}>
-                        {[
+                      {/* 动态筛选已升级解封的参数分类选项卡 */}
+                      {(() => {
+                        const ALL_PARAM_TABS = [
                           { id: 'tire-pressure', label: '轮胎', icon: '🛞' },
                           { id: 'gearing', label: '齿轮比', icon: '⚙️' },
                           { id: 'alignment', label: '轮胎定位', icon: '📐' },
@@ -1897,811 +1947,292 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           { id: 'aero', label: '空力设置', icon: '🌪️' },
                           { id: 'brakes', label: '刹车', icon: '🛑' },
                           { id: 'differential', label: '差速器', icon: '🔄' }
-                        ].map(tab => {
-                          const isSelected = activeParamTab === tab.id;
-                          return (
-                            <button
-                              key={tab.id}
-                              type="button"
-                              onClick={() => setActiveParamTab(tab.id)}
-                              style={{
-                                background: isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
-                                border: '1px solid ' + (isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.05)'),
-                                borderRadius: 4,
-                                padding: '6px 14px',
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: isSelected ? '#fff' : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              <span style={{ marginRight: 4 }}>{tab.icon}</span>
-                              {tab.label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                        ];
 
-                      {TUNE_FIELDS_SCHEMA.filter(section => (section.sectionKey || section.kind || section.category) === activeParamTab).map(section => {
-                        if (section.kind === 'differential') {
-                          return (
-                            <div key={section.category} className="form-section" style={formSectionStyle}>
-                              <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('differential') ? 0 : 8 }} onClick={() => toggleSection('differential')}>
-                                <span>{collapsedSections.has('differential') ? '▶ ' : '▼ '}差速器</span>
-                              </div>
-                              <div style={{
-                                maxHeight: collapsedSections.has('differential') ? '0px' : '500px',
-                                overflow: 'hidden',
-                                opacity: collapsedSections.has('differential') ? 0 : 1,
-                                transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
-                                marginTop: collapsedSections.has('differential') ? 0 : 8
-                              }}>
-                                <div style={formGridStyle}>
-                                  {(() => {
-                                    const selectedDriveSwap = formData.parts?.drivetrain_swap?.optionId;
-                                    const effectiveDrive = (
-                                      ['fwd', 'rwd', 'awd'].includes(selectedDriveSwap) ? selectedDriveSwap :
-                                        formData.tuningCapabilities?.driveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || 'rwd'
-                                    ).toLowerCase();
-                                    const isAwd = effectiveDrive === 'awd';
-                                    const isFwd = effectiveDrive === 'fwd';
-                                    const isRwd = effectiveDrive === 'rwd';
+                        const isCategoryUnlocked = (catId) => {
+                          const caps = formData.tuningCapabilities || {};
+                          switch (catId) {
+                            case 'tire-pressure':
+                              return true;
+                            case 'gearing':
+                              return caps.transmission === 'race' || (caps.gearCount && Number(caps.gearCount) > 1);
+                            case 'alignment':
+                            case 'springs':
+                            case 'damping':
+                              return ['race', 'drift', 'rally', 'offroad'].includes(caps.springs);
+                            case 'anti-roll-bars':
+                              return ['both', 'front', 'rear'].includes(caps.antiRollBars);
+                            case 'aero':
+                              return !!caps.frontAero || !!caps.rearAero;
+                            case 'brakes':
+                              return caps.brakes === true || caps.brakes === 'race';
+                            case 'differential':
+                              return caps.differential === true || ['race', 'drift', 'rally', 'offroad'].includes(caps.differential);
+                            default:
+                              return true;
+                          }
+                        };
 
-                                    const fields = [
-                                      ['frontDiffAccel', '前差速器加速', !isFwd && !isAwd, '仅前驱/四驱支持'],
-                                      ['frontDiffDecel', '前差速器减速', !isFwd && !isAwd, '仅前驱/四驱支持'],
-                                      ['rearDiffAccel', '后差速器加速', !isRwd && !isAwd, '仅后驱/四驱支持'],
-                                      ['rearDiffDecel', '后差速器减速', !isRwd && !isAwd, '仅后驱/四驱支持']
-                                    ];
-
-                                    return (
-                                      <>
-                                        {fields.map(([field, label, forceLocked, lockMsg]) => {
-                                          const isLocked = forceLocked || tuneConstraints[`drivetrain.${field}`]?.locked;
-                                          return (
-                                            <NumberInput
-                                              key={field}
-                                              label={label}
-                                              value={isLocked ? '' : formData.drivetrain[field]}
-                                              onChange={v => updateFormField('drivetrain', field, v)}
-                                              min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
-                                              max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
-                                              step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
-                                              unit="%"
-                                              locked={isLocked}
-                                              lockedHint={forceLocked ? lockMsg : tuneConstraints[`drivetrain.${field}`]?.lockedHint}
-                                              {...ni('drivetrain', field)}
-                                            />
-                                          );
-                                        })}
-                                        <NumberInput
-                                          label="中央差速偏置"
-                                          value={!isAwd ? '' : formData.drivetrain.diffCenter}
-                                          onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
-                                          min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
-                                          max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
-                                          step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
-                                          unit="%"
-                                          locked={!isAwd || tuneConstraints['drivetrain.diffCenter']?.locked}
-                                          lockedHint={!isAwd ? '仅四驱车型支持' : tuneConstraints['drivetrain.diffCenter']?.lockedHint}
-                                          {...ni('drivetrain', 'diffCenter')}
-                                        />
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        if (section.kind === 'gearing') {
-                          const currentGearCount = Number(formData.drivetrain?.gearCount || formData.tuningCapabilities?.gearCount || 6);
-                          return (
-                            <div key="gearing" className="form-section" style={formSectionStyle}>
-                              <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('gearing') ? 0 : 8 }} onClick={() => toggleSection('gearing')}>
-                                <span>{collapsedSections.has('gearing') ? '▶ ' : '▼ '}传动比</span>
-                              </div>
-                              <div style={{
-                                maxHeight: collapsedSections.has('gearing') ? '0px' : '600px',
-                                overflow: 'hidden',
-                                opacity: collapsedSections.has('gearing') ? 0 : 1,
-                                transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
-                                marginTop: collapsedSections.has('gearing') ? 0 : 8
-                              }}>
-                                {/* 档位数控制 */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '8px 12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-                                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>⚙️ 变速箱档位数</span>
-                                  <select
-                                    value={currentGearCount}
-                                    onChange={e => {
-                                      const newCount = Number(e.target.value);
-                                      updateFormField('drivetrain', 'gearCount', newCount);
-                                      updateTuningCapabilities({ gearCount: newCount });
-                                    }}
-                                    style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: 11 }}
-                                  >
-                                    {[4, 5, 6, 7, 8, 9, 10].map(cnt => (
-                                      <option key={cnt} value={cnt}>{cnt} 档变速箱</option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                <div style={formGridStyle}>
-                                  <NumberInput label="终传比" value={formData.drivetrain.finalDrive} onChange={v => updateFormField('drivetrain', 'finalDrive', v)} min={tuneConstraints['drivetrain.finalDrive']?.min ?? 1} max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6} step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01} locked={tuneConstraints['drivetrain.finalDrive']?.locked} {...ni('drivetrain', 'finalDrive')} />
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
-                                  {Array.from({ length: currentGearCount }, (_, i) => i + 1).map(gear => (
-                                    <NumberInput key={gear} label={`${gear}档齿比`} value={formData.drivetrain[`gear${gear}`]} onChange={v => updateFormField('drivetrain', `gear${gear}`, v)} min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5} max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6} step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01} locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked} {...ni('drivetrain', `gear${gear}`)} />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
+                        const unlockedTabs = ALL_PARAM_TABS.filter(tab => isCategoryUnlocked(tab.id));
+                        const currentActiveValid = unlockedTabs.some(t => t.id === activeParamTab);
+                        const effectiveActiveTab = currentActiveValid ? activeParamTab : (unlockedTabs[0]?.id || 'tire-pressure');
 
                         return (
-                          <div key={section.sectionKey || section.category} className="form-section">
-                            <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection(section.sectionKey || section.category)}>
-                              <span>{collapsedSections.has(section.sectionKey || section.category) ? '▶ ' : '▼ '}{section.title}</span>
-                    {section.category !== 'brakes' && Object.keys(tuneDefaults).some(k => k.startsWith(`${section.category}.`)) && (
-                      <button onClick={(e) => { e.stopPropagation(); resetAllToDefaults(); }} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
-                        重置为推荐值
-                      </button>
-                    )}
-                  </div>
-                            <div style={{
-                              maxHeight: collapsedSections.has(section.sectionKey || section.category) ? '0px' : '600px',
-                              overflow: 'hidden',
-                              opacity: collapsedSections.has(section.sectionKey || section.category) ? 0 : 1,
-                              transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
-                              marginTop: collapsedSections.has(section.sectionKey || section.category) ? 0 : 8
-                            }}>
-                              <div className="form-grid">
-                                {section.fields.map(f => (
-                                  <NumberInput
-                                    key={f.id}
-                                    label={f.label}
-                                    value={formData[section.category][f.id]}
-                                    onChange={v => updateFormField(section.category, f.id, v)}
-                                    min={tuneConstraints[`${section.category}.${f.id}`]?.min ?? f.min}
-                                    max={tuneConstraints[`${section.category}.${f.id}`]?.max ?? f.max}
-                                    step={tuneConstraints[`${section.category}.${f.id}`]?.step ?? f.step}
-                                    unit={f.unit}
-                                    locked={tuneConstraints[`${section.category}.${f.id}`]?.locked}
-                                    {...ni(section.category, f.id)}
-                                  />
-                                ))}
-                              </div>
+                          <>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflow: 'auto', paddingBottom: 4, flexShrink: 0 }}>
+                              {unlockedTabs.map(tab => {
+                                const isSelected = effectiveActiveTab === tab.id;
+                                return (
+                                  <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveParamTab(tab.id)}
+                                    style={{
+                                      background: isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
+                                      border: '1px solid ' + (isSelected ? 'var(--accent)' : 'rgba(255,255,255,0.05)'),
+                                      borderRadius: 4,
+                                      padding: '6px 14px',
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      color: isSelected ? '#fff' : 'var(--text-secondary)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <span style={{ marginRight: 4 }}>{tab.icon}</span>
+                                    {tab.label}
+                                  </button>
+                                );
+                              })}
                             </div>
-                          </div>
-              );
-            })}
-            </>)}
-            </div>
 
-                {/* 右栏：评级、基本信息与诊断工具面板 (可滚动) */}
-                <div style={{ flex: 0.85, overflow: 'auto', background: 'rgba(10, 10, 15, 0.35)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 16, backdropFilter: 'blur(10px)' }}>
-                  
-                  {/* 1. 性能指数 (PI) 卡片 */}
-                  <div style={{
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    borderRadius: 8,
-                    padding: 14,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>调校 PI</span>
-                      {renderPiBadge(solutionPi || upgradeShop?.basePi || vehicles[formData.vehicleId]?.basePi || vehicles[formData.vehicleId]?.pi)}
-                    </div>
+                            {TUNE_FIELDS_SCHEMA.filter(section => (section.sectionKey || section.kind || section.category) === effectiveActiveTab).map(section => {
+                              if (section.kind === 'differential') {
+                                return (
+                                  <div key={section.category} className="form-section" style={formSectionStyle}>
+                                    <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('differential') ? 0 : 8 }} onClick={() => toggleSection('differential')}>
+                                      <span>{collapsedSections.has('differential') ? '▶ ' : '▼ '}差速器</span>
+                                    </div>
+                                    <div style={{
+                                      maxHeight: collapsedSections.has('differential') ? '0px' : '500px',
+                                      overflow: 'hidden',
+                                      opacity: collapsedSections.has('differential') ? 0 : 1,
+                                      transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
+                                      marginTop: collapsedSections.has('differential') ? 0 : 8
+                                    }}>
+                                      <div style={formGridStyle}>
+                                        {(() => {
+                                          const selectedDriveSwap = formData.parts?.drivetrain_swap?.optionId;
+                                          const effectiveDrive = (
+                                            ['fwd', 'rwd', 'awd'].includes(selectedDriveSwap) ? selectedDriveSwap :
+                                              formData.tuningCapabilities?.driveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || 'rwd'
+                                          ).toLowerCase();
+                                          const isAwd = effectiveDrive === 'awd';
+                                          const isFwd = effectiveDrive === 'fwd';
+                                          const isRwd = effectiveDrive === 'rwd';
 
-                    <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>原厂 PI（未改装）</span>
-                      {renderPiBadge(upgradeShop?.basePi || vehicles[formData.vehicleId]?.basePi || vehicles[formData.vehicleId]?.pi)}
-                    </div>
+                                          const fields = [
+                                            ['frontDiffAccel', '前差速器加速', !isFwd && !isAwd, '仅前驱/四驱支持'],
+                                            ['frontDiffDecel', '前差速器减速', !isFwd && !isAwd, '仅前驱/四驱支持'],
+                                            ['rearDiffAccel', '后差速器加速', !isRwd && !isAwd, '仅后驱/四驱支持'],
+                                            ['rearDiffDecel', '后差速器减速', !isRwd && !isAwd, '仅后驱/四驱支持']
+                                          ];
+
+                                          return (
+                                            <>
+                                              {fields.map(([field, label, forceLocked, lockMsg]) => {
+                                                const isLocked = forceLocked || tuneConstraints[`drivetrain.${field}`]?.locked;
+                                                return (
+                                                  <NumberInput
+                                                    key={field}
+                                                    label={label}
+                                                    value={isLocked ? '' : formData.drivetrain[field]}
+                                                    onChange={v => updateFormField('drivetrain', field, v)}
+                                                    min={tuneConstraints[`drivetrain.${field}`]?.min ?? 0}
+                                                    max={tuneConstraints[`drivetrain.${field}`]?.max ?? 100}
+                                                    step={tuneConstraints[`drivetrain.${field}`]?.step ?? 1}
+                                                    unit="%"
+                                                    locked={isLocked}
+                                                    lockedHint={forceLocked ? lockMsg : tuneConstraints[`drivetrain.${field}`]?.lockedHint}
+                                                    {...ni('drivetrain', field)}
+                                                  />
+                                                );
+                                              })}
+                                              <NumberInput
+                                                label="中央差速偏置"
+                                                value={!isAwd ? '' : formData.drivetrain.diffCenter}
+                                                onChange={v => updateFormField('drivetrain', 'diffCenter', v)}
+                                                min={tuneConstraints['drivetrain.diffCenter']?.min ?? 0}
+                                                max={tuneConstraints['drivetrain.diffCenter']?.max ?? 100}
+                                                step={tuneConstraints['drivetrain.diffCenter']?.step ?? 1}
+                                                unit="%"
+                                                locked={!isAwd || tuneConstraints['drivetrain.diffCenter']?.locked}
+                                                lockedHint={!isAwd ? '仅四驱车型支持' : tuneConstraints['drivetrain.diffCenter']?.lockedHint}
+                                                {...ni('drivetrain', 'diffCenter')}
+                                              />
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              if (section.kind === 'gearing') {
+                                const currentGearCount = Number(formData.drivetrain?.gearCount || formData.tuningCapabilities?.gearCount || 6);
+                                return (
+                                  <div key="gearing" className="form-section" style={formSectionStyle}>
+                                    <div style={{ ...formSectionTitleStyle, cursor: 'pointer', userSelect: 'none', margin: 0, paddingBottom: collapsedSections.has('gearing') ? 0 : 8 }} onClick={() => toggleSection('gearing')}>
+                                      <span>{collapsedSections.has('gearing') ? '▶ ' : '▼ '}传动比</span>
+                                    </div>
+                                    <div style={{
+                                      maxHeight: collapsedSections.has('gearing') ? '0px' : '600px',
+                                      overflow: 'hidden',
+                                      opacity: collapsedSections.has('gearing') ? 0 : 1,
+                                      transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
+                                      marginTop: collapsedSections.has('gearing') ? 0 : 8
+                                    }}>
+                                      {/* 档位数控制 */}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '8px 12px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>⚙️ 变速箱档位数</span>
+                                        <select
+                                          value={currentGearCount}
+                                          onChange={e => {
+                                            const newCount = Number(e.target.value);
+                                            updateFormField('drivetrain', 'gearCount', newCount);
+                                            updateTuningCapabilities({ gearCount: newCount });
+                                          }}
+                                          style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: 11 }}
+                                        >
+                                          {[4, 5, 6, 7, 8, 9, 10].map(cnt => (
+                                            <option key={cnt} value={cnt}>{cnt} 档变速箱</option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div style={formGridStyle}>
+                                        <NumberInput label="终传比" value={formData.drivetrain.finalDrive} onChange={v => updateFormField('drivetrain', 'finalDrive', v)} min={tuneConstraints['drivetrain.finalDrive']?.min ?? 1} max={tuneConstraints['drivetrain.finalDrive']?.max ?? 6} step={tuneConstraints['drivetrain.finalDrive']?.step ?? 0.01} locked={tuneConstraints['drivetrain.finalDrive']?.locked} {...ni('drivetrain', 'finalDrive')} />
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
+                                        {Array.from({ length: currentGearCount }, (_, i) => i + 1).map(gear => (
+                                          <NumberInput key={gear} label={`${gear}档齿比`} value={formData.drivetrain[`gear${gear}`]} onChange={v => updateFormField('drivetrain', `gear${gear}`, v)} min={tuneConstraints[`drivetrain.gear${gear}`]?.min ?? 0.5} max={tuneConstraints[`drivetrain.gear${gear}`]?.max ?? 6} step={tuneConstraints[`drivetrain.gear${gear}`]?.step ?? 0.01} locked={tuneConstraints[`drivetrain.gear${gear}`]?.locked} {...ni('drivetrain', `gear${gear}`)} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div key={section.sectionKey || section.category} className="form-section">
+                                  <div style={{ ...formSectionTitleStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleSection(section.sectionKey || section.category)}>
+                                    <span>{collapsedSections.has(section.sectionKey || section.category) ? '▶ ' : '▼ '}{section.title}</span>
+                                    {section.category !== 'brakes' && Object.keys(tuneDefaults).some(k => k.startsWith(`${section.category}.`)) && (
+                                      <button onClick={(e) => { e.stopPropagation(); resetAllToDefaults(); }} className="btn-small" style={{ padding: '1px 8px', fontSize: 8, background: 'rgba(210, 153, 34, 0.15)', borderColor: 'rgba(210, 153, 34, 0.3)', color: '#d29922' }}>
+                                        重置为推荐值
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div style={{
+                                    maxHeight: collapsedSections.has(section.sectionKey || section.category) ? '0px' : '600px',
+                                    overflow: 'hidden',
+                                    opacity: collapsedSections.has(section.sectionKey || section.category) ? 0 : 1,
+                                    transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out',
+                                    marginTop: collapsedSections.has(section.sectionKey || section.category) ? 0 : 8
+                                  }}>
+                                    <div className="form-grid">
+                                      {section.fields.map(f => (
+                                        <NumberInput
+                                          key={f.id}
+                                          label={f.label}
+                                          value={formData[section.category][f.id]}
+                                          onChange={v => updateFormField(section.category, f.id, v)}
+                                          min={tuneConstraints[`${section.category}.${f.id}`]?.min ?? f.min}
+                                          max={tuneConstraints[`${section.category}.${f.id}`]?.max ?? f.max}
+                                          step={tuneConstraints[`${section.category}.${f.id}`]?.step ?? f.step}
+                                          unit={f.unit}
+                                          locked={tuneConstraints[`${section.category}.${f.id}`]?.locked}
+                                          {...ni(section.category, f.id)}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 3.3 步骤 3：独立方案命名、分享码与保存（专注于方案收尾） */}
+            {wizardStep === 3 && (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'auto', padding: 10 }}>
+                <div style={{
+                  maxWidth: 680,
+                  margin: '0 auto',
+                  width: '100%',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: 10,
+                  padding: 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: 10 }}>
+                    💾 保存调校方案
                   </div>
 
-                  {/* 基本配置填报 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={labelStyle}>调校方案名称 *</label>
+                    <input
+                      value={formData.name}
+                      onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="例如: 街头赛 S1900 高速弯道专用调校"
+                      style={{ ...inputStyle, fontSize: 12, padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
-                      <label style={labelStyle}>调校名称</label>
+                      <label style={labelStyle}>游戏内分享码 (9位或12位数字)</label>
                       <input
-                        value={formData.name}
-                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="例如: 街头赛高速弯道调校"
+                        value={formData.shareCode || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, shareCode: e.target.value }))}
+                        placeholder="例如: 123 456 789"
                         style={inputStyle}
                       />
                     </div>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label style={labelStyle}>调校 PI (游戏实测)</label>
-                        <input
-                          type="number"
-                          min="100"
-                          max="999"
-                          step="1"
-                          value={solutionPi ?? ''}
-                          onChange={e => setSolutionPi(e.target.value === '' ? null : Number(e.target.value))}
-                          placeholder="例如: 900"
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div>
-                        <label style={labelStyle}>适用车型</label>
-                        <VehicleSearchSelect id="edit-vehicle" value={formData.vehicleId} options={vehicleOptions} onChange={vehicleId => setFormData(prev => ({ ...prev, vehicleId }))} style={inputStyle} />
-                      </div>
-                    </div>
-
-                    {/* 车辆物理构型快捷调适 */}
-                    <div style={{
-                      padding: 12,
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
-                      borderRadius: 6,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10
-                    }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>⚙️ 车辆物理构型</span>
-                        <button
-                          type="button"
-                          onClick={() => setWizardStep(1)}
-                          style={{ ...btnSmallStyle, padding: '2px 6px', fontSize: 9 }}
-                        >
-                          构型页 ⚙️
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {/* 驱动形式 */}
-                        <div>
-                          <label style={labelStyle}>驱动形式</label>
-                          <select
-                            value={currentDriveType}
-                            onChange={e => {
-                              const dt = e.target.value;
-                              setAiDriveType(dt);
-                              updatePartSelection('drivetrain_swap', 'stock', dt === baseDriveType ? 'stock' : dt);
-                              updateTuningCapabilities({ driveType: dt });
-                            }}
-                            style={inputStyle}
-                          >
-                            <option value="fwd">前驱 FWD{baseDriveType === 'fwd' ? '（原厂）' : ''}</option>
-                            <option value="rwd">后驱 RWD{baseDriveType === 'rwd' ? '（原厂）' : ''}</option>
-                            <option value="awd">四驱 AWD{baseDriveType === 'awd' ? '（原厂）' : ''}</option>
-                          </select>
-                        </div>
-
-                        {/* 专属引擎 */}
-                        <div>
-                          <label style={labelStyle}>专属引擎</label>
-                          {(() => {
-                            const engineSlot = upgradeShop?.slots?.find(s => s.id === 'engine_swap');
-                            const options = engineSlot?.options || [{ id: 'stock', label: '原厂引擎' }];
-                            const currentOptId = formData.parts?.engine_swap?.optionId || 'stock';
-                            return (
-                              <select
-                                value={currentOptId}
-                                onChange={e => updatePartSelection('engine_swap', 'stock', e.target.value)}
-                                style={inputStyle}
-                              >
-                                {options.map(opt => (
-                                  <option key={opt.id} value={opt.id}>{opt.label || opt.name}</option>
-                                ))}
-                              </select>
-                            );
-                          })()}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {/* 进气增压方式 */}
-                        <div>
-                          <label style={labelStyle}>进气增压方式</label>
-                          {(() => {
-                            const aspSlot = upgradeShop?.slots?.find(s => s.id === 'aspiration_swap');
-                            const options = aspSlot?.options || [];
-                            const currentOptId = formData.parts?.aspiration_swap?.optionId || 'stock';
-                            if (!aspSlot || options.length <= 1) {
-                              return (
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', paddingTop: 6 }}>
-                                  🔒 增压已固定
-                                </div>
-                              );
-                            }
-                            return (
-                              <select
-                                value={currentOptId}
-                                onChange={e => updatePartSelection('aspiration_swap', 'stock', e.target.value)}
-                                style={inputStyle}
-                              >
-                                {options.map(opt => (
-                                  <option key={opt.id} value={opt.id}>{opt.label || opt.name}</option>
-                                ))}
-                              </select>
-                            );
-                          })()}
-                        </div>
-
-                        {/* 宽体套件 */}
-                        <div>
-                          <label style={labelStyle}>宽体套件</label>
-                          {(() => {
-                            const isWidebody = (formData.parts?.widebody?.optionId === 'listed_widebody');
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => updatePartSelection('widebody', 'stock', isWidebody ? 'stock' : 'listed_widebody')}
-                                style={{
-                                  ...btnSmallStyle,
-                                  width: '100%',
-                                  padding: '6px 8px',
-                                  fontSize: 10,
-                                  background: isWidebody ? 'rgba(63,185,80,0.15)' : 'rgba(255,255,255,0.03)',
-                                  borderColor: isWidebody ? '#3fb950' : 'var(--border)',
-                                  color: isWidebody ? '#3fb950' : 'var(--text-secondary)',
-                                  fontWeight: isWidebody ? 700 : 400
-                                }}
-                              >
-                                {isWidebody ? '✓ 已选装宽体' : '☐ 未加装宽体'}
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-
                     <div>
                       <label style={labelStyle}>标签 (逗号分隔)</label>
                       <input
                         value={formData.tags}
                         onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                        placeholder="公路, 漂移, 拉力..."
+                        placeholder="公路, 漂移, S1..."
                         style={inputStyle}
                       />
                     </div>
-
-                    <div style={{ marginBottom: 6 }}>
-                      <label style={labelStyle}>调校笔记与调参描述</label>
-                      <textarea
-                        value={formData.notes || ''}
-                        onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                        placeholder="在此记录调校改动特点..."
-                        rows={3}
-                        style={{ ...inputStyle, resize: 'none', fontSize: 10, lineHeight: 1.4 }}
-                      />
-                    </div>
                   </div>
 
-                  {/* AI 调校诊断与优化助手：支持聚焦驾驶问题 AI 求解与遥测数据抓包求解 */}
-                  {(wizardStep === 3 || editingTune) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', gap: 6, padding: 4, borderRadius: 7, background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-                      {[
-                        { id: 'feel', label: '🤖 常见问题 AI 诊疗', color: '#58a6ff' },
-                        { id: 'telemetry', label: '📊 遥测数据 AI 优化', color: '#3fb950' }
-                      ].map(tab => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => {
-                            setAdviceSubTab(tab.id)
-                            if (tab.id === 'telemetry') loadTelemetrySessions()
-                          }}
-                          style={{
-                            flex: 1, padding: '7px 8px', borderRadius: 5, border: '1px solid',
-                            borderColor: adviceSubTab === tab.id ? tab.color : 'transparent',
-                            background: adviceSubTab === tab.id ? `${tab.color}22` : 'transparent',
-                            color: adviceSubTab === tab.id ? tab.color : 'var(--text-muted)', fontSize: 10,
-                            fontWeight: 700, cursor: 'pointer'
-                          }}
-                        >{tab.label}</button>
-                      ))}
-                    </div>
-                    {adviceSubTab === 'feel' && <>
-                    {/* 常用驾驶问题面板 */}
-              <div style={{
-                background: 'var(--bg-primary)',
-                borderRadius: 8,
-                padding: 12,
-                border: '1px solid var(--border)'
-              }}>
-                <div
-                  onClick={() => setDrivingProblemsOpen(!drivingProblemsOpen)}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: '#58a6ff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    userSelect: 'none'
-                  }}
-                >
-                  <span>驾驶感受调校</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{drivingProblemsOpen ? '▲ 收起' : '▼ 展开'}</span>
-                </div>
-
-                {drivingProblemsOpen && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ marginBottom: 8, fontSize: 9, lineHeight: 1.45, color: 'var(--text-muted)' }}>
-                      根据驾驶感受选择最接近的现象。每次只应用一组相关参数，并在同赛道复跑验证；胎温问题请在“遥测调校”中处理。
-                    </div>
-                    {/* 分类筛选 */}
-                    <div style={{ marginBottom: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {Array.isArray(DRIVING_PROBLEMS) && (() => {
-                        const categories = [...new Set(DRIVING_PROBLEMS.map(p => p.category).filter(Boolean))]
-                        return categories.map(cat => {
-                          const catInfo = PROBLEM_CATEGORIES.find(c => c.id === cat)
-                          const label = catInfo?.label || cat
-                          const color = catInfo?.color || 'var(--text-secondary)'
-                          return (
-                            <span key={cat} style={{
-                              fontSize: 9,
-                              padding: '2px 6px',
-                              borderRadius: 3,
-                              background: `${color}18`,
-                              color,
-                              border: `1px solid ${color}40`
-                            }}>
-                              {label}
-                            </span>
-                          )
-                        })
-                      })()}
-                    </div>
-
-                    {/* 问题列表 */}
-                    <div style={{ maxHeight: 400, overflow: 'auto' }}>
-                      {Array.isArray(DRIVING_PROBLEMS) && DRIVING_PROBLEMS.map((problem, idx) => (
-                        <div key={idx} style={{ marginBottom: 4 }}>
-                          <div
-                            onClick={() => setSelectedProblem(selectedProblem === idx ? null : idx)}
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 4,
-                              background: selectedProblem === idx ? 'rgba(88, 166, 255, 0.12)' : 'var(--bg-secondary)',
-                              border: `1px solid ${selectedProblem === idx ? 'rgba(88, 166, 255, 0.3)' : 'var(--border)'}`,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              gap: 6
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: 'var(--text-primary)',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                {problem.name || problem.problem}
-                              </div>
-                              {problem.category && (
-                                <div style={{ fontSize: 8, marginTop: 1 }}>
-                                  {(() => {
-                                    const catInfo = PROBLEM_CATEGORIES.find(c => c.id === problem.category)
-                                    const catLabel = catInfo?.label || problem.category
-                                    const catColor = catInfo?.color || 'var(--text-muted)'
-                                    return <span style={{ color: catColor }}>{catLabel}</span>
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-                            <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>
-                              {selectedProblem === idx ? '▲' : '▼'}
-                            </span>
-                          </div>
-
-                          {selectedProblem === idx && (
-                            <div style={{
-                              marginTop: 4,
-                              padding: '8px 10px',
-                              background: 'var(--bg-tertiary)',
-                              borderRadius: 4,
-                              border: '1px solid var(--border)',
-                              fontSize: 10
-                            }}>
-                              {problem.symptoms && (
-                                <div style={{ marginBottom: 6 }}>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 3, fontSize: 9 }}>症状</div>
-                                  <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                                    {problem.symptoms}
-                                  </div>
-                                </div>
-                              )}
-                              {problem.description && (
-                                <div style={{ marginBottom: 6 }}>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 3, fontSize: 9 }}>问题描述</div>
-                                  <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                                    {problem.description}
-                                  </div>
-                                </div>
-                              )}
-                              {(problem.suggestedChanges || problem.fixes) && (
-                                <div style={{ marginBottom: 8 }}>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 3, fontSize: 9 }}>建议修改</div>
-                                  {problem.fixes ? (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                                      {Object.entries(problem.fixes).map(([param, fix]) => (
-                                        <div key={param} style={{
-                                          padding: '4px 8px',
-                                          background: 'var(--bg-primary)',
-                                          border: '1px solid rgba(255,255,255,0.06)',
-                                          borderRadius: 4,
-                                          fontSize: 10,
-                                          fontFamily: 'sans-serif',
-                                          color: fix.delta > 0 ? '#3fb950' : '#f85149',
-                                          display: 'flex',
-                                          justify: 'space-between',
-                                          alignItems: 'center'
-                                        }}>
-                                          <span>{PARAM_NAMES_ZH[param] || param}</span>
-                                          <span style={{ fontWeight: 700, fontFamily: 'monospace', marginLeft: 6 }}>
-                                            {fix.delta > 0 ? '+' : ''}{fix.delta}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                                      {Object.entries(problem.suggestedChanges).map(([cat, params]) =>
-                                        Object.entries(params).map(([key, val]) => (
-                                          <div key={`${cat}.${key}`} style={{
-                                            padding: '4px 8px',
-                                            background: 'var(--bg-primary)',
-                                            border: '1px solid rgba(255,255,255,0.06)',
-                                            borderRadius: 4,
-                                            fontSize: 10,
-                                            fontFamily: 'sans-serif',
-                                            color: 'var(--accent)',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center'
-                                          }}>
-                                            <span>{PARAM_NAMES_ZH[key] || key}</span>
-                                            <span style={{ fontWeight: 700, fontFamily: 'monospace', marginLeft: 6 }}>
-                                              {val > 0 ? '+' : ''}{val}
-                                            </span>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                              <button onClick={() => runAiProblemDiagnosis(problem)} disabled={aiDiagnosing} style={{ ...btnSmallStyle, width: '100%', marginTop: 6, background: 'rgba(188,140,255,.15)', borderColor: 'rgba(188,140,255,.35)', color: '#bc8cff', fontWeight: 600 }}>
-                                {aiDiagnosing ? 'AI 正在诊断...' : 'AI 诊断当前调教'}
-                              </button>
-                              {(problem.suggestedChanges || problem.fixes) && (
-                                <button
-                                  onClick={() => applyProblemFix(problem)}
-                                  style={{
-                                    ...btnSmallStyle,
-                                    width: '100%',
-                                    background: 'rgba(88, 166, 255, 0.15)',
-                                    borderColor: 'rgba(88, 166, 255, 0.3)',
-                                    color: '#58a6ff',
-                                    fontWeight: 600
-                                  }}
-                                >
-                                  应用此建议
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                  <div>
+                    <label style={labelStyle}>调校笔记与修改心得</label>
+                    <textarea
+                      value={formData.notes || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="在此记录调校特点、改动细节或赛道适用性..."
+                      rows={4}
+                      style={{ ...inputStyle, resize: 'none', fontSize: 11, lineHeight: 1.5 }}
+                    />
                   </div>
-                )}
-                  </div>
-                  </>}
-
-                  {/* 遥测诊断面板 */}
-                  {adviceSubTab === 'telemetry' && <>
-              <div style={{
-                background: 'var(--bg-primary)',
-                borderRadius: 8,
-                padding: 12,
-                border: '1px solid var(--border)'
-              }}>
-                <div
-                  onClick={() => {
-                    setTelemetryPanelOpen(!telemetryPanelOpen)
-                    if (!telemetryPanelOpen) loadTelemetrySessions()
-                  }}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: '#3fb950',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    userSelect: 'none'
-                  }}
-                >
-                  <span>完整遥测调校</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{telemetryPanelOpen ? '▲ 收起' : '▼ 展开'}</span>
                 </div>
-
-                {telemetryPanelOpen && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ marginBottom: 8, fontSize: 9, lineHeight: 1.45, color: 'var(--text-muted)' }}>
-                      系统读取所选比赛的完整遥测数据，基于油门、制动、滑移、胎温、悬挂和转速给出车辆参数建议；不修改配件与 PI。
-                    </div>
-                    <div style={{ marginBottom: 8 }}>
-                      <label style={labelStyle}>选择比赛记录</label>
-                      <select
-                        value={selectedSessionId}
-                        onChange={e => {
-                          setSelectedSessionId(e.target.value)
-                          setDiagnosisResult(null)
-                        }}
-                        style={inputStyle}
-                      >
-                        <option value="">-- 请选择 --</option>
-                        {availableSessions.map(session => {
-                          const track = session.trackName || session.track || '未知赛道';
-                          const car = session.vehicle?.name || (typeof session.vehicle === 'string' ? session.vehicle : null) || session.car || '未知车辆';
-                          const dateVal = session.savedAt || session.date || session.createdAt;
-                          return (
-                            <option key={session.id} value={session.id}>
-                              {track} - {car} ({dateVal ? formatDate(dateVal) : '未知时间'})
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-
-                    <button
-                      onClick={runAiTelemetryDiagnosis}
-                      disabled={!selectedSessionId || aiDiagnosing}
-                      style={{
-                        ...btnPrimaryStyle,
-                        width: '100%',
-                        background: aiDiagnosing ? '#484f58' : '#238636',
-                        marginBottom: 10
-                      }}
-                    >
-                      {aiDiagnosing ? 'AI 正在分析遥测...' : 'AI 诊断当前调教'}
-                    </button>
-
-                    {aiDiagnosis && <div style={{ whiteSpace: 'pre-wrap', padding: 10, marginBottom: 10, background: 'rgba(188,140,255,.08)', border: '1px solid rgba(188,140,255,.3)', borderRadius: 6, color: 'var(--text-secondary)', fontSize: 10, lineHeight: 1.55 }}>{aiDiagnosis}</div>}
-
-                    {diagnosisResult && (
-                      <div style={{
-                        padding: 10,
-                        background: 'var(--bg-tertiary)',
-                        borderRadius: 6,
-                        border: '1px solid var(--border)',
-                        maxHeight: 350,
-                        overflow: 'auto'
-                      }}>
-                        <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
-                          遥测调校建议
-                        </div>
-                        {diagnosisResult.summary && (
-                          <div style={{
-                            fontSize: 10,
-                            color: 'var(--text-secondary)',
-                            marginBottom: 8,
-                            lineHeight: 1.5,
-                            padding: '6px 8px',
-                            background: diagnosisResult.issues && diagnosisResult.issues.length > 0
-                              ? 'rgba(210, 153, 34, 0.1)' : 'rgba(35, 134, 54, 0.1)',
-                            borderRadius: 4
-                          }}>
-                            {diagnosisResult.summary}
-                          </div>
-                        )}
-
-                        <TelemetryRecommendationList result={diagnosisResult} />
-
-                        {diagnosisResult.issues && diagnosisResult.issues.length > 0 && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>发现的问题</div>
-                            {diagnosisResult.issues.map((issue, idx) => (
-                              <div key={idx} style={{
-                                fontSize: 10,
-                                color: 'var(--text-primary)',
-                                padding: '4px 8px',
-                                marginBottom: 3,
-                                background: 'var(--bg-primary)',
-                                borderRadius: 3,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6
-                              }}>
-                                <span style={{ color: issue.severity === 'high' ? '#da3633' : '#d29922', fontSize: 10 }}>
-                                  {issue.severity === 'high' ? '!!' : '!'}
-                                </span>
-                                <span>{issue.description || issue.message || issue}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {diagnosisResult.suggestedChanges && Object.keys(diagnosisResult.suggestedChanges).length > 0 && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>建议的参数修改</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
-                              {Object.entries(diagnosisResult.suggestedChanges).map(([cat, params]) =>
-                                Object.entries(params).map(([key, val]) => {
-                                  const name = PARAM_NAMES_ZH[key] || key;
-                                  const formattedVal = val > 0 ? `+${val}` : `${val}`;
-                                  return (
-                                    <div key={`${cat}.${key}`} style={{
-                                      padding: '2px 6px',
-                                      background: 'var(--bg-primary)',
-                                      borderRadius: 3,
-                                      fontSize: 8,
-                                      fontFamily: 'monospace',
-                                      color: 'var(--accent)'
-                                    }}>
-                                      {name}: {formattedVal}
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {diagnosisResult.suggestedChanges && Object.keys(diagnosisResult.suggestedChanges).length > 0 && (
-                          <button
-                            onClick={applyDiagnosisFix}
-                            style={{
-                              ...btnSmallStyle,
-                              width: '100%',
-                              background: 'rgba(63, 185, 80, 0.15)',
-                              borderColor: 'rgba(63, 185, 80, 0.3)',
-                              color: '#3fb950',
-                              fontWeight: 600
-                            }}
-                          >
-                            应用全部参数建议
-                          </button>
-                        )}
-                        {/* Round 2: 重新诊断按钮 */}
-                        <button
-                          onClick={runTelemetryDiagnosis}
-                          disabled={!selectedSessionId || diagnosing}
-                          style={{
-                            ...btnSmallStyle,
-                            width: '100%',
-                            marginTop: 4,
-                            background: 'rgba(88, 166, 255, 0.15)',
-                            borderColor: 'rgba(88, 166, 255, 0.3)',
-                            color: '#58a6ff',
-                            fontWeight: 600
-                          }}
-                        >
-                          {diagnosing ? '诊断中...' : '重新诊断'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                </div>
-                </>}
-                </div>
-                )}
-                </div>
-                </div>
+              </div>
             )}
             </div> {/* 闭合滚动 Body 内容区 */}
 
@@ -2726,48 +2257,67 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
 
               {/* 右侧：操作按钮 */}
               <div style={{ display: 'flex', gap: 8 }}>
-                {wizardStep > 1 && !editingTune && (
-                  <button
-                    type="button"
-                    onClick={() => setWizardStep(1)}
-                    style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
-                  >
-                    ← 重选车辆与偏好
-                  </button>
-                )}
-
-                {wizardStep === 1 && !editingTune && (
+                {wizardStep === 1 && (
                   <button
                     type="button"
                     onClick={() => {
                       if (generateAssistedTune()) {
-                        setWizardStep(3);
+                        setWizardStep(2);
                       }
                     }}
                     disabled={!formData.vehicleId || !upgradeShop}
                     style={{ ...btnPrimaryStyle, padding: '6px 20px', fontSize: 11, fontWeight: 700 }}
                   >
-                    {(!upgradeShop && formData.vehicleId) ? '加载物理资料中...' : '⚡ 一键生成物理调校表 →'}
+                    {(!upgradeShop && formData.vehicleId) ? '加载物理资料中...' : '⚡ 生成物理推荐并进入调校 →'}
                   </button>
                 )}
 
-                {(wizardStep === 3 || editingTune) && (
-                  <button
-                    onClick={saveTune}
-                    style={{
-                      ...btnPrimaryStyle,
-                      background: 'var(--success)',
-                      borderColor: '#2ea44f',
-                      padding: '5px 16px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6
-                    }}
-                  >
-                    💾 {editingTune ? '保存此调校' : '完成并保存'}
-                  </button>
+                {wizardStep === 2 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(1)}
+                      style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
+                    >
+                      ← 返回修改构建
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(3)}
+                      style={{ ...btnPrimaryStyle, padding: '6px 18px', fontSize: 11, fontWeight: 700 }}
+                    >
+                      下一步：方案命名与保存 →
+                    </button>
+                  </>
+                )}
+
+                {wizardStep === 3 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setWizardStep(2)}
+                      style={{ ...btnSmallStyle, padding: '5px 14px', fontSize: 11 }}
+                    >
+                      ← 返回参数调校
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveTune}
+                      style={{
+                        ...btnPrimaryStyle,
+                        background: 'var(--success)',
+                        borderColor: '#2ea44f',
+                        padding: '6px 20px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
+                      💾 {editingTune ? '保存修改' : '完成并保存调校'}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -2873,6 +2423,562 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
 
             <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text-muted)' }}>
               提示：在调校卡片上点击"分享码"按钮即可复制该调校的分享码。支持中文调校名称。
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔬 沉浸式赛车工程诊断工作台 (Diagnostic Workbench) Modal */}
+      {diagnosisModalTune && (
+        <div style={modalOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setDiagnosisModalTune(null); }}>
+          <div style={{
+            ...modalContentStyle,
+            maxWidth: 920,
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            overflow: 'hidden',
+            padding: 22,
+            background: 'linear-gradient(145deg, #0d1117 0%, #161b22 100%)',
+            border: '1px solid var(--accent)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
+            borderRadius: 12
+          }}>
+            {/* Header 顶栏 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: 'rgba(63, 185, 80, 0.15)', border: '1px solid rgba(63, 185, 80, 0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#3fb950'
+                }}>
+                  🔬
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: 0.5 }}>
+                    赛车工程诊断工作台
+                  </h2>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                    基于真实物理遥测与物理模型双核驱动，解决动态极限与驾驶表现瓶颈
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setDiagnosisModalTune(null)}
+                style={{ ...btnSmallStyle, border: 'none', fontSize: 18, cursor: 'pointer', padding: '2px 10px', color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Step 1: 目标方案与赛道遥测绑定条 */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: 8,
+              padding: '12px 14px',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 180px',
+              gap: 12,
+              alignItems: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.05)'
+            }}>
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', display: 'block', marginBottom: 4 }}>
+                  ① 目标调校方案
+                </label>
+                <select
+                  value={diagnosisModalTune.id}
+                  onChange={(e) => {
+                    const selected = tunes.find(t => t.id === e.target.value);
+                    if (selected) {
+                      setDiagnosisModalTune(selected);
+                      setDiagnosisResult(null);
+                      setSelectedSessionId('');
+                    }
+                  }}
+                  style={{ ...inputStyle, padding: '5px 8px', fontSize: 11, background: 'var(--bg-primary)' }}
+                >
+                  {tunes.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({getVehicleName(t.vehicleId)} | PI {t.totalPi || '-'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff', display: 'block', marginBottom: 4 }}>
+                  ② 绑定的赛道遥测比赛
+                </label>
+                {(() => {
+                  const carSessions = availableSessions.filter(s => {
+                    const sVehicleId = s.vehicleId || s.vehicle?.ordinal || s.carOrdinal || '';
+                    return String(sVehicleId) === String(diagnosisModalTune.vehicleId);
+                  });
+                  return (
+                    <select
+                      value={selectedSessionId}
+                      onChange={e => {
+                        setSelectedSessionId(e.target.value);
+                        setDiagnosisResult(null);
+                      }}
+                      style={{ ...inputStyle, padding: '5px 8px', fontSize: 11, background: 'var(--bg-primary)' }}
+                    >
+                      <option value="">-- 手动选择赛道遥测 ({carSessions.length} 场记录) --</option>
+                      {carSessions.map(session => {
+                        const track = session.trackName || session.track || '未知赛道';
+                        const dateVal = session.savedAt || session.date || session.createdAt;
+                        return (
+                          <option key={session.id} value={session.id}>
+                            {track} ({dateVal ? formatDate(dateVal) : '未知时间'})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div style={{
+                background: 'rgba(0, 0, 0, 0.25)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                textAlign: 'right',
+                border: '1px solid rgba(255, 255, 255, 0.04)'
+              }}>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>适用车辆</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {getVehicleName(diagnosisModalTune.vehicleId)}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: 诊断工作流 Mode Tabs */}
+            <div style={{ display: 'flex', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 10 }}>
+              <button
+                type="button"
+                onClick={() => setActiveDiagnosisTab('telemetry')}
+                style={{
+                  ...btnSmallStyle,
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: activeDiagnosisTab === 'telemetry' ? 'rgba(63, 185, 80, 0.15)' : 'transparent',
+                  borderColor: activeDiagnosisTab === 'telemetry' ? '#3fb950' : 'var(--border)',
+                  color: activeDiagnosisTab === 'telemetry' ? '#3fb950' : 'var(--text-secondary)'
+                }}
+              >
+                <span>📈 全车遥测深度健康扫描</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDiagnosisTab('problems')}
+                style={{
+                  ...btnSmallStyle,
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: activeDiagnosisTab === 'problems' ? 'rgba(88, 166, 255, 0.15)' : 'transparent',
+                  borderColor: activeDiagnosisTab === 'problems' ? '#58a6ff' : 'var(--border)',
+                  color: activeDiagnosisTab === 'problems' ? '#58a6ff' : 'var(--text-secondary)'
+                }}
+              >
+                <span>🙋 驾驶感受问题定向攻坚</span>
+              </button>
+            </div>
+
+            {/* Step 3: 工作台内容展示 */}
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              
+              {/* Tab 1: 全车遥测扫描 */}
+              {activeDiagnosisTab === 'telemetry' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{
+                    background: 'var(--bg-primary)',
+                    borderRadius: 8,
+                    padding: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        全车物理遥测数据扫描
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        归约分析赛道实测的悬挂触底、轮胎滑移率、重刹锁死率与前后轴轴向温差
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const carSessions = availableSessions.filter(s => {
+                            const sVehicleId = s.vehicleId || s.vehicle?.ordinal || s.carOrdinal || '';
+                            return String(sVehicleId) === String(diagnosisModalTune.vehicleId);
+                          });
+                          if (carSessions.length === 0) {
+                            alert('未找到该车型的遥测比赛记录。请先去赛道跑几圈录制遥测数据！');
+                            return;
+                          }
+                          setSelectedSessionId(carSessions[0].id);
+                          runTelemetryDiagnosis(carSessions[0].id);
+                        }}
+                        disabled={diagnosing}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          background: 'rgba(63, 185, 80, 0.18)',
+                          border: '1px solid rgba(63, 185, 80, 0.4)',
+                          color: '#3fb950',
+                          borderRadius: 6,
+                          padding: '8px 16px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ⚡ 快捷扫描本车最新比赛
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => runTelemetryDiagnosis(selectedSessionId)}
+                        disabled={!selectedSessionId || diagnosing}
+                        style={{
+                          ...btnPrimaryStyle,
+                          fontSize: 11,
+                          padding: '8px 16px',
+                          background: diagnosing ? '#484f58' : '#238636'
+                        }}
+                      >
+                        {diagnosing ? '深度扫描中...' : '🚀 开始全面扫描'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 扫描分析矩阵 */}
+                  {diagnosisResult && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, animation: 'toastSlideIn 0.3s ease' }}>
+                      
+                      {/* 扫描结论 Card */}
+                      <div style={{
+                        padding: 12,
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: 8,
+                        border: '1px solid ' + (diagnosisResult.issues && diagnosisResult.issues.length > 0 ? '#d29922' : '#3fb950'),
+                        borderLeftWidth: 4
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                          📊 工程扫描评估结论:
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {diagnosisResult.summary || '全车遥测数据质量良好，未发现严重的物理碰撞失衡。'}
+                        </div>
+                      </div>
+
+                      {/* 细节物理证据 */}
+                      <TelemetryRecommendationList result={diagnosisResult} />
+
+                      {/* 物理参数调整对比表 (Parameter Contrast Matrix Table) */}
+                      {diagnosisResult.suggestedChanges && Object.keys(diagnosisResult.suggestedChanges).length > 0 && (
+                        <div style={{
+                          background: 'var(--bg-primary)',
+                          borderRadius: 8,
+                          padding: 14,
+                          border: '1px solid var(--accent)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10
+                        }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>🔧 拟修正调校参数对比矩阵:</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>已针对当前方案换算目标绝对值</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {Object.entries(diagnosisResult.suggestedChanges).map(([cat, params]) =>
+                              Object.entries(params).map(([key, val]) => {
+                                const curVal = diagnosisModalTune[cat]?.[key];
+                                const targetVal = Number.isFinite(Number(curVal)) ? (Number(curVal) + Number(val)).toFixed(2) : null;
+                                return (
+                                  <div key={key} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '120px 140px 1fr',
+                                    gap: 10,
+                                    alignItems: 'center',
+                                    fontSize: 11,
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    padding: '6px 10px',
+                                    borderRadius: 6,
+                                    border: '1px solid rgba(255, 255, 255, 0.04)'
+                                  }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{PARAM_NAMES_ZH[key] || key}</span>
+                                    <span style={{ fontFamily: 'monospace' }}>
+                                      {curVal !== undefined ? curVal : '?'} ➔ <strong style={{ color: '#3fb950' }}>{targetVal !== null ? targetVal : '微调'}</strong>
+                                    </span>
+                                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                      幅度: <strong style={{ color: val > 0 ? '#3fb950' : '#da3633' }}>{val > 0 ? `+${val}` : val}</strong>
+                                    </span>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleApplyDiagnosisInViewOnly(diagnosisModalTune, diagnosisResult.suggestedChanges);
+                            }}
+                            style={{
+                              ...btnPrimaryStyle,
+                              width: '100%',
+                              fontSize: 12,
+                              padding: '10px 16px',
+                              background: '#238636',
+                              fontWeight: 800,
+                              marginTop: 6,
+                              borderRadius: 6
+                            }}
+                          >
+                            ⚡ 一键写入此调校方案并开启编辑
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 2: 驾驶感受问题定向攻坚 */}
+              {activeDiagnosisTab === 'problems' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    挑选在赛道驾驶时遇到的特定动态问题，系统将读取<strong>当前调校已有参数</strong>并联动<strong>选中的遥测 Session</strong> 进行专项攻坚分析。
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 14, alignItems: 'start' }}>
+                    
+                    {/* 左侧：驾驶问题挑选网格 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        常见驾驶体验问题库:
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 380, overflowY: 'auto', paddingRight: 4 }}>
+                        {DRIVING_PROBLEMS.map((prob, idx) => {
+                          const isSelected = selectedProblem?.name === prob.name;
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: '10px 12px',
+                                background: isSelected ? 'rgba(88, 166, 255, 0.12)' : 'var(--bg-primary)',
+                                border: `1px solid ${isSelected ? '#58a6ff' : 'var(--border)'}`,
+                                borderRadius: 8,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 4,
+                                transition: 'all 0.2s',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                setSelectedProblem(prob);
+                                runAiProblemDiagnosis(prob, selectedSessionId, diagnosisModalTune);
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#58a6ff' : 'var(--text-primary)' }}>
+                                  {prob.name}
+                                </span>
+                                <span style={{
+                                  fontSize: 8.5,
+                                  color: isSelected ? '#fff' : '#58a6ff',
+                                  background: isSelected ? '#238636' : 'rgba(88, 166, 255, 0.1)',
+                                  borderRadius: 4,
+                                  padding: '1px 5px',
+                                  fontWeight: 700
+                                }}>
+                                  {isSelected ? '已选中' : '分析 →'}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.3 }}>{prob.description}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 右侧：专项分析与参数对决面板 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {!selectedProblem ? (
+                        <div style={{
+                          padding: 40,
+                          textAlign: 'center',
+                          background: 'var(--bg-primary)',
+                          borderRadius: 8,
+                          border: '1px dashed var(--border)',
+                          color: 'var(--text-muted)',
+                          fontSize: 11
+                        }}>
+                          👈 请在左侧点击挑选一个需要攻坚解决的驾驶体验问题
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: 14,
+                          background: 'var(--bg-primary)',
+                          borderRadius: 8,
+                          border: '1px solid #58a6ff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                          animation: 'toastSlideIn 0.3s ease'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(88, 166, 255, 0.15)', paddingBottom: 8 }}>
+                            <div style={{ fontWeight: 800, fontSize: 13, color: '#58a6ff' }}>
+                              🔬 问题「{selectedProblem.name}」攻坚报告
+                            </div>
+                            {aiDiagnosing && <span style={{ fontSize: 10, color: '#d29922' }}>AI & 物理模型联合计算中...</span>}
+                          </div>
+
+                          {/* 诊断结论文本 */}
+                          {aiDiagnosis && (
+                            <div style={{
+                              fontSize: 10.5,
+                              color: 'var(--text-primary)',
+                              whiteSpace: 'pre-wrap',
+                              lineHeight: 1.6,
+                              background: 'rgba(88, 166, 255, 0.04)',
+                              padding: 12,
+                              borderRadius: 6,
+                              border: '1px solid rgba(88, 166, 255, 0.15)'
+                            }}>
+                              {aiDiagnosis}
+                            </div>
+                          )}
+
+                          {/* 针对该问题的物理修正建议 */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleApplyProblemFixInViewOnly(diagnosisModalTune, selectedProblem);
+                            }}
+                            style={{
+                              ...btnPrimaryStyle,
+                              width: '100%',
+                              fontSize: 12,
+                              padding: '10px 16px',
+                              background: '#238636',
+                              fontWeight: 800,
+                              marginTop: 4,
+                              borderRadius: 6
+                            }}
+                          >
+                            ⚡ 一键写入对症修正参数并开启编辑
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🗑️ 删除调校方案二次确认 Modal */}
+      {tuneToDelete && (
+        <div style={modalOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setTuneToDelete(null); }}>
+          <div style={{
+            ...modalContentStyle,
+            maxWidth: 420,
+            padding: 22,
+            background: 'linear-gradient(145deg, #161b22 0%, #0d1117 100%)',
+            border: '1px solid rgba(248, 81, 73, 0.4)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.7)',
+            borderRadius: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 8,
+                background: 'rgba(248, 81, 73, 0.15)', border: '1px solid rgba(248, 81, 73, 0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#f85149'
+              }}>
+                🗑️
+              </div>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  确认删除此调校方案？
+                </h3>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                  此操作将从系统中永久删除该方案，不可恢复
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: 8,
+              padding: '12px 14px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              fontSize: 11
+            }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                {tuneToDelete.name || '未命名调校'}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                适用车辆: {getVehicleName(tuneToDelete.vehicleId)} | PI {tuneToDelete.totalPi || '-'}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => setTuneToDelete(null)}
+                style={{
+                  ...btnSmallStyle,
+                  padding: '7px 16px',
+                  fontSize: 11,
+                  background: 'transparent',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: 6
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const targetId = tuneToDelete.id;
+                  setTuneToDelete(null);
+                  await deleteTune(targetId);
+                }}
+                style={{
+                  ...btnPrimaryStyle,
+                  padding: '7px 18px',
+                  fontSize: 11,
+                  background: '#da3633',
+                  fontWeight: 800,
+                  borderRadius: 6
+                }}
+              >
+                确认删除
+              </button>
             </div>
           </div>
         </div>

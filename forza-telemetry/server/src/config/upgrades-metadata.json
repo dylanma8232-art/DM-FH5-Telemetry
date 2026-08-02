@@ -3,6 +3,11 @@
   "game": "Forza Horizon 5",
   "updatedAt": "2026-07-17T09:52:24.083Z",
   "profiles": {
+    "3005": {
+      "name": "1965 Peel Trident",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
     "247": {
       "name": "1969 Toyota 2000GT",
       "basePi": 487,

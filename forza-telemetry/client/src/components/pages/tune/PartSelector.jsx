@@ -6,22 +6,26 @@ export const PartSelector = React.memo(function PartSelector({ category: rawCate
 
   const category = useMemo(() => {
     if (rawCategory.id === 'drivetrain_swap') {
-      const stockType = defaultDrivetrain ? defaultDrivetrain.toUpperCase() : null;
-      const zhMap = { FWD: '前驱', RWD: '后驱', AWD: '四驱' };
-      const zhName = stockType ? (zhMap[stockType] || stockType) : '原厂';
-      
-      const nextOptions = rawCategory.options?.filter(opt => {
-        if (!stockType) return true;
-        return opt.id === 'stock' || opt.id !== stockType.toLowerCase();
-      }).map(opt => {
-        let label = opt.label;
-        if (opt.id === 'stock') {
-          label = stockType ? `原厂（${zhName}）` : '原厂';
-        }
-        const piEstimate = opt.id === 'stock' ? 0 : (opt.piEstimate ?? null);
-        return { ...opt, label, piEstimate };
-      });
-      return { ...rawCategory, options: nextOptions };
+      const stockType = defaultDrivetrain ? defaultDrivetrain.toLowerCase() : null;
+      const optionsMap = [
+        { id: 'stock', driveType: stockType || 'rwd', label: stockType === 'fwd' ? '前轮驱动原厂' : (stockType === 'rwd' ? '后轮驱动原厂' : (stockType === 'awd' ? '四轮驱动原厂' : '原厂驱动')) },
+        { id: 'fwd', driveType: 'fwd', label: '前轮驱动' + (stockType === 'fwd' ? ' 原厂' : '') },
+        { id: 'rwd', driveType: 'rwd', label: '后轮驱动' + (stockType === 'rwd' ? ' 原厂' : '') },
+        { id: 'awd', driveType: 'awd', label: '四轮驱动' + (stockType === 'awd' ? ' 原厂' : '') }
+      ];
+      // 过滤掉重复项，保留独一无二的 FWD/RWD/AWD 三种选项
+      const uniqueOptions = [];
+      const seen = new Set();
+      for (const opt of optionsMap) {
+        if (opt.id === 'stock') continue; // 用标准的 fwd/rwd/awd 列表
+        const isStockDrive = opt.driveType === stockType;
+        uniqueOptions.push({
+          id: isStockDrive ? 'stock' : opt.id,
+          label: opt.label,
+          piEstimate: isStockDrive ? 0 : (opt.id === 'awd' ? 25 : -15)
+        });
+      }
+      return { ...rawCategory, options: uniqueOptions };
     }
     return rawCategory;
   }, [rawCategory, defaultDrivetrain]);

@@ -642,12 +642,19 @@ router.get('/:sessionId/diagnosis', asyncHandler(async (req, res) => {
 }));
 
 // 无需保存调校方案的遥测调教建议。返回相对当前游戏数值的增减量；
-// 客户端若能找到本地方案，再将其换算为“当前值 → 目标值”。
+// 客户端若能找到本地方案，再将其换算为"当前值 → 目标值"。
 router.get('/:sessionId/tuning-recommendations', asyncHandler(async (req, res) => {
+  const cacheKey = `tuning_rec_${req.params.sessionId}`;
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.json(cached);
+
   const session = loadSession(req.params.sessionId, stateManager.tracks);
   if (!session) return res.status(404).json({ error: '未找到比赛记录。' });
-  res.json(generateTelemetryTuningRecommendations(session.data || []));
+  const result = generateTelemetryTuningRecommendations(session.data || []);
+  setToCache(cacheKey, result);
+  res.json(result);
 }));
+
 
 // 辅助函数：计算轮胎温度和滑移的物理状态特征
 function calculateTireAnalysisStats(rawData) {
@@ -743,11 +750,20 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   const vehiclePi = vehicleDetail?.pi || vehicle.performanceIndex || '';
   const vehicleDrivetrain = vehicleDetail?.drivetrain || vehicle.drivetrain || '未知';
 
-  // 读取物理遥测统计
+  // 读取物理遥测统计（内存缓存，同 session 避免重复解压与计算）
   const rawData = session.data || [];
-  const drivingScore = calculateDrivingScore(session);
-  const suspensionAnalysis = calculateSuspensionAnalysis(rawData, session.positions || []);
-  const tireAnalysis = calculateTireAnalysisStats(rawData);
+  const statsKey = `ai_stats_${sessionId}`;
+  let cachedStats = getFromCache(statsKey);
+  if (!cachedStats) {
+    cachedStats = {
+      drivingScore: calculateDrivingScore(session),
+      suspensionAnalysis: calculateSuspensionAnalysis(rawData, session.positions || []),
+      tireAnalysis: calculateTireAnalysisStats(rawData)
+    };
+    setToCache(statsKey, cachedStats);
+  }
+  const { drivingScore, suspensionAnalysis, tireAnalysis } = cachedStats;
+
 
   // 格式化当前车辆的调校参数明细
   const tuneParamsStr = tune ? `

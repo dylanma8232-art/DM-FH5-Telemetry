@@ -259,11 +259,12 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }, [upgradeShop?.baseDriveType, formData.parts?.drivetrain_swap?.optionId])
 
   useEffect(() => {
-    const officialBasePi = Number(upgradeShop?.basePi)
-    if (!Number.isFinite(officialBasePi)) return
+    const officialBasePi = Number(upgradeShop?.basePi) || Number(vehicles[formData.vehicleId]?.basePi) || Number(vehicles[formData.vehicleId]?.pi) || 100
+    if (!Number.isFinite(officialBasePi) || officialBasePi <= 0) return
     setBasePi(officialBasePi)
     if (!editingTune) setTargetPi(nextPiClassCap(officialBasePi))
-  }, [upgradeShop?.basePi, formData.vehicleId, editingTune])
+  }, [upgradeShop?.basePi, formData.vehicleId, vehicles, editingTune])
+
 
   useEffect(() => {
     if (navIntent) {
@@ -281,9 +282,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }
 
       if (navIntent.action === 'create' && navIntent.vehicleId) {
-        setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
-        setBasePi(500)
-        setTargetPi(800)
+        const vId = String(navIntent.vehicleId)
+        const vPi = Number(vehicles[vId]?.basePi) || Number(vehicles[vId]?.pi) || 100
+        setFormData({ ...createDefaultFormData(), vehicleId: vId })
+        setBasePi(vPi)
+        setTargetPi(nextPiClassCap(vPi))
         setSolutionPi(null)
         setEditingTune(null)
         setShowModal(true)
@@ -300,9 +303,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
             startEdit(found)
           } else if (navIntent.vehicleId) {
             // 没有对应的tuneId，降级为为该车创建调校
-            setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
-            setBasePi(500)
-            setTargetPi(800)
+            const vId = String(navIntent.vehicleId)
+            const vPi = Number(vehicles[vId]?.basePi) || Number(vehicles[vId]?.pi) || 100
+            setFormData({ ...createDefaultFormData(), vehicleId: vId })
+            setBasePi(vPi)
+            setTargetPi(nextPiClassCap(vPi))
             setSolutionPi(null)
             setEditingTune(null)
             setShowModal(true)
@@ -315,9 +320,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
           }
         } else if (navIntent.vehicleId) {
           // 没有 tuneId，降级为创建
-          setFormData({ ...createDefaultFormData(), vehicleId: String(navIntent.vehicleId) })
-          setBasePi(500)
-          setTargetPi(800)
+          const vId = String(navIntent.vehicleId)
+          const vPi = Number(vehicles[vId]?.basePi) || Number(vehicles[vId]?.pi) || 100
+          setFormData({ ...createDefaultFormData(), vehicleId: vId })
+          setBasePi(vPi)
+          setTargetPi(nextPiClassCap(vPi))
           setSolutionPi(null)
           setEditingTune(null)
           setShowModal(true)
@@ -465,8 +472,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return
     }
 
-    if (!formData.vehicleId || upgradeShop?.status === 'unverified') {
-      alert('请先选择一辆已录入游戏内改装资料的车辆。')
+    if (!formData.vehicleId) {
+      alert('请先选择一辆车辆。')
       return
     }
 
@@ -520,7 +527,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
       raceType: buildMode === 'ai' ? aiRaceType : null,
       segmentType: buildMode === 'ai' ? segmentType : null,
-      driveType: buildMode === 'ai' ? aiDriveType : (upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null),
+      driveType: formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null,
       ...normalizedTune,
       parts: { ...formData.parts },
       tuningCapabilities: formData.tuningCapabilities,
@@ -545,12 +552,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   const deleteTune = async (id) => {
-    if (!confirm('确定删除此调校方案？此操作不可恢复。')) return
     try {
       await api.tunes.delete(id);
-      await loadTunes()
-    } catch (e) { /* 删除调校失败 */
-      alert('删除失败')
+      await loadTunes();
+    } catch (e) {
+      alert('删除失败');
     }
   }
 
@@ -686,19 +692,20 @@ export function useTuneManager({ onNavigate, navIntent }) {
       tags: prev.tags,
       notes: prev.notes,
       tuningCapabilities: mode === 'capability' ? {
-        alignment: true, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+        alignment: false, springs: 'none', antiRollBars: 'none',
         transmission: 'none', gearCount: 6, brakes: false, differential: false,
-        frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
+        aero: 'none', driveType: (prev.vehicleId && vehicles[prev.vehicleId]?.drivetrain) || upgradeShop?.stockDrivetrain || upgradeShop?.baseDriveType || 'rwd'
       } : null
     }))
     setSolutionPi(null)
     setUpgradeShop(null)
     dirtyParamsRef.current.clear()
     _setBuildMode(mode)  // 同步更新 ref，防止异步 effect 竞争
-    refreshUpgradeShop(formData.vehicleId, {}, null, mode === 'capability' ? {
-      alignment: true, suspension: false, frontAntiRollBar: false, rearAntiRollBar: false,
+    const initDrive = (formData.vehicleId && vehicles[formData.vehicleId]?.drivetrain) || upgradeShop?.stockDrivetrain || upgradeShop?.baseDriveType || 'rwd';
+    refreshUpgradeShop(formData.vehicleId, {}, initDrive, mode === 'capability' ? {
+      alignment: false, springs: 'none', antiRollBars: 'none',
       transmission: 'none', gearCount: 6, brakes: false, differential: false,
-      frontAero: false, rearAero: false, driveType: upgradeShop?.baseDriveType || 'awd'
+      aero: 'none', driveType: initDrive
     } : null)
   }
 
@@ -1011,46 +1018,166 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setAiDriveType(optionId)
     }
 
-    setFormData(prev => ({
-      ...prev,
-      parts: newParts
-    }))
+    const newDefaults = getTuneDefaults(newParts, currentVehicleStats)
+    const PARAM_KEY_MAP_INTERNAL = {
+      'tire_pressure_front': ['tires', 'frontPressure'],
+      'tire_pressure_rear': ['tires', 'rearPressure'],
+      'tire_camber_front': ['tires', 'frontCamber'],
+      'tire_camber_rear': ['tires', 'rearCamber'],
+      'tire_toe_front': ['tires', 'frontToe'],
+      'tire_toe_rear': ['tires', 'rearToe'],
+      'caster_front': ['tires', 'frontCaster'],
+      'spring_front': ['suspension', 'frontSpring'],
+      'spring_rear': ['suspension', 'rearSpring'],
+      'damping_front': ['suspension', 'frontDamping'],
+      'damping_rear': ['suspension', 'rearDamping'],
+      'rebound_front': ['suspension', 'frontRebound'],
+      'rebound_rear': ['suspension', 'rearRebound'],
+      'bump_front': ['suspension', 'frontBump'],
+      'bump_rear': ['suspension', 'rearBump'],
+      'arb_front': ['suspension', 'frontARB'],
+      'arb_rear': ['suspension', 'rearARB'],
+      'ride_height_front': ['suspension', 'frontRideHeight'],
+      'ride_height_rear': ['suspension', 'rearRideHeight'],
+      'diff_accel': ['drivetrain', 'diffAccel'],
+      'diff_decel': ['drivetrain', 'diffDecel'],
+      'diff_front_accel': ['drivetrain', 'frontDiffAccel'],
+      'diff_front_decel': ['drivetrain', 'frontDiffDecel'],
+      'diff_rear_accel': ['drivetrain', 'rearDiffAccel'],
+      'diff_rear_decel': ['drivetrain', 'rearDiffDecel'],
+      'diff_center': ['drivetrain', 'diffCenter'],
+      'final_drive': ['drivetrain', 'finalDrive'],
+      'brake_balance': ['brakes', 'balance'],
+      'brake_pressure': ['brakes', 'pressure'],
+      'downforce_front': ['aero', 'frontDownforce'],
+      'downforce_rear': ['aero', 'rearDownforce']
+    }
+
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        parts: newParts
+      }
+      for (const [flatKey, constraint] of Object.entries(newConstraints)) {
+        if (!constraint.locked && oldConstraints[flatKey]?.locked) {
+          const path = PARAM_KEY_MAP_INTERNAL[flatKey]
+          if (path) {
+            const [cat, field] = path
+            const val = newDefaults[flatKey]
+            if (val !== undefined && val !== null && updated[cat]) {
+              const currentVal = updated[cat][field]
+              if (currentVal === '' || currentVal === undefined || currentVal === null) {
+                updated[cat] = { ...updated[cat], [field]: val }
+              }
+            }
+          }
+        }
+      }
+      return updated
+    })
     const isCapMode = buildModeRef.current === 'capability'
     refreshUpgradeShop(formData.vehicleId, newParts, activeDriveType, isCapMode ? formData.tuningCapabilities : null)
   }
 
-  // 根据当前配件计算调校参数约束
+  // 根据当前配件及物理能力配置精准计算调校参数约束
   const tuneConstraints = useMemo(() => {
-    let currentParts = formData.parts;
-    if (!currentParts || Object.keys(currentParts).length === 0) {
-      currentParts = {};
-      PART_CATEGORIES.forEach(cat => {
-        if (cat.tierSystem) currentParts[cat.id] = { tier: 'race' };
-        else currentParts[cat.id] = { optionId: 'stock' };
+    const currentParts = formData.parts || {};
+    const rawConstraints = getTuneConstraints(currentParts, formData.freeMode);
+
+    // 如果 upgradeShop 提供了专属参数范围覆盖，则补充合并范围
+    if (upgradeShop && Array.isArray(upgradeShop.tuneParameters) && upgradeShop.tuneParameters.length > 0) {
+      upgradeShop.tuneParameters.forEach(parameter => {
+        if (!parameter?.id || !parameter.range) return;
+        if (rawConstraints[parameter.id]) {
+          rawConstraints[parameter.id] = {
+            ...rawConstraints[parameter.id],
+            locked: false,
+            min: parameter.range.min,
+            max: parameter.range.max,
+            step: parameter.range.step || rawConstraints[parameter.id].step || null
+          };
+        }
       });
     }
 
-    const rawConstraints = getTuneConstraints(currentParts, formData.freeMode);
-    // 调校范围以车辆档案为唯一真值。未建档时全部锁定；已建档时也只
-    // 解锁档案明确给出的项目，不能回退到旧的通用范围表。
-    if (!upgradeShop || upgradeShop.status === 'unverified') {
-      Object.keys(rawConstraints).forEach(key => {
-        rawConstraints[key] = { locked: true, min: null, max: null, step: null, reason: '该车辆的调校资料尚未录入' }
-      })
-    } else {
-      Object.keys(rawConstraints).forEach(key => {
-        rawConstraints[key] = { locked: true, min: null, max: null, step: null, reason: '当前改装配置未解锁该调校项' }
-      })
-      ;(upgradeShop.tuneParameters || []).forEach(parameter => {
-        if (!parameter?.id || !parameter.range) return
-        rawConstraints[parameter.id] = {
+    // 联动响应 `formData.tuningCapabilities` 中的显式声明与点击状态
+    const caps = formData.tuningCapabilities || {};
+
+    const capabilityOverrides = {
+      // 轮胎定位 / 悬挂对齐 (倾角/束角/前倾角)
+      'tire_camber_front': caps.alignment === false ? false : (caps.alignment ? true : null),
+      'tire_camber_rear': caps.alignment === false ? false : (caps.alignment ? true : null),
+      'tire_toe_front': caps.alignment === false ? false : (caps.alignment ? true : null),
+      'tire_toe_rear': caps.alignment === false ? false : (caps.alignment ? true : null),
+      'caster_front': caps.alignment === false ? false : (caps.alignment ? true : null),
+
+      // 弹簧与避震
+      'spring_front': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'spring_rear': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'damping_front': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'damping_rear': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'rebound_front': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'rebound_rear': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'bump_front': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'bump_rear': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'ride_height_front': caps.springs === 'none' ? false : (caps.springs ? true : null),
+      'ride_height_rear': caps.springs === 'none' ? false : (caps.springs ? true : null),
+
+      // 防倾杆 (支持 both, front_only, rear_only, none)
+      'arb_front': (caps.antiRollBars === 'none' || caps.antiRollBars === 'rear_only') ? false : ((caps.antiRollBars === 'both' || caps.antiRollBars === 'front_only' || caps.antiRollBars === 'race') ? true : null),
+      'arb_rear': (caps.antiRollBars === 'none' || caps.antiRollBars === 'front_only') ? false : ((caps.antiRollBars === 'both' || caps.antiRollBars === 'rear_only' || caps.antiRollBars === 'race') ? true : null),
+
+      // 传动比
+      'final_drive': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_1': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_2': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_3': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_4': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_5': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_6': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_7': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_8': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_9': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+      'gear_10': caps.transmission === 'none' ? false : (caps.transmission ? true : null),
+
+      // 差速器
+      'diff_accel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_decel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_front_accel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_front_decel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_rear_accel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_rear_decel': caps.differential === false ? false : (caps.differential ? true : null),
+      'diff_center': caps.differential === false ? false : (caps.differential ? true : null),
+
+      // 刹车
+      'brake_balance': caps.brakes === false ? false : (caps.brakes ? true : null),
+      'brake_pressure': caps.brakes === false ? false : (caps.brakes ? true : null),
+
+      // 前/后下压力 (支持 aero = both, front_only, rear_only, none 或 frontAero/rearAero 显式布尔)
+      'downforce_front': (caps.frontAero === false || caps.aero === 'none' || caps.aero === 'rear_only') ? false : ((caps.frontAero === true || caps.aero === 'both' || caps.aero === 'front_only') ? true : null),
+      'downforce_rear': (caps.rearAero === false || caps.aero === 'none' || caps.aero === 'front_only') ? false : ((caps.rearAero === true || caps.aero === 'both' || caps.aero === 'rear_only') ? true : null)
+    };
+
+    for (const [key, isEnabled] of Object.entries(capabilityOverrides)) {
+      if (isEnabled === true) {
+        const existing = rawConstraints[key] || {};
+        rawConstraints[key] = {
+          ...existing,
           locked: false,
-          min: parameter.range.min,
-          max: parameter.range.max,
-          step: parameter.range.step || null
-        }
-      })
+          min: existing.min ?? (key.startsWith('downforce') ? 50 : (key.startsWith('diff') ? 0 : 1)),
+          max: existing.max ?? (key.startsWith('downforce') ? 300 : (key.startsWith('diff') ? 100 : 100)),
+          step: existing.step ?? 1
+        };
+      } else if (isEnabled === false || rawConstraints[key]?.locked !== false) {
+        // 未显式点击解锁且配件未达标的，无条件 100% 强行保持锁定！
+        rawConstraints[key] = {
+          ...(rawConstraints[key] || {}),
+          locked: true,
+          lockReason: '需升级'
+        };
+      }
     }
+
 
     // getTuneConstraints 返回扁平 key（如 tire_pressure_front），
     // UI 使用嵌套路径（如 tires.frontPressure），这里做映射转换
@@ -1118,7 +1245,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       }
     }
     return mapped;
-  }, [formData.parts, formData.freeMode, upgradeShop])
+  }, [formData.parts, formData.tuningCapabilities, formData.freeMode, upgradeShop])
 
   // 导出调校为JSON文件
   const exportTune = (tune) => {
@@ -1157,7 +1284,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
     return btoa(binary)
   }
   const base64ToUint8 = (base64) => {
-    const binary = atob(base64)
+    const cleanBase64 = String(base64 || '').replace(/[^A-Za-z0-9+/=]/g, '')
+    const binary = atob(cleanBase64)
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i)
@@ -1516,7 +1644,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
     totalPi,
     totalPiUpper,
     unknownPiSelectionCount,
-    canAutoUpgrade: Boolean(formData.vehicleId && upgradeShop && upgradeShop.status !== 'unverified'),
+    canAutoUpgrade: Boolean(formData.vehicleId && upgradeShop),
     piIsVerified: upgradeShop?.piStatus === 'verified',
     currentVehicleStats,
     handleAutoUpgrade,

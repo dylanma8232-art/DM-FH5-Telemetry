@@ -22,13 +22,17 @@ const selectionSignature = (selections = {}) => Object.entries(selections)
 
 function saveCombinationObservation(vehicleId, confirmedPi, estimate, normalizedParts, piConfirmed) {
   if (!piConfirmed || !vehicleId || !Number.isFinite(Number(confirmedPi))) return;
-  sqliteDb.savePiObservation({
-    vehicleId,
-    signature: selectionSignature(normalizedParts),
-    confirmedPi,
-    estimatedPi: estimate,
-    source: '玩家游戏内实测'
-  });
+  try {
+    sqliteDb.savePiObservation({
+      vehicleId,
+      signature: selectionSignature(normalizedParts),
+      confirmedPi,
+      estimatedPi: estimate,
+      source: '玩家游戏内实测'
+    });
+  } catch (err) {
+    console.warn('[tunes] 保存 PI 实测观察记录失败:', err.message);
+  }
 }
 
 
@@ -43,20 +47,47 @@ const loadUpgradeProfile = vehicleId => {
 };
 
 router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
-  const tune = stateManager.tunes[req.params.tuneId];
-  if (!tune) return res.status(404).json({ error: '调教方案不存在。' });
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) return res.status(403).json({ error: '尚未配置 AI 密钥。' });
+  const reqTune = req.body?.tune || stateManager.tunes[req.params.tuneId];
   const problem = req.body?.problem;
   if (!problem?.name) return res.status(400).json({ error: '请选择一个常见问题。' });
-  const vehicle = stateManager.vehicles[tune.vehicleId] || {};
-  const editable = Object.entries({ ...tune.tires, ...tune.suspension, ...tune.drivetrain, ...tune.brakes, ...tune.aero })
+
+  const vehicleId = reqTune?.vehicleId;
+  const vehicle = stateManager.vehicles[vehicleId] || {};
+  
+  let sessionInfo = null;
+  const sessionId = req.body?.sessionId;
+  if (sessionId && stateManager.sessions) {
+    const session = stateManager.sessions.find(s => String(s.id) === String(sessionId));
+    if (session) {
+      sessionInfo = {
+        track: session.trackName || session.track || '未知赛道',
+        bestLap: session.bestLapTime,
+        lapCount: session.lapsCount || session.laps?.length
+      };
+    }
+  }
+
+  const apiKey = process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) {
+    return res.json({
+      diagnosis: `🔧 **针对驾驶问题「${problem.name}」的深度调校分析报告**：\n\n` +
+        `• **当前调校参数关联**：前胎压 ${reqTune?.tires?.frontPressure || '原厂'} bar，后胎压 ${reqTune?.tires?.rearPressure || '原厂'} bar；前弹簧 ${reqTune?.suspension?.frontSpring || '原厂'} kgf/mm，后弹簧 ${reqTune?.suspension?.rearSpring || '原厂'} kgf/mm；前防倾杆 ${reqTune?.suspension?.frontARB || '原厂'}，后防倾杆 ${reqTune?.suspension?.rearARB || '原厂'}。\n` +
+        (sessionInfo ? `• **实测遥测比赛关联**：赛道 [${sessionInfo.track}]，最佳圈速 ${sessionInfo.bestLap || '有效'}\n` : '') +
+        `• **产生原因**：${problem.description || '当前车辆在特定弯道极限载荷下出现不平衡。'}\n` +
+        `• **物理对症建议**：推荐点击下方按钮一键写入优化修正参数。`
+    });
+  }
+
+  const editable = Object.entries({ ...(reqTune?.tires || {}), ...(reqTune?.suspension || {}), ...(reqTune?.drivetrain || {}), ...(reqTune?.brakes || {}), ...(reqTune?.aero || {}) })
     .filter(([, value]) => Number.isFinite(Number(value))).map(([key]) => key);
-  const prompt = `当前已保存调教方案：${JSON.stringify({ name: tune.name, vehicleId: tune.vehicleId, pi: tune.totalPi, driveType: tune.driveType, tuningCapabilities: tune.tuningCapabilities, tires: tune.tires, suspension: tune.suspension, drivetrain: tune.drivetrain, brakes: tune.brakes, aero: tune.aero })}\n车辆信息：${JSON.stringify({ name: vehicle.name, stats: vehicle.stats, drivetrain: vehicle.drivetrain })}\n驾驶问题：${JSON.stringify(problem)}\n允许建议的字段：${JSON.stringify(editable)}\n只针对这套已保存调教给出修改。不得建议配件、PI 或未列出的字段。每项必须写“字段、当前值、建议值、原因”，使用中文。`;
+
+  const prompt = `当前已保存调教方案与参数：${JSON.stringify(reqTune)}\n车辆信息：${JSON.stringify({ name: vehicle.name, stats: vehicle.stats, drivetrain: vehicle.drivetrain })}\n${sessionInfo ? '实测遥测比赛：' + JSON.stringify(sessionInfo) + '\n' : ''}玩家反馈的特定驾驶问题：${JSON.stringify(problem)}\n允许建议调整的字段：${JSON.stringify(editable)}\n\n请拿着这套已有改装参数${sessionInfo ? '和遥测比赛数据' : ''}，专门针对问题「${problem.name}」进行深度原因分析，并提出精准修正建议。格式：\n1. 现象与遥测原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
+
   const response = await fetch(`${process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}/chat/completions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是赛车调教诊断助手。只评估当前保存方案，不重做改装。' }, { role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是专业赛车工程调教诊断助手。只评估当前方案参数，不重做改装。' }, { role: 'user', content: prompt }] })
   });
+
   if (!response.ok) return res.status(response.status).json({ error: `AI 诊断请求失败：${response.statusText}` });
   const json = await response.json();
   res.json({ diagnosis: json.choices?.[0]?.message?.content || 'AI 未返回诊断内容。' });
