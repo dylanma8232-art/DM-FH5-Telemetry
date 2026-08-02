@@ -166,6 +166,43 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
   const [activeDiagnosisTab, setActiveDiagnosisTab] = useState('telemetry');
   const [tuneToDelete, setTuneToDelete] = useState(null);
   const [previewFixData, setPreviewFixData] = useState(null);
+  const [selectedProblems, setSelectedProblems] = useState([]);
+
+  const toggleProblemSelection = (prob) => {
+    setSelectedProblems(prev => {
+      const exists = prev.some(p => p.name === prob.name);
+      if (exists) {
+        return prev.filter(p => p.name !== prob.name);
+      } else {
+        return [...prev, prob];
+      }
+    });
+  };
+
+  const handleApplyProblemsFixInViewOnly = (tune, problems) => {
+    if (!problems || problems.length === 0) {
+      setUnlockToast('⚠️ 请至少勾选一项驾驶感受问题！');
+      return;
+    }
+
+    const combinedChanges = {};
+    for (const prob of problems) {
+      const changes = prob.suggestedChanges || convertFixes(prob.fixes) || {};
+      for (const [category, params] of Object.entries(changes)) {
+        if (!combinedChanges[category]) combinedChanges[category] = {};
+        for (const [key, val] of Object.entries(params)) {
+          const curVal = combinedChanges[category][key] || 0;
+          combinedChanges[category][key] = Number((curVal + val).toFixed(2));
+        }
+      }
+    }
+
+    const title = problems.length === 1
+      ? `攻坚问题「${problems[0].name}」`
+      : `联合攻坚 ${problems.length} 项问题 (${problems.map(p => p.name).join(' + ')})`;
+
+    handleGenerateFixPreview(tune, combinedChanges, title);
+  };
 
   const openDiagnosisModal = (tune = null) => {
     const targetTune = tune || (tunes.length > 0 ? tunes[0] : null);
@@ -2775,27 +2812,43 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
               {/* Tab 2: 驾驶感受问题定向攻坚 */}
               {activeDiagnosisTab === 'problems' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    挑选在赛道驾驶时遇到的特定动态问题，系统将读取<strong>当前调校已有参数</strong>并联动<strong>选中的遥测 Session</strong> 进行专项攻坚分析。
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>
+                      勾选在赛道驾驶时遇到的复合动态问题。遥测数据为<strong>完全可选</strong>，无遥测时系统将直接结合本车已有调校参数进行攻坚剖析。
+                    </span>
+                    <span style={{ fontSize: 10, color: '#58a6ff', fontWeight: 700 }}>
+                      已勾选 {selectedProblems.length} 项问题
+                    </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 14, alignItems: 'start' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 14, alignItems: 'start' }}>
                     
-                    {/* 左侧：驾驶问题挑选网格 */}
+                    {/* 左侧：驾驶问题多选网格 */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
-                        常见驾驶体验问题库:
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                          驾驶问题库 (支持多选复选):
+                        </span>
+                        {selectedProblems.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProblems([])}
+                            style={{ ...btnSmallStyle, padding: '1px 6px', fontSize: 9, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            清空选择
+                          </button>
+                        )}
                       </div>
                       
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 380, overflowY: 'auto', paddingRight: 4 }}>
                         {DRIVING_PROBLEMS.map((prob, idx) => {
-                          const isSelected = selectedProblem?.name === prob.name;
+                          const isSelected = selectedProblems.some(p => p.name === prob.name);
                           return (
                             <div
                               key={idx}
                               style={{
                                 padding: '10px 12px',
-                                background: isSelected ? 'rgba(88, 166, 255, 0.12)' : 'var(--bg-primary)',
+                                background: isSelected ? 'rgba(88, 166, 255, 0.14)' : 'var(--bg-primary)',
                                 border: `1px solid ${isSelected ? '#58a6ff' : 'var(--border)'}`,
                                 borderRadius: 8,
                                 display: 'flex',
@@ -2805,35 +2858,69 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                                 cursor: 'pointer'
                               }}
                               onClick={() => {
-                                setSelectedProblem(prob);
-                                runAiProblemDiagnosis(prob, selectedSessionId, diagnosisModalTune);
+                                toggleProblemSelection(prob);
                               }}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#58a6ff' : 'var(--text-primary)' }}>
-                                  {prob.name}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#58a6ff' : 'var(--text-primary)' }}>
+                                    {prob.name}
+                                  </span>
+                                </div>
                                 <span style={{
                                   fontSize: 8.5,
                                   color: isSelected ? '#fff' : '#58a6ff',
                                   background: isSelected ? '#238636' : 'rgba(88, 166, 255, 0.1)',
                                   borderRadius: 4,
-                                  padding: '1px 5px',
+                                  padding: '1px 6px',
                                   fontWeight: 700
                                 }}>
-                                  {isSelected ? '已选中' : '分析 →'}
+                                  {isSelected ? '✓ 已勾选' : '+ 选择'}
                                 </span>
                               </div>
-                              <div style={{ fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.3 }}>{prob.description}</div>
+                              <div style={{ fontSize: 9.5, color: 'var(--text-muted)', lineHeight: 1.3, paddingLeft: 20 }}>
+                                {prob.description}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedProblems.length === 0) {
+                            setUnlockToast('⚠️ 请至少在上方勾选一个驾驶体验问题！');
+                            return;
+                          }
+                          runAiProblemDiagnosis(selectedProblems, selectedSessionId, diagnosisModalTune);
+                        }}
+                        disabled={selectedProblems.length === 0 || aiDiagnosing}
+                        style={{
+                          ...btnPrimaryStyle,
+                          width: '100%',
+                          fontSize: 11,
+                          padding: '9px 12px',
+                          background: selectedProblems.length > 0 ? '#238636' : '#30363d',
+                          color: selectedProblems.length > 0 ? '#fff' : 'var(--text-muted)',
+                          fontWeight: 800,
+                          borderRadius: 6,
+                          marginTop: 4
+                        }}
+                      >
+                        {aiDiagnosing ? 'AI 攻坚诊断中...' : `⚡ 联合攻坚诊断选中的 ${selectedProblems.length} 项问题`}
+                      </button>
                     </div>
 
                     {/* 右侧：专项分析与参数对决面板 */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {!selectedProblem ? (
+                      {selectedProblems.length === 0 ? (
                         <div style={{
                           padding: 40,
                           textAlign: 'center',
@@ -2843,7 +2930,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                           color: 'var(--text-muted)',
                           fontSize: 11
                         }}>
-                          👈 请在左侧点击挑选一个需要攻坚解决的驾驶体验问题
+                          👈 请在左侧勾选 1~N 个驾驶体验问题（无遥测数据也可直接诊断）
                         </div>
                       ) : (
                         <div style={{
@@ -2858,13 +2945,13 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(88, 166, 255, 0.15)', paddingBottom: 8 }}>
                             <div style={{ fontWeight: 800, fontSize: 13, color: '#58a6ff' }}>
-                              🔬 问题「{selectedProblem.name}」攻坚报告
+                              🔬 复合问题「{selectedProblems.map(p => p.name).join(' + ')}」攻坚报告
                             </div>
                             {aiDiagnosing && <span style={{ fontSize: 10, color: '#d29922' }}>AI & 物理模型联合计算中...</span>}
                           </div>
 
                           {/* 诊断结论文本 */}
-                          {aiDiagnosis && (
+                          {aiDiagnosis ? (
                             <div style={{
                               fontSize: 10.5,
                               color: 'var(--text-primary)',
@@ -2877,14 +2964,19 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                             }}>
                               {aiDiagnosis}
                             </div>
+                          ) : (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>
+                              点击左侧「⚡ 联合攻坚诊断选中的 {selectedProblems.length} 项问题」获取针对这多项症状的综合对症分析
+                            </div>
                           )}
 
                           {/* 针对该问题的物理修正建议 */}
                           <button
                             type="button"
                             onClick={() => {
-                              handleApplyProblemFixInViewOnly(diagnosisModalTune, selectedProblem);
+                              handleApplyProblemsFixInViewOnly(diagnosisModalTune, selectedProblems);
                             }}
+                            disabled={selectedProblems.length === 0}
                             style={{
                               ...btnPrimaryStyle,
                               width: '100%',
@@ -2896,7 +2988,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
                               borderRadius: 6
                             }}
                           >
-                            ⚡ 生成问题「{selectedProblem.name}」拟修正对比预览
+                            ⚡ 生成这 {selectedProblems.length} 项问题的拟修正对比预览 (Before vs After)
                           </button>
                         </div>
                       )}
