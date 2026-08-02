@@ -46,6 +46,22 @@ const loadUpgradeProfile = vehicleId => {
   return fs.existsSync(profilePath) ? { ...loadJSON(profilePath), id: String(vehicleId) } : null;
 };
 
+import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
+
+function loadSessionData(sessionId) {
+  if (!sessionId) return null;
+  const dataDir = stateManager.DATA_DIR || path.join(process.cwd(), 'data');
+  const sessionPath = path.join(dataDir, 'sessions', `${sessionId}.json`);
+  if (fs.existsSync(sessionPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+    } catch (e) {
+      console.warn('[tunes] 读取 Session 数据失败:', e.message);
+    }
+  }
+  return stateManager.sessions?.find(s => String(s.id) === String(sessionId)) || null;
+}
+
 router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
   const reqTune = req.body?.tune || stateManager.tunes[req.params.tuneId];
   const problem = req.body?.problem;
@@ -54,38 +70,53 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
   const vehicleId = reqTune?.vehicleId;
   const vehicle = stateManager.vehicles[vehicleId] || {};
   
-  let sessionInfo = null;
+  let sessionTelemetryMetrics = null;
   const sessionId = req.body?.sessionId;
-  if (sessionId && stateManager.sessions) {
-    const session = stateManager.sessions.find(s => String(s.id) === String(sessionId));
+  if (sessionId) {
+    const session = loadSessionData(sessionId);
     if (session) {
-      sessionInfo = {
+      const rawData = session.data || [];
+      const physicsAnalysis = generateTelemetryTuningRecommendations(rawData);
+      sessionTelemetryMetrics = {
         track: session.trackName || session.track || '未知赛道',
-        bestLap: session.bestLapTime,
-        lapCount: session.lapsCount || session.laps?.length
+        bestLap: session.bestLapTime ? `${session.bestLapTime}s` : '有效',
+        sensorEvidence: physicsAnalysis.recommendations?.map(r => `【${r.title}】${r.evidence}`) || [],
+        summary: physicsAnalysis.summary
       };
     }
   }
 
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) {
+    const evidenceText = sessionTelemetryMetrics?.sensorEvidence?.length > 0
+      ? `• **遥测传感器实测物理证据**：\n  ${sessionTelemetryMetrics.sensorEvidence.join('\n  ')}\n`
+      : '';
+
     return res.json({
-      diagnosis: `🔧 **针对驾驶问题「${problem.name}」的深度调校分析报告**：\n\n` +
-        `• **当前调校参数关联**：前胎压 ${reqTune?.tires?.frontPressure || '原厂'} bar，后胎压 ${reqTune?.tires?.rearPressure || '原厂'} bar；前弹簧 ${reqTune?.suspension?.frontSpring || '原厂'} kgf/mm，后弹簧 ${reqTune?.suspension?.rearSpring || '原厂'} kgf/mm；前防倾杆 ${reqTune?.suspension?.frontARB || '原厂'}，后防倾杆 ${reqTune?.suspension?.rearARB || '原厂'}。\n` +
-        (sessionInfo ? `• **实测遥测比赛关联**：赛道 [${sessionInfo.track}]，最佳圈速 ${sessionInfo.bestLap || '有效'}\n` : '') +
-        `• **产生原因**：${problem.description || '当前车辆在特定弯道极限载荷下出现不平衡。'}\n` +
-        `• **物理对症建议**：推荐点击下方按钮一键写入优化修正参数。`
+      diagnosis: `🔬 **针对驾驶问题「${problem.name}」的赛车工程调校诊断报告**：\n\n` +
+        `• **当前已调参数关联**：前/后胎压 ${reqTune?.tires?.frontPressure || '-'}/${reqTune?.tires?.rearPressure || '-'} bar；前/后防倾杆 ${reqTune?.suspension?.frontARB || '-'}/${reqTune?.suspension?.rearARB || '-'}；前/后弹簧 ${reqTune?.suspension?.frontSpring || '-'}/${reqTune?.suspension?.rearSpring || '-'} kgf/mm；差速加速 ${reqTune?.drivetrain?.diffAccel || '-'}%。\n` +
+        (sessionTelemetryMetrics ? `• **实测遥测比赛关联**：赛道 [${sessionTelemetryMetrics.track}] (最佳圈速: ${sessionTelemetryMetrics.bestLap})\n` + evidenceText : '') +
+        `• **物理根因剖析**：${problem.description || '车辆在特定弯道极限载荷下出现质心与抓地转移失衡。'}\n` +
+        `• **对症调整建议**：推荐点击下方「生成拟修正对比预览」查看针对该问题的物理参数调整。`
     });
   }
 
   const editable = Object.entries({ ...(reqTune?.tires || {}), ...(reqTune?.suspension || {}), ...(reqTune?.drivetrain || {}), ...(reqTune?.brakes || {}), ...(reqTune?.aero || {}) })
     .filter(([, value]) => Number.isFinite(Number(value))).map(([key]) => key);
 
-  const prompt = `当前已保存调教方案与参数：${JSON.stringify(reqTune)}\n车辆信息：${JSON.stringify({ name: vehicle.name, stats: vehicle.stats, drivetrain: vehicle.drivetrain })}\n${sessionInfo ? '实测遥测比赛：' + JSON.stringify(sessionInfo) + '\n' : ''}玩家反馈的特定驾驶问题：${JSON.stringify(problem)}\n允许建议调整的字段：${JSON.stringify(editable)}\n\n请拿着这套已有改装参数${sessionInfo ? '和遥测比赛数据' : ''}，专门针对问题「${problem.name}」进行深度原因分析，并提出精准修正建议。格式：\n1. 现象与遥测原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
+  const prompt = `【车辆信息】: ${vehicle.name || '未知车型'} (${vehicle.class || ''} ${vehicle.performanceIndex || ''})\n` +
+    `【已有调校参数】: ${JSON.stringify(reqTune)}\n` +
+    (sessionTelemetryMetrics ? `【赛道遥测传感器解算特征 (实测物理数据)】:\n` +
+      `- 赛道名称: ${sessionTelemetryMetrics.track}\n` +
+      `- 最佳圈速: ${sessionTelemetryMetrics.bestLap}\n` +
+      `- 传感器抓地/悬挂/刹车实测证据:\n  • ${sessionTelemetryMetrics.sensorEvidence.join('\n  • ')}\n` : '【赛道遥测数据】: 暂未绑定遥测记录\n') +
+    `【玩家反馈的驾驶现象】: ${problem.name} (${problem.description || ''})\n` +
+    `【允许建议调整的字段】: ${JSON.stringify(editable)}\n\n` +
+    `请作为顶尖 FH5 赛车工程师，严格基于上述已有调校参数${sessionTelemetryMetrics ? '以及赛道遥测传感器的真实物理数据' : ''}，深度分析导致「${problem.name}」现象的物理根因，并给出具体的对症调整建议。格式：\n1. 现象与遥测物理原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
 
   const response = await fetch(`${process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}/chat/completions`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是专业赛车工程调教诊断助手。只评估当前方案参数，不重做改装。' }, { role: 'user', content: prompt }] })
+    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是专业赛车工程调教诊断助手。只评估当前方案参数与遥测传感器特征，不重做改装。' }, { role: 'user', content: prompt }] })
   });
 
   if (!response.ok) return res.status(response.status).json({ error: `AI 诊断请求失败：${response.statusText}` });
