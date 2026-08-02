@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
@@ -41,7 +41,7 @@ const modalContentStyle = {
   boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
 };
 
-export function TrackManagerPage({ onNavigate, socket }) {
+export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigate, socket }) {
   const [tracks, setTracks] = useState({});
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
@@ -2406,7 +2406,7 @@ export function TrackManagerPage({ onNavigate, socket }) {
       {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
     </div>
   );
-}
+});
 
 const statCardStyle = {
   background: 'var(--bg-primary)',
