@@ -785,6 +785,18 @@ toast('合并成功', 'success');
 
 ---
 
+### 11.11 遥测传感器物理特征归约与 AI 大模型深度对接（2026-08-02）
+
+1. **毫秒级传感器特征提炼 (Telemetry Sensor Feature Extraction)**：
+   - 在后端 `server/src/routes/tunes.js` 的 `/:tuneId/ai-diagnosis` 路由中引入 `generateTelemetryTuningRecommendations` 物理解算引擎。
+   - 采用等步长均匀流式采样（Uniform Downsampling Filter），将几十万帧 UDP 采样点在 3~5 毫秒内归约为仅 300 字节的精炼物理传感器指标（驱动轮空转打滑率、避震触底帧数占比、刹车抱死率、前后轴轮胎工作温差）。
+
+2. **硬核数据对接 AI 大模型 (Qwen3.7-Plus)**：
+   - 大模型不再只接收赛道名称等外围文本，而是直接拿到【打滑率 18%】、【防倾杆载荷触底】、【刹车抱死率 12%】等硬核传感器证据。
+   - 输出兼具物理严谨性与大模型智慧的对症调整方案，并通过前端【拟修正对比 Preview 面板】实现一键确认保存。
+
+---
+
 ### 11.7 改装中心四项 Bug 修复（2026-07-17）
 
 #### Bug 1：配件 PI 变化未完整显示
