@@ -14,7 +14,7 @@ import { PartSelector } from './tune/PartSelector'
 import { TelemetryRecommendationList } from './tune/TelemetryRecommendationList'
 import { PARAM_NAMES_ZH, TUNE_FIELDS_SCHEMA } from './tune/tuneConstants'
 
-export function TuneManagerPage({ onNavigate, navIntent }) {
+export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate, navIntent }) {
   const {
     tunes,
     setTunes,
@@ -3186,7 +3186,7 @@ export function TuneManagerPage({ onNavigate, navIntent }) {
       `}</style>
     </div>
   )
-}
+});
 
 
 const btnPrimaryStyle = {

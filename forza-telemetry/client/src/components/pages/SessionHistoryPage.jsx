@@ -25,7 +25,7 @@ const inputStyle = {
   fontSize: 11
 };
 
-export function SessionHistoryPage({ onNavigate, navIntent }) {
+export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNavigate, navIntent }) {
   const {
     sessions,
     vehiclesList,
@@ -3002,7 +3002,7 @@ export function SessionHistoryPage({ onNavigate, navIntent }) {
       )}
     </div>
   );
-}
+});
 
 const btnSmallStyle = {
   padding: '4px 10px',
