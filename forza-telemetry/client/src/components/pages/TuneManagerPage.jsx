@@ -418,6 +418,21 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
     recentSessions, handleApplyProblemsFixInViewOnly, statCardStyle
   ]);
 
+
+  const tuneShareModalProps = useMemo(() => ({
+    shareCodeModal, setShareCodeModal,
+    modalOverlayStyle, modalContentStyle,
+    btnSmallStyle, btnPrimaryStyle, inputStyle,
+    importFromShareCode,
+    importPreview, setImportPreview,
+    getPerformanceClassBadge, getVehicleName, getCarStats
+  }), [
+    shareCodeModal, modalOverlayStyle, modalContentStyle,
+    btnSmallStyle, btnPrimaryStyle, inputStyle,
+    importFromShareCode, importPreview,
+    getPerformanceClassBadge, getVehicleName, getCarStats
+  ]);
+
   return (
       <div className="fh5-pi-badge">
         <span className="fh5-pi-class" style={{ background: color, color: '#fff', fontWeight: 900 }}>
@@ -624,7 +639,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
         <div style={{ display: 'flex', gap: 4 }}>
           <button
             onClick={toggleCompareMode}
-            style={compareMode ? { ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, background: '#58a6ff', padding: '4px 10px', fontSize: 10 } : { ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}
+            style={compareMode ? { ...btnPrimaryStyle, background: '#58a6ff', padding: '4px 10px', fontSize: 10 } : { ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}
           >
             {compareMode ? '退出' : '对比'}
           </button>
@@ -648,7 +663,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
           >
             🔬 遥测与驾驶诊断
           </button>
-          <button onClick={startCreate} style={{ ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, padding: '4px 12px', fontSize: 11 }}>
+          <button onClick={startCreate} style={{ ...btnPrimaryStyle, padding: '4px 12px', fontSize: 11 }}>
             + 新建
           </button>
         </div>
@@ -674,7 +689,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <button
                 onClick={() => { setShowImportMenu(false); importFileRef.current?.click() }}
-                style={{ ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, minHeight: 72, fontSize: 12 }}
+                style={{ ...btnPrimaryStyle, minHeight: 72, fontSize: 12 }}
               >
                 上传文件
               </button>
@@ -763,7 +778,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
             <button
               onClick={runCompare}
               disabled={compareSelected.length !== 2 || !compareTrackId || compareLoading}
-              style={compareSelected.length === 2 && compareTrackId ? btnPrimaryStyle : { ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, opacity: 0.5, cursor: 'not-allowed' }}
+              style={compareSelected.length === 2 && compareTrackId ? btnPrimaryStyle : { ...btnPrimaryStyle, opacity: 0.5, cursor: 'not-allowed' }}
             >
               {compareLoading ? '对比中...' : '开始对比'}
             </button>
@@ -1392,7 +1407,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                           onClick={() => runTelemetryDiagnosis(selectedSessionId)}
                           disabled={!selectedSessionId || diagnosing}
                           style={{
-                            ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                            ...btnPrimaryStyle,
                             width: '100%',
                             fontSize: 10,
                             padding: '6px 10px',
@@ -2371,7 +2386,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                       }
                     }}
                     disabled={!formData.vehicleId || !upgradeShop}
-                    style={{ ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, padding: '6px 20px', fontSize: 11, fontWeight: 700 }}
+                    style={{ ...btnPrimaryStyle, padding: '6px 20px', fontSize: 11, fontWeight: 700 }}
                   >
                     {(!upgradeShop && formData.vehicleId) ? '加载物理资料中...' : '⚡ 生成物理推荐并进入调校 →'}
                   </button>
@@ -2389,7 +2404,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     <button
                       type="button"
                       onClick={() => setWizardStep(3)}
-                      style={{ ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, padding: '6px 18px', fontSize: 11, fontWeight: 700 }}
+                      style={{ ...btnPrimaryStyle, padding: '6px 18px', fontSize: 11, fontWeight: 700 }}
                     >
                       下一步：方案命名与保存 →
                     </button>
@@ -2410,7 +2425,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                       onClick={saveTune}
                       disabled={loading}
                       style={{
-                        ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                        ...btnPrimaryStyle,
                         background: 'var(--success)',
                         borderColor: '#2ea44f',
                         padding: '6px 20px',
@@ -2432,107 +2447,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
       )}
 
       {/* 分享码弹窗 */}
-      {shareCodeModal && (
-        <div style={modalOverlayStyle} onClick={(e) => { if (e.target === e.currentTarget) { setShareCodeModal(null); setImportPreview(null); } }}>
-          <div style={{ ...modalContentStyle, maxWidth: 520 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>通过分享码导入调校</h2>
-              <button onClick={() => { setShareCodeModal(null); setImportPreview(null); }} style={{ ...btnSmallStyle, border: 'none' }}>关闭</button>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 10, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>分享码</label>
-              <textarea
-                id="shareCodeInput"
-                placeholder="粘贴分享码..."
-                rows={4}
-                style={{ ...inputStyle, width: '100%', resize: 'vertical', fontFamily: 'monospace', fontSize: 11 }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <button
-                onClick={() => {
-                  const code = document.getElementById('shareCodeInput').value
-                  if (!code.trim()) return
-                  // Round 4: 先预览
-                  const preview = parseShareCode(code.trim())
-                  if (preview && preview.error) {
-                    alert(preview.error)
-                  } else if (preview) {
-                    setImportPreview(preview)
-                  } else {
-                    alert('分享码无效')
-                  }
-                }}
-                style={{ ...btnSmallStyle, flex: 1, background: 'rgba(88, 166, 255, 0.15)', borderColor: 'rgba(88, 166, 255, 0.3)', color: '#58a6ff', fontWeight: 600 }}
-              >
-                预览调校
-              </button>
-              <button
-                onClick={() => {
-                  const code = document.getElementById('shareCodeInput').value
-                  if (code.trim()) importFromShareCode(code.trim())
-                }}
-                style={{ ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, flex: 1 }}
-              >
-                直接导入
-              </button>
-            </div>
-
-            {/* Round 4: 导入预览面板 */}
-            {importPreview && (
-              <div style={{
-                background: 'var(--bg-primary)',
-                borderRadius: 6, padding: 10,
-                border: '1px solid var(--border)',
-                maxHeight: 350, overflow: 'auto'
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--accent)', marginBottom: 8 }}>
-                  调校预览: {importPreview.name}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 10 }}>
-                  <div style={{ color: 'var(--text-secondary)' }}>车辆</div>
-                  <div style={{ color: 'var(--text-primary)' }}>{importPreview.vehicleId || '未指定'}</div>
-
-                  <div style={{ color: 'var(--text-secondary)', marginTop: 6 }}>轮胎参数</div>
-                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9, marginTop: 6 }}>
-                    {importPreview.tires ? Object.entries(importPreview.tires).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
-                  </div>
-
-                  <div style={{ color: 'var(--text-secondary)' }}>悬挂参数</div>
-                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9 }}>
-                    {importPreview.suspension ? Object.entries(importPreview.suspension).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
-                  </div>
-
-                  <div style={{ color: 'var(--text-secondary)' }}>传动参数</div>
-                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9 }}>
-                    {importPreview.drivetrain ? Object.entries(importPreview.drivetrain).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
-                  </div>
-
-                  <div style={{ color: 'var(--text-secondary)' }}>空力参数</div>
-                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9 }}>
-                    {importPreview.aero ? Object.entries(importPreview.aero).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    const code = document.getElementById('shareCodeInput').value
-                    if (code.trim()) importFromShareCode(code.trim())
-                  }}
-                  style={{
-                    ...btnPrimaryStyle, setUnlockToast, aiDiagnosing, width: '100%', marginTop: 10
-                  }}
-                >
-                  确认导入
-                </button>
-              </div>
-            )}
-
-            <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text-muted)' }}>
-              提示：在调校卡片上点击"分享码"按钮即可复制该调校的分享码。支持中文调校名称。
-            </div>
-          </div>
-        </div>
-      )}
+      <TuneShareModal {...tuneShareModalProps} />
 
       <TuneDiagnosticModal {...diagnosticModalProps} />
       {/* 🗑️ 删除调校方案二次确认 Modal */}
@@ -2607,7 +2522,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                   await deleteTune(targetId);
                 }}
                 style={{
-                  ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                  ...btnPrimaryStyle,
                   padding: '7px 18px',
                   fontSize: 11,
                   background: '#da3633',
