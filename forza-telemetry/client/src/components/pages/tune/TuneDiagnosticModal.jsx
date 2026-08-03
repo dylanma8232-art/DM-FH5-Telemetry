@@ -269,7 +269,7 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
                         onClick={() => runTelemetryDiagnosis(selectedSessionId)}
                         disabled={!selectedSessionId || diagnosing}
                         style={{
-                          ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                          ...btnPrimaryStyle,
                           fontSize: 11,
                           padding: '8px 16px',
                           background: diagnosing ? '#484f58' : '#238636'
@@ -355,7 +355,7 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
                               handleGenerateFixPreview(diagnosisModalTune, diagnosisResult.suggestedChanges, '全车遥测深度健康扫描');
                             }}
                             style={{
-                              ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                              ...btnPrimaryStyle,
                               width: '100%',
                               fontSize: 12,
                               padding: '10px 16px',
@@ -468,7 +468,7 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
                         }}
                         disabled={selectedProblems.length === 0 || aiDiagnosing}
                         style={{
-                          ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                          ...btnPrimaryStyle,
                           width: '100%',
                           fontSize: 11,
                           padding: '9px 12px',
@@ -543,7 +543,7 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
                             }}
                             disabled={selectedProblems.length === 0}
                             style={{
-                              ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                              ...btnPrimaryStyle,
                               width: '100%',
                               fontSize: 12,
                               padding: '10px 16px',
@@ -634,7 +634,7 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
                       type="button"
                       onClick={handleConfirmSaveFixPreview}
                       style={{
-                        ...btnPrimaryStyle, setUnlockToast, aiDiagnosing,
+                        ...btnPrimaryStyle,
                         padding: '7px 20px',
                         fontSize: 11,
                         background: '#238636',
