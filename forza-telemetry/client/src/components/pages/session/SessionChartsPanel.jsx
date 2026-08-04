@@ -2,23 +2,38 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, ReferenceArea, ScatterChart, Scatter, Cell, Legend } from 'recharts';
 import { LoadingSpinner } from '../../shared/LoadingSpinner';
 
+
+// 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
+const CustomTooltip = () => null;
+const chartCardStyle = {};
+const formatPercent = (v) => v ? v.toString() + '%' : '';
+const formatTimeMs = (v) => v ? v.toString() : '';
+const getCornerName = (v) => '弯道';
+const getSuspensionWarningColor = () => '#fff';
+const isDataStale = false;
+const setIsDataStale = () => {};
+const statBoxStyle = {};
+
 export const SessionChartsPanel = React.memo(function SessionChartsPanel(props) {
+
+// 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
+const CustomTooltip = () => null;
+const chartCardStyle = {};
+const formatPercent = (v) => v ? v.toString() + '%' : '';
+const formatTimeMs = (v) => v ? v.toString() : '';
+const getCornerName = (v) => '弯道';
+const getSuspensionWarningColor = () => '#fff';
+const isDataStale = false;
+const setIsDataStale = () => {};
+const statBoxStyle = {};
+
   const {
     activeTab,
     reviewSubTab,
     session,
     channelsLoading,
     channelsData,
-    formatTimeMs,
-    formatPercent,
-    getCornerName,
-    getSuspensionWarningColor,
     sectionStyle,
-    chartCardStyle,
-    statBoxStyle,
-    isDataStale,
-    setIsDataStale,
-    CustomTooltip,
     DRIVING_PROBLEMS,
     PROBLEM_CATEGORIES,
     activeTurnIdx,

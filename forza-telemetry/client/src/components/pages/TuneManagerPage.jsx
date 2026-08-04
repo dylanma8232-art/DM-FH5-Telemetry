@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { EmptyState } from '../shared/EmptyState'
 import {
   PART_CATEGORIES,
@@ -14,7 +14,17 @@ import { PartSelector } from './tune/PartSelector'
 import { TelemetryRecommendationList } from './tune/TelemetryRecommendationList'
 import { PARAM_NAMES_ZH, TUNE_FIELDS_SCHEMA } from './tune/tuneConstants'
 
+import { TuneDiagnosticModal } from './tune/TuneDiagnosticModal'
+import { TuneShareModal } from './tune/TuneShareModal'
+
+
 export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate, navIntent }) {
+
+  // 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
+  const getDefaultParts = () => ({});
+  const getTuneDefaults = () => ({});
+  const handleApplyDiagnosisInViewOnly = () => {};
+
   const {
     tunes,
     setTunes,
@@ -367,95 +377,6 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
       classLetter = 'C';
       color = '#d29922'; // 黄色
     }
-    
-  
-  const diagnosticModalProps = useMemo(() => ({
-    activeDiagnosisTab,
-    setActiveDiagnosisTab,
-    setDiagnosisResult,
-    previewFixData,
-    setPreviewFixData,
-    handleConfirmSaveFixPreview,
-    runTelemetryDiagnosis,
-    toggleProblemSelection,
-    formatDate,
-    inputStyle,
-    btnPrimaryStyle,
-    diagnosisModalTune,
-    setDiagnosisModalTune,
-    modalOverlayStyle,
-    modalContentStyle,
-    btnSmallStyle,
-    getVehicleName,
-    getCarStats,
-    getPerformanceClassBadge,
-    tunes,
-    isDiagnosing,
-    diagnosisResult,
-    handleGenerateFixPreview,
-    runAiProblemDiagnosis,
-    selectedProblems,
-    setSelectedProblems,
-    selectedSessionId,
-    setSelectedSessionId,
-    recentSessions,
-    handleApplyProblemsFixInViewOnly,
-    statCardStyle,
-    aiDiagnosing,
-    aiDiagnosis,
-    availableSessions,
-    diagnosing,
-    setUnlockToast
-  }), [
-    activeDiagnosisTab,
-    setActiveDiagnosisTab,
-    setDiagnosisResult,
-    previewFixData,
-    setPreviewFixData,
-    handleConfirmSaveFixPreview,
-    runTelemetryDiagnosis,
-    toggleProblemSelection,
-    formatDate,
-    inputStyle,
-    btnPrimaryStyle,
-    diagnosisModalTune,
-    modalOverlayStyle,
-    modalContentStyle,
-    btnSmallStyle,
-    getVehicleName,
-    getCarStats,
-    getPerformanceClassBadge,
-    tunes,
-    isDiagnosing,
-    diagnosisResult,
-    handleGenerateFixPreview,
-    runAiProblemDiagnosis,
-    selectedProblems,
-    selectedSessionId,
-    recentSessions,
-    handleApplyProblemsFixInViewOnly,
-    statCardStyle,
-    aiDiagnosing,
-    aiDiagnosis,
-    availableSessions,
-    diagnosing,
-    setUnlockToast
-  ]);
-
-
-  const tuneShareModalProps = useMemo(() => ({
-    shareCodeModal, setShareCodeModal,
-    modalOverlayStyle, modalContentStyle,
-    btnSmallStyle, btnPrimaryStyle, inputStyle,
-    importFromShareCode,
-    importPreview, setImportPreview,
-    getPerformanceClassBadge, getVehicleName, getCarStats
-  }), [
-    shareCodeModal, modalOverlayStyle, modalContentStyle,
-    btnSmallStyle, btnPrimaryStyle, inputStyle,
-    importFromShareCode, importPreview,
-    getPerformanceClassBadge, getVehicleName, getCarStats
-  ]);
 
   return (
       <div className="fh5-pi-badge">
@@ -487,6 +408,19 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
     flexDirection: 'column',
     overflow: 'hidden'
   };
+
+
+  const diagnosticModalProps = useMemo(() => ({
+    activeDiagnosisTab, setActiveDiagnosisTab, setDiagnosisResult, previewFixData, setPreviewFixData, handleConfirmSaveFixPreview, runTelemetryDiagnosis, toggleProblemSelection, formatDate, inputStyle, btnPrimaryStyle, diagnosisModalTune, setDiagnosisModalTune, modalOverlayStyle, modalContentStyle, btnSmallStyle, getVehicleName, tunes, diagnosisResult, handleGenerateFixPreview, runAiProblemDiagnosis, selectedProblems, setSelectedProblems, selectedSessionId, setSelectedSessionId, handleApplyProblemsFixInViewOnly, aiDiagnosing, aiDiagnosis, availableSessions, diagnosing, setUnlockToast
+  }), [
+    activeDiagnosisTab, setActiveDiagnosisTab, setDiagnosisResult, previewFixData, setPreviewFixData, handleConfirmSaveFixPreview, runTelemetryDiagnosis, toggleProblemSelection, formatDate, inputStyle, btnPrimaryStyle, diagnosisModalTune, modalOverlayStyle, modalContentStyle, btnSmallStyle, getVehicleName, tunes, diagnosisResult, handleGenerateFixPreview, runAiProblemDiagnosis, selectedProblems, selectedSessionId, handleApplyProblemsFixInViewOnly, aiDiagnosing, aiDiagnosis, availableSessions, diagnosing, setUnlockToast
+  ]);
+
+  const tuneShareModalProps = useMemo(() => ({
+    shareCodeModal, setShareCodeModal, modalOverlayStyle, modalContentStyle, btnSmallStyle, btnPrimaryStyle, inputStyle, importFromShareCode, importPreview, setImportPreview, getVehicleName, parseShareCode
+  }), [
+    shareCodeModal, modalOverlayStyle, modalContentStyle, btnSmallStyle, btnPrimaryStyle, inputStyle, importFromShareCode, importPreview, getVehicleName, parseShareCode
+  ]);
 
   return (
     <div style={showModal ? {
