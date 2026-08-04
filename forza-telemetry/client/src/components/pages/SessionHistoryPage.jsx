@@ -192,135 +192,6 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
       .then(result => { if (!cancelled) setTelemetryTuning(result); })
       .catch(() => { if (!cancelled) setTelemetryTuning({ summary: '暂时无法生成遥测调校建议。', recommendations: [] }); })
       .finally(() => { if (!cancelled) setTelemetryTuningLoading(false); });
-  
-  const sessionChartsProps = useMemo(() => ({
-    activeTab,
-    reviewSubTab,
-    session: selectedSession,
-    channelsLoading,
-    channelsData,
-    formatTimeMs,
-    formatPercent,
-    getCornerName,
-    getSuspensionWarningColor,
-    sectionStyle,
-    chartCardStyle,
-    statBoxStyle,
-    isDataStale,
-    setIsDataStale,
-    CustomTooltip,
-    DRIVING_PROBLEMS,
-    PROBLEM_CATEGORIES,
-    activeTurnIdx,
-    advancedData,
-    aeroData,
-    analysis,
-    badgeGreenStyle,
-    badgeRedStyle,
-    brakeGScatterData,
-    brakingEvidenceData,
-    btnInactiveStyle,
-    btnSmallStyle,
-    chartGuideStyle,
-    chartSubTab,
-    diffData,
-    drivingSubTab,
-    formatLapTime,
-    formattedChannels,
-    gearingData,
-    getParamValue,
-    ggScatterPoints,
-    handleChartMouseLeave,
-    handleChartMouseMove,
-    lapTrendData,
-    maxSessionRpm,
-    onNavigate,
-    raceOverview,
-    sectionTitleStyle,
-    selectedIssueCategory,
-    selectedIssueId,
-    selectedSession,
-    selectedTurnReview,
-    sessionConsultation,
-    sessionTune,
-    setActiveTab,
-    setActiveTurnIdx,
-    setChartSubTab,
-    setDrivingSubTab,
-    setReviewSubTab,
-    setSelectedIssueCategory,
-    setSelectedIssueId,
-    slipChartDomain,
-    steeringSpeedData,
-    suspensionHistogram,
-    turnsData,
-    visibleWheels,
-    wheelVisibilityControls,
-    worstCorners
-  }), [
-    activeTab,
-    reviewSubTab,
-    selectedSession,
-    channelsLoading,
-    channelsData,
-    formatTimeMs,
-    formatPercent,
-    getCornerName,
-    getSuspensionWarningColor,
-    sectionStyle,
-    chartCardStyle,
-    statBoxStyle,
-    isDataStale,
-    setIsDataStale,
-    CustomTooltip,
-    DRIVING_PROBLEMS,
-    PROBLEM_CATEGORIES,
-    activeTurnIdx,
-    advancedData,
-    aeroData,
-    analysis,
-    badgeGreenStyle,
-    badgeRedStyle,
-    brakeGScatterData,
-    brakingEvidenceData,
-    btnInactiveStyle,
-    btnSmallStyle,
-    chartGuideStyle,
-    chartSubTab,
-    diffData,
-    drivingSubTab,
-    formatLapTime,
-    formattedChannels,
-    gearingData,
-    getParamValue,
-    ggScatterPoints,
-    handleChartMouseLeave,
-    handleChartMouseMove,
-    lapTrendData,
-    maxSessionRpm,
-    onNavigate,
-    raceOverview,
-    sectionTitleStyle,
-    selectedIssueCategory,
-    selectedIssueId,
-    selectedTurnReview,
-    sessionConsultation,
-    sessionTune,
-    setActiveTab,
-    setActiveTurnIdx,
-    setChartSubTab,
-    setDrivingSubTab,
-    setReviewSubTab,
-    setSelectedIssueCategory,
-    setSelectedIssueId,
-    slipChartDomain,
-    steeringSpeedData,
-    suspensionHistogram,
-    turnsData,
-    visibleWheels,
-    wheelVisibilityControls,
-    worstCorners
-  ]);
 
   return () => { cancelled = true; };
   }, [selectedSession]);
@@ -1152,6 +1023,17 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+
+  const sessionChartsProps = useMemo(() => ({
+    
+    activeTab, reviewSubTab, session: selectedSession, channelsLoading, channelsData, sectionStyle, DRIVING_PROBLEMS, PROBLEM_CATEGORIES, activeTurnIdx, advancedData, aeroData, analysis, badgeGreenStyle, badgeRedStyle, brakeGScatterData, brakingEvidenceData, btnInactiveStyle, btnSmallStyle, chartGuideStyle, chartSubTab, diffData, drivingSubTab, formatLapTime, formattedChannels, gearingData, getParamValue, ggScatterPoints, handleChartMouseLeave, handleChartMouseMove, lapTrendData, maxSessionRpm, onNavigate, raceOverview, sectionTitleStyle, selectedIssueCategory, selectedIssueId, selectedSession, selectedTurnReview, sessionConsultation, sessionTune, setActiveTab, setActiveTurnIdx, setChartSubTab, setDrivingSubTab, setReviewSubTab, setSelectedIssueCategory, setSelectedIssueId, slipChartDomain, steeringSpeedData, suspensionHistogram, turnsData, visibleWheels, wheelVisibilityControls, worstCorners
+  
+  }), [
+    
+    activeTab, reviewSubTab, selectedSession, channelsLoading, channelsData, sectionStyle, DRIVING_PROBLEMS, PROBLEM_CATEGORIES, activeTurnIdx, advancedData, aeroData, analysis, badgeGreenStyle, badgeRedStyle, brakeGScatterData, brakingEvidenceData, btnInactiveStyle, btnSmallStyle, chartGuideStyle, chartSubTab, diffData, drivingSubTab, formatLapTime, formattedChannels, gearingData, getParamValue, ggScatterPoints, handleChartMouseLeave, handleChartMouseMove, lapTrendData, maxSessionRpm, onNavigate, raceOverview, sectionTitleStyle, selectedIssueCategory, selectedIssueId, selectedTurnReview, sessionConsultation, sessionTune, setActiveTab, setActiveTurnIdx, setChartSubTab, setDrivingSubTab, setReviewSubTab, setSelectedIssueCategory, setSelectedIssueId, slipChartDomain, steeringSpeedData, suspensionHistogram, turnsData, visibleWheels, wheelVisibilityControls, worstCorners
+  
+  ]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -1812,7 +1694,8 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                                     diffAccel: '%', diffDecel: '%', diffCenter: '%',
                                     frontDownforce: ' lbs', rearDownforce: ' lbs'
                                   };
-                                  return (
+
+  return (
                                     <div key={paramKey} style={{ display: 'flex', justifyContent: 'space-between', background: '#0d1117', padding: '4px 8px', borderRadius: 4, fontSize: 10 }}>
                                       <span style={{ color: '#8b949e' }}>{paramNameMap[paramKey] || paramKey}</span>
                                       <span style={{ color: '#e6edf3' }}>
