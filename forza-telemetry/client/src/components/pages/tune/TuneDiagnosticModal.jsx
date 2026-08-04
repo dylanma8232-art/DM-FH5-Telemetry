@@ -7,16 +7,17 @@ import { PARAM_NAMES_ZH } from './tuneConstants';
 
 export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props) {
   const {
-    activeDiagnosisTab, setActiveDiagnosisTab,
+    activeDiagnosisTab,
+    setActiveDiagnosisTab,
     setDiagnosisResult,
-    previewFixData, setPreviewFixData,
+    previewFixData,
+    setPreviewFixData,
     handleConfirmSaveFixPreview,
     runTelemetryDiagnosis,
     toggleProblemSelection,
     formatDate,
     inputStyle,
-    btnPrimaryStyle
-,
+    btnPrimaryStyle,
     diagnosisModalTune,
     setDiagnosisModalTune,
     modalOverlayStyle,
@@ -36,7 +37,12 @@ export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props
     setSelectedSessionId,
     recentSessions,
     handleApplyProblemsFixInViewOnly,
-    statCardStyle
+    statCardStyle,
+    aiDiagnosing,
+    aiDiagnosis,
+    availableSessions,
+    diagnosing,
+    setUnlockToast
   } = props;
 
   // We will paste the JSX below.
