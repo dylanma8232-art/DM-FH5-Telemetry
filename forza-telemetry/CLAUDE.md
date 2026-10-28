@@ -4,7 +4,7 @@
 > [!IMPORTANT]
 > **AI 协作与索引维护指南**：
 > - 本项目使用 [CodeGraph](https://github.com/colbymchenry/codegraph) (v1.5.0+) 进行智能索引和知识图谱管理（推荐使用 v1.5.0+ 体验 Rust 原生内核解析与毫秒级增量同步）。
-> - 任何 AI Agent 在对项目新增、修改或删除文件后，必须运行 `npm run build:map` 重新构建并更新 [CODEMAP.md](file:///Users/wenchen.ma/Desktop/fh5/CODEMAP.md)，以保证知识图谱的精确度，帮助后续 Agent 快速掌握架构与看懂代码。
+> - 任何 AI Agent 在对项目新增、修改或删除文件后，必须运行 `npm run build:map` 重新构建并更新 [CODEMAP.md](../CODEMAP.md)，以保证知识图谱的精确度，帮助后续 Agent 快速掌握架构与看懂代码。
 
 ---
 
