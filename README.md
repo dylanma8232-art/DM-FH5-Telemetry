@@ -1,4 +1,4 @@
-# ApexPulse FH5 🏎️💨
+# DM- FH5遥测中台 🏎️💨
 ### 《极限竞速：地平线 5》全能遥测数据中心与 AI 赛道副驾系统
 **Full-stack Telemetry Analytics, Multi-Display Racing HUD & AI Race Engineer for Forza Horizon 5**
 
@@ -44,7 +44,7 @@
 
 ---
 
-## 🌟 为什么你需要 ApexPulse FH5？
+## 🌟 为什么你需要 DM-FH5 FH5？
 
 地平线 5 自带的遥测界面不仅大面积遮挡视野，而且无法记录圈速历史、无法对比多圈走线，更无法告知你的调校究竟是“偏硬”还是“阻尼不足”。
 
@@ -59,7 +59,7 @@
 
 ```mermaid
 flowchart LR
-    A["🎮 Forza Horizon 5<br/>(原生数据输出)"] -->|"UDP 广播<br/>324 Bytes (30~60Hz)"| B["🚀 ApexPulse Node 引擎<br/>(二进制结构体极速解码)"]
+    A["🎮 Forza Horizon 5<br/>(原生数据输出)"] -->|"UDP 广播<br/>324 Bytes (30~60Hz)"| B["🚀 DM-FH5 Node 引擎<br/>(二进制结构体极速解码)"]
     
     B --> C["⚡ Socket.IO 广播总线<br/>(跨设备低延迟同步)"]
     B --> D["💾 比赛记录与赛道中心<br/>(Brotli / SQLite 压缩归档)"]
@@ -98,8 +98,8 @@ flowchart LR
 ### 步骤 2：启动本项目服务
 ```bash
 # 1. 克隆本仓库
-git clone https://github.com/dylanma8232-art/ApexPulse-FH5.git
-cd ApexPulse-FH5/forza-telemetry
+git clone https://github.com/dylanma8232-art/DM-FH5-Telemetry.git
+cd DM-FH5-Telemetry/forza-telemetry
 
 # 2. 安装依赖并编译前端
 npm run install:all
