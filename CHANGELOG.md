@@ -45,3 +45,10 @@
 - forza-telemetry/server/src/routes/leaderboard.js
 - test-benchmark.js
 - test-event-loop.js
+
+## 2026-10-29 05:34 迭代
+
+- **PR**：8 ⚡ Perf: Optimize N+1 Query Pattern with Statement Preparation in sqliteDb.migrateAllOldSessions
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/8
+- **改动文件**：
+- forza-telemetry/server/src/storage/sqlite-db.js
