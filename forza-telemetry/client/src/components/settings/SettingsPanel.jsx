@@ -2,11 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { themes } from '../../themes';
 import { api } from '../../services/api';
-
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
-
 import { toast } from '../shared/Toast';
-
 
 export function SettingsPanel({ onClose }) {
   const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
