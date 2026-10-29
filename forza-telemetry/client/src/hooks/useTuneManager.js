@@ -1367,7 +1367,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
       return {
         name: decoded.n || '导入的调校',
         tags: [],
-        vehicleId: decoded.vid || decoded.v || '',
+        // B06：`v` 是分享码协议版本号（通常为 1），严禁当作车型 ID 兜底；
+        // 旧码没有 vid 时保留空车型，由用户手动选择。
+        vehicleId: decoded.vid || decoded.carOrdinal || '',
         tires: decoded.t || {},
         suspension: decoded.s || {},
         drivetrain: decoded.d || {},
