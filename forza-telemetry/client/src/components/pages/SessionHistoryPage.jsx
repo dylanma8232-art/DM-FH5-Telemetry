@@ -65,7 +65,11 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     totalPages,
     sessionTune,
     myFilteredSessions,
-    paginatedSessions
+    paginatedSessions,
+    exportCSV,
+    exportEnhancedCSV,
+    exportReport,
+    exportPDFReport
   } = useSessionHistory({ onNavigate, navIntent });
 
   // 子页签状态
@@ -1277,14 +1281,41 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                 );
               })()}
 
-              {/* 面包屑导航 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
+              {/* 面包屑导航 + 单场导出按钮组 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                 <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setSelectedSession(null); setTrackFilter(''); }}>
                   比赛历史
                 </span>
                 <span>&gt;</span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                   单场遥测分析 ({selectedSession.substring(0, 8)})
+                </span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>导出</span>
+                  {[
+                    { label: '标准 CSV', title: '导出标准遥测 CSV（含 UTF-8 BOM）', onClick: () => exportCSV(selectedSession) },
+                    { label: '增强 CSV', title: '导出物理增强 CSV（胎温/悬挂/G力）', onClick: () => exportEnhancedCSV(selectedSession) },
+                    { label: '报告 HTML', title: '导出专业分析报告 HTML', onClick: () => exportReport(selectedSession) },
+                    { label: '打印 PDF', title: '打开打印视图，可另存为 PDF', onClick: () => exportPDFReport(selectedSession) }
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      title={item.title}
+                      style={{
+                        padding: '4px 10px',
+                        background: '#21262d',
+                        border: '1px solid #30363d',
+                        borderRadius: 4,
+                        color: '#c9d1d9',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </span>
               </div>
 

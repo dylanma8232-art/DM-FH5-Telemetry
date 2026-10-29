@@ -66,7 +66,8 @@ export function buildSessionCsv(session) {
     const view = { __firstTimestampMS: firstTimestamp, ...frame };
     lines.push(CSV_COLUMNS.map(([, pick]) => csvCell(pick(view, index))).join(','));
   });
-  return lines.join('\r\n') + '\r\n';
+  // Excel 直接双击打开时按 UTF-8 with BOM 解码，避免中文表头乱码
+  return '\uFEFF' + lines.join('\r\n') + '\r\n';
 }
 
 export function buildSessionJson(session) {
