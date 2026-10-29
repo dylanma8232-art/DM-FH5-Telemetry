@@ -20,3 +20,10 @@
 - **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/4
 - **改动文件**：
 - forza-telemetry/server/test/rdp.test.js
+
+## 2026-10-29 05:29 迭代
+
+- **PR**：5 🧹 [code health improvement] Remove debug log in production
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/5
+- **改动文件**：
+- forza-telemetry/server/src/routes/record.js
