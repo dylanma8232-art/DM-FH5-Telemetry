@@ -13,6 +13,9 @@ const gzipAsync = promisify(gzip);
 const gunzipAsync = promisify(gunzip);
 
 const router = express.Router();
+// A2：settings / backup 各自独立路由器（各自只被 http-app 挂载一次）
+export const settingsRouter = express.Router();
+export const backupRouter = express.Router();
 
 
 
@@ -63,15 +66,15 @@ function writeDirRecursive(dir, data) {
 
 const getMaskedKey = (key) => key ? (key.length > 4 ? '*'.repeat(key.length - 4) + key.slice(-4) : '****') : '';
 
-router.get('/settings/dashscope-key', (req, res) => {
+const handleGetDashscopeKey = (req, res) => {
   res.json({
     apiKey: getMaskedKey(process.env.DASHSCOPE_API_KEY),
     baseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus'
   });
-});
+};
 
-router.post('/settings/dashscope-key', express.json(), asyncHandler(async (req, res) => {
+const handleSetDashscopeKey = asyncHandler(async (req, res) => {
 
   let { apiKey, baseUrl, model } = req.body;
   if (!apiKey) return res.status(400).json({ error: 'API Key 不能为空' });
@@ -114,9 +117,9 @@ router.post('/settings/dashscope-key', express.json(), asyncHandler(async (req, 
 
 
 
-}));
+});
 
-router.get('/backup/export', asyncHandler(async (req, res) => {
+const handleBackupExport = asyncHandler(async (req, res) => {
 
   const backup = { version: 2, exportedAt: new Date().toISOString(), data: readDirRecursive(DATA_DIR) };
   const jsonStr = JSON.stringify(backup);
@@ -128,9 +131,9 @@ router.get('/backup/export', asyncHandler(async (req, res) => {
 
 
 
-}));
+});
 
-router.post('/backup/restore', express.raw({ type: '*/*', limit: '100mb' }), asyncHandler(async (req, res) => {
+const handleBackupRestore = asyncHandler(async (req, res) => {
 
   let data;
   try {
@@ -154,12 +157,18 @@ router.post('/backup/restore', express.raw({ type: '*/*', limit: '100mb' }), asy
 
   stateManager.onRestore(nextTracks, nextVehicles, nextTunes);
   res.json({ success: true, message: '数据恢复成功，原数据已备份至 ' + path.basename(backupDir) });
+});
 
 
 
-
-}));
-
-
+// A2：同一批 handler 只实现一次，分别注册到单职责路由器，避免同一 router 被多次挂载
+router.get('/settings/dashscope-key', handleGetDashscopeKey);
+router.post('/settings/dashscope-key', express.json(), handleSetDashscopeKey);
+router.get('/backup/export', handleBackupExport);
+router.post('/backup/restore', express.raw({ type: '*/*', limit: '100mb' }), handleBackupRestore);
+settingsRouter.get('/dashscope-key', handleGetDashscopeKey);
+settingsRouter.post('/dashscope-key', express.json(), handleSetDashscopeKey);
+backupRouter.get('/export', handleBackupExport);
+backupRouter.post('/restore', express.raw({ type: '*/*', limit: '100mb' }), handleBackupRestore);
 
 export default router;

@@ -31,7 +31,7 @@ import sessionsRouter from './routes/sessions.js';
 import vehiclesRouter from './routes/vehicles.js';
 import leaderboardRouter from './routes/leaderboard.js';
 import navigationRouter from './routes/navigation.js';
-import systemRouter from './routes/system.js';
+import systemRouter, { settingsRouter, backupRouter } from './routes/system.js';
 import recordRouterModule from './routes/record.js';
 import { configureHttpApp } from './http-app.js';
 
@@ -117,7 +117,7 @@ configureHttpApp({
   exportRouter,
   routers: {
     analysis: analysisRouter, tracks: tracksRouter, tunes: tunesRouter, vehicles: vehiclesRouter,
-    leaderboard: leaderboardRouter, navigation: navigationRouter, system: systemRouter, sessions: sessionsRouter,
+    leaderboard: leaderboardRouter, navigation: navigationRouter, system: systemRouter, settings: settingsRouter, backup: backupRouter, sessions: sessionsRouter,
   },
   recordRouter: recordModule.router,
   staticDir: STATIC_DIR,
