@@ -158,14 +158,27 @@ export function useSessionHistory({ onNavigate, navIntent }) {
   };
 
   // Round 5: 批量导出CSV
+  // B02：连续触发 <a>.click() 会被浏览器拦成「只下第一个」，这里按 400ms 步进串行下载，
+  // 并逐项 toast 进度；纯前端节流，后端契约不变。
   const batchExportCSV = async () => {
+    const ids = [...selectedSessionIds];
+    if (ids.length === 0) {
+      toast('请先勾选要导出的比赛记录', 'warning');
+      return;
+    }
+    let success = 0;
     try {
-      for (const id of selectedSessionIds) {
-        await downloadBlob('csv', id, 'telemetry_' + id + '.csv');
+      for (let i = 0; i < ids.length; i += 1) {
+        toast(`正在导出第 ${i + 1}/${ids.length} 个文件…`, 'info', 1200);
+        await downloadBlob('csv', ids[i], 'telemetry_' + ids[i] + '.csv');
+        success += 1;
+        if (i < ids.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
       }
-      toast(`已导出 ${selectedSessionIds.size} 个CSV`, 'success');
+      toast(`已导出 ${success}/${ids.length} 个CSV`, 'success');
     } catch (e) {
-      toast('批量导出失败', 'error');
+      toast(`批量导出中断（已成功 ${success}/${ids.length} 个）`, 'error');
     }
   };
 
