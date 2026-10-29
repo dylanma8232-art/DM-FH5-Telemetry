@@ -157,6 +157,45 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     }
   };
 
+  // B10：把未关联（未知赛道）的比赛记录重新归入正确赛道。
+  // 后端 PUT /api/sessions/:id/track 与 /api/sessions/batch/track 早已存在，此前前端无任何入口。
+  const linkSessionTrack = async (sessionId, { trackId, trackName }) => {
+    if (!trackName) {
+      toast('请选择要关联的赛道', 'warning');
+      return false;
+    }
+    try {
+      await api.sessions.linkTrack(sessionId, { trackId, trackName });
+      toast(`已关联至「${trackName}」`, 'success');
+      await loadSessions();
+      return true;
+    } catch (e) {
+      toast('关联赛道失败: ' + e.message, 'error');
+      return false;
+    }
+  };
+
+  const batchLinkTracks = async (sessionIds, { trackId, trackName }) => {
+    const ids = [...(sessionIds || [])];
+    if (ids.length === 0) {
+      toast('请先勾选要关联的比赛记录', 'warning');
+      return false;
+    }
+    if (!trackName) {
+      toast('请选择要关联的赛道', 'warning');
+      return false;
+    }
+    try {
+      await api.sessions.batchLinkTrack({ sessionIds: ids, trackId, trackName });
+      toast(`已将 ${ids.length} 条记录关联至「${trackName}」`, 'success');
+      await loadSessions();
+      return true;
+    } catch (e) {
+      toast('批量关联赛道失败: ' + e.message, 'error');
+      return false;
+    }
+  };
+
   // Round 5: 批量导出CSV
   // B02：连续触发 <a>.click() 会被浏览器拦成「只下第一个」，这里按 400ms 步进串行下载，
   // 并逐项 toast 进度；纯前端节流，后端契约不变。
@@ -783,6 +822,8 @@ ${worstItems.length > 0 ? `<div class="improve-box"><div class="improve-title">�
     lbFormatTime,
     getVehicleClass,
     downloadBlob,
+    linkSessionTrack,
+    batchLinkTracks,
     exportCSV,
     exportEnhancedCSV,
     exportPDFReport,
