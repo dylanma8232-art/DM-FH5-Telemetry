@@ -27,3 +27,11 @@
 - **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/5
 - **改动文件**：
 - forza-telemetry/server/src/routes/record.js
+
+## 2026-10-29 05:31 迭代
+
+- **PR**：6 🔒 fix: prevent API key exposure in GET response
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/6
+- **改动文件**：
+- forza-telemetry/client/package-lock.json
+- forza-telemetry/server/src/routes/system.js
