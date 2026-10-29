@@ -25,7 +25,7 @@ const calculateTrackLength = (pts) => {
 };
 
 
-function buildLeaderboard() {
+async function buildLeaderboard() {
   const cached = stateManager.getLeaderboardCache ? stateManager.getLeaderboardCache() : null;
   const cacheTime = stateManager.getLeaderboardCacheTime ? stateManager.getLeaderboardCacheTime() : 0;
   if (cached && Date.now() - cacheTime < LEADERBOARD_CACHE_TTL) {
@@ -38,9 +38,14 @@ function buildLeaderboard() {
 
   const groups = new Map();
 
-  files.forEach((f) => {
+  const fileContents = await Promise.all(
+    files.map(f => fs.promises.readFile(sessionsDir + '/' + f, 'utf8').catch(() => null))
+  );
+
+  fileContents.forEach((content) => {
+    if (!content) return;
     try {
-      const s = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
+      const s = JSON.parse(content);
       const trackId = s.trackId || 'unknown';
       const vehicleOrdinal = s.vehicle?.ordinal || 'unknown';
       const key = trackId + '_' + vehicleOrdinal;
@@ -150,7 +155,7 @@ function buildLeaderboard() {
 // 获取圈速排行榜
 router.get('/', asyncHandler(async (req, res) => {
 
-  const data = buildLeaderboard();
+  const data = await buildLeaderboard();
   const { trackId } = req.query;
   if (trackId) {
     return res.json(data.filter((d) => d.trackId === trackId));
@@ -170,7 +175,7 @@ router.get('/trend', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Missing trackId or vehicleOrdinal' });
   }
 
-  const lb = buildLeaderboard();
+  const lb = await buildLeaderboard();
   const entry = lb.find((d) => d.trackId === trackId && String(d.vehicleOrdinal) === String(vehicleOrdinal));
   if (!entry) return res.json({ sessions: [], bestLap: 0, avgBestLap: 0 });
 
