@@ -5,7 +5,9 @@ import {
   getTrackDetail,
   createTrack,
   deleteTrack,
-  getEnrichedTracks
+  getEnrichedTracks,
+  persistTrackChanges,
+  persistTrackTurns
 } from '../services/track-service.js';
 import { readTrackDetail, saveTracksDatabase, deleteTrackDetail, invalidateTrackDetailCache } from '../storage/session-db.js';
 import {
@@ -45,22 +47,6 @@ function calculateTrackLength(points) {
     length += Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
   return Math.round(length);
-}
-
-// 弯道编辑（拆分/拉扯边界）后统一：重建路书、落盘、同步内存缓存
-function persistTrackTurns(id, trackDetail) {
-  trackDetail.routeBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
-  trackDetail.updatedAt = new Date().toISOString();
-
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].turnCount = trackDetail.turns.length;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    stateManager.tracks[id].turns = trackDetail.turns;
-    stateManager.tracks[id].routeBook = trackDetail.routeBook;
-    saveTracksDatabase(stateManager.tracks);
-  }
 }
 
 function sanitizeTrackPoint(p) {
@@ -222,18 +208,13 @@ router.post('/:id/adopt-candidate', asyncHandler(async (req, res) => {
   delete trackDetail.geometryCandidate;
   trackDetail.quality = validateTrackQuality(trackDetail);
   trackDetail.updatedAt = new Date().toISOString();
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    Object.assign(stateManager.tracks[id], {
-      length: trackDetail.length,
-      pointCount: trackDetail.centerline.length,
-      turnCount: trackDetail.turns.length,
-      isLoop: trackDetail.isLoop,
-      updatedAt: trackDetail.updatedAt
-    });
-    saveTracksDatabase(stateManager.tracks);
-  }
+  persistTrackChanges(id, trackDetail, {
+    length: trackDetail.length,
+    pointCount: trackDetail.centerline.length,
+    turnCount: trackDetail.turns.length,
+    isLoop: trackDetail.isLoop,
+    updatedAt: trackDetail.updatedAt
+  });
 
   res.json({
     status: 'ok',
@@ -290,16 +271,13 @@ router.post('/:id/rebuild', asyncHandler(async (req, res) => {
   trackDetail.quality = validateTrackQuality(trackDetail);
   trackDetail.updatedAt = new Date().toISOString();
 
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].length = trackDetail.length;
-    stateManager.tracks[id].pointCount = trackDetail.centerline.length;
-    stateManager.tracks[id].turnCount = trackDetail.turns ? trackDetail.turns.length : 0;
-    stateManager.tracks[id].isLoop = trackDetail.isLoop || false;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    saveTracksDatabase(stateManager.tracks);
-  }
+  persistTrackChanges(id, trackDetail, {
+    length: trackDetail.length,
+    pointCount: trackDetail.centerline.length,
+    turnCount: trackDetail.turns ? trackDetail.turns.length : 0,
+    isLoop: trackDetail.isLoop || false,
+    updatedAt: trackDetail.updatedAt
+  });
 
   console.log(`[重建] 赛道 ${id} 重建完成：中心线 ${oldCenterlineLen} → ${trackData.centerline.length} 点，弯道 ${oldTurnCount} → ${trackData.turns.length} 个`);
   res.json({
@@ -328,10 +306,7 @@ router.put('/:id/turns/:index/speedHint', express.json(), asyncHandler(async (re
   trackDetail.turns[idx].speedHint = req.body.speedHint || '';
   trackDetail.updatedAt = new Date().toISOString();
 
-  writeTrackDetail(id, trackDetail);
-
-  stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-  saveTracksDatabase(stateManager.tracks);
+  persistTrackChanges(id, trackDetail, { updatedAt: trackDetail.updatedAt });
 
   res.json({ status: 'ok', turnIndex: idx, speedHint: trackDetail.turns[idx].speedHint });
 
@@ -365,13 +340,10 @@ router.put('/:id/turns', express.json(), asyncHandler(async (req, res) => {
   trackDetail.routeBook = buildRouteBook(centerline, newTurns, centerline);
   trackDetail.quality = validateTrackQuality(trackDetail);
 
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].turnCount = newTurns.length;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    saveTracksDatabase(stateManager.tracks);
-  }
+  persistTrackChanges(id, trackDetail, {
+    turnCount: newTurns.length,
+    updatedAt: trackDetail.updatedAt
+  });
 
   res.json({
     status: 'ok',
@@ -656,7 +628,7 @@ router.post('/:id/turns/merge', express.json(), (req, res) => {
   trackDetail.routeBook = buildRouteBook(centerline, trackDetail.turns, allPoints);
   trackDetail.updatedAt = new Date().toISOString();
 
-  writeTrackDetail(id, trackDetail);
+  persistTrackChanges(id, trackDetail);
 
   if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: trackDetail.name || stateManager.tracks[id]?.name });
   res.json({ status: 'ok', track: trackDetail });
@@ -716,9 +688,7 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
 
   const updatedDetail = { ...trackDetail, ...req.body, updatedAt: new Date().toISOString() };
 
-  writeTrackDetail(id, updatedDetail);
-
-  stateManager.tracks[id] = {
+  persistTrackChanges(id, updatedDetail, {
     id,
     name: updatedDetail.name || '未命名赛道',
     length: updatedDetail.length || 0,
@@ -727,8 +697,7 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
     trajectoryCount: updatedDetail.trajectories ? updatedDetail.trajectories.length : updatedDetail.trajectoryCount || 1,
     createdAt: updatedDetail.createdAt || trackDetail.createdAt || new Date().toISOString(),
     updatedAt: updatedDetail.updatedAt
-  };
-  saveTracksDatabase(stateManager.tracks);
+  }, { replace: true });
 
   stateManager.io.emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
 
