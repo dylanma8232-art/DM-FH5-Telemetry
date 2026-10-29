@@ -65,7 +65,7 @@ forza-telemetry/
 ├── server/                      # 后端服务
 │   ├── package.json             # 依赖: express, socket.io
 │   ├── src/
-│   │   ├── index.js             # 主入口: Express + Socket.IO + UDP + 所有API (~5356行)
+│   │   ├── index.js             # 主入口: UDP + Socket.IO 装配与状态注入（路由已拆分到 routes/，~300 行）
 │   │   ├── telemetry-parser.js  # UDP 二进制数据解析器 (SLED 232B + Dash 79B, ~368行)
 │   │   ├── track-builder.js     # 赛道构建: 中心线提取/弯道检测/路书生成/环道检测 (~1074行)
 │   │   ├── data-listener.js     # 独立数据监听工具（轮询API检查数据）
@@ -233,7 +233,7 @@ forza-telemetry/
   - 加速分析 (`/api/analysis/:id/accel`)
   - 换挡分析 (`/api/analysis/:id/shifts`)
   - 分段分析 (`/api/analysis/:id/sectors`)
-  - 驾驶建议 (`/api/analysis/:id/advice`)
+  - 驾驶建议（含在 `GET /api/analysis/:id` 总览响应内；`/advice` 细分端点并不存在）
   - 诊断报告 (`/api/analysis/:id/diagnosis`)
   - 遥测通道 (`/api/analysis/:id/telemetry-channels`)
   - 高级分析 (`/api/analysis/:id/advanced`)
@@ -473,19 +473,18 @@ DashboardPage → 各子组件渲染
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/analysis/:sessionId` | 综合分析 |
-| GET | `/api/analysis/:sessionId/tires` | 轮胎分析 |
-| GET | `/api/analysis/:sessionId/braking` | 刹车分析 |
-| GET | `/api/analysis/:sessionId/accel` | 加速分析 |
-| GET | `/api/analysis/:sessionId/shifts` | 换挡分析 |
-| GET | `/api/analysis/:sessionId/sectors` | 分段分析 |
-| GET | `/api/analysis/:sessionId/advice` | 驾驶建议 |
+| GET | `/api/analysis/:sessionId` | 综合分析（总览：成绩/走线/制动/加速/分段等均在这一次响应内） |
 | GET | `/api/analysis/:sessionId/diagnosis` | 诊断报告 |
 | GET | `/api/analysis/:sessionId/telemetry-channels` | 遥测通道分析 |
 | GET | `/api/analysis/:sessionId/advanced` | 高级分析 |
 | GET | `/api/analysis/:sessionId/turns` | 弯道分析 |
 | GET | `/api/analysis/:sessionId/ai-diagnosis` | 读取 AI 智能诊断 |
-| POST | `/api/analysis/:sessionId/ai-diagnosis` | 生成 AI 智能诊断 |
+| POST | `/api/analysis/:sessionId/ai-diagnosis` | 生成 AI 智能诊断（支持 `formData` 注入在途草稿参数） |
+| GET | `/api/analysis/:sessionId/tuning-recommendations` | 遥测调校推荐 |
+
+> 说明（Q5）：`/tires`、`/braking`、`/accel`、`/shifts`、`/sectors`、`/advice` 这些细分端点
+> **在服务端并不存在**（历史文档残留），对应数据由 `GET /api/analysis/:sessionId` 一次返回；
+> 前端也未调用它们。
 
 ### 6.8 导出与报告
 
@@ -502,11 +501,11 @@ DashboardPage → 各子组件渲染
 | POST | `/api/trackMode/start` | 启动赛道模式 |
 | POST | `/api/trackMode/stop` | 停止赛道模式 |
 | GET | `/api/trackMode/status` | 赛道模式状态 |
-| GET | `/api/trackRecognition/current` | 当前识别结果 |
-| POST | `/api/trackRecognition/confirm` | 确认识别结果 |
-| POST | `/api/trackRecognition/select` | 手动选择赛道 |
 | GET | `/api/autoRecord/status` | 自动录制状态 |
 | POST | `/api/test/announce` | 测试语音播报 |
+
+> 说明（Q5）：`/api/trackRecognition/*`（current / confirm / select）**服务端未实现**，
+> 前端也未调用；赛道识别走的是 socket 事件 `trackRecognized` + `/api/trackMode/*`。
 
 ### 6.10 排行榜
 
@@ -556,7 +555,7 @@ DashboardPage → 各子组件渲染
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `server/src/index.js` | ~5356 | 主入口: 全部API/Socket.IO/UDP/TTS/录制逻辑 |
+| `server/src/index.js` | ~300 | 主入口: UDP/Socket.IO 装配与状态注入（路由已拆到 `routes/`） |
 | `server/src/telemetry-parser.js` | ~368 | UDP二进制→JSON解析（SLED+Dash） |
 | `server/src/track-builder.js` | 门面 | 聚合导出 `track-math`, `track-turns`, `trajectory-cleaner`, `centerline-processor`, `builder-facade` 等赛道算法拆分模块 |
 | `server/src/services/physics-analyzer.js` | 门面 | 聚合导出 `scoring`, `telemetry-stats`, `advice-generator` 等物理与遥测分析拆分模块 |
@@ -603,7 +602,7 @@ npm run build:map
 
 ## 10. 架构关键点
 
-1. **主要逻辑集中**: 核心后端逻辑在 `index.js`（~5356行），已部分模块化（config/services/storage/utils 目录）。
+1. **入口已瘦身**: `index.js` 仅负责启动、UDP/Socket.IO 装配与状态注入（~300 行）；业务路由在 `routes/`，业务规则在 `services/`，持久化在 `storage/`。
 2. **数据存储**: 使用 JSON 文件 + Brotli 压缩存储，无数据库。赛道详情以 `.json.br` 格式存储，Session 分为摘要和详情（Brotli压缩）。
 3. **前端 SPA**: React 单页应用，通过标签页切换5个主要视图，支持 PWA 离线访问。仪表盘组件已大幅精简（从~43个减至11个）。
 4. **实时通信**: Socket.IO 双向通信，遥测数据以约30fps广播，节流间隔33ms。
