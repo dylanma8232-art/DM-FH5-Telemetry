@@ -50,6 +50,9 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
     setWizardStep,
     updateTuningCapabilities,
     generateAssistedTune,
+    aiUpgradeLoading,
+    aiUpgradeReason,
+    handleAiUpgrade,
     selectVehicleForDraft,
     aiRaceType,
     setAiRaceType,
@@ -1690,6 +1693,18 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
             )}
             </div> {/* 闭合滚动 Body 内容区 */}
 
+            {/* B03：AI 改装理由（仅在本次 AI 求解成功后展示，不占用常驻空间） */}
+            {aiUpgradeReason && wizardStep === 1 && (
+              <div style={{
+                margin: '0 20px 8px', padding: '8px 12px', borderRadius: 6,
+                background: 'rgba(88,166,255,0.08)', border: '1px solid rgba(88,166,255,0.3)',
+                fontSize: 10, color: '#c9d1d9', lineHeight: 1.6
+              }}>
+                <span style={{ color: '#58a6ff', fontWeight: 700, marginRight: 6 }}>AI 改装理由</span>
+                {aiUpgradeReason}
+              </div>
+            )}
+
             {/* 固定 Footer */}
             <div style={{
               height: 52,
@@ -1712,18 +1727,37 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
               {/* 右侧：操作按钮 */}
               <div style={{ display: 'flex', gap: 8 }}>
                 {wizardStep === 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (generateAssistedTune()) {
-                        setWizardStep(2);
-                      }
-                    }}
-                    disabled={!formData.vehicleId || !upgradeShop}
-                    style={{ ...btnPrimaryStyle, padding: '6px 20px', fontSize: 11, fontWeight: 700 }}
-                  >
-                    {(!upgradeShop && formData.vehicleId) ? '加载物理资料中...' : '⚡ 生成物理推荐并进入调校 →'}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const result = await handleAiUpgrade();
+                        if (result?.ok) {
+                          setUnlockToast('🧠 AI 智能改装方案已生成并填入（已通过本地 PI 校验）');
+                          setWizardStep(2);
+                        } else if (result?.error) {
+                          setUnlockToast('⚠️ AI 改装失败：' + result.error);
+                        }
+                      }}
+                      disabled={!formData.vehicleId || !upgradeShop || aiUpgradeLoading}
+                      style={{ ...btnSmallStyle, padding: '6px 14px', fontSize: 11, fontWeight: 700 }}
+                      title="调用大模型在当前车辆合法配件中选择组合，结果仍需通过本地 PI 校验"
+                    >
+                      {aiUpgradeLoading ? '🧠 AI 求解中...' : '🧠 AI 智能改装'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (generateAssistedTune()) {
+                          setWizardStep(2);
+                        }
+                      }}
+                      disabled={!formData.vehicleId || !upgradeShop}
+                      style={{ ...btnPrimaryStyle, padding: '6px 20px', fontSize: 11, fontWeight: 700 }}
+                    >
+                      {(!upgradeShop && formData.vehicleId) ? '加载物理资料中...' : '⚡ 生成物理推荐并进入调校 →'}
+                    </button>
+                  </>
                 )}
 
                 {wizardStep === 2 && (
