@@ -3,9 +3,9 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { themes } from '../../themes';
 import { api } from '../../services/api';
 
-import { toast } from '../shared/Toast';
-
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
+
+import { toast } from '../shared/Toast';
 
 
 export function SettingsPanel({ onClose }) {

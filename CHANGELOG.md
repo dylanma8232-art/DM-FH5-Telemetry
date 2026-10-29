@@ -71,3 +71,10 @@
 - forza-telemetry/server/package-lock.json
 - forza-telemetry/server/package.json
 - forza-telemetry/server/src/routes/tracks.js
+
+## 2026-10-29 05:36 迭代
+
+- **PR**：12 ⚡ perf: Replace sync file reading with non-blocking I/O in batch track update
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/12
+- **改动文件**：
+- forza-telemetry/server/src/routes/sessions.js
