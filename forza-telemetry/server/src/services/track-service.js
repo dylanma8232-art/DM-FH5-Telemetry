@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { stateManager } from './state-manager.js';
 import {
   saveTracksDatabase,
@@ -14,8 +12,12 @@ import {
   validateTrackQuality
 } from '../track-builder.js';
 import { simplifyRDP } from '../utils/rdp.js';
-
-const DATA_DIR = stateManager.DATA_DIR;
+import {
+  sessionsDirExists,
+  listSummaryFileNamesSync,
+  readSummaryByFileNameSync,
+  deleteSummaryAndHifi
+} from '../storage/session-store.js';
 
 export function getEnrichedTracks() {
   const enriched = {};
@@ -132,20 +134,13 @@ export function deleteTrack(id) {
   saveTracksDatabase(stateManager.tracks);
   deleteTrackDetail(id);
 
-  const sessionsDir = path.join(DATA_DIR, 'sessions');
-  if (fs.existsSync(sessionsDir)) {
-    const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+  if (sessionsDirExists()) {
+    const sessionFiles = listSummaryFileNamesSync();
     sessionFiles.forEach((file) => {
       try {
-        const filePath = path.join(sessionsDir, file);
-        const session = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const session = readSummaryByFileNameSync(file);
         if (session.trackId === id) {
-          const sessionId = session.id;
-          const summaryPath = path.join(sessionsDir, `${sessionId}_summary.json`);
-          const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
-          
-          if (fs.existsSync(summaryPath)) fs.unlinkSync(summaryPath);
-          if (fs.existsSync(hifiPath)) fs.unlinkSync(hifiPath);
+          deleteSummaryAndHifi(session.id);
         }
       } catch (err) {
         console.error(`[删除赛道] 清除关联比赛 Session 失败:`, err.message);
