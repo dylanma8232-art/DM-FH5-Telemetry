@@ -53,6 +53,8 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const [deleteLinkedTunes, setDeleteLinkedTunes] = useState(0);
 
   const [expandedCard, setExpandedCard] = useState(null);
+  // B08：从调校工坊「返回车库」时高亮并滚动定位到该车卡片
+  const [highlightVehicleId, setHighlightVehicleId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [compareMode, setCompareMode] = useState(false);
@@ -241,6 +243,23 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     });
     return stats;
   }, [sessions]);
+
+  useEffect(() => {
+    const target = navIntent?.highlightVehicleId;
+    if (!target) return undefined;
+    setHighlightVehicleId(String(target));
+    const card = vehicleCards.find((c) => String(c.ord) === String(target));
+    const manufacturer = card?.manufacturer || '其他';
+    setExpandedManufacturers((prev) => ({ ...prev, [manufacturer]: true }));
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`vehicle-card-${target}`);
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 200);
+    const clear = setTimeout(() => setHighlightVehicleId(null), 3200);
+    return () => { clearTimeout(timer); clearTimeout(clear); };
+    // 仅在导航意图变化时触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navIntent?.highlightVehicleId]);
 
   const vehicleCards = useMemo(() => {
     const catalogByOrdinal = new Map(catalog.map(item => [String(item.ordinal), item]));
@@ -664,11 +683,14 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                 {isExpanded && (
                   <div className="vehicle-card-grid">
                     {cards.map(card => (
-                      <div key={card.ord} style={{
+                      <div key={card.ord} id={`vehicle-card-${card.ord}`} style={{
                         background: '#161b22',
-                        border: compareMode
-                          ? `2px solid ${compareSelected.includes(card.ord) ? '#58a6ff' : (compareSelected.length < 2 ? 'rgba(88, 166, 255, 0.2)' : '#21262d')}`
-                          : (card.isAuto ? '1px dashed #21262d' : '1px solid #21262d'),
+                        border: String(highlightVehicleId) === String(card.ord)
+                          ? '2px solid #d29922'
+                          : (compareMode
+                            ? `2px solid ${compareSelected.includes(card.ord) ? '#58a6ff' : (compareSelected.length < 2 ? 'rgba(88, 166, 255, 0.2)' : '#21262d')}`
+                            : (card.isAuto ? '1px dashed #21262d' : '1px solid #21262d')),
+                        boxShadow: String(highlightVehicleId) === String(card.ord) ? '0 0 0 2px rgba(210,153,34,0.25)' : 'none',
                         cursor: compareMode ? 'pointer' : 'default'
                       }}
                       className="vehicle-card"
@@ -741,7 +763,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                                   <span>{(tune.tags || []).join(' · ') || '未添加标签'}</span>
                                 </div>
                                 <div className="vehicle-tune-pi">PI {tune.calculatedPi ?? '未知'}</div>
-                                <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit' }); }} className="btn-action-sm" style={{ padding: '3px 7px', fontSize: 9 }}>编辑</button>
+                                <button onClick={(e) => { e.stopPropagation(); onNavigate('tunes', { tuneId: tune.id, action: 'edit', returnTab: 'vehicles', returnVehicleId: card.ord }); }} className="btn-action-sm" style={{ padding: '3px 7px', fontSize: 9 }}>编辑</button>
                               </div>
                             ))}
                           </div>
@@ -767,7 +789,7 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onNavigate('tunes', { vehicleId: card.ord, action: 'create' });
+                                  onNavigate('tunes', { vehicleId: card.ord, action: 'create', returnTab: 'vehicles', returnVehicleId: card.ord });
                                 }}
                                 className="btn-action-sm btn-action-workshop"
                                 title="为此车辆新建改装与调校方案"
