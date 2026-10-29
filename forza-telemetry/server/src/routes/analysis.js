@@ -20,6 +20,23 @@ function getFromCache(key) {
   return analysisCache.get(key) || null;
 }
 
+/**
+ * Q4：删除会话时必须调用，清掉该会话在 analysisCache 里的全部派生结果
+ * （overview_ / ai_stats_ 等前缀都包含 sessionId）。否则删掉记录后仍能读到旧分析。
+ */
+export function invalidateAnalysisCache(sessionId) {
+  if (!sessionId) return 0;
+  const id = String(sessionId);
+  let removed = 0;
+  for (const key of [...analysisCache.keys()]) {
+    if (key.includes(id)) {
+      analysisCache.delete(key);
+      removed += 1;
+    }
+  }
+  return removed;
+}
+
 function setToCache(key, data) {
   if (analysisCache.size > MAX_CACHE_SIZE) {
     const firstKey = analysisCache.keys().next().value;

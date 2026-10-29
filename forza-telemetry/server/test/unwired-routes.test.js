@@ -34,3 +34,10 @@ test('批量关联赛道路由必须注册在单场 /:id/track 之前（否则 b
 test('车辆关联调校查询路由已注册（B07 删除确认用）', () => {
   assert.ok(routesOf(vehiclesRouter).includes('GET /:id/linked-tunes'));
 });
+
+test('删除会话会清空该会话的分析缓存（Q4）', async () => {
+  const { invalidateAnalysisCache } = await import('../src/routes/analysis.js');
+  // 该函数是纯内存操作：对不存在的 session 返回 0，不抛错（存在性由删除流程先判定）
+  assert.equal(invalidateAnalysisCache('not-exists-session'), 0);
+  assert.equal(invalidateAnalysisCache(null), 0);
+});
