@@ -24,6 +24,10 @@ const router = express.Router();
     const turns = trackDetail?.turns || [];
     
     console.log(`[赛道模式] 已选择赛道: ${newMode.trackName}, 弯道数: ${turns.length}`);
+    // B11：补发 WS 广播，让仪表盘/路书与其它标签页无需刷新即可感知（与 record.js 的载荷形状一致）
+    if (stateManager.io) {
+      stateManager.io.emit('trackModeChanged', { active: true, trackId, trackName: newMode.trackName });
+    }
     res.json({ status: 'ok', trackId: trackId, trackName: newMode.trackName, turns: turns });
   });
 
@@ -31,6 +35,10 @@ const router = express.Router();
   router.post('/trackMode/stop', (req, res) => {
     stateManager.setTrackMode(null);
 
+    // B11：补发 WS 广播（载荷与 record.js 停止录制时的形状一致）
+    if (stateManager.io) {
+      stateManager.io.emit('trackModeChanged', { active: false, trackId: null, trackName: null });
+    }
     console.log('[赛道模式] 已退出赛道模式');
     res.json({ status: 'ok' });
   });
