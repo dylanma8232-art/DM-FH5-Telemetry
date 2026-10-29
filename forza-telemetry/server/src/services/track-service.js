@@ -19,6 +19,39 @@ import {
   deleteSummaryAndHifi
 } from '../storage/session-store.js';
 
+/**
+ * A5：赛道「写详情 → 同步内存索引 → 落盘」的唯一实现。
+ *
+ * 调用方只提供本路由确实需要同步的字段（memoryPatch），因此各路由的
+ * 写盘时序、字段集合与守卫条件都与收敛前逐字等价；replace=true 时替换整条内存索引
+ * （PUT /:id 的既有语义）。
+ */
+export function persistTrackChanges(id, trackDetail, memoryPatch = null, { replace = false } = {}) {
+  writeTrackDetail(id, trackDetail);
+  if (memoryPatch) {
+    if (replace) {
+      stateManager.tracks[id] = memoryPatch;
+      saveTracksDatabase(stateManager.tracks);
+    } else if (stateManager.tracks[id]) {
+      Object.assign(stateManager.tracks[id], memoryPatch);
+      saveTracksDatabase(stateManager.tracks);
+    }
+  }
+  return trackDetail;
+}
+
+/** 弯道编辑（拆分 / 拉扯边界）后统一：重建路书 → 落盘 → 同步内存缓存 */
+export function persistTrackTurns(id, trackDetail) {
+  trackDetail.routeBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
+  trackDetail.updatedAt = new Date().toISOString();
+  return persistTrackChanges(id, trackDetail, {
+    turnCount: trackDetail.turns.length,
+    updatedAt: trackDetail.updatedAt,
+    turns: trackDetail.turns,
+    routeBook: trackDetail.routeBook
+  });
+}
+
 export function getEnrichedTracks() {
   const enriched = {};
   for (const [id, track] of Object.entries(stateManager.tracks)) {
