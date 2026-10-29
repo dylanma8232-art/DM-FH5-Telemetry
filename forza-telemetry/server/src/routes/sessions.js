@@ -19,6 +19,7 @@ import {
 } from '../services/session-telemetry-compact.js';
 import { readCarsDatabase } from '../storage/reference-store.js';
 import express from 'express';
+import { invalidateAnalysisCache } from './analysis.js';
 
 const router = express.Router();
 
@@ -215,6 +216,8 @@ router.delete('/sessions/:id', asyncHandler(async (req, res) => {
   stateManager.setLeaderboardCache(null);
   cachedLeaderboardsList = null;
   lastLeaderboardsFetchTime = 0;
+  // Q4：同步失效该会话的分析缓存，避免删除后仍能读到旧分析结果
+  invalidateAnalysisCache(req.params.id);
   res.json({ status: 'ok' });
 
 
