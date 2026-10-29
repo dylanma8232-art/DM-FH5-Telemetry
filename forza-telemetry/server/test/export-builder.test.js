@@ -17,7 +17,8 @@ const session = {
 
 test('CSV 导出：表头 + 每帧一行，时间为相对第一帧的秒数', () => {
   const csv = buildSessionCsv(session);
-  const lines = csv.trim().split('\r\n');
+  assert.equal(csv.charCodeAt(0), 0xFEFF, 'CSV 必须以 UTF-8 BOM 开头');
+  const lines = csv.replace(/^\uFEFF/, '').trim().split('\r\n');
   assert.equal(lines.length, 3);
   assert.ok(lines[0].startsWith('时间(秒),速度(千米/小时),转速'));
   assert.ok(lines[1].startsWith('0,120,6000,4,100,0,0,1,2,3'));
@@ -25,7 +26,7 @@ test('CSV 导出：表头 + 每帧一行，时间为相对第一帧的秒数', (
 });
 
 test('CSV 导出：空会话只有表头，CSV 特殊字符被正确转义', () => {
-  assert.equal(buildSessionCsv({ data: [] }).trim().split('\r\n').length, 1);
+  assert.equal(buildSessionCsv({ data: [] }).replace(/^\uFEFF/, '').trim().split('\r\n').length, 1);
   const tricky = buildSessionCsv({ data: [{ speedKmh: 1, controls: { gear: '4,"x' } }] });
   assert.ok(tricky.includes('"4,""x"'));
 });
