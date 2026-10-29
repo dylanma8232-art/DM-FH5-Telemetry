@@ -24,6 +24,7 @@ import {
 
 // 子路由器导入
 import analysisRouter from './routes/analysis.js';
+import exportRouter from './routes/export.js';
 import tracksRouter from './routes/tracks.js';
 import tunesRouter from './routes/tunes.js';
 import sessionsRouter from './routes/sessions.js';
@@ -113,6 +114,7 @@ const STATIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 configureHttpApp({
   app,
   express,
+  exportRouter,
   routers: {
     analysis: analysisRouter, tracks: tracksRouter, tunes: tunesRouter, vehicles: vehiclesRouter,
     leaderboard: leaderboardRouter, navigation: navigationRouter, system: systemRouter, sessions: sessionsRouter,
