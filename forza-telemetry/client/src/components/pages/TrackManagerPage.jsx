@@ -55,6 +55,8 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
   // Round 8: 录制模式状态
   const [isRecording, setIsRecording] = useState(false);
   const [recordStartTime, setRecordStartTime] = useState(null);
+  // B13：停止录制后弹出「保存新赛道」对话框（不自动落库，需用户确认名称）
+  const [saveRecordingDialog, setSaveRecordingDialog] = useState(null);
   const [editName, setEditName] = useState('');
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
@@ -178,7 +180,15 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
       const res = await api.record.stopResponse();
       const data = await res.json();
       if (data.positions > 10) {
-        toast(`录制完成！获得 ${data.positions} 个轨迹点。请前往保存页面（或重新加载赛道列表查看新赛道）。`, 'success');
+        // 原提示保留，追加真正的保存入口（此前系统里并没有"保存页面"）
+        toast(`录制完成！获得 ${data.positions} 个轨迹点，请确认赛道名称后保存。`, 'success');
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        setSaveRecordingDialog({
+          name: `录制赛道_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`,
+          positions: data.positions,
+          saving: false
+        });
       } else {
         toast('录制数据不足（少于10个轨迹点），请确保已在游戏中开启 Data Out 并行驶。', 'error');
       }
@@ -187,6 +197,32 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
       loadTracks();
     } catch (e) {
       toast('停止录制失败', 'error');
+    }
+  };
+
+  const saveRecordedTrack = async () => {
+    if (!saveRecordingDialog) return;
+    const trackName = (saveRecordingDialog.name || '').trim();
+    if (!trackName) {
+      toast('请输入赛道名称', 'error');
+      return;
+    }
+    setSaveRecordingDialog((prev) => (prev ? { ...prev, saving: true } : prev));
+    try {
+      const res = await api.record.saveResponse({ trackName });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast('保存赛道失败: ' + (data.error || '服务器错误'), 'error');
+        setSaveRecordingDialog((prev) => (prev ? { ...prev, saving: false } : prev));
+        return;
+      }
+      toast(`赛道「${trackName}」已保存`, 'success');
+      setSaveRecordingDialog(null);
+      loadTracks();
+      if (data.trackId) setSelectedTrack(data.trackId);
+    } catch (e) {
+      toast('保存赛道失败: ' + e.message, 'error');
+      setSaveRecordingDialog((prev) => (prev ? { ...prev, saving: false } : prev));
     }
   };
 
@@ -2352,6 +2388,51 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
             animation: 'pulse 1s infinite'
           }} />
           录制中 - 请在游戏中驾驶以采集赛道轨迹
+        </div>
+      )}
+
+      {/* B13：保存新赛道对话框 */}
+      {saveRecordingDialog && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200
+        }}>
+          <div style={{
+            width: 360, background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 10
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#e6edf3' }}>保存录制赛道</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              已采集 {saveRecordingDialog.positions} 个轨迹点，请输入赛道名称后保存。
+            </div>
+            <input
+              autoFocus
+              value={saveRecordingDialog.name}
+              onChange={(e) => setSaveRecordingDialog((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveRecordedTrack(); }}
+              style={{
+                width: '100%', padding: 8, background: 'var(--bg-primary)',
+                border: '1px solid var(--border)', borderRadius: 6,
+                color: 'var(--text-primary)', fontSize: 11, boxSizing: 'border-box'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                onClick={() => setSaveRecordingDialog(null)}
+                disabled={saveRecordingDialog.saving}
+                style={{ padding: '6px 14px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}
+              >
+                取消
+              </button>
+              <button
+                onClick={saveRecordedTrack}
+                disabled={saveRecordingDialog.saving}
+                style={{ padding: '6px 14px', background: '#238636', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+              >
+                {saveRecordingDialog.saving ? '保存中...' : '保存赛道'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
