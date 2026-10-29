@@ -13,6 +13,12 @@ import {
   deleteSessionFiles
 } from '../storage/session-store.js';
 import { loadJSON } from '../utils/helpers.js';
+import {
+  buildCompactTelemetry,
+  parseCompactFields,
+  parseMaxPoints,
+  parsePositionFields
+} from '../services/session-telemetry-compact.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -181,6 +187,25 @@ router.get('/api/sessions/:id/telemetry', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
   res.json(session.data || []);
+
+
+
+}));
+
+// 会话遥测精简读取（按需通道 + 可选 LTTB 降采样）；旧端点 /telemetry 契约不变
+router.get('/api/sessions/:id/telemetry/compact', asyncHandler(async (req, res) => {
+
+  const session = loadSession(req.params.id);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const payload = buildCompactTelemetry(session, {
+    fields: parseCompactFields(req.query.fields),
+    maxPoints: parseMaxPoints(req.query.maxPoints),
+    positionFields: parsePositionFields(req.query.positionFields)
+  });
+  res.json(payload);
 
 
 

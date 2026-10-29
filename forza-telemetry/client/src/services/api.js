@@ -79,6 +79,14 @@ export const api = {
     list: () => get('/api/sessions'),
     get: (id) => get(`/api/sessions/${id}`),
     getTelemetry: (id) => get(`/api/sessions/${id}/telemetry`),
+    // 只取回放所需的最小通道集（默认 positions），避免整包拉取未降采样的全量遥测
+    getTelemetryCompact: (id, options = {}) => {
+      const { fields = 'positions', maxPoints = null, positionFields = null } = options;
+      const params = new URLSearchParams({ fields });
+      if (maxPoints !== null) params.set('maxPoints', String(maxPoints));
+      if (positionFields) params.set('positionFields', positionFields);
+      return get(`/api/sessions/${id}/telemetry/compact?${params.toString()}`);
+    },
     delete: (id) => del(`/api/sessions/${id}`),
     linkTrack: (id, body) => put(`/api/sessions/${id}/track`, body),
     batchLinkTrack: (body) => put('/api/sessions/batch/track', body)
