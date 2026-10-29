@@ -139,7 +139,10 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
   let cumulativeDistance = 0;
   const allChannels = [];
   // 超长遥测轻量化预抽样步进：若帧数超万，基础构建步进适当提升
-  const baseStep = lapFrames.length > 20000 ? 2 : 1;
+  // ?downsampleStep=N 由客户端在每次拉通道时传入，此前完全未被消费；取与基础步进的较大者生效
+  const requestedStep = parseInt(req.query.downsampleStep, 10);
+  const downsampleStep = Number.isFinite(requestedStep) && requestedStep > 1 ? requestedStep : 1;
+  const baseStep = Math.max(downsampleStep, lapFrames.length > 20000 ? 2 : 1);
 
   for (let i = 0; i < lapFrames.length; i++) {
     const d = lapFrames[i];
