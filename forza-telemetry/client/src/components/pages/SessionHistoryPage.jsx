@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { SessionChartsPanel } from './session/SessionChartsPanel';
+import { LinkTrackDialog } from './session/LinkTrackDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { toast } from '../shared/Toast';
@@ -2026,32 +2027,17 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
         </div>
       )}
 
-      {/* B10：关联赛道对话框（单场/批量共用） */}
+      {/* B10：关联赛道对话框（A7 已抽出为 LinkTrackDialog） */}
       {linkTrackDialog && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ width: 380, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#e6edf3' }}>关联赛道</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-              将 {linkTrackDialog.sessionIds.length} 条比赛记录归入所选赛道（同步更新赛道名称与赛道标识）。
-            </div>
-            <select
-              value={linkTrackDialog.selectedTrackId}
-              onChange={(e) => setLinkTrackDialog((prev) => (prev ? { ...prev, selectedTrackId: e.target.value } : prev))}
-              style={{ width: '100%', padding: 8, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 11 }}
-            >
-              <option value="">{linkTrackOptions.length ? '请选择赛道…' : '赛道列表加载中…'}</option>
-              {linkTrackOptions.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setLinkTrackDialog(null)} disabled={linkTrackSaving} style={{ padding: '6px 14px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>取消</button>
-              <button onClick={confirmLinkTrack} disabled={linkTrackSaving} style={{ padding: '6px 14px', background: '#1f6feb', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                {linkTrackSaving ? '提交中…' : '确认关联'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LinkTrackDialog
+          sessionCount={linkTrackDialog.sessionIds.length}
+          options={linkTrackOptions}
+          selectedTrackId={linkTrackDialog.selectedTrackId}
+          saving={linkTrackSaving}
+          onChangeTrack={(value) => setLinkTrackDialog((prev) => (prev ? { ...prev, selectedTrackId: value } : prev))}
+          onConfirm={confirmLinkTrack}
+          onCancel={() => setLinkTrackDialog(null)}
+        />
       )}
     </div>
   );
