@@ -20,7 +20,7 @@ import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
 // ==================== 播报参数（可配置常量） ====================
 
 /** 提前播报秒数：提前量 = 当前车速(m/s) × 此值（低速时有 85 米保底） */
-export const SPEECH_LOOKAHEAD_SECONDS = 2.5;
+export const SPEECH_LOOKAHEAD_SECONDS = 3.5;
 /** 复合弯合并阈值（米）：相邻两弯直道距离小于此值时合并为一句连贯播报 */
 export const SPEECH_CASCADE_GAP_METERS = 120;
 
