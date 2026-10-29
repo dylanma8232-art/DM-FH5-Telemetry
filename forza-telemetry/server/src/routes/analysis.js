@@ -5,6 +5,7 @@ import express from 'express';
 import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
 import { lttbDownsample } from '../utils/lttb.js';
 import { parseChannelsParam, projectChannels } from '../services/channel-projection.js';
+import { formatTuneParamsForPrompt, pickTuneForPrompt } from '../services/tune-prompt.js';
 import { readSummaries, listSummaryFileNames } from '../storage/session-store.js';
 import { readCarsDatabase } from '../storage/reference-store.js';
 import { readDiagnosisCache, writeDiagnosisCache } from '../storage/diagnosis-store.js';
@@ -760,18 +761,10 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   const { drivingScore, suspensionAnalysis, tireAnalysis } = cachedStats;
 
 
-  // 格式化当前车辆的调校参数明细
-  const tuneParamsStr = tune ? `
-  - 轮胎气压：前轮 ${tune.tires?.frontPressure || '未设置'} PSI, 后轮 ${tune.tires?.rearPressure || '未设置'} PSI
-  - 轮胎外倾角：前轮 ${tune.tires?.frontCamber || '未设置'}°, 后轮 ${tune.tires?.rearCamber || '未设置'}°
-  - 轮胎束角：前轮 ${tune.tires?.frontToe || '未设置'}°, 后轮 ${tune.tires?.rearToe || '未设置'}°
-  - 悬架弹簧刚度：前部 ${tune.suspension?.frontSpring || '未设置'}, 后部 ${tune.suspension?.rearSpring || '未设置'}
-  - 防倾杆硬度：前部 ${tune.suspension?.frontARB || '未设置'}, 后部 ${tune.suspension?.rearARB || '未设置'}
-  - 车身高度：前部 ${tune.suspension?.frontRideHeight || '未设置'} cm, 后部 ${tune.suspension?.rearRideHeight || '未设置'} cm
-  - 避震阻尼：前侧压缩 ${tune.suspension?.frontDamping || '未设置'}, 后侧压缩 ${tune.suspension?.rearDamping || '未设置'}
-  - 差速器锁：加速锁 ${tune.drivetrain?.diffAccel || '未设置'}%, 减速锁 ${tune.drivetrain?.diffDecel || '未设置'}%, 中央分配 ${tune.drivetrain?.diffCenter || '未设置'}%
-  - 空气动力学下压力：前部 ${tune.aero?.frontDownforce || '未设置'} lbs, 后部 ${tune.aero?.rearDownforce || '未设置'} lbs
-  ` : '该车辆目前使用的是未改动的原厂设定，没有可用的自定义调校参数。';
+  // B04：格式化注入 Prompt 的调校参数 —— 在途草稿（body.formData）优先，其次已保存方案；
+  // 片段文本模板与原实现逐字一致（见 services/tune-prompt.js）。
+  const tunePromptSource = pickTuneForPrompt({ formData: req.body?.formData, savedTune: tune });
+  const tuneParamsStr = formatTuneParamsForPrompt(tunePromptSource.tune);
 
   let issueDescription = '';
   if (problemDetails) {
@@ -789,7 +782,7 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   赛道名称：${session.trackName || '未知赛道'}
   车辆名称：${vehicleName} (级别: ${vehicleClass} ${vehiclePi} PI, 驱动方式: ${vehicleDrivetrain})
 
-  当前车辆的调校参数：
+  当前车辆的调校参数（来源：${tunePromptSource.sourceLabel}）：
   ${tuneParamsStr}
 
   车手本次比赛后反馈的操控问题或自定义提问：
