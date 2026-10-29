@@ -4,6 +4,11 @@ import { themes } from '../../themes';
 import { api } from '../../services/api';
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
 
+import { API_KEY_PLACEHOLDER } from '../../utils/constants';
+
+import { toast } from '../shared/Toast';
+
+
 export function SettingsPanel({ onClose }) {
   const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
   const [activeTab, setActiveTab] = useState('theme');
@@ -15,9 +20,9 @@ export function SettingsPanel({ onClose }) {
     if (file) {
       try {
         await importSettings(file);
-        alert('设置已导入');
+        toast('设置已导入', 'success');
       } catch (err) {
-        alert('导入失败: ' + err.message);
+        toast('导入失败: ' + err.message, 'error');
       }
     }
   };
@@ -42,7 +47,10 @@ export function SettingsPanel({ onClose }) {
           setBaseUrl(data.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
           setModel(data.model || 'qwen3.7-plus');
         })
-        .catch(err => console.error('获取 API 配置失败:', err))
+        .catch(err => {
+          console.error('获取 API 配置失败:', err);
+          toast('获取 API 配置失败', 'error');
+        })
         .finally(() => setLoadingKey(false));
     }
   }, [activeTab]);
@@ -50,16 +58,16 @@ export function SettingsPanel({ onClose }) {
   const handleSaveAiConfig = async (e) => {
     e.preventDefault();
     if (!apiKey.trim()) {
-      alert('请输入 API Key');
+      toast('请输入 API Key', 'error');
       return;
     }
     setSavingKey(true);
     try {
       await api.system.setDashscopeKey({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() });
-      alert('AI 密钥配置已成功保存！');
+      toast('AI 密钥配置已成功保存！', 'success');
     } catch (err) {
       console.error('[Settings] 保存配置失败:', err);
-      alert(err.status ? '配置保存失败' : '请求失败，请稍后重试');
+      toast(err.status ? '配置保存失败' : '请求失败，请稍后重试', 'error');
     } finally {
       setSavingKey(false);
     }
@@ -324,9 +332,9 @@ export function SettingsPanel({ onClose }) {
                   } else {
                     localStorage.removeItem('serverUrl');
                   }
-                  alert('已保存，请刷新页面生效');
+                  toast('已保存，请刷新页面生效', 'success');
                 } catch (e) {
-                  alert('保存失败');
+                  toast('保存失败', 'error');
                 }
               }}
               style={{
@@ -414,12 +422,12 @@ export function SettingsPanel({ onClose }) {
                     const res = await api.backup.restoreResponse(buf);
                     const data = await res.json();
                     if (data.success) {
-                      alert(data.message);
+                      toast(data.message, 'success');
                     } else {
-                      alert('恢复失败: ' + (data.error || '未知错误'));
+                      toast('恢复失败: ' + (data.error || '未知错误'), 'error');
                     }
                   } catch (err) {
-                    alert('恢复失败: ' + err.message);
+                    toast('恢复失败: ' + err.message, 'error');
                   } finally {
                     e.target.value = '';
                   }
