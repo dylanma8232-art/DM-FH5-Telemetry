@@ -22,6 +22,7 @@ import { simplifyRDP } from '../utils/rdp.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 
 const DATA_DIR = stateManager.DATA_DIR;
@@ -649,20 +650,28 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
       try {
         const sessionsDir = DATA_DIR + '/sessions';
         if (fs.existsSync(sessionsDir)) {
-          const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+          const sessionFiles = await fsPromises.readdir(sessionsDir);
+          const summaryFiles = sessionFiles.filter((f) => f.endsWith('_summary.json'));
           let updatedCount = 0;
-          sessionFiles.forEach((file) => {
-            try {
-              const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
-              if (session.trackId === id && session.trackName !== newName) {
-                session.trackName = newName;
-                saveJSON(sessionsDir + '/' + file, session);
-                updatedCount++;
-              }
-            } catch (e) {
 
-              // ignore
-            }});
+          const limit = 50; // concurrency limit to avoid event loop blocking
+          for (let i = 0; i < summaryFiles.length; i += limit) {
+            const chunk = summaryFiles.slice(i, i + limit);
+            await Promise.all(chunk.map(async (file) => {
+              try {
+                const data = await fsPromises.readFile(sessionsDir + '/' + file, 'utf8');
+                const session = JSON.parse(data);
+                if (session.trackId === id && session.trackName !== newName) {
+                  session.trackName = newName;
+                  saveJSON(sessionsDir + '/' + file, session);
+                  updatedCount++;
+                }
+              } catch (e) {
+                // ignore
+              }
+            }));
+          }
+
           if (updatedCount > 0) {
             console.log(`赛道改名同步: "${oldName}" -> "${newName}", 已更新 ${updatedCount} 个会话记录`);
           }
