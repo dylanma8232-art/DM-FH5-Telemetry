@@ -10,6 +10,8 @@ import {
   readSummaryByFileName,
   readSummaryByFileNameSync,
   readSummarySync,
+  readSummaries,
+  invalidateSummaryCache,
   summaryExists,
   writeSummary,
   writeSummaryByFileName,
@@ -85,5 +87,53 @@ test('删除会话文件覆盖摘要与全部明细形态，并如实返回是�
       await assert.rejects(fs.access(filePath));
     }
     assert.equal(deleteSessionFiles('session_7', base), false);
+  });
+});
+
+test('批量读取摘要：未变文件复用解析结果，变化/损坏/移除各自如实反映', async () => {
+  await withTempDataDirectory(async (base) => {
+    const sessions = path.join(base, 'sessions');
+    const write = (name, payload) => fs.writeFile(path.join(sessions, name), payload);
+
+    await write('session_a_summary.json', JSON.stringify({ id: 'a', bestLap: 100 }));
+    await write('session_b_summary.json', JSON.stringify({ id: 'b', bestLap: 200 }));
+
+    const first = await readSummaries(['session_a_summary.json', 'session_b_summary.json'], base);
+    assert.deepEqual(first.map((entry) => entry.data), [{ id: 'a', bestLap: 100 }, { id: 'b', bestLap: 200 }]);
+
+    // 未变化 → 复用同一解析对象（缓存命中）
+    const unchanged = await readSummaries(['session_a_summary.json', 'session_b_summary.json'], base);
+    assert.equal(unchanged[0].data, first[0].data);
+    assert.equal(unchanged[1].data, first[1].data);
+
+    // 内容变化 → 必须读到新值（长度变化与同长度变化都要覆盖）
+    await write('session_a_summary.json', JSON.stringify({ id: 'a', bestLap: 999, extra: 'x' }));
+    const changedSize = await readSummaries(['session_a_summary.json', 'session_b_summary.json'], base);
+    assert.deepEqual(changedSize[0].data, { id: 'a', bestLap: 999, extra: 'x' });
+
+    await flush();
+    await write('session_b_summary.json', JSON.stringify({ id: 'b', bestLap: 111 }));
+    const sameSize = await readSummaries(['session_a_summary.json', 'session_b_summary.json'], base);
+    assert.deepEqual(sameSize[1].data, { id: 'b', bestLap: 111 });
+
+    // 损坏文件 → data 为 null，不抛异常
+    await write('session_c_summary.json', '{oops');
+    const withBroken = await readSummaries(['session_b_summary.json', 'session_c_summary.json'], base);
+    assert.deepEqual(withBroken.map((entry) => entry.filename), ['session_b_summary.json', 'session_c_summary.json']);
+    assert.equal(withBroken[1].data, null);
+
+    // 移除文件后重新出现且内容不同 → 不能被旧缓存顶替
+    await fs.rm(path.join(sessions, 'session_a_summary.json'));
+    await readSummaries(['session_b_summary.json'], base);
+    await write('session_a_summary.json', JSON.stringify({ id: 'a', bestLap: 5 }));
+    const reappeared = await readSummaries(['session_a_summary.json', 'session_b_summary.json'], base);
+    assert.deepEqual(reappeared[0].data, { id: 'a', bestLap: 5 });
+
+    // 主动失效后必须重新解析
+    const beforeInvalidate = await readSummaries(['session_a_summary.json'], base);
+    invalidateSummaryCache();
+    const afterInvalidate = await readSummaries(['session_a_summary.json'], base);
+    assert.deepEqual(afterInvalidate[0].data, { id: 'a', bestLap: 5 });
+    assert.notEqual(afterInvalidate[0].data, beforeInvalidate[0].data);
   });
 });

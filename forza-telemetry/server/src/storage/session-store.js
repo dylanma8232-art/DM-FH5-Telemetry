@@ -65,6 +65,80 @@ export async function readSummaryFileText(filename, baseDir = DATA_DIR) {
   return fsp.readFile(path.join(sessionsDir(baseDir), filename), 'utf8');
 }
 
+/**
+ * 摘要解析结果的增量缓存：key = 文件绝对路径，value = { mtimeMs, size, ino, data }。
+ * 命中条件为 stat 的 mtimeMs/size/ino 全等（rename 写入会换 inode，天然失效）。
+ * 缓存只保留「已解析的 JSON 对象」，不含任何业务派生字段，因此赛道/车辆改名、
+ * 调校改名等状态变化仍由路由每次实时计算，不会读到陈旧派生值。
+ */
+const SUMMARY_CACHE_MAX_FILES = 5000;
+const summaryParseCache = new Map();
+
+function summaryStat(filePath) {
+  try {
+    const st = fs.statSync(filePath);
+    return { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino };
+  } catch {
+    return null;
+  }
+}
+
+async function statJson(filePath) {
+  try {
+    const st = await fsp.stat(filePath);
+    return { mtimeMs: st.mtimeMs, size: st.size, ino: st.ino };
+  } catch {
+    return null;
+  }
+}
+
+/** 清空增量缓存（备份恢复等整目录变化后调用） */
+export function invalidateSummaryCache() {
+  summaryParseCache.clear();
+}
+
+/**
+ * 读取并解析一批摘要文件，返回与入参同序的 [{ filename, data }]。
+ * data 为 null 表示该文件读取或解析失败（与旧实现 try/catch 后返回 null 一致）。
+ * 未变化的文件复用上次解析结果，未在列表中的旧缓存条目会被清掉。
+ */
+export async function readSummaries(filenameList, baseDir = DATA_DIR) {
+  const dir = sessionsDir(baseDir);
+  const keep = new Set();
+  const entries = await Promise.all(filenameList.map(async (filename) => {
+    const filePath = path.join(dir, filename);
+    keep.add(filePath);
+    try {
+      const stat = await statJson(filePath);
+      if (stat) {
+        const cached = summaryParseCache.get(filePath);
+        if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size && cached.ino === stat.ino) {
+          return { filename, data: cached.data };
+        }
+      }
+      const text = await fsp.readFile(filePath, 'utf8');
+      const data = JSON.parse(text);
+      if (stat) {
+        summaryParseCache.set(filePath, { ...stat, data });
+        if (summaryParseCache.size > SUMMARY_CACHE_MAX_FILES) {
+          const oldest = summaryParseCache.keys().next().value;
+          summaryParseCache.delete(oldest);
+        }
+      }
+      return { filename, data };
+    } catch {
+      return { filename, data: null };
+    }
+  }));
+
+  if (summaryParseCache.size > 0) {
+    for (const key of summaryParseCache.keys()) {
+      if (!keep.has(key)) summaryParseCache.delete(key);
+    }
+  }
+  return entries;
+}
+
 export async function readSummaryByFileName(filename, baseDir = DATA_DIR) {
   return JSON.parse(await readSummaryFileText(filename, baseDir));
 }
