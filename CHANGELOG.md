@@ -61,3 +61,13 @@
 - forza-telemetry/client/src/components/pages/SessionHistoryPage.jsx
 - forza-telemetry/client/src/components/settings/SettingsPanel.jsx
 - forza-telemetry/client/src/utils/constants.js
+
+## 2026-10-29 05:35 迭代
+
+- **PR**：10 ⚡ perf: refactor track session sync to use asynchronous I/O
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/10
+- **改动文件**：
+- forza-telemetry/client/package-lock.json
+- forza-telemetry/server/package-lock.json
+- forza-telemetry/server/package.json
+- forza-telemetry/server/src/routes/tracks.js
