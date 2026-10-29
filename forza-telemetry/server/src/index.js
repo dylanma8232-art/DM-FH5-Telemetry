@@ -89,7 +89,7 @@ const io = new Server(httpServer, { cors: { origin: '*' } });
 stateManager.tracks = tracks;
 stateManager.vehicles = vehicles;
 stateManager.tunes = tunes;
-console.log("--> setIO called!"); stateManager.setIO(io);
+stateManager.setIO(io);
 stateManager.DATA_DIR = DATA_DIR;
 
 const recordModule = recordRouterModule;
