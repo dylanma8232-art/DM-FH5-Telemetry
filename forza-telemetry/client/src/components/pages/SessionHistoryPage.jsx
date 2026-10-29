@@ -66,11 +66,46 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     sessionTune,
     myFilteredSessions,
     paginatedSessions,
+    linkSessionTrack,
+    batchLinkTracks,
     exportCSV,
     exportEnhancedCSV,
     exportReport,
     exportPDFReport
   } = useSessionHistory({ onNavigate, navIntent });
+
+  // B10：未知赛道会话的「关联赛道」对话框（单场或批量共用）
+  const [linkTrackDialog, setLinkTrackDialog] = useState(null);
+  const [linkTrackOptions, setLinkTrackOptions] = useState([]);
+  const [linkTrackSaving, setLinkTrackSaving] = useState(false);
+
+  const openLinkTrackDialog = (sessionIds) => {
+    const ids = [...(sessionIds || [])];
+    if (ids.length === 0) { toast('请先勾选要关联的比赛记录', 'warning'); return; }
+    setLinkTrackDialog({ sessionIds: ids, selectedTrackId: '' });
+    api.tracks.list()
+      .then((list) => {
+        const options = Object.values(list || {}).map((t) => ({ id: t.id, name: t.name || t.id }));
+        setLinkTrackOptions(options);
+      })
+      .catch(() => { toast('赛道列表加载失败，无法关联', 'error'); setLinkTrackOptions([]); });
+  };
+
+  const confirmLinkTrack = async () => {
+    if (!linkTrackDialog) return;
+    const picked = linkTrackOptions.find((t) => t.id === linkTrackDialog.selectedTrackId);
+    if (!picked) { toast('请选择要关联的赛道', 'warning'); return; }
+    setLinkTrackSaving(true);
+    const payload = { trackId: picked.id, trackName: picked.name };
+    const ok = linkTrackDialog.sessionIds.length > 1
+      ? await batchLinkTracks(linkTrackDialog.sessionIds, payload)
+      : await linkSessionTrack(linkTrackDialog.sessionIds[0], payload);
+    setLinkTrackSaving(false);
+    if (ok) {
+      setLinkTrackDialog(null);
+      setSelectedSessionIds(new Set());
+    }
+  };
 
   // 子页签状态
   const [reviewSubTab, setReviewSubTab] = useState('corners');
@@ -1066,6 +1101,9 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                   <button onClick={batchExportCSV} style={{ ...btnSmallStyle, fontSize: 9, background: 'rgba(88,166,255,0.1)', color: '#58a6ff', borderColor: 'rgba(88,166,255,0.3)' }}>
                     导出CSV ({selectedSessionIds.size})
                   </button>
+                  <button onClick={() => openLinkTrackDialog(selectedSessionIds)} style={{ ...btnSmallStyle, fontSize: 9, background: 'rgba(210,153,34,0.1)', color: '#d29922', borderColor: 'rgba(210,153,34,0.35)' }}>
+                    关联赛道 ({selectedSessionIds.size})
+                  </button>
                 </>
               )}
             </div>
@@ -1139,8 +1177,18 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                         <span style={{ fontWeight: 600, fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {session.trackName || '未知赛道'}
                         </span>
-                        <span style={{ fontSize: 9, color: '#484f58' }}>
-                          {session.autoRecorded ? '自动' : '手动'}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {!session.trackId && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openLinkTrackDialog([session.id]); }}
+                              style={{ fontSize: 9, padding: '1px 6px', background: 'rgba(210,153,34,0.1)', color: '#d29922', border: '1px solid rgba(210,153,34,0.35)', borderRadius: 3, cursor: 'pointer' }}
+                            >
+                              关联赛道
+                            </button>
+                          )}
+                          <span style={{ fontSize: 9, color: '#484f58' }}>
+                            {session.autoRecorded ? '自动' : '手动'}
+                          </span>
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#8b949e' }}>
@@ -1973,6 +2021,34 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowDeleteConfirm(null)} style={btnSmallStyle}>取消</button>
               <button onClick={() => deleteSession(showDeleteConfirm)} style={{ ...btnSmallStyle, background: '#da3633', color: '#fff', border: 'none' }}>删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* B10：关联赛道对话框（单场/批量共用） */}
+      {linkTrackDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ width: 380, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#e6edf3' }}>关联赛道</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+              将 {linkTrackDialog.sessionIds.length} 条比赛记录归入所选赛道（同步更新赛道名称与赛道标识）。
+            </div>
+            <select
+              value={linkTrackDialog.selectedTrackId}
+              onChange={(e) => setLinkTrackDialog((prev) => (prev ? { ...prev, selectedTrackId: e.target.value } : prev))}
+              style={{ width: '100%', padding: 8, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 11 }}
+            >
+              <option value="">{linkTrackOptions.length ? '请选择赛道…' : '赛道列表加载中…'}</option>
+              {linkTrackOptions.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setLinkTrackDialog(null)} disabled={linkTrackSaving} style={{ padding: '6px 14px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>取消</button>
+              <button onClick={confirmLinkTrack} disabled={linkTrackSaving} style={{ padding: '6px 14px', background: '#1f6feb', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                {linkTrackSaving ? '提交中…' : '确认关联'}
+              </button>
             </div>
           </div>
         </div>

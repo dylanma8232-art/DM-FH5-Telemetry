@@ -222,30 +222,6 @@ router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 // 编辑比赛记录的赛道名称
-router.put('/api/sessions/:id/track', express.json(), asyncHandler(async (req, res) => {
-
-  if (!summaryExists(req.params.id)) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  const data = readSummarySync(req.params.id);
-  const newTrackName = req.body.trackName;
-  if (!newTrackName) {
-    return res.status(400).json({ error: 'trackName is required' });
-  }
-
-  data.trackName = newTrackName;
-  if (req.body.trackId) {
-    data.trackId = req.body.trackId;
-  }
-
-  writeSummary(req.params.id, data);
-  res.json({ status: 'ok', trackName: newTrackName });
-
-
-
-}));
-
 // 批量更新比赛记录的赛道名称
 router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req, res) => {
 
@@ -277,6 +253,28 @@ router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req,
 
 }));
 
+router.put('/api/sessions/:id/track', express.json(), asyncHandler(async (req, res) => {
 
+  if (!summaryExists(req.params.id)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const data = readSummarySync(req.params.id);
+  const newTrackName = req.body.trackName;
+  if (!newTrackName) {
+    return res.status(400).json({ error: 'trackName is required' });
+  }
+
+  data.trackName = newTrackName;
+  if (req.body.trackId) {
+    data.trackId = req.body.trackId;
+  }
+
+  writeSummary(req.params.id, data);
+  res.json({ status: 'ok', trackName: newTrackName });
+
+
+
+}));
 
 export default router;
