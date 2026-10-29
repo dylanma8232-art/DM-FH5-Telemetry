@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useReducer, useMemo } from 'react';
+import { useState, useRef, useEffect, useReducer, useMemo } from 'react';
 
 // Sector Timer Reducer
 const initialSectorState = {

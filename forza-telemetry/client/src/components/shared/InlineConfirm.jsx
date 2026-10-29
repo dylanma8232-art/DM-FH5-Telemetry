@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function InlineConfirm({ message, onConfirm, onCancel }) {
   return (
     <div style={{

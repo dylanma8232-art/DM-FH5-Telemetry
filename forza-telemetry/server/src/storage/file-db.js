@@ -5,7 +5,7 @@ import { promisify } from 'util';
 import { atomicWriter } from './atomic-writer.js';
 
 const brotliCompress = promisify(zlib.brotliCompress);
-const brotliDecompress = promisify(zlib.brotliDecompress);
+
 
 export async function readJsonAsync(filepath, defaultValue = {}) {
   try {

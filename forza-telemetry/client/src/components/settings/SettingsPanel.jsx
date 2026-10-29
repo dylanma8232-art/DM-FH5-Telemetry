@@ -4,6 +4,16 @@ import { themes } from '../../themes';
 import { api } from '../../services/api';
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
 
+const fieldControlStyle = {
+  width: '100%',
+  padding: 8,
+  background: 'var(--bg-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 4,
+  color: 'var(--text-primary)',
+  fontSize: 11
+};
+
 export function SettingsPanel({ onClose }) {
   const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
   const [activeTab, setActiveTab] = useState('theme');
@@ -208,15 +218,7 @@ export function SettingsPanel({ onClose }) {
               <select
                 value={settings.preferences.speedUnit}
                 onChange={(e) => updatePreferences('speedUnit', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: 8,
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                  color: 'var(--text-primary)',
-                  fontSize: 11
-                }}
+                style={fieldControlStyle}
               >
                 <option value="kmh">km/h</option>
                 <option value="mph">mph</option>
@@ -229,15 +231,7 @@ export function SettingsPanel({ onClose }) {
               <select
                 value={settings.preferences.tempUnit}
                 onChange={(e) => updatePreferences('tempUnit', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: 8,
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                  color: 'var(--text-primary)',
-                  fontSize: 11
-                }}
+                style={fieldControlStyle}
               >
                 <option value="celsius">°C</option>
                 <option value="fahrenheit">°F</option>
@@ -250,15 +244,7 @@ export function SettingsPanel({ onClose }) {
               <select
                 value={settings.preferences.gForceDecimals}
                 onChange={(e) => updatePreferences('gForceDecimals', parseInt(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: 8,
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                  color: 'var(--text-primary)',
-                  fontSize: 11
-                }}
+                style={fieldControlStyle}
               >
                 <option value={1}>1位</option>
                 <option value={2}>2位</option>
@@ -302,15 +288,7 @@ export function SettingsPanel({ onClose }) {
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
                 placeholder="例如: http://192.168.1.5:3001"
-                style={{
-                  width: '100%',
-                  padding: 8,
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
-                  color: 'var(--text-primary)',
-                  fontSize: 11
-                }}
+                style={fieldControlStyle}
               />
               <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>
                 留空表示自动连接当前主机。修改后需刷新页面生效。
@@ -498,15 +476,7 @@ export function SettingsPanel({ onClose }) {
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
                     placeholder={API_KEY_PLACEHOLDER}
-                    style={{
-                      width: '100%',
-                      padding: 8,
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 4,
-                      color: 'var(--text-primary)',
-                      fontSize: 11
-                    }}
+                    style={fieldControlStyle}
                   />
                 </div>
                 <div>
@@ -518,15 +488,7 @@ export function SettingsPanel({ onClose }) {
                     value={baseUrl}
                     onChange={e => setBaseUrl(e.target.value)}
                     placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
-                    style={{
-                      width: '100%',
-                      padding: 8,
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 4,
-                      color: 'var(--text-primary)',
-                      fontSize: 11
-                    }}
+                    style={fieldControlStyle}
                   />
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 
 // 轮胎抱死检测：踩刹车 + 车速>20km/h + 轮速剧降到0
 function getWheelLockupStatus(wheelRotSpeed, speedKmh, brake) {

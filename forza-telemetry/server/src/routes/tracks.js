@@ -2,7 +2,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { stateManager } from '../services/state-manager.js';
 import {
   writeTrackDetail,
-  healTrackIfNeeded,
   getTrackDetail,
   createTrack,
   deleteTrack,
@@ -10,25 +9,20 @@ import {
 } from '../services/track-service.js';
 import { readTrackDetail, saveTracksDatabase, deleteTrackDetail } from '../storage/session-db.js';
 import {
-  detectTurnsEnhanced,
   generateSectors,
   buildRouteBook,
   validateTrackQuality,
   buildTrackFromTrajectories,
-  calculateTurnAttributes,
-  remapLockedTurns
+  calculateTurnAttributes
 } from '../track-builder.js';
 import { simplifyRDP } from '../utils/rdp.js';
-import { saveJSON, loadJSON } from '../utils/helpers.js';
+import { saveJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
-import path from 'path';
 
 const DATA_DIR = stateManager.DATA_DIR;
 const router = express.Router();
-const LEADERBOARD_CACHE_TTL = 30000;
-
 // 赛道列表增强 - 从 stateManager 内存快速缓存返回，避免 I/O 带来的严重延迟
 router.get('/', (req, res) => {
   res.json(getEnrichedTracks());

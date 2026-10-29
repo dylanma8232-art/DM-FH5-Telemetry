@@ -4,19 +4,38 @@ import {
   PART_CATEGORIES,
   TIER_LABELS,
 } from '../../data/parts'
-import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets'
+import { DRIVING_PROBLEMS } from '../../data/tunePresets'
 import { useTuneManager } from '../../hooks/useTuneManager'
 import { FIX_PARAM_MAP } from '../../utils/tuneForm'
 import { VehicleSearchSelect } from './tune/VehicleSearchSelect'
 import { ParamItem } from './tune/ParamItem'
 import { NumberInput } from './tune/NumberInput'
-import { PartSelector } from './tune/PartSelector'
 import { TelemetryRecommendationList } from './tune/TelemetryRecommendationList'
 import { PARAM_NAMES_ZH, TUNE_FIELDS_SCHEMA } from './tune/tuneConstants'
 
 import { TuneDiagnosticModal } from './tune/TuneDiagnosticModal'
 import { TuneShareModal } from './tune/TuneShareModal'
 
+
+const paramGroupStyle = {
+  background: 'rgba(255, 255, 255, 0.01)',
+  border: '1px solid rgba(255, 255, 255, 0.04)',
+  borderRadius: 8,
+  padding: 10,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6
+};
+
+const paramGroupWideStyle = {
+  background: 'rgba(255, 255, 255, 0.01)',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+  borderRadius: 8,
+  padding: 12,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10
+};
 
 export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate, navIntent }) {
 
@@ -1074,15 +1093,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     gap: 12
                   }}>
                     {/* 2.1 轮胎 */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      borderRadius: 8,
-                      padding: 10,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
+                    <div style={paramGroupStyle}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#58a6ff', borderBottom: '1px solid rgba(88,166,255,0.15)', paddingBottom: 4, marginBottom: 2 }}>
                         🛞 轮胎与定位
                       </div>
@@ -1096,15 +1107,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     </div>
 
                     {/* 2.2 避震弹簧 */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      borderRadius: 8,
-                      padding: 10,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
+                    <div style={paramGroupStyle}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#d29922', borderBottom: '1px solid rgba(210,153,34,0.15)', paddingBottom: 4, marginBottom: 2 }}>
                         🔩 悬挂、弹簧与防倾杆
                       </div>
@@ -1117,15 +1120,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     </div>
 
                     {/* 2.3 阻尼避震 */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      borderRadius: 8,
-                      padding: 10,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
+                    <div style={paramGroupStyle}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#bc8cff', borderBottom: '1px solid rgba(188,140,255,0.15)', paddingBottom: 4, marginBottom: 2 }}>
                         ⚡ 阻尼硬度
                       </div>
@@ -1136,15 +1131,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     </div>
 
                     {/* 2.4 传动与差速 */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      borderRadius: 8,
-                      padding: 10,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
+                    <div style={paramGroupStyle}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#3fb950', borderBottom: '1px solid rgba(63,185,80,0.15)', paddingBottom: 4, marginBottom: 2 }}>
                         🔄 差速器锁定
                       </div>
@@ -1156,15 +1143,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                     </div>
 
                     {/* 2.5 空力与制动 */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      borderRadius: 8,
-                      padding: 10,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
+                    <div style={paramGroupStyle}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: '#f85149', borderBottom: '1px solid rgba(248,81,73,0.15)', paddingBottom: 4, marginBottom: 2 }}>
                         🌪️ 制动与空气动力学
                       </div>
@@ -1284,15 +1263,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16 }}>
                       {/* 左侧：遥测检查 */}
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.01)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderRadius: 8,
-                        padding: 12,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 10
-                      }}>
+                      <div style={paramGroupWideStyle}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#3fb950', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span>📈 遥测数据诊断</span>
                           {/* 快捷诊断本车最新比赛记录的科技绿按钮 */}
@@ -1446,15 +1417,7 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
                       </div>
 
                       {/* 右侧：常见驾驶问题 */}
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.01)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        borderRadius: 8,
-                        padding: 12,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 10
-                      }}>
+                      <div style={paramGroupWideStyle}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#58a6ff' }}>
                           🙋 常见驾驶问题调校
                         </div>
@@ -2524,15 +2487,7 @@ const btnSmallStyle = {
   fontSize: 10
 }
 
-const btnDangerSmallStyle = {
-  padding: '4px 10px',
-  background: '#da3633',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 4,
-  cursor: 'pointer',
-  fontSize: 10
-}
+
 
 const inputStyle = {
   width: '100%',

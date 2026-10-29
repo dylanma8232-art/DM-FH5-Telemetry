@@ -8,8 +8,6 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { sqliteDb } from '../storage/sqlite-db.js';
-import { predictBuildPi } from '../services/pi-model.js';
-import { resolveUpgradeProfile } from '../services/upgrade-catalog.js';
 
 const router = express.Router();
 
@@ -38,7 +36,6 @@ function saveCombinationObservation(vehicleId, confirmedPi, estimate, normalized
 
 
 const DATA_DIR = stateManager.DATA_DIR;
-const LEADERBOARD_CACHE_TTL = 30000;
 const upgradesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades');
 
 const loadUpgradeProfile = vehicleId => {
@@ -133,18 +130,6 @@ const mergeTunePayload = (current, patch) => {
   const merged = { ...current, ...patch };
   for (const key of nestedTuneKeys) merged[key] = { ...(current?.[key] || {}), ...(patch?.[key] || {}) };
   return merged;
-};
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i - 1].x;
-    const dy = (pts[i].y || 0) - (pts[i - 1].y || 0);
-    const dz = pts[i].z - pts[i - 1].z;
-    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  return Math.round(len);
 };
 
 

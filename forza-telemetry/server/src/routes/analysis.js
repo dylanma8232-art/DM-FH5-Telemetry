@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateGearingAnalysis, calculateSuspensionAnalysis, calculateDifferentialAnalysis, generateTuneDiagnosis, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
 import { stateManager } from '../services/state-manager.js';
-import { loadSession, readTrackDetail, writeTrackDetail, deleteTrackDetail } from '../storage/session-db.js';
+import { loadSession, readTrackDetail } from '../storage/session-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -12,7 +12,6 @@ import { lttbDownsample } from '../utils/lttb.js';
 const router = express.Router();
 
 const DATA_DIR = stateManager.DATA_DIR;
-const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 // 内存分析结果高效缓存机制

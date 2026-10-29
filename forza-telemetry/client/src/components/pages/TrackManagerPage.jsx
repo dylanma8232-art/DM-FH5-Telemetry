@@ -2408,13 +2408,6 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
   );
 });
 
-const statCardStyle = {
-  background: 'var(--bg-primary)',
-  borderRadius: 6,
-  padding: 10,
-  border: '1px solid var(--border)'
-};
-
 const btnPrimaryStyle = {
   padding: '6px 14px',
   background: '#238636',

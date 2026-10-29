@@ -4,21 +4,6 @@ import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../../data/tunePresets'
 import { FIX_PARAM_MAP } from '../../../utils/tuneForm';
 import { PARAM_NAMES_ZH } from './tuneConstants';
 
-
-
-// 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
-const getCarStats = () => ({});
-const getDefaultParts = () => ({});
-const getPerformanceClassBadge = () => null;
-const getTuneDefaults = () => ({});
-const handleApplyDiagnosisInViewOnly = () => {};
-const isDiagnosing = false;
-const recentSessions = [];
-const statCardStyle = {};
-const handleSelectTuneForDiagnosis = () => {};
-const selectedCarId = null;
-const diagnosticLoading = false;
-
 export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props) {
   const {
     activeDiagnosisTab,

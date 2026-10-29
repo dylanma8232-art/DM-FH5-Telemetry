@@ -11,7 +11,7 @@ import piObservations from '../config/pi-observations.json' with { type: 'json' 
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
-const logRatio = (next, base) => Math.log(Math.max(0.01, next) / Math.max(0.01, base));
+
 
 const TIER_INDEX = { stock: 0, street: 1, sport: 2, race: 3, extreme: 4 };
 const TIRE_GRIP = { stock: 0, street: 0.15, sport: 0.5, semi_slick: 0.95, slick: 1.45, vintage_race: 0.75, rally: 0.8, offroad: 0.62, drift: 0.25, drag: 0.42, snow: 0.5 };
@@ -227,7 +227,7 @@ export function makeStockState(profile = {}) {
 
 function tier(optionId) { return TIER_INDEX[optionId] ?? 0; }
 
-export function applyOption(state, slotId, option = {}, baseState) {
+function applyOption(state, slotId, option = {}, baseState) {
   if (!option || option.id === 'stock') return state;
   const next = { ...state };
   const id = option.id;
@@ -354,7 +354,7 @@ function scoreState(state, stock) {
   return powerPi + massPi + gripPi + aeroPi + brakePi + handlingPi + shiftPi + driveSwapPi;
 }
 
-export function fixedOptionDelta(stock, slotId, option) {
+function fixedOptionDelta(stock, slotId, option) {
   if (!option || option.id === 'stock') return 0;
   return Math.round(scoreState(applyOption({ ...stock }, slotId, option, stock), stock));
 }

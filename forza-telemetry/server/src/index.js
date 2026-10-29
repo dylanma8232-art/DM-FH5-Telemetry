@@ -1,4 +1,3 @@
-import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,8 +6,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { parseTelemetryPacket } from './telemetry-parser.js';
-import { buildTrackFromTrajectories, generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook, calculateTurnAttributes, remapLockedTurns } from './track-builder.js';
-import { simplifyRDP } from './utils/rdp.js';
+import { generateSectors, validateTrackQuality, detectTurnsEnhanced, buildRouteBook } from './track-builder.js';
 import { stateManager } from './services/state-manager.js';
 import { migrateMonolithicDatabase } from './storage/migration.js';
 import { runSessionRetentionCleanup } from './services/retention.js';
@@ -21,8 +19,6 @@ import {
   saveTracksDatabase, 
   readTrackDetail, 
   writeTrackDetail, 
-  deleteTrackDetail, 
-  loadSession, 
   migrateOldSessions
 } from './storage/session-db.js';
 
@@ -70,15 +66,9 @@ let tracks = loadTracksDatabase();
 let tunes = loadJSON(DATA_DIR + '/tunes.json');
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'config/cars-database.json');
 let carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
-let trackMode = null;
-let lastRecognitionResult = null;
-let recognitionHistory = [];
 let packetCount = 0;
 let lastPacketTime = null;
-let lastPacketSize = 0;
 let currentData = null;
-let leaderboardCache = null;
-let leaderboardCacheTime = 0;
 
 const udpServer = dgram.createSocket('udp4');
 const app = express();
@@ -135,7 +125,6 @@ let lastEmitTime = 0;
 udpServer.on('message', (msg, rinfo) => {
   packetCount++;
   lastPacketTime = new Date();
-  lastPacketSize = msg.length;
   
   const now = Date.now();
   const view = new DataView(msg.buffer, msg.byteOffset, msg.byteLength);
