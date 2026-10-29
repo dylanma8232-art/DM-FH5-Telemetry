@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { themes } from '../../themes';
 import { api } from '../../services/api';
+import { API_KEY_PLACEHOLDER } from '../../utils/constants';
 
 export function SettingsPanel({ onClose }) {
   const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
@@ -496,7 +497,7 @@ export function SettingsPanel({ onClose }) {
                     type="password"
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
-                    placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                    placeholder={API_KEY_PLACEHOLDER}
                     style={{
                       width: '100%',
                       padding: 8,

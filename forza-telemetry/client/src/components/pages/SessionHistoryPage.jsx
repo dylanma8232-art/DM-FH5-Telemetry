@@ -8,6 +8,7 @@ import { toast } from '../shared/Toast';
 import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets';
 import { api } from '../../services/api';
 import { TrackThumbnail, InteractiveTrackMap } from './session/TrackMaps';
+import { API_KEY_PLACEHOLDER } from '../../utils/constants';
 
 const VEHICLE_CLASSES = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
 const formatVehicleClass = (cls) => {
@@ -1872,7 +1873,7 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                             type="password"
                             value={apiKey}
                             onChange={e => setApiKey(e.target.value)}
-                            placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+                            placeholder={API_KEY_PLACEHOLDER}
                             style={inputStyle}
                           />
                           <button type="submit" disabled={savingKey} style={{ padding: '6px 12px', background: 'var(--accent)', border: 'none', borderRadius: 4, color: '#000', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}>
