@@ -15,7 +15,7 @@ const fieldControlStyle = {
 };
 
 export function SettingsPanel({ onClose }) {
-  const { settings, updateSetting, updatePreferences, updateLayout, resetSettings, exportSettings, importSettings } = useSettings();
+  const { settings, updateSetting, updatePreferences,  resetSettings, exportSettings, importSettings } = useSettings();
   const [activeTab, setActiveTab] = useState('theme');
   const fileInputRef = useRef(null);
   const backupFileRef = useRef(null);

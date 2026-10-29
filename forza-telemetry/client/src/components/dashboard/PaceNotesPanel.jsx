@@ -57,7 +57,7 @@ function generatePaceNotes(trackData) {
   const notes = [];
   if (!trackData) return notes;
 
-  const { turns, sectors, centerline, navigation, points } = trackData;
+  const { turns,  centerline, navigation, points } = trackData;
 
   // 1. 从弯道数据生成弯道路书（WRC标准）
   if (turns && turns.length > 0) {

@@ -28,6 +28,22 @@ router.get('/', (req, res) => {
   res.json(getEnrichedTracks());
 });
 
+// 弯道编辑（拆分/拉扯边界）后统一：重建路书、落盘、同步内存缓存
+function persistTrackTurns(id, trackDetail) {
+  trackDetail.routeBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
+  trackDetail.updatedAt = new Date().toISOString();
+
+  writeTrackDetail(id, trackDetail);
+
+  if (stateManager.tracks[id]) {
+    stateManager.tracks[id].turnCount = trackDetail.turns.length;
+    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
+    stateManager.tracks[id].turns = trackDetail.turns;
+    stateManager.tracks[id].routeBook = trackDetail.routeBook;
+    saveTracksDatabase(stateManager.tracks);
+  }
+}
+
 function sanitizeTrackPoint(p) {
   if (!p) return null;
   return {
@@ -350,19 +366,7 @@ router.post('/:id/turns/split', express.json(), asyncHandler(async (req, res) =>
   trackDetail.turns.splice(index, 1, t1, t2);
 
 
-  const rebuiltRouteBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
-  trackDetail.routeBook = rebuiltRouteBook;
-  trackDetail.updatedAt = new Date().toISOString();
-
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].turnCount = trackDetail.turns.length;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    stateManager.tracks[id].turns = trackDetail.turns;
-    stateManager.tracks[id].routeBook = trackDetail.routeBook;
-    saveTracksDatabase(stateManager.tracks);
-  }
+  persistTrackTurns(id, trackDetail);
 
   if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
   res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });
@@ -404,19 +408,7 @@ router.put('/:id/turns/:index/bounds', express.json(), asyncHandler(async (req, 
   trackDetail.turns[index] = updatedT;
 
 
-  const rebuiltRouteBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
-  trackDetail.routeBook = rebuiltRouteBook;
-  trackDetail.updatedAt = new Date().toISOString();
-
-  writeTrackDetail(id, trackDetail);
-
-  if (stateManager.tracks[id]) {
-    stateManager.tracks[id].turnCount = trackDetail.turns.length;
-    stateManager.tracks[id].updatedAt = trackDetail.updatedAt;
-    stateManager.tracks[id].turns = trackDetail.turns;
-    stateManager.tracks[id].routeBook = trackDetail.routeBook;
-    saveTracksDatabase(stateManager.tracks);
-  }
+  persistTrackTurns(id, trackDetail);
 
   if (req.app.get('stateManager.io')) req.app.get('stateManager.io').emit('trackUpdated', { trackId: id, name: stateManager.tracks[id].name });
   res.json({ status: 'ok', turns: trackDetail.turns, routeBook: trackDetail.routeBook });

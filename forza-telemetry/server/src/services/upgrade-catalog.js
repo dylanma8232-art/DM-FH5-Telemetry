@@ -931,7 +931,6 @@ export function validateTunePayload(profile, payload = {}) {
       drift: [['suspension', 'drift'], ['differential', 'drift']]
     };
     for (const [slotId, optionId] of essentialByRace[payload.raceType] || []) {
-      const selectedOption = resolved.slots?.find(slot => slot.id === slotId)?.options?.find(item => item.id === optionId);
       if (parts[slotId]?.optionId !== optionId) errors.push(`AI ${payload.raceType} 方案缺少已确认的核心配件：${slotId}/${optionId}`);
     }
   }

@@ -37,7 +37,7 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
   const [manualRecording, setManualRecording] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
   const [recordStartTime, setRecordStartTime] = useState(null);
-  const [lastSaved, setLastSaved] = useState(null);
+  const [, setLastSaved] = useState(null);
   const [serverStatus, setServerStatus] = useState({ udpPort: 9996, ips: [] });
 
   // 挂载时获取服务器状态
@@ -126,7 +126,6 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
   )?.address || (serverStatus.ips.length > 0 ? serverStatus.ips[0].address : '127.0.0.1');
 
   // 比赛状态判定 - racePosition > 0 是区分比赛和漫游的可靠字段
-  const isFreeRoam = isRaceOn && racePosition === 0;
   const isInRace = isRaceOn && racePosition > 0;
   
   const raceStateText = isInRace ? '比赛中' : isRaceOn ? '漫游中' : '待机';
@@ -165,7 +164,6 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
       try {
         const res = await api.record.saveResponse({ trackName: '手动录制_' + new Date().toLocaleString() });
         if (res.ok) {
-          const data = await res.json();
           toast('手动录制已保存', 'success', 3000);
         }
       } catch (e) {

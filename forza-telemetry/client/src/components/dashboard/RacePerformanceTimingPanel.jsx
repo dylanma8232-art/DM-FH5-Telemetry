@@ -84,7 +84,6 @@ function formatSecTime(seconds) {
 export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   const telemetryData = data || {};
   const {
-    racePosition = 0,
     currentRaceTime = 0,
     lapNumber = 0,
     lastLap = 0,
@@ -104,7 +103,7 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   const prevLapRef = useRef(0);
   const lapSectorBufferRef = useRef([]);
 
-  const [lapHistory, setLapHistory] = useState([]);
+  const [, setLapHistory] = useState([]);
 
   // 比赛状态检测
   const [raceActive, setRaceActive] = useState(false);

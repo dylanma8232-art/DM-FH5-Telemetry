@@ -927,7 +927,6 @@ export function getTuneDefaults(parts, rawCarStats) {
   const constraints = getTuneConstraints(parts);
   const defaults = {};
   const weight = carStats.weight || 1500;
-  const power = carStats.power || 300;
   const drivetrain = (carStats.drivetrain || 'AWD').toUpperCase();
 
   for (const [paramId, constraint] of Object.entries(constraints)) {

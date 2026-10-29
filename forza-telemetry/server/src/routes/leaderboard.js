@@ -10,6 +10,7 @@ const router = express.Router();
 
 
 const DATA_DIR = stateManager.DATA_DIR;
+const LEADERBOARD_CACHE_TTL = 30000;
 
 async function buildLeaderboard() {
   const cached = stateManager.getLeaderboardCache ? stateManager.getLeaderboardCache() : null;

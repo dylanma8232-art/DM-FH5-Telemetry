@@ -42,7 +42,6 @@
           - 📄 [SearchableTrackSelect.jsx](file:///forza-telemetry/client/src/components/pages/track/SearchableTrackSelect.jsx)  *(函数/组件: `SearchableTrackSelect`)*
         - 📂 **tune/**
           - 📄 [NumberInput.jsx](file:///forza-telemetry/client/src/components/pages/tune/NumberInput.jsx)  *(常量/方法: `NumberInput`)*
-          - 📄 [ParamItem.jsx](file:///forza-telemetry/client/src/components/pages/tune/ParamItem.jsx)  *(常量/方法: `ParamItem`)*
           - 📄 [TelemetryRecommendationList.jsx](file:///forza-telemetry/client/src/components/pages/tune/TelemetryRecommendationList.jsx)  *(函数/组件: `TelemetryRecommendationList`)*
           - 📄 [TuneDiagnosticModal.jsx](file:///forza-telemetry/client/src/components/pages/tune/TuneDiagnosticModal.jsx)  *(常量/方法: `TuneDiagnosticModal`)*
           - 📄 [TuneShareModal.jsx](file:///forza-telemetry/client/src/components/pages/tune/TuneShareModal.jsx)  *(常量/方法: `TuneShareModal`)*
@@ -116,11 +115,6 @@
   - 📄 [recalibrate-session.mjs](file:///forza-telemetry/scripts/recalibrate-session.mjs)
   - 📄 [sync_tracks.js](file:///forza-telemetry/scripts/sync_tracks.js)
 - 📂 **server/**
-  - 📄 [deadfix.mjs](file:///forza-telemetry/server/deadfix.mjs)
-  - 📄 [deadfix2.mjs](file:///forza-telemetry/server/deadfix2.mjs)
-  - 📄 [deadscan.mjs](file:///forza-telemetry/server/deadscan.mjs)
-  - 📄 [deadscan2.mjs](file:///forza-telemetry/server/deadscan2.mjs)
-  - 📄 [deadscan3.mjs](file:///forza-telemetry/server/deadscan3.mjs)
   - 📄 [package-lock.json](file:///forza-telemetry/server/package-lock.json)
   - 📄 [package.json](file:///forza-telemetry/server/package.json)
   - 📂 **scripts/**
@@ -1088,7 +1082,6 @@
     - 📄 [state-manager.test.js](file:///forza-telemetry/server/test/state-manager.test.js)
     - 📄 [telemetry-tuning-recommendations.test.js](file:///forza-telemetry/server/test/telemetry-tuning-recommendations.test.js)
     - 📄 [upgrade-catalog.test.js](file:///forza-telemetry/server/test/upgrade-catalog.test.js)
-  - 📄 [unreach.mjs](file:///forza-telemetry/server/unreach.mjs)
 - 📂 **templates/**
   - 📄 [调校导入模板.json](file:///forza-telemetry/templates/调校导入模板.json)
 

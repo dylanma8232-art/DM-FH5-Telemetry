@@ -213,18 +213,6 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
   };
 
   // Round 7: 赛道数据质量验证
-  const validateTrack = async (id) => {
-    try {
-      const res = await api.tracks.validateResponse(id);
-      if (res.ok) {
-        const result = await res.json();
-        setValidationResult(prev => ({ ...prev, [id]: result }));
-        toast(`验证完成：评分 ${result.overallScore}（${result.grade}级）`, result.overallScore >= 70 ? 'success' : 'info');
-      }
-    } catch (e) {
-      toast('验证失败', 'error');
-    }
-  };
 
   // 重建赛道中心线（修复历史数据中稀疏中心线/弯道数量偏少问题）
   const rebuildTrack = async (id) => {
@@ -461,32 +449,6 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
     });
   };
 
-  const toggleTrackPaceNoteLock = async () => {
-    const track = tracks[selectedTrack];
-    if (!track) return;
-    const newStatus = !track.isPaceNoteLocked;
-    
-    try {
-      const res = await api.tracks.updateTurnsResponse(selectedTrack, {
-          turns: track.turns || [],
-          isPaceNoteLocked: newStatus,
-          deletedTurns: track.deletedTurns || []
-      });
-      
-      if (res.ok) {
-        setTracks(prev => ({
-          ...prev,
-          [selectedTrack]: {
-            ...prev[selectedTrack],
-            isPaceNoteLocked: newStatus
-          }
-        }));
-        toast(newStatus ? '已开启路书全局骨架锁定' : '已关闭路书全局骨架锁定', 'success');
-      }
-    } catch (e) {
-      toast('切换锁定状态失败: ' + e.message, 'error');
-    }
-  };
 
   const toggleTurnLock = async (idxToToggle) => {
     const track = tracks[selectedTrack];
@@ -756,16 +718,6 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
   };
 
   // Round 5: 弯道颜色映射 - 按严重程度着色
-  const turnColorMap = useCallback((severity, type) => {
-    switch (severity) {
-      case 'critical': return { stroke: '#f85149', bg: 'rgba(248,81,73,0.15)', label: '发夹弯' };
-      case 'high':     return { stroke: '#f0883e', bg: 'rgba(240,136,62,0.15)', label: '急弯' };
-      case 'medium':   return { stroke: '#d29922', bg: 'rgba(210,153,34,0.15)', label: '中速弯' };
-      case 'low':      return { stroke: '#3fb950', bg: 'rgba(63,185,80,0.15)', label: '慢弯' };
-      case 'info':      return { stroke: '#58a6ff', bg: 'rgba(88,166,255,0.10)', label: '微弯' };
-      default:         return { stroke: '#58a6ff', bg: 'rgba(88,166,255,0.10)', label: type || '' };
-    }
-  }, []);
 
   const drawTrack = useCallback((ctx, canvas, track, transform) => {
     const resolvedPoints = track ? (
@@ -1287,7 +1239,7 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
     const pixelX = clientX - rect.left;
     const pixelY = clientY - rect.top;
     
-    const { minX, minZ, maxZ, sc, ox, oz, points } = mapContextRef.current;
+    const { minX,  maxZ, sc, ox, oz, points } = mapContextRef.current;
     if (!points || points.length === 0) return -1;
     
     // Reverse map from pixel to world
@@ -1315,7 +1267,7 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
     
     if (editingTurnIndex !== null && editTurnForm && mapContextRef.current) {
       const { toScreen, points } = mapContextRef.current;
-      const { closestIdx, sx, sy } = getClosestPointIndex(e.clientX, e.clientY);
+      const {  sx, sy } = getClosestPointIndex(e.clientX, e.clientY);
       
       const sPt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.startIdx) || points[editTurnForm.startIdx];
       const ePt = points.find(p => (p.origIdx !== undefined ? p.origIdx : points.indexOf(p)) === editTurnForm.endIdx) || points[editTurnForm.endIdx];

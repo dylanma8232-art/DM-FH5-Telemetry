@@ -8,8 +8,6 @@ import { speechManager } from '../../utils/speechQueue';
  */
 export function AlertAdvicePanel({ data }) {
   const [alerts, setAlerts] = useState([]);
-  const prevYawRef = useRef(0);
-  const yawHistoryRef = useRef([]);
   const speedHistoryRef = useRef([]);
   const prevGearRef = useRef(0); // 用于检测降档到1档
 
@@ -23,18 +21,7 @@ export function AlertAdvicePanel({ data }) {
 
     const {
       speedKmh = 0,
-      acceleration = {},
       controls = {},
-      tireCombinedSlip = {},
-      tireSlipRatio = {},
-      suspension = {},
-      fuel = 0,
-      boost = 0,
-      currentEngineRpm = 0,
-      engineMaxRpm = 8000,
-      onRumbleStrip = {},
-      puddleDepth = {},
-      yaw = 0,
       isRaceOn = false,
     } = data;
 
@@ -51,9 +38,6 @@ export function AlertAdvicePanel({ data }) {
     prevGearRef.current = gear;
 
     // 转换为 G 力 (原单位为 m/s²)
-    const gX = Math.abs(acceleration.x || 0) / 9.80665;
-    const gZ = Math.abs(acceleration.z || 0) / 9.80665;
-    const gMag = Math.sqrt(gX * gX + gZ * gZ);
 
     // ── 0.5. 比赛中高速降至 1 档提示 (高优先级插播) ────────────────────────────────
     if (isRaceOn && gear === 1 && prevGear > 2 && smoothSpeed > 50) {

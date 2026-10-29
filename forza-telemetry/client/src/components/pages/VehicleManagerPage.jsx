@@ -377,16 +377,6 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
     return mins + ':' + secs.toFixed(3).padStart(6, '0');
   };
 
-  const formatRelative = (ts) => {
-    if (!ts) return '从未使用';
-    const diff = Date.now() - ts;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return '今天';
-    if (days === 1) return '昨天';
-    if (days < 7) return days + ' 天前';
-    if (days < 30) return Math.floor(days / 7) + ' 周前';
-    return Math.floor(days / 30) + ' 月前';
-  };
 
   return (
     <div className="vehicle-page">

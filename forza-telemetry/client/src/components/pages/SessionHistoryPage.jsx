@@ -55,7 +55,6 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     setSessionPage,
     uniqueTracks,
     ggData,
-    sectorTimingData,
     batchDelete,
     batchExportCSV,
     toggleSessionSelect,
@@ -130,8 +129,8 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
 
   // AI 配置输入状态
   const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('https://dashscope.aliyuncs.com/compatible-mode/v1');
-  const [model, setModel] = useState('qwen3.7-plus');
+  const [baseUrl] = useState('https://dashscope.aliyuncs.com/compatible-mode/v1');
+  const [model] = useState('qwen3.7-plus');
   const [savingKey, setSavingKey] = useState(false);
 
   // 趣言轮播计时器
@@ -535,13 +534,6 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     };
   }, [turnsData, activeTurnIdx]);
 
-  const chartGuidance = {
-    inputs: '先看制动、油门和转向如何共同影响这一圈；需要定位问题时，请从重点弯道进入对应证据。',
-    aero: '用于理解弯心附近的车辆平衡表现。原始物理曲线只作为驾驶现象的补充证据。',
-    tires: '用于核对出弯时的牵引力和轮胎滑移表现，不把单次波动直接归因于车辆设定。',
-    differential: '用于查看换挡、转速和直线加速的使用情况；差速数据仅在需要时深入核对。',
-    suspension: '用于核对路肩、触底和车身稳定性事件；完整四轮信号属于深层证据。'
-  };
 
   // 以“驾驶技术改进为核心”进行赛后综合会诊
   const sessionConsultation = useMemo(() => {
@@ -700,16 +692,6 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
   }, [channelsData]);
 
   // 将弯中表现压缩成可扫读的对照图：先找速度缺口，再下钻到单个弯道复盘动作。
-  const cornerApexComparison = useMemo(() => {
-    if (!turnsData?.turns) return [];
-    return turnsData.turns
-      .map((turn, index) => ({
-        弯道: turn.name || `弯 ${index + 1}`,
-        本场: Number(turn.current?.apexSpeed || 0),
-        参考: Number(turn.recommended?.apexSpeed || 0)
-      }))
-      .filter(turn => turn.本场 > 0 || turn.参考 > 0);
-  }, [turnsData]);
 
   // 刹车滑移对比数据
   const brakeGScatterData = useMemo(() => {
@@ -730,14 +712,6 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
   }, [ggData]);
 
   // 方向盘输入与转向平顺度数据
-  const steeringData = useMemo(() => {
-    if (!channelsData?.channels) return [];
-    return channelsData.channels.map(c => ({
-      distance: c.distance,
-      steer: c.steer,
-      gLat: c.gLat
-    }));
-  }, [channelsData]);
 
   // 方向盘输入与车速对照数据 (新增图表)
   const steeringSpeedData = useMemo(() => {
