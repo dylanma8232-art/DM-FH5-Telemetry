@@ -8,12 +8,14 @@ export function configureHttpApp({
   app,
   express,
   routers,
+  exportRouter,
   recordRouter,
   staticDir,
   hasStaticDir,
   getStatus,
   getCurrent,
 }) {
+  app.use('/api/export', exportRouter);
   app.use('/api/analysis', routers.analysis);
   app.use('/api/tracks', routers.tracks);
   app.use('/api/tunes', routers.tunes);

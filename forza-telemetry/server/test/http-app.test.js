@@ -19,14 +19,14 @@ const routers = Object.fromEntries(
 test('HTTP 装配保持既有路由挂载顺序与兼容设置路径', () => {
   const app = createAppSpy();
   configureHttpApp({
-    app, express: { static: () => 'staticMiddleware' }, routers, recordRouter: { name: 'record' },
+    app, express: { static: () => 'staticMiddleware' }, routers, exportRouter: { name: 'export' }, recordRouter: { name: 'record' },
     staticDir: '/dist', hasStaticDir: false, getStatus: () => ({}), getCurrent: () => ({}),
   });
 
   assert.deepEqual(
     app.calls.filter(({ method }) => method === 'use').map(({ args }) => [args[0], args[1]?.name]),
     [
-      ['/api/analysis', 'analysis'], ['/api/tracks', 'tracks'], ['/api/tunes', 'tunes'],
+      ['/api/export', 'export'], ['/api/analysis', 'analysis'], ['/api/tracks', 'tracks'], ['/api/tunes', 'tunes'],
       ['/api/vehicles', 'vehicles'], ['/api/leaderboard', 'leaderboard'], ['/api', 'navigation'],
       ['/api/system', 'system'], ['/api/settings', 'system'], ['/api', 'system'],
       ['/api', 'record'], ['/', 'sessions'],
