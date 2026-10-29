@@ -543,6 +543,8 @@ export function PaceNotesPanel({
   const broadcastedTurnsInLapRef = useRef(new Set());
   const prevNearestIdxRef = useRef(-1);
   const pauseTimerRef = useRef(null);
+  // P8：记录最近一次收到遥测包的时间，供单例静音计时器判断是否真的静音
+  const lastPacketAtRef = useRef(0);
 
   // 2. 缓存各点到起点的累积物理距离
   const cumDist = useMemo(() => {
@@ -611,14 +613,25 @@ export function PaceNotesPanel({
     const centerlineLength = trackData.centerline.length;
 
     // --- A. 双重暂停与流超时器处理 ---
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
-    
-    // 超时器：1秒没有新包，立即静音
-    pauseTimerRef.current = setTimeout(() => {
-      import('../../utils/speechQueue').then(m => {
-        m.speechManager.cancelCurrent();
-      });
-    }, 1000);
+    // 单例静音计时器（P8）：每个包只更新时间戳，不再重建定时器（30Hz → 约 1Hz）。
+    // 语义保持：最后一次收到包之后 1 秒静音；期间有新包则顺延到新的 1 秒窗口。
+    lastPacketAtRef.current = Date.now();
+    if (!pauseTimerRef.current) {
+      const armIdleTimer = (wait) => {
+        pauseTimerRef.current = setTimeout(() => {
+          const idle = Date.now() - lastPacketAtRef.current;
+          if (idle < 1000) {
+            armIdleTimer(1000 - idle);
+            return;
+          }
+          pauseTimerRef.current = null;
+          import('../../utils/speechQueue').then(m => {
+            m.speechManager.cancelCurrent();
+          });
+        }, wait);
+      };
+      armIdleTimer(1000);
+    }
 
     if (!isRaceOn) {
       if (broadcastedTurnsInLapRef.current.size > 0) {
