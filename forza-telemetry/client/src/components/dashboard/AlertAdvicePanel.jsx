@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { speechManager } from '../../utils/speechQueue';
+import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
 
 /**
  * 统一警报与驾驶建议面板
@@ -7,12 +8,15 @@ import { speechManager } from '../../utils/speechQueue';
  * 采用基于车速的动态物理阈值模型，极大地减少低速/起步误报，提升高速敏感度
  */
 export function AlertAdvicePanel({ data }) {
+  // P7：父组件不再逐帧传参，未显式传入时本面板自订阅整帧遥测（等价于拆分前的 props）
+  const liveTelemetry = useTelemetryValue();
+  const telemetryFrame = data || liveTelemetry;
   const [alerts, setAlerts] = useState([]);
   const speedHistoryRef = useRef([]);
   const prevGearRef = useRef(0); // 用于检测降档到1档
 
   useEffect(() => {
-    if (!data) {
+    if (!telemetryFrame) {
       setAlerts([]);
       return;
     }
@@ -23,7 +27,7 @@ export function AlertAdvicePanel({ data }) {
       speedKmh = 0,
       controls = {},
       isRaceOn = false,
-    } = data;
+    } = telemetryFrame;
 
     // ── 平滑辅助 ──────────────────────────────────────────────────────────
     const smooth = (bufRef, val, n = 8) => {
@@ -66,7 +70,7 @@ export function AlertAdvicePanel({ data }) {
     items.sort((a, b) => a.priority - b.priority);
 
     setAlerts(items.slice(0, 5));
-  }, [data]);
+  }, [telemetryFrame]);
 
   // ── TTS 播报（优先级高的情况才播） ───────────────────────────────────────
   const topAlertText = alerts[0]?.text;

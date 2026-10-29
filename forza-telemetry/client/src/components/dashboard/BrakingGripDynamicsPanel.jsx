@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
+import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
 
 // 轮胎抱死检测：踩刹车 + 车速>20km/h + 轮速剧降到0
 function getWheelLockupStatus(wheelRotSpeed, speedKmh, brake) {
@@ -9,7 +10,9 @@ function getWheelLockupStatus(wheelRotSpeed, speedKmh, brake) {
 }
 
 export function BrakingGripDynamicsPanel({ data }) {
-  const telemetryData = data || {};
+  // P7：未显式传入时自订阅整帧遥测（等价于拆分前由 DashboardPage 逐帧传参）
+  const liveTelemetry = useTelemetryValue();
+  const telemetryData = data || liveTelemetry;
   const acceleration = telemetryData.acceleration || { x: 0, y: 0, z: 0 };
   const wheelRotationSpeed = telemetryData.wheelRotationSpeed || { frontLeft: 100, frontRight: 100, rearLeft: 100, rearRight: 100 };
   const speedKmh = telemetryData.speedKmh || 0;

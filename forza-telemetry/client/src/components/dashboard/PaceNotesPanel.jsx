@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { PaceNoteExport } from './PaceNoteExport';
 import { api } from '../../services/api';
+import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
 
 /**
  * PaceNotesPanel - 路书面板
@@ -511,14 +512,22 @@ function SpecialNoteItem({ note, isActive }) {
 
 export function PaceNotesPanel({
   trackData,
-  position,
-  currentSpeed = 0,
-  isRaceOn = 0,
-  racePosition = 0,
-  gear = 0,
+  position: positionProp,
+  currentSpeed: currentSpeedProp,
+  isRaceOn: isRaceOnProp,
+  racePosition: racePositionProp,
+  gear: gearProp,
   compact = false,
   onExit,
 }) {
+  // P7：父组件不再逐帧传参，未显式传入时自订阅整帧遥测。
+  // 取值表达式与拆分前 DashboardPage 的传参表达式逐字一致（含 `|| 0` 兜底）。
+  const liveTelemetry = useTelemetryValue();
+  const position = positionProp !== undefined ? positionProp : liveTelemetry.position;
+  const currentSpeed = currentSpeedProp !== undefined ? currentSpeedProp : (liveTelemetry.speedKmh || 0);
+  const isRaceOn = isRaceOnProp !== undefined ? isRaceOnProp : (liveTelemetry.isRaceOn || 0);
+  const racePosition = racePositionProp !== undefined ? racePositionProp : (liveTelemetry.racePosition || 0);
+  const gear = gearProp !== undefined ? gearProp : (liveTelemetry.controls?.gear || 0);
   const [activeTurnIdx, setActiveTurnIdx] = useState(-1);
   const hasRaceStarted = isRaceOn && (racePosition > 0 || currentSpeed > 5);
   const [nextTurnIdx, setNextTurnIdx] = useState(-1);
