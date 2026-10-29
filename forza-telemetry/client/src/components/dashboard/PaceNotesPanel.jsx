@@ -17,6 +17,13 @@ import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
  * 5. 导出: 支持文本和图片导出
  */
 
+// ==================== 播报参数（可配置常量） ====================
+
+/** 提前播报秒数：提前量 = 当前车速(m/s) × 此值（低速时有 85 米保底） */
+export const SPEECH_LOOKAHEAD_SECONDS = 2.5;
+/** 复合弯合并阈值（米）：相邻两弯直道距离小于此值时合并为一句连贯播报 */
+export const SPEECH_CASCADE_GAP_METERS = 120;
+
 // ==================== 工具函数 ====================
 
 /** 推荐速度 -> 推荐档位（与 TurnWarningHUD 保持一致） */
@@ -738,20 +745,32 @@ export function PaceNotesPanel({
       if (nextUnspokenIdx !== -1) {
         const nextTurn = turnNotes[nextUnspokenIdx];
         const targetIdx = nextTurn.startIdx !== undefined ? nextTurn.startIdx : nextTurn.index;
-        
+
         // 计算车辆与该弯道入口的物理距离
         const distToEntry = getForwardDistance(nearestIdx, targetIdx);
-        
-        // 动态前瞻物理距离：低速至少提前 85 米，高速视界提前 3.5 秒
-        const previewDistance = Math.max(85, (currentSpeed / 3.6) * 3.5);
+
+        // 动态提前量：当前车速(m/s) × 提前秒数；低速保底 85 米防止过晚才播
+        const previewDistance = Math.max(85, (currentSpeed / 3.6) * SPEECH_LOOKAHEAD_SECONDS);
 
         if (distToEntry <= previewDistance) {
           let text = getWrcLabel(nextTurn);
 
-          // 级联播报判定：下个弯与当前弯直道距离小于 120 米
-          const nextNote = turnNotes[nextUnspokenIdx + 1];
-          if (nextNote && nextTurn.distanceToNext < 120) {
-            text += `，接${getWrcLabel(nextNote)}`;
+          // 复合弯连贯播报：链式合并所有与前一弯直道距离不足 120 米的后续弯，
+          // 连续弯不再逐句抢播，合并为“左3，接右4，接左2”一句连贯播完。
+          const cascadeIdxs = [];
+          let cursor = nextUnspokenIdx;
+          while (true) {
+            const cascadeNextIdx = (cursor + 1) % turnNotes.length;
+            const currNote = turnNotes[cursor];
+            const cascadeNext = turnNotes[cascadeNextIdx];
+            if (
+              !cascadeNext ||
+              currNote.distanceToNext >= SPEECH_CASCADE_GAP_METERS ||
+              (!trackData.isLoop && cascadeNextIdx <= cursor)
+            ) break;
+            text += `，接${getWrcLabel(cascadeNext)}`;
+            cascadeIdxs.push(cascadeNextIdx);
+            cursor = cascadeNextIdx;
           }
 
           // 地形与坡度描述
@@ -765,11 +784,9 @@ export function PaceNotesPanel({
 
           import('../../utils/speechQueue').then(m => {
             // 语音忙碌或被高优先级警告打断时，保持未播报状态，让后续遥测重试。
-            if (m.speechManager.speak(text, 2)) {
+            if (m.speechManager.speak(text, m.SPEECH_PRIORITY_TURN)) {
               broadcastedTurnsInLapRef.current.add(nextUnspokenIdx);
-              if (nextNote && nextTurn.distanceToNext < 120) {
-                broadcastedTurnsInLapRef.current.add(nextUnspokenIdx + 1);
-              }
+              cascadeIdxs.forEach(idx => broadcastedTurnsInLapRef.current.add(idx));
             }
           });
         }
