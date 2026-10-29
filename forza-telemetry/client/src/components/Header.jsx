@@ -57,7 +57,7 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
           setAutoRecordStatus(data.autoRecordState);
         }
       })
-      .catch(err => console.error('[Header] 获取状态失败:', err));
+      .catch(() => {});
   }, []);
 
   // 用户交互预热 AudioContext，解决浏览器安全限制导致的静音问题
