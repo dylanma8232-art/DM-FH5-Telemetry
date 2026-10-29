@@ -25,8 +25,8 @@ test('批量关联赛道路由必须注册在单场 /:id/track 之前（否则 b
   const paths = sessionsRouter.stack
     .filter((layer) => layer.route)
     .map((layer) => `${Object.keys(layer.route.methods)[0].toUpperCase()} ${layer.route.path}`);
-  const batchIdx = paths.indexOf('PUT /api/sessions/batch/track');
-  const singleIdx = paths.indexOf('PUT /api/sessions/:id/track');
+  const batchIdx = paths.indexOf('PUT /sessions/batch/track');
+  const singleIdx = paths.indexOf('PUT /sessions/:id/track');
   assert.ok(batchIdx >= 0 && singleIdx >= 0);
   assert.ok(batchIdx < singleIdx, `batch(${batchIdx}) 必须先于 :id(${singleIdx}) 注册`);
 });

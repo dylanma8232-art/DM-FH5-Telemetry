@@ -31,7 +31,7 @@ let lastLeaderboardsFetchTime = 0;
 const LEADERBOARDS_CACHE_TTL = 10000;
 
 // 获取比赛记录列表
-router.get('/api/sessions', asyncHandler(async (req, res) => {
+router.get('/sessions', asyncHandler(async (req, res) => {
   const now = Date.now();
   if (cachedSessionsList && (now - lastSessionsFetchTime < 5000)) {
     return res.json(cachedSessionsList);
@@ -113,7 +113,7 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
 }));
 
 // 获取全赛道最佳圈速与历史排名
-router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
+router.get('/sessions/leaderboards', asyncHandler(async (req, res) => {
   const now = Date.now();
   if (cachedLeaderboardsList && (now - lastLeaderboardsFetchTime < LEADERBOARDS_CACHE_TTL)) {
     return res.json(cachedLeaderboardsList);
@@ -159,7 +159,7 @@ router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
 
 
 // 获取比赛记录详情
-router.get('/api/sessions/:id', asyncHandler(async (req, res) => {
+router.get('/sessions/:id', asyncHandler(async (req, res) => {
 
   const session = loadSession(req.params.id);
   if (!session) {
@@ -172,7 +172,7 @@ router.get('/api/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 // 获取比赛记录的遥测数据
-router.get('/api/sessions/:id/telemetry', asyncHandler(async (req, res) => {
+router.get('/sessions/:id/telemetry', asyncHandler(async (req, res) => {
 
   const session = loadSession(req.params.id);
   if (!session) {
@@ -185,7 +185,7 @@ router.get('/api/sessions/:id/telemetry', asyncHandler(async (req, res) => {
 }));
 
 // 会话遥测精简读取（按需通道 + 可选 LTTB 降采样）；旧端点 /telemetry 契约不变
-router.get('/api/sessions/:id/telemetry/compact', asyncHandler(async (req, res) => {
+router.get('/sessions/:id/telemetry/compact', asyncHandler(async (req, res) => {
 
   const session = loadSession(req.params.id);
   if (!session) {
@@ -204,7 +204,7 @@ router.get('/api/sessions/:id/telemetry/compact', asyncHandler(async (req, res) 
 }));
 
 // 删除比赛记录
-router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
+router.delete('/sessions/:id', asyncHandler(async (req, res) => {
 
   const deleted = deleteSessionFiles(req.params.id);
 
@@ -223,7 +223,7 @@ router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
 
 // 编辑比赛记录的赛道名称
 // 批量更新比赛记录的赛道名称
-router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req, res) => {
+router.put('/sessions/batch/track', express.json(), asyncHandler(async (req, res) => {
 
   const { sessionIds, trackName, trackId } = req.body;
   if (!sessionIds || !Array.isArray(sessionIds) || !trackName) {
@@ -253,7 +253,7 @@ router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req,
 
 }));
 
-router.put('/api/sessions/:id/track', express.json(), asyncHandler(async (req, res) => {
+router.put('/sessions/:id/track', express.json(), asyncHandler(async (req, res) => {
 
   if (!summaryExists(req.params.id)) {
     return res.status(404).json({ error: 'Session not found' });

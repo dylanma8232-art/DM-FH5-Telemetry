@@ -15,6 +15,11 @@ export function configureHttpApp({
   getStatus,
   getCurrent,
 }) {
+  // A2：每个 router 只在唯一的挂载点注册一次，外部 URL 契约保持不变：
+  //   system     → /api/system/settings/*、/api/system/backup/*（历史别名）
+  //   settings   → /api/settings/dashscope-key
+  //   backup     → /api/backup/export、/api/backup/restore
+  //   sessions   → /api/sessions*（路由文件内已改为相对路径）
   app.use('/api/export', exportRouter);
   app.use('/api/analysis', routers.analysis);
   app.use('/api/tracks', routers.tracks);
@@ -23,12 +28,10 @@ export function configureHttpApp({
   app.use('/api/leaderboard', routers.leaderboard);
   app.use('/api', routers.navigation);
   app.use('/api/system', routers.system);
-  // 兼容旧版设置页的调用路径，避免已打开的页面保存 AI 配置时直接 404。
-  app.use('/api/settings', routers.system);
-  // 兼容既有前端与文档里的 /api/backup/* 路径（system 路由内的 backup/export、backup/restore）。
-  app.use('/api', routers.system);
+  app.use('/api/settings', routers.settings);
+  app.use('/api/backup', routers.backup);
   app.use('/api', recordRouter);
-  app.use('/', routers.sessions);
+  app.use('/api', routers.sessions);
 
   // 保持原有顺序：静态回退在状态与根接口之前挂载，且 API/Socket 请求交回后续路由。
   if (hasStaticDir) {

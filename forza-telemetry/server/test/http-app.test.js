@@ -12,7 +12,7 @@ function createAppSpy() {
 }
 
 const routers = Object.fromEntries(
-  ['analysis', 'tracks', 'tunes', 'vehicles', 'leaderboard', 'navigation', 'system', 'sessions']
+  ['analysis', 'tracks', 'tunes', 'vehicles', 'leaderboard', 'navigation', 'system', 'settings', 'backup', 'sessions']
     .map((name) => [name, { name }]),
 );
 
@@ -28,8 +28,8 @@ test('HTTP 装配保持既有路由挂载顺序与兼容设置路径', () => {
     [
       ['/api/export', 'export'], ['/api/analysis', 'analysis'], ['/api/tracks', 'tracks'], ['/api/tunes', 'tunes'],
       ['/api/vehicles', 'vehicles'], ['/api/leaderboard', 'leaderboard'], ['/api', 'navigation'],
-      ['/api/system', 'system'], ['/api/settings', 'system'], ['/api', 'system'],
-      ['/api', 'record'], ['/', 'sessions'],
+      ['/api/system', 'system'], ['/api/settings', 'settings'], ['/api/backup', 'backup'],
+      ['/api', 'record'], ['/api', 'sessions'],
     ],
   );
 });
