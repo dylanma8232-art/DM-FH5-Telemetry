@@ -23,6 +23,8 @@ export function configureHttpApp({
   app.use('/api/system', routers.system);
   // 兼容旧版设置页的调用路径，避免已打开的页面保存 AI 配置时直接 404。
   app.use('/api/settings', routers.system);
+  // 兼容既有前端与文档里的 /api/backup/* 路径（system 路由内的 backup/export、backup/restore）。
+  app.use('/api', routers.system);
   app.use('/api', recordRouter);
   app.use('/', routers.sessions);
 

@@ -154,6 +154,28 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
 
 // 赛道数据质量验证
+// 赛道缩略图（比赛中心列表用）：只回传等距抽稀后的 x/z 组合，避免每次都拉 300KB+ 的完整赛道详情。
+// 注意：只读 centerline/points 做抽稀，不参与任何几何计算，赛道算法与路书逻辑零改动。
+router.get('/:id/thumbnail', asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  const detail = readTrackDetail(id) || stateManager.tracks[id];
+  const source = Array.isArray(detail?.centerline) && detail.centerline.length > 1
+    ? detail.centerline
+    : (Array.isArray(detail?.points) ? detail.points : null);
+  if (!source || source.length < 2) {
+    return res.status(404).json({ error: 'Track not found' });
+  }
+  const maxPoints = Math.min(Math.max(parseInt(req.query.maxPoints, 10) || 120, 2), 400);
+  const count = Math.min(source.length, maxPoints);
+  const positions = [];
+  for (let k = 0; k < count; k++) {
+    const idx = count === 1 ? 0 : Math.round((k * (source.length - 1)) / (count - 1));
+    const p = source[idx];
+    positions.push({ x: p.x, z: p.z });
+  }
+  res.json({ id, count: positions.length, positions });
+}));
+
 router.get('/:id/validate', asyncHandler(async (req, res) => {
   const id = req.params.id;
 
