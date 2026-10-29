@@ -141,7 +141,6 @@ const DATA_DIR = stateManager.DATA_DIR;
     autoRacePositions.length = 0;
     autoRecordDataCount = 0;
     speedSustainStart = null;
-    lastLapNumber = 0;
     staticPositionCount = 0;
     lastSignificantPosition = null;
 
