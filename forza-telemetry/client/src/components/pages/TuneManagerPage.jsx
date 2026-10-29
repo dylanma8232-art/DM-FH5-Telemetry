@@ -483,6 +483,16 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
           </div>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
+          {/* B08：从车库进入时提供原路返回，并在车库高亮该车 */}
+          {navIntent?.returnTab === 'vehicles' && (
+            <button
+              onClick={() => onNavigate('vehicles', { highlightVehicleId: navIntent.returnVehicleId })}
+              style={{ ...btnSmallStyle, padding: '4px 10px', fontSize: 10, background: 'rgba(210,153,34,0.12)', borderColor: 'rgba(210,153,34,0.35)', color: '#d29922' }}
+              title="返回车辆管理并定位到该车"
+            >
+              ← 返回车库
+            </button>
+          )}
           <button
             onClick={toggleCompareMode}
             style={compareMode ? { ...btnPrimaryStyle, background: '#58a6ff', padding: '4px 10px', fontSize: 10 } : { ...btnSmallStyle, padding: '4px 10px', fontSize: 10 }}
