@@ -161,13 +161,18 @@ export const sqliteDb = {
         if (id) sessionIds.add(id);
       }
       
+      const stmtCheck = db.prepare(`SELECT 1 FROM sessions_detail WHERE id = ?`);
+      const stmtInsert = db.prepare(`
+        INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
+        VALUES (?, ?, ?, ?)
+      `);
+
       for (const sessionId of sessionIds) {
         const hifiPath = path.join(sessionsDir, `${sessionId}_detail_hifi.json.br`);
         const lowfiPath = path.join(sessionsDir, `${sessionId}_detail_lowfi.json.br`);
         const oldBrPath = path.join(sessionsDir, `${sessionId}_detail.json.br`);
         
         try {
-          const stmtCheck = db.prepare(`SELECT 1 FROM sessions_detail WHERE id = ?`);
           const exists = stmtCheck.get(sessionId);
           
           if (!exists) {
@@ -185,10 +190,6 @@ export const sqliteDb = {
             if (!hifiBuffer && lowfiBuffer) hifiBuffer = lowfiBuffer;
             
             if (hifiBuffer || lowfiBuffer) {
-              const stmtInsert = db.prepare(`
-                INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
-                VALUES (?, ?, ?, ?)
-              `);
               stmtInsert.run(sessionId, hifiBuffer, lowfiBuffer, new Date().toISOString());
             }
           }
