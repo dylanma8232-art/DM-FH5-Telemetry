@@ -74,9 +74,11 @@ function writeDirRecursive(dir, data) {
   }
 }
 
+const getMaskedKey = (key) => key ? (key.length > 4 ? '*'.repeat(key.length - 4) + key.slice(-4) : '****') : '';
+
 router.get('/settings/dashscope-key', (req, res) => {
   res.json({
-    apiKey: process.env.DASHSCOPE_API_KEY || '',
+    apiKey: getMaskedKey(process.env.DASHSCOPE_API_KEY),
     baseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus'
   });
@@ -84,8 +86,12 @@ router.get('/settings/dashscope-key', (req, res) => {
 
 router.post('/settings/dashscope-key', express.json(), asyncHandler(async (req, res) => {
 
-  const { apiKey, baseUrl, model } = req.body;
+  let { apiKey, baseUrl, model } = req.body;
   if (!apiKey) return res.status(400).json({ error: 'API Key 不能为空' });
+
+  if (apiKey === getMaskedKey(process.env.DASHSCOPE_API_KEY)) {
+    apiKey = process.env.DASHSCOPE_API_KEY;
+  }
 
   process.env.DASHSCOPE_API_KEY = apiKey;
   if (baseUrl) process.env.DASHSCOPE_BASE_URL = baseUrl;
