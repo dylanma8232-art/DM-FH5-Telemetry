@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useReducer, useMemo } from 'react';
+import { useTelemetryValue } from '../../hooks/useTelemetrySelector';
 
 // Sector Timer Reducer
 const initialSectorState = {
@@ -82,7 +83,11 @@ function formatSecTime(seconds) {
 }
 
 export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
-  const telemetryData = data || {};
+  // P7：未显式传入时自订阅整帧遥测；isRaceOn 未传入则沿用拆分前
+  // DashboardPage 的传参表达式 `telemetryData.isRaceOn`
+  const liveTelemetry = useTelemetryValue();
+  const telemetryData = data || liveTelemetry;
+  const raceOn = isRaceOn !== undefined ? isRaceOn : telemetryData.isRaceOn;
   const {
     currentRaceTime = 0,
     lapNumber = 0,
@@ -108,12 +113,12 @@ export function RacePerformanceTimingPanel({ data, trackData, isRaceOn }) {
   // 比赛状态检测
   const [raceActive, setRaceActive] = useState(false);
   useEffect(() => {
-    if ((isRaceOn && currentRaceTime > 0) || isRecording) {
+    if ((raceOn && currentRaceTime > 0) || isRecording) {
       setRaceActive(true);
-    } else if (!isRaceOn && !isRecording) {
+    } else if (!raceOn && !isRecording) {
       setRaceActive(false);
     }
-  }, [isRaceOn, currentRaceTime, isRecording]);
+  }, [raceOn, currentRaceTime, isRecording]);
 
   // 根据当前位置与赛道分段对比
   const sectorsList = trackData?.sectors || [];
