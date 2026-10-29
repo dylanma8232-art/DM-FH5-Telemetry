@@ -4,7 +4,7 @@ import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
 import {
   listSummaryFileNames,
-  readSummaryFileText,
+  readSummaries,
   summaryExists,
   readSummarySync,
   readSummaryByFileName,
@@ -44,10 +44,10 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
 
   const files = await listSummaryFileNames();
   const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+  const summaryEntries = await readSummaries(files);
 
-  const parsed = await Promise.all(files.map(async (f) => {
+  const parsed = summaryEntries.map(({ filename: f, data }) => {
     try {
-      const data = JSON.parse(await readSummaryFileText(f));
       const tune = data.tuneId && stateManager.tunes[data.tuneId] ? stateManager.tunes[data.tuneId] : null;
       const trackName = typeof stateManager.tracks !== 'undefined' && data.trackId && stateManager.tracks[data.trackId] ?
       stateManager.tracks[data.trackId].name :
@@ -108,7 +108,7 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
     } catch (e) {
       return null;
     }
-  }));
+  });
   const sessions = parsed.filter((s) => s !== null);
 
   sessions.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
@@ -128,14 +128,11 @@ router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
 
   const leaderboards = {};
 
-  const fileContents = await Promise.all(
-    files.map((file) => readSummaryFileText(file).catch(() => null))
-  );
+  const summaryEntries = await readSummaries(files);
 
-  fileContents.forEach((content) => {
-    if (!content) return;
+  summaryEntries.forEach(({ data: summary }) => {
+    if (!summary) return;
     try {
-      const summary = JSON.parse(content);
       if (summary.bestLap > 0 && summary.trackId) {
         if (!leaderboards[summary.trackId]) {
           leaderboards[summary.trackId] = [];

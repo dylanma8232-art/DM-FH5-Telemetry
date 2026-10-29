@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { stateManager } from '../services/state-manager.js';
 import { loadJSON } from '../utils/helpers.js';
 import { loadTracksDatabase } from '../storage/session-db.js';
+import { invalidateSummaryCache } from '../storage/session-store.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -144,6 +145,8 @@ router.post('/backup/restore', express.raw({ type: '*/*', limit: '100mb' }), asy
   fs.mkdirSync(backupDir, { recursive: true });
   writeDirRecursive(backupDir, readDirRecursive(DATA_DIR));
   writeDirRecursive(DATA_DIR, data.data);
+  // 整目录恢复后摘要解析缓存必须作废，避免读到恢复前的陈旧解析结果
+  invalidateSummaryCache();
 
   const nextTracks = loadTracksDatabase();
   const nextVehicles = loadJSON(DATA_DIR + '/vehicles.json');
