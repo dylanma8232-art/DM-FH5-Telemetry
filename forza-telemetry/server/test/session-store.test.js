@@ -137,3 +137,59 @@ test('批量读取摘要：未变文件复用解析结果，变化/损坏/移除
     assert.notEqual(afterInvalidate[0].data, beforeInvalidate[0].data);
   });
 });
+
+test('批量读取摘要：未变化文件复用解析结果，文件变化后重新解析', async () => {
+  await withTempDataDirectory(async (base) => {
+    const sessions = path.join(base, 'sessions');
+    const first = path.join(sessions, 'session_1_summary.json');
+    await fs.writeFile(first, JSON.stringify({ id: 'session_1', laps: { best: 91 } }));
+    await fs.writeFile(path.join(sessions, 'session_2_summary.json'), JSON.stringify({ id: 'session_2' }));
+
+    const files = ['session_1_summary.json', 'session_2_summary.json'];
+    const run1 = await readSummaries(files, base);
+    assert.deepEqual(run1.map((e) => e.data.id), ['session_1', 'session_2']);
+
+    // 命中缓存时返回同一对象引用（未变化就不重复解析）
+    const run2 = await readSummaries(files, base);
+    assert.equal(run2[0].data, run1[0].data);
+
+    // 内容变化 + mtime 前推后必须重新解析
+    await fs.writeFile(first, JSON.stringify({ id: 'session_1', laps: { best: 88 } }));
+    const future = new Date(Date.now() + 5000);
+    await fs.utimes(first, future, future);
+    const run3 = await readSummaries(files, base);
+    assert.deepEqual(run3[0].data, { id: 'session_1', laps: { best: 88 } });
+
+    // 损坏文件返回 data: null，与旧实现 try/catch 后返回 null 一致
+    await fs.writeFile(first, '{broken');
+    const brokenFuture = new Date(Date.now() + 9000);
+    await fs.utimes(first, brokenFuture, brokenFuture);
+    const run4 = await readSummaries(files, base);
+    assert.equal(run4[0].data, null);
+    assert.deepEqual(run4[1].data, { id: 'session_2' });
+
+    invalidateSummaryCache();
+    const run5 = await readSummaries(files, base);
+    assert.equal(run5[0].data, null);
+  });
+});
+
+test('批量读取摘要会清掉已从目录消失文件的缓存条目', async () => {
+  await withTempDataDirectory(async (base) => {
+    const sessions = path.join(base, 'sessions');
+    await fs.writeFile(path.join(sessions, 'session_a_summary.json'), JSON.stringify({ id: 'a' }));
+    await fs.writeFile(path.join(sessions, 'session_b_summary.json'), JSON.stringify({ id: 'b' }));
+
+    const run1 = await readSummaries(await listSummaryFileNames(base), base);
+    assert.equal(run1.length, 2);
+
+    await fs.unlink(path.join(sessions, 'session_b_summary.json'));
+    const run2 = await readSummaries(await listSummaryFileNames(base), base);
+    assert.deepEqual(run2.map((e) => e.data.id), ['a']);
+
+    // 重新创建同名文件后仍需正常读取（旧条目已清理，不会误命中）
+    await fs.writeFile(path.join(sessions, 'session_b_summary.json'), JSON.stringify({ id: 'b2' }));
+    const run3 = await readSummaries(await listSummaryFileNames(base), base);
+    assert.deepEqual(run3.map((e) => e.data.id).sort(), ['a', 'b2']);
+  });
+});
