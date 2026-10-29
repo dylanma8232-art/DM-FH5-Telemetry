@@ -34,3 +34,16 @@ test('未知通道返回 unknown 列表（路由据此回 400）', () => {
 test('空帧数组不抛错', () => {
   assert.deepEqual(projectChannels([], parseChannelsParam('speed')), { frames: [], unknown: [] });
 });
+
+test('lapTime 与 distance 一样作为基准字段永远保留', () => {
+  const withLap = [{ distance: 0, lapTime: 1.5, speed: 100 }, { distance: 10, lapTime: 2.5, speed: 110 }];
+  const out = projectChannels(withLap, parseChannelsParam('speed'));
+  assert.deepEqual(Object.keys(out.frames[0]).sort(), ['distance', 'lapTime', 'speed']);
+  assert.equal(out.frames[1].lapTime, 2.5);
+});
+
+test('显式请求 lapTime 不会重复输出', () => {
+  const withLap = [{ distance: 0, lapTime: 1.5, speed: 100 }];
+  const out = projectChannels(withLap, parseChannelsParam('lapTime,speed'));
+  assert.deepEqual(Object.keys(out.frames[0]).sort(), ['distance', 'lapTime', 'speed']);
+});

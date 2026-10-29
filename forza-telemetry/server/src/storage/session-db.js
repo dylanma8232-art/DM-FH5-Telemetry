@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import { promisify } from 'util';
+
+// 异步解压：zlib 的回调式 API 不能直接 await，必须 promisify
+const brotliDecompressAsync = promisify(zlib.brotliDecompress);
+const gunzipAsync = promisify(zlib.gunzip);
 
 import { sqliteDb } from './sqlite-db.js';
 import { createTrackDetailCache } from './track-detail-cache.js';
@@ -109,8 +114,8 @@ export function readTrackDetail(trackId) {
   return null;
 }
 
-export async function readTrackDetailAsync(trackId) {
-  const tracksDir = path.join(DATA_DIR, 'tracks');
+export async function readTrackDetailAsync(trackId, baseDir = DATA_DIR) {
+  const tracksDir = path.join(baseDir, 'tracks');
   const brPath = path.join(tracksDir, `${trackId}.json.br`);
   const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
   const jsonPath = path.join(tracksDir, `${trackId}.json`);
@@ -118,7 +123,7 @@ export async function readTrackDetailAsync(trackId) {
   if (fs.existsSync(brPath)) {
     try {
       const buffer = await fs.promises.readFile(brPath);
-      const decompressed = await zlib.brotliDecompress(buffer);
+      const decompressed = await brotliDecompressAsync(buffer);
       return JSON.parse(decompressed.toString('utf8'));
     } catch (e) {
       console.error(`[readTrackDetailAsync] 解压 Brotli 赛道 ${trackId} 失败:`, e.message);
@@ -128,7 +133,7 @@ export async function readTrackDetailAsync(trackId) {
   if (fs.existsSync(gzPath)) {
     try {
       const buffer = await fs.promises.readFile(gzPath);
-      const decompressed = await zlib.gunzip(buffer);
+      const decompressed = await gunzipAsync(buffer);
       return JSON.parse(decompressed.toString('utf8'));
     } catch (e) {
       console.error(`[readTrackDetailAsync] 解压 Gzip 赛道 ${trackId} 失败:`, e.message);

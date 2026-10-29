@@ -1,6 +1,6 @@
 /**
  * 遥测通道投影（纯函数）：把 `?channels=a,b` 参数裁剪到指定通道。
- * distance 永远保留（横轴），未传参数时不改变任何字段。
+ * distance 与 lapTime 永远保留（横轴 / 圈时基准），未传参数时不改变任何字段。
  */
 export function parseChannelsParam(raw) {
   return String(raw || '')
@@ -15,10 +15,10 @@ export function projectChannels(frames, requested) {
   }
   if (!frames || frames.length === 0) return { frames: frames || [], unknown: [] };
   const available = new Set(Object.keys(frames[0] || {}));
-  const unknown = requested.filter((name) => name !== 'distance' && !available.has(name));
+  const unknown = requested.filter((name) => name !== 'distance' && name !== 'lapTime' && !available.has(name));
   if (unknown.length > 0) return { frames: null, unknown };
 
-  const keep = ['distance', ...requested.filter((name) => name !== 'distance')];
+  const keep = ['distance', 'lapTime', ...requested.filter((name) => name !== 'distance' && name !== 'lapTime')];
   const projected = (frames || []).map((frame) => {
     const out = {};
     for (const key of keep) {
