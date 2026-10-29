@@ -3,6 +3,7 @@ import { gzip, gunzip } from 'zlib';
 import { promisify } from 'util';
 import { stateManager } from '../services/state-manager.js';
 import { loadJSON } from '../utils/helpers.js';
+import { loadTracksDatabase } from '../storage/session-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';

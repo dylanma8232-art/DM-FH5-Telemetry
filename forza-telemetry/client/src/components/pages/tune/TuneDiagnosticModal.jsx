@@ -1,7 +1,6 @@
 import React from 'react';
 import { TelemetryRecommendationList } from './TelemetryRecommendationList';
-import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../../data/tunePresets';
-import { FIX_PARAM_MAP } from '../../../utils/tuneForm';
+import { DRIVING_PROBLEMS } from '../../../data/tunePresets';
 import { PARAM_NAMES_ZH } from './tuneConstants';
 
 export const TuneDiagnosticModal = React.memo(function TuneDiagnosticModal(props) {

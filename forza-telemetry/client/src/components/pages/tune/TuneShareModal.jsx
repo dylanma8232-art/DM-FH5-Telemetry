@@ -12,7 +12,6 @@ export const TuneShareModal = React.memo(function TuneShareModal(props) {
     importFromShareCode,
     importPreview,
     setImportPreview,
-    getVehicleName,
     parseShareCode
   } = props;
 

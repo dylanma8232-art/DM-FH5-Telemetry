@@ -40,10 +40,6 @@ export function buildTrackFromTrajectories(trajectories, options = {}) {
       x: t[0].x,
       z: t[0].z
     }));
-    const endPoints = loopTrajectories.map(t => ({
-      x: t[t.length - 1].x,
-      z: t[t.length - 1].z
-    }));
 
     // 找到起点的聚类中心（排除异常值）
     const avgStartX = startPoints.reduce((s, p) => s + p.x, 0) / startPoints.length;

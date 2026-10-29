@@ -995,7 +995,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       setUnlockToast('已解锁: ' + newlyUnlocked.join(' / '))
       // Round 1: 记录高亮参数的嵌套路径（用于闪烁动画）
       const flatToNested = {}
-      for (const [flatKey, label] of Object.entries(TUNE_PARAM_LABELS)) {
+      for (const [flatKey] of Object.entries(TUNE_PARAM_LABELS)) {
         const path = TUNE_DEFAULT_KEY_MAP[flatKey]
         if (path) flatToNested[flatKey] = `${path[0]}.${path[1]}`
       }

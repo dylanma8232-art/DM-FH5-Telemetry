@@ -5,20 +5,10 @@ import { LoadingSpinner } from '../../shared/LoadingSpinner';
 export const SessionChartsPanel = React.memo(function SessionChartsPanel(props) {
 
 // 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
-const CustomTooltip = () => null;
-const chartCardStyle = {};
-const formatPercent = (v) => v ? v.toString() + '%' : '';
-const formatTimeMs = (v) => v ? v.toString() : '';
-const getCornerName = (v) => '弯道';
-const getSuspensionWarningColor = () => '#fff';
-const isDataStale = false;
-const setIsDataStale = () => {};
-const statBoxStyle = {};
 
   const {
     activeTab,
     reviewSubTab,
-    session,
     channelsLoading,
     channelsData,
     sectionStyle,
@@ -72,9 +62,6 @@ const statBoxStyle = {};
     worstCorners
   } = props;
 
-  const Math_round = Math.round;
-  const Math_max = Math.max;
-  const Math_min = Math.min;
 
   return (
     <>
@@ -886,41 +873,6 @@ const statBoxStyle = {};
                   {drivingSubTab === 'analysis' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                       {/* 多圈分段计时对比表 */}
-                      {false && advancedData?.lapSectorDetails && advancedData.lapSectorDetails.length > 0 && (
-                        <div style={{ ...sectionStyle, margin: 0 }}>
-                          <h3 style={sectionTitleStyle}>⏱️ 赛局多圈分段计时对比</h3>
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, textAlign: 'left' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                                  <th style={{ padding: '6px 8px' }}>圈数</th>
-                                  <th style={{ padding: '6px 8px' }}>分段一</th>
-                                  <th style={{ padding: '6px 8px' }}>分段二</th>
-                                  <th style={{ padding: '6px 8px' }}>分段三</th>
-                                  <th style={{ padding: '6px 8px', textAlign: 'right' }}>单圈总时长</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {advancedData.lapSectorDetails.map((lapDetail) => {
-                                  const isBestLap = lapDetail.sectors.every(s => s.loss === 0) || (analysis?.成绩?.总时长 && Math.abs(lapDetail.totalTime * 1000 - analysis.成绩.总时长) < 100);
-                                  return (
-                                    <tr key={lapDetail.lap} style={{ borderBottom: '1px solid rgba(48,54,61,0.2)', background: isBestLap ? 'rgba(210,153,34,0.06)' : 'transparent', fontWeight: isBestLap ? 'bold' : 'normal' }}>
-                                      <td style={{ padding: '8px 8px', color: isBestLap ? '#d29922' : 'inherit' }}>第 {lapDetail.lap} 圈 {isBestLap && '🌟'}</td>
-                                      {lapDetail.sectors.map((s, idx) => (
-                                        <td key={idx} style={{ padding: '8px 8px', fontFamily: 'monospace', color: s.loss === 0 ? '#56d364' : '#e6edf3', background: s.loss === 0 ? 'rgba(63,185,80,0.08)' : 'transparent' }}>{s.time?.toFixed(3)}s</td>
-                                      ))}
-                                      {Array.from({ length: Math.max(0, 3 - lapDetail.sectors.length) }).map((_, idx) => (
-                                        <td key={`empty-${idx}`} style={{ padding: '8px 8px', color: '#484f58' }}>--</td>
-                                      ))}
-                                      <td style={{ padding: '8px 8px', textAlign: 'right', fontFamily: 'monospace', color: isBestLap ? '#d29922' : '#e6edf3' }}>{lapDetail.totalTime?.toFixed(3)}s</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
 
                       {/* 弯道列表 */}
                       <div style={{ ...sectionStyle, margin: 0, padding: 12, order: 2 }}>
