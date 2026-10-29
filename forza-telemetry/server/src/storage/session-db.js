@@ -3,10 +3,28 @@ import path from 'path';
 import zlib from 'zlib';
 
 import { sqliteDb } from './sqlite-db.js';
+import { createTrackDetailCache } from './track-detail-cache.js';
 
 
 // 获取数据根目录 (相对于此文件)
 const DATA_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../data');
+
+// 赛道详情进程内 LRU：30s TTL + 文件 stat 双重校验（外部/worker 写入会被 stat 自然失效）
+function statTrackFile(filePath) {
+  try {
+    const st = fs.statSync(filePath);
+    return { mtimeMs: st.mtimeMs, size: st.size };
+  } catch {
+    return null;
+  }
+}
+
+const trackDetailCache = createTrackDetailCache({ statFile: statTrackFile });
+
+/** 写/删赛道详情时必须调用：让进程内缓存立即失效 */
+export function invalidateTrackDetailCache(trackId) {
+  trackDetailCache.invalidate(trackId);
+}
 
 export function loadTracksDatabase() {
   const metadataPath = path.join(DATA_DIR, 'tracks-metadata.json');
@@ -50,11 +68,16 @@ export function readTrackDetail(trackId) {
   const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
   const jsonPath = path.join(tracksDir, `${trackId}.json`);
 
+  const cached = trackDetailCache.get(trackId, [brPath, gzPath, jsonPath]);
+  if (cached) return cached;
+
   if (fs.existsSync(brPath)) {
     try {
       const buffer = fs.readFileSync(brPath);
       const decompressed = zlib.brotliDecompressSync(buffer);
-      return JSON.parse(decompressed.toString('utf8'));
+      const detail = JSON.parse(decompressed.toString('utf8'));
+      trackDetailCache.remember(trackId, brPath, detail);
+      return detail;
     } catch (e) {
       console.error(`[readTrackDetail] 解压 Brotli 赛道 ${trackId} 失败:`, e.message);
     }
@@ -64,7 +87,9 @@ export function readTrackDetail(trackId) {
     try {
       const buffer = fs.readFileSync(gzPath);
       const decompressed = zlib.gunzipSync(buffer);
-      return JSON.parse(decompressed.toString('utf8'));
+      const detail = JSON.parse(decompressed.toString('utf8'));
+      trackDetailCache.remember(trackId, gzPath, detail);
+      return detail;
     } catch (e) {
       console.error(`[readTrackDetail] 解压 Gzip 赛道 ${trackId} 失败:`, e.message);
     }
@@ -73,7 +98,9 @@ export function readTrackDetail(trackId) {
   if (fs.existsSync(jsonPath)) {
     try {
       const content = fs.readFileSync(jsonPath, 'utf8');
-      return JSON.parse(content);
+      const detail = JSON.parse(content);
+      trackDetailCache.remember(trackId, jsonPath, detail);
+      return detail;
     } catch (e) {
       console.error(`[readTrackDetail] 读取 JSON 赛道 ${trackId} 失败:`, e.message);
     }
@@ -145,6 +172,7 @@ export function writeTrackDetail(trackId, trackDetail) {
     if (fs.existsSync(gzPath)) {
       try { fs.unlinkSync(gzPath); } catch {}
     }
+    invalidateTrackDetailCache(trackId);
     return true;
   } catch (err) {
     console.error(`[writeTrackDetail] 压缩写入赛道 ${trackId} 失败:`, err.message);
@@ -164,6 +192,7 @@ export function deleteTrackDetail(trackId) {
     if (fs.existsSync(brPath)) fs.unlinkSync(brPath);
     if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
     if (fs.existsSync(gzPath)) fs.unlinkSync(gzPath);
+    invalidateTrackDetailCache(trackId);
     return true;
   } catch (err) {
     console.error(`[deleteTrackDetail] 删除赛道 ${trackId} 失败:`, err.message);

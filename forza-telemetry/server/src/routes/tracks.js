@@ -7,7 +7,7 @@ import {
   deleteTrack,
   getEnrichedTracks
 } from '../services/track-service.js';
-import { readTrackDetail, saveTracksDatabase, deleteTrackDetail } from '../storage/session-db.js';
+import { readTrackDetail, saveTracksDatabase, deleteTrackDetail, invalidateTrackDetailCache } from '../storage/session-db.js';
 import {
   sessionsDirExists,
   listSessionFileNames,
@@ -421,7 +421,11 @@ router.put('/:id/turns/:index/bounds', express.json(), asyncHandler(async (req, 
   }
 
   const updatedT = calculateTurnAttributes(trackDetail.centerline, startIdx, endIdx, t.id);
-  if (!updatedT) return res.status(400).json({ error: 'Failed to recalculate bounds' });
+  if (!updatedT) {
+    // 此处已就地上改过相邻弯道但不会落盘，必须丢弃进程内缓存，避免脏对象被后续读取复用
+    invalidateTrackDetailCache(id);
+    return res.status(400).json({ error: 'Failed to recalculate bounds' });
+  }
   if (t.customNote) updatedT.customNote = t.customNote;
 
   trackDetail.turns[index] = updatedT;
