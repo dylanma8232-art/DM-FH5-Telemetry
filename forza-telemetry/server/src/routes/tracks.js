@@ -146,6 +146,10 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
   const success = deleteTrack(id);
   if (success) {
+    // B12：补发删除广播，让其它标签页/终端无需刷新即可剔除该赛道（前端已监听 trackDeleted）
+    if (stateManager.io) {
+      stateManager.io.emit('trackDeleted', { trackId: id });
+    }
     res.json({ status: 'ok' });
   } else {
     res.status(404).json({ error: 'Track not found' });
