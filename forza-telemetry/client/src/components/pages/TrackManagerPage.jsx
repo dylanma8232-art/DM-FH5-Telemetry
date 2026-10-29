@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { EmptyState } from '../shared/EmptyState';
 import { toast } from '../shared/Toast';
 import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
+import { SaveRecordingDialog } from './track/SaveRecordingDialog';
 import { MergePreviewCanvas } from './track/MergePreviewCanvas';
 import { SearchableTrackSelect } from './track/SearchableTrackSelect';
 import { movingAverageSmooth } from '../../utils/movingAverageSmooth';
@@ -2391,49 +2392,16 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
         </div>
       )}
 
-      {/* B13：保存新赛道对话框 */}
+      {/* B13：保存新赛道对话框（A7 已抽出为 SaveRecordingDialog） */}
       {saveRecordingDialog && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200
-        }}>
-          <div style={{
-            width: 360, background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 10
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#e6edf3' }}>保存录制赛道</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-              已采集 {saveRecordingDialog.positions} 个轨迹点，请输入赛道名称后保存。
-            </div>
-            <input
-              autoFocus
-              value={saveRecordingDialog.name}
-              onChange={(e) => setSaveRecordingDialog((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveRecordedTrack(); }}
-              style={{
-                width: '100%', padding: 8, background: 'var(--bg-primary)',
-                border: '1px solid var(--border)', borderRadius: 6,
-                color: 'var(--text-primary)', fontSize: 11, boxSizing: 'border-box'
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                onClick={() => setSaveRecordingDialog(null)}
-                disabled={saveRecordingDialog.saving}
-                style={{ padding: '6px 14px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}
-              >
-                取消
-              </button>
-              <button
-                onClick={saveRecordedTrack}
-                disabled={saveRecordingDialog.saving}
-                style={{ padding: '6px 14px', background: '#238636', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
-              >
-                {saveRecordingDialog.saving ? '保存中...' : '保存赛道'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SaveRecordingDialog
+          name={saveRecordingDialog.name}
+          positions={saveRecordingDialog.positions}
+          saving={saveRecordingDialog.saving}
+          onChangeName={(value) => setSaveRecordingDialog((prev) => (prev ? { ...prev, name: value } : prev))}
+          onConfirm={saveRecordedTrack}
+          onCancel={() => setSaveRecordingDialog(null)}
+        />
       )}
 
       {showGlossary && <PaceNoteGlossaryModal onClose={() => setShowGlossary(false)} />}
