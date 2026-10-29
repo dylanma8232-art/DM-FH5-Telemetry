@@ -4,6 +4,7 @@ import { loadSession, readTrackDetail } from '../storage/session-db.js';
 import express from 'express';
 import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
 import { lttbDownsample } from '../utils/lttb.js';
+import { parseChannelsParam, projectChannels } from '../services/channel-projection.js';
 import { readSummaries, listSummaryFileNames } from '../storage/session-store.js';
 import { readCarsDatabase } from '../storage/reference-store.js';
 import { readDiagnosisCache, writeDiagnosisCache } from '../storage/diagnosis-store.js';
@@ -235,11 +236,20 @@ router.get('/:sessionId/telemetry-channels', asyncHandler(async (req, res) => {
     ['speed', 'brake', 'throttle', 'gLat', 'tempFL', 'slipFL']
   );
 
+  // 4. 可选通道投影：?channels=speed,throttle,brake（distance 永远保留，作为横轴）
+  //    仅裁剪已算好的字段，不参与任何采样/计算，未传该参数时响应与原来逐字节一致。
+  const requestedChannels = parseChannelsParam(req.query.channels);
+  const projection = projectChannels(downsampledChannels, requestedChannels);
+  if (projection.unknown.length > 0) {
+    return res.status(400).json({ error: `未知通道：${projection.unknown.join(', ')}` });
+  }
+  const responseChannels = projection.frames;
+
   res.json({
     lapNum: targetLapNum,
     totalDistance: Math.round(cumulativeDistance * 10) / 10,
     totalPoints: allChannels.length,
-    channels: downsampledChannels
+    channels: responseChannels
   });
 }));
 
