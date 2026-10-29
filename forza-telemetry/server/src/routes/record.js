@@ -414,7 +414,7 @@ const calculateTrackLength = (pts) => {
         
         const packetCount = stateManager.getPacketCount();
         if (packetCount % 30 === 0) {
-          console.log("--> handleAutoRecord io:", stateManager.io); stateManager.io.emit('recordStats', {
+          stateManager.io.emit('recordStats', {
             state: 'RECORDING',
             pointCount: autoRecordDataCount,
             positionCount: autoRacePositions.length,
