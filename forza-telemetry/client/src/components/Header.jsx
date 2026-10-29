@@ -94,6 +94,11 @@ export function Header({ connected, packetCount, packetsPerSecond, isRaceOn, lap
         setRecordDuration(0);
         // 播放保存成功的“嘟”提示音 (523Hz 暖 triangle 音)
         playTone(523.25, 0.35, 'triangle', 0.5);
+      } else if (data.state === 'ERROR') {
+        // U5：保存失败必须可见。服务端 record.js 在保存失败与工作线程异常时都会发 ERROR。
+        toast(data.message || '自动录制保存失败', 'error', 6000);
+        setRecordStartTime(null);
+        setRecordDuration(0);
       } else {
         setRecordStartTime(null);
         setRecordDuration(0);
