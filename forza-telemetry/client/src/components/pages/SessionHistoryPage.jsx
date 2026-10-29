@@ -1323,7 +1323,8 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
               <div style={{ display: 'flex', gap: 8, marginBottom: 12, borderBottom: '1px solid #30363d', paddingBottom: 12, position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 12 }}>
                 {[
                   { id: 'overview', label: '🏁 赛后总览与驾驶诊断' },
-                  { id: 'professional_review', label: '🏎️ 专业复盘' }
+                  { id: 'professional_review', label: '🏎️ 专业复盘' },
+                  { id: 'ai_coach', label: '🤖 智能诊断工坊' }
                 ].map((tab) => (
                   <button
                     key={tab.id}
