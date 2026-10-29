@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { defaultSettings } from '../themes';
-import React, { createContext } from 'react';
 
 const STORAGE_KEY = 'fh5-telemetry-settings';
 
@@ -141,5 +140,3 @@ export function useSettings() {
     themeId: store.settings.theme
   };
 }
-
-const SettingsContext = createContext(null);

@@ -1,5 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, ReferenceArea, ScatterChart, Scatter, Cell, Legend } from 'recharts';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { SessionChartsPanel } from './session/SessionChartsPanel';
 import { EmptyState } from '../shared/EmptyState';
@@ -10,12 +9,7 @@ import { api } from '../../services/api';
 import { TrackThumbnail, InteractiveTrackMap } from './session/TrackMaps';
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
 
-const VEHICLE_CLASSES = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
-const formatVehicleClass = (cls) => {
-  if (typeof cls === 'string' && cls.trim() && cls !== '?') return cls;
-  if (typeof cls === 'number' && cls >= 0 && cls < VEHICLE_CLASSES.length) return VEHICLE_CLASSES[cls];
-  return '?';
-};
+
 
 const inputStyle = {
   width: '100%',
@@ -2018,17 +2012,7 @@ const btnInactiveStyle = {
   transition: 'all 0.15s'
 };
 
-const btnZoomStyle = {
-  background: 'rgba(255, 255, 255, 0.05)',
-  color: '#8b949e',
-  border: '1px solid #30363d',
-  borderRadius: 4,
-  padding: '2px 8px',
-  fontSize: 9,
-  cursor: 'pointer',
-  fontWeight: 600,
-  transition: 'all 0.2s'
-};
+
 
 const badgeRedStyle = {
   fontSize: 8.5,
@@ -2097,9 +2081,4 @@ const bulletItemStyle = {
   fontSize: 10,
   color: 'var(--text-secondary)',
   lineHeight: 1.4
-};
-
-const bulletLabelStyle = {
-  fontWeight: 700,
-  color: '#e6edf3'
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function VehicleSearchSelect({ id, value, options, onChange, className, style, placeholder = '输入品牌、年份或车型搜索' }) {
   const selected = options.find(option => String(option.id) === String(value));

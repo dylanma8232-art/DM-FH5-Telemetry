@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { PaceNoteExport } from './PaceNoteExport';
 import { api } from '../../services/api';
 
@@ -39,17 +39,6 @@ const TURN_TYPE_LABELS = {
   slight: '5',
   micro: '6',
   sweeping: '4',
-};
-
-/** 弯道类型严重度（越高越需要注意） */
-const TURN_SEVERITY = {
-  hairpin: 6,
-  sharp: 5,
-  medium: 4,
-  gentle: 3,
-  slight: 2,
-  micro: 1,
-  sweeping: 3,
 };
 
 /** 路面类型映射 */

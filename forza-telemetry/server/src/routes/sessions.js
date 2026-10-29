@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'url';
-import { asyncHandler } from "../utils/asyncHandler.js";import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateSectorAnalysis, analyzeSectors, generateDrivingAdvice, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
@@ -10,29 +10,11 @@ import path from 'path';
 const router = express.Router();
 
 const DATA_DIR = stateManager.DATA_DIR;
-const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i - 1].x;
-    const dy = (pts[i].y || 0) - (pts[i - 1].y || 0);
-    const dz = pts[i].z - pts[i - 1].z;
-    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  return Math.round(len);
-};
 
 
 let cachedSessionsList = null;
 let lastSessionsFetchTime = 0;
-
-export function invalidateSessionsCache() {
-  cachedSessionsList = null;
-  lastSessionsFetchTime = 0;
-}
 
 // 获取比赛记录列表
 router.get('/api/sessions', asyncHandler(async (req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react'
+import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react'
 import {
   PART_CATEGORIES,
   TIER_LABELS,
@@ -18,9 +18,6 @@ import {
   isPiClassCap,
   nextPiClassCap
 } from '../utils/tuneForm'
-
-// 保持既有模块导出，避免外部调用方在重构期间失效。
-export { FIX_PARAM_MAP } from '../utils/tuneForm'
 
 export function useTuneManager({ onNavigate, navIntent }) {
   const {

@@ -5,25 +5,7 @@ const TIER_INDEX = { stock: 0, street: 1, sport: 2, race: 3, extreme: 4 };
 const levels = (street = 2, sport = 4, race = 7) => [
   option('stock', '原厂', 0), option('street', '街车级', street), option('sport', '跑车级', sport), option('race', '赛车级', race)
 ];
-// 无车型实测资料时使用的 FH5 常见胎宽枚举。它只用于手动选择，不进入
-// AI 的 PI 搜索；每个车型最终可用项仍应以游戏内改装菜单为准。
-const GENERIC_TIRE_WIDTHS_MM = Array.from({ length: 27 }, (_, index) => 145 + index * 10);
-const estimatedStockTireWidth = basePi => {
-  const pi = Number(basePi) || 600;
-  if (pi >= 901) return 275;
-  if (pi >= 801) return 245;
-  if (pi >= 701) return 225;
-  if (pi >= 601) return 205;
-  return 185;
-};
-const estimateTireWidthPi = (profile, widthMm, knownWidths = [], position = 'front') => {
-  // 有该车选项列表时，以最小宽度作为可用升级序列的参考；没有时按原厂
-  // PI 所在级别推定常见原厂胎宽。每 10 mm 约 1 PI，最小非原厂成本为 1 PI。
-  const reference = Number(profile.stockTireWidths?.[position])
-    || (knownWidths.length ? Math.min(...knownWidths.map(Number).filter(Number.isFinite)) : 0)
-    || estimatedStockTireWidth(profile.basePi);
-  return Math.max(1, Math.round(Math.abs(Number(widthMm) - reference) / 10));
-};
+
 
 const COMMON_SLOTS = [
   {

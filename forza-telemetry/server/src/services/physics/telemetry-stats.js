@@ -207,56 +207,6 @@ export function calculateDifferentialAnalysis(data) {
 
 // 赛道分段分析
 
-// 赛道分段分析
-export function calculateSectorAnalysis(data, positions) {
-  if (!data || data.length === 0 || !positions || positions.length === 0) {
-    return {
-      分段: []
-    };
-  }
-  const sectorCount = 5;
-  const sectorLength = Math.floor(positions.length / sectorCount);
-  const sectors = [];
-  for (let i = 0; i < sectorCount; i++) {
-    const startIdx = i * sectorLength;
-    const endIdx = i === sectorCount - 1 ? positions.length - 1 : (i + 1) * sectorLength;
-    const sectorPositions = positions.slice(startIdx, endIdx + 1);
-    const sectorData = data.filter(d => {
-      const pos = d.position;
-      if (!pos) return false;
-      const startX = sectorPositions[0]?.x || 0;
-      const startZ = sectorPositions[0]?.z || 0;
-      const endX = sectorPositions[sectorPositions.length - 1]?.x || 0;
-      const endZ = sectorPositions[sectorPositions.length - 1]?.z || 0;
-      const minX = Math.min(startX, endX) - 50;
-      const maxX = Math.max(startX, endX) + 50;
-      const minZ = Math.min(startZ, endZ) - 50;
-      const maxZ = Math.max(startZ, endZ) + 50;
-      return pos.x >= minX && pos.x <= maxX && pos.z >= minZ && pos.z <= maxZ;
-    });
-    const speeds = sectorData.map(d => d.speedKmh || 0).filter(s => s > 0);
-    const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
-    const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : 0;
-    const drivingLines = sectorPositions.map(p => Math.abs(p.drivingLine || 0));
-    const goodLines = drivingLines.filter(dl => dl < 30).length;
-    const lineScore = drivingLines.length > 0 ? Math.round(goodLines / drivingLines.length * 100) : 0;
-    sectors.push({
-      段落: i + 1,
-      平均速度: Math.round(avgSpeed),
-      最高速度: Math.round(maxSpeed),
-      走线评分: lineScore,
-      数据点数: sectorData.length
-    });
-  }
-  return {
-    分段数: sectorCount,
-    分段: sectors
-  };
-}
-
-// 赛道分段计时分析
-
-// 赛道分段计时分析
 export function analyzeSectors(positions, numSectors = 3, bestLapHint = 0) {
   if (!positions || positions.length < 10) return null;
   const laps = new Map();

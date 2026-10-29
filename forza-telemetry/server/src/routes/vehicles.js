@@ -11,7 +11,6 @@ const router = express.Router();
 
 
 const DATA_DIR = stateManager.DATA_DIR;
-const LEADERBOARD_CACHE_TTL = 30000;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 const upgradesMetadataPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades-metadata.json');
 const upgradesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/upgrades');
@@ -32,18 +31,6 @@ function getManufacturer(name) {
   if (withoutYear.startsWith('Mercedes-Benz ')) return 'Mercedes-Benz';
   return withoutYear.split(/\s+/)[0] || '其他';
 }
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i - 1].x;
-    const dy = (pts[i].y || 0) - (pts[i - 1].y || 0);
-    const dz = pts[i].z - pts[i - 1].z;
-    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  return Math.round(len);
-};
 
 
 // 获取所有车辆

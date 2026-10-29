@@ -1,18 +1,4 @@
-import React, { useState } from 'react';
-
-
-// 自动注入的缺失依赖 (原页面中被引用但未定义，为防止崩溃添加的 fallback)
-const getCarStats = () => ({});
-const getDefaultParts = () => ({});
-const getPerformanceClassBadge = () => null;
-const getTuneDefaults = () => ({});
-const handleApplyDiagnosisInViewOnly = () => {};
-const isDiagnosing = false;
-const recentSessions = [];
-const statCardStyle = {};
-const handleSelectTuneForDiagnosis = () => {};
-const selectedCarId = null;
-const diagnosticLoading = false;
+import React from 'react';
 
 export const TuneShareModal = React.memo(function TuneShareModal(props) {
   const {

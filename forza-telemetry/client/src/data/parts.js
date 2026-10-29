@@ -753,30 +753,6 @@ const TUNE_RANGES = {
   }
 };
 
-// ============================================================
-// 配件性能优先级（用于自动升级贪心算法）
-// ============================================================
-
-/**
- * 配件类别对整体性能的影响权重
- * 数值越高，该配件升级对车辆综合性能影响越大
- * 贪心算法会优先升级权重高的配件
- */
-const PART_PRIORITY = {
-  tires_compound:    100,  // 轮胎配方 → 抓地力影响一切
-  aspiration:         95,  // 进气增压 → 马力/扭矩核心
-  suspension:         80,  // 悬挂 → 操控核心
-  brakes:             70,  // 制动 → 安全基础
-  transmission:       65,  // 变速箱 → 加速分配
-  weight_reduction:   60,  // 减重 → 全面提升
-  differential:       55,  // 差速器 → 驱动效率
-  aero_front:         40,  // 前空力 → 高速操控
-  aero_rear:          38,  // 后空力 → 高速稳定
-  exhaust:            35,  // 排气 → 辅助动力
-  anti_roll_bars:     30,  // 防倾杆 → 弯道稳定性
-  tires_width:        25,  // 轮胎宽度 → 辅助抓地
-  clutch:             20   // 离合器 → 换挡辅助
-};
 
 // ============================================================
 // 导出的常量
@@ -806,95 +782,6 @@ export function getDefaultParts() {
     }
   }
   return defaults;
-}
-
-// ============================================================
-// 2. getPartCategories() → 返回所有配件类别
-// ============================================================
-
-/**
- * 返回所有配件类别的完整定义
- * @returns {Array} 配件类别数组
- */
-function getPartCategories() {
-  return PART_CATEGORIES;
-}
-
-// ============================================================
-// 3. getPartTiers(categoryId) → 返回某类配件的所有等级
-// ============================================================
-
-/**
- * 返回某个配件类别的所有等级信息
- * 对于等级制配件，返回5个等级的PI增量
- * 对于选项制配件（engine_swap），返回null
- *
- * @param {string} categoryId - 配件类别ID
- * @returns {Array|null} 等级数组，每个元素 { tier, label, labelEn, color, piAdd(从上一级升到本级) }
- *                       或 null（选项制配件）
- */
-function getPartTiers(categoryId) {
-  const cat = PART_CATEGORIES.find(c => c.id === categoryId);
-  if (!cat) return null;
-  if (!cat.tierSystem) return null;
-
-  let cumulativePi = 0;
-  return TIERS.map((tierName, index) => {
-    const labelInfo = TIER_LABELS[tierName];
-    // piAdd: 从上一个等级升到该等级的PI增量
-    let piAdd = 0;
-    if (index > 0) {
-      const prevTier = TIERS[index - 1];
-      piAdd = cat.piSteps?.[prevTier] || 0;
-      cumulativePi += piAdd;
-    }
-    return {
-      tier: tierName,
-      label: labelInfo.zh,
-      labelEn: labelInfo.en,
-      color: labelInfo.color,
-      sort: labelInfo.sort,
-      piAdd,         // 从上一级到本级的单步增量
-      cumulativePi   // 从stock到本级的累计PI
-    };
-  });
-}
-
-// ============================================================
-// 4. getPartPiAdd(partId, fromTier, toTier) → 计算PI增量
-// ============================================================
-
-/**
- * 计算某个配件从fromTier升级到toTier的总PI增量
- * 支持跨级升级（如 stock → race），会累加中间所有步骤
- *
- * @param {string} partId - 配件类别ID (如 'aspiration', 'tires_compound')
- * @param {string} fromTier - 起始等级 ('stock'|'street'|'sport'|'race')
- * @param {string} toTier - 目标等级 ('street'|'sport'|'race'|'extreme')
- * @returns {number} 总PI增量。如果partId是选项制配件返回0；如果无效返回0
- *
- * @example
- * getPartPiAdd('aspiration', 'stock', 'sport')  // 8 + 12 = 20
- * getPartPiAdd('tires_compound', 'street', 'race') // 15 + 20 = 35
- * getPartPiAdd('brakes', 'race', 'race')        // 0
- */
-function getPartPiAdd(partId, fromTier, toTier) {
-  if (!partId || !fromTier || !toTier) return 0;
-
-  const cat = PART_CATEGORIES.find(c => c.id === partId);
-  if (!cat || !cat.tierSystem) return 0;
-
-  const fromIndex = TIERS.indexOf(fromTier);
-  const toIndex = TIERS.indexOf(toTier);
-
-  if (fromIndex < 0 || toIndex < 0 || toIndex <= fromIndex) return 0;
-
-  let totalPi = 0;
-  for (let i = fromIndex; i < toIndex; i++) {
-    const currentTier = TIERS[i];
-    totalPi += cat.piSteps?.[currentTier] || 0;
-  }
-  return totalPi;
 }
 
 // ============================================================

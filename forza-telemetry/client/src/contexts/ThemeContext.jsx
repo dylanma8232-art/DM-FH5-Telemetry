@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import { createContext, useMemo } from 'react';
 import { themes, getThemeCSSVariables } from '../themes';
 
 const ThemeContext = createContext(null);

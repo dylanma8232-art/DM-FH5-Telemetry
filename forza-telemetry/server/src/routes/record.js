@@ -2,8 +2,8 @@ import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 
 import { stateManager } from '../services/state-manager.js';
-import { saveJSON, loadJSON } from '../utils/helpers.js';
-import { saveTracksDatabase, readTrackDetail, writeTrackDetail, deleteTrackDetail, loadSession } from '../storage/session-db.js';
+import { saveJSON } from '../utils/helpers.js';
+import { saveTracksDatabase } from '../storage/session-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -11,22 +11,8 @@ import path from 'path';
 const router = express.Router();
 
 
-  
+
 const DATA_DIR = stateManager.DATA_DIR;
-const LEADERBOARD_CACHE_TTL = 30000;
-
-const calculateTrackLength = (pts) => {
-  if (!pts || pts.length < 2) return 0;
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i].x - pts[i-1].x;
-    const dy = (pts[i].y || 0) - (pts[i-1].y || 0);
-    const dz = pts[i].z - pts[i-1].z;
-    len += Math.sqrt(dx*dx + dy*dy + dz*dz);
-  }
-  return Math.round(len);
-};
-
 
   // 内部状态
   let isManualRecording = false;
@@ -50,8 +36,8 @@ const calculateTrackLength = (pts) => {
   let autoRecordStartTime = null;
   let lastTelemetryPacket = null;
   let lastTelemetryPacketTime = 0;
-  let lastRecognitionCheckTime = 0;
-  const RECOGNITION_INTERVAL_MS = 5000;
+
+
   const START_DEBOUNCE_MS = 500;
   const STOP_DEBOUNCE_MS = 25000;
   const MIN_RACE_DURATION_MS = 30000;
@@ -63,7 +49,7 @@ const calculateTrackLength = (pts) => {
   const SPEED_THRESHOLD = 10;
   const SPEED_SUSTAIN_MS = 2000;
   let speedSustainStart = null;
-  let lastLapNumber = 0;
+
 
   function extractTrackPoint(telemetry) {
     const acc = telemetry.acceleration || {};
@@ -71,7 +57,7 @@ const calculateTrackLength = (pts) => {
     const tireSlip = telemetry.tireCombinedSlip || {};
     const onRumble = telemetry.onRumbleStrip || {};
     const puddle = telemetry.puddleDepth || {};
-    
+
     return {
       x: telemetry.position.x,
       y: telemetry.position.y || 0,
@@ -117,7 +103,7 @@ const calculateTrackLength = (pts) => {
     autoRecordDataCount = 0;
     lastAutoRecordSaveTime = Date.now();
     lastAutoPositionSaveTime = Date.now();
-    
+
     const tempDir = path.join(DATA_DIR, 'sessions');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     autoRecordTempPath = path.join(tempDir, `temp_auto_record_${Date.now()}.jsonl`);
@@ -134,7 +120,7 @@ const calculateTrackLength = (pts) => {
       autoRecordWriteStream.end();
       autoRecordWriteStream = null;
     }
-    
+
     if (duration < MIN_RACE_DURATION_MS) {
       console.log(`[自动录制] 比赛太短 (${duration}ms)，丢弃数据`);
       autoRecordState = 'IDLE';
@@ -145,20 +131,20 @@ const calculateTrackLength = (pts) => {
       stateManager.io.emit('autoRecordStatus', { state: 'IDLE', message: '比赛太短，数据已丢弃' });
       return;
     }
-    
+
     autoRecordState = 'IDLE';
     console.log(`[自动录制] 比赛结束，准备后台异步保存 ${autoRecordDataCount} 条数据，${autoRacePositions.length} 个轨迹点`);
-    
+
     const capturedPositions = [...autoRacePositions];
     const tempPath = autoRecordTempPath;
-    
+
     autoRacePositions.length = 0;
     autoRecordDataCount = 0;
     speedSustainStart = null;
     lastLapNumber = 0;
     staticPositionCount = 0;
     lastSignificantPosition = null;
-    
+
     // 比赛确实结束并保存时，立即退出路书模式，提供更快的 UI 响应
     const trackMode = stateManager.getTrackMode();
     if (trackMode) {
@@ -166,17 +152,79 @@ const calculateTrackLength = (pts) => {
       stateManager.setTrackMode(null);
       stateManager.io.emit('trackModeChanged', { active: false, trackId: null, trackName: null });
     }
-    
+
     stateManager.io.emit('autoRecordStatus', { state: 'PROCESSING', message: '正在后台生成赛道地图和路书...' });
-    
+
     saveAutoRecordedDataWithWorker(duration, tempPath, capturedPositions, trackMode);
+  }
+
+  // 统一的后台保存流程：两处保存（自动/手动）共用车辆与赛道统计记账、临时文件清理
+  // 注意：trackMode 已在 stopAutoRecording() 捕获后立即清除，这里不得再次清空，
+  // 否则会误杀用户随后开始的新赛道模式。
+  function applySavedSessionStats(msg, trackId) {
+    if (msg.tracksUpdate) {
+      stateManager.tracks[msg.tracksUpdate.id] = msg.tracksUpdate;
+      saveTracksDatabase(stateManager.tracks);
+    }
+    // 核心修复：通知缓存比赛记录+1
+    if (msg.tracksUpdate && msg.tracksUpdate.id) {
+      stateManager.incrementSessionCount(msg.tracksUpdate.id);
+    } else if (trackId) {
+      stateManager.incrementSessionCount(trackId);
+    }
+    const sessionSummary = msg.sessionSummary;
+    const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
+    if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
+      const vehicle = stateManager.vehicles[vehicleOrdinal];
+      vehicle.raceCount = (vehicle.raceCount || 0) + 1;
+      const finalTrackId = (msg.tracksUpdate && msg.tracksUpdate.id) || trackId;
+      if (finalTrackId && finalTrackId !== 'unknown' && !vehicle.tracks.includes(finalTrackId)) {
+        vehicle.tracks.push(finalTrackId);
+      }
+      if (!vehicle.bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < vehicle.bestLap)) {
+        vehicle.bestLap = sessionSummary.laps?.best;
+      }
+      saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
+    }
+    return sessionSummary;
+  }
+
+  function runSaveWorker({ tempFilePath, positions, sessionDataMeta, workerTrackMode, workerErrorLabel, onSuccess, onFailure, onWorkerError }) {
+    const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/save-worker.js');
+    const worker = new Worker(workerPath, {
+      workerData: { tempFilePath, positions, sessionDataMeta, DATA_DIR, tracks: stateManager.tracks, trackMode: workerTrackMode }
+    });
+    const cleanupTempFile = () => {
+      try {
+        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      } catch {}
+    };
+
+    worker.on('message', (msg) => {
+      if (msg.status === 'success') {
+        console.log(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 后台保存成功，会话 ID: ${msg.sessionId}`);
+        onSuccess(msg);
+      } else {
+        console.error(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 后台保存失败: ${msg.error}`);
+        onFailure(msg);
+      }
+      cleanupTempFile();
+      worker.terminate();
+    });
+
+    worker.on('error', (err) => {
+      console.error(`[${workerErrorLabel}]`, err);
+      onWorkerError(err);
+      cleanupTempFile();
+      worker.terminate();
+    });
   }
 
   function saveAutoRecordedDataWithWorker(duration, tempFilePath, positions, activeTrackMode) {
     const trackMode = activeTrackMode;
     let trackId = null;
     let trackName = null;
-    
+
     if (trackMode) {
       trackId = trackMode.trackId;
       trackName = trackMode.trackName;
@@ -206,77 +254,28 @@ const calculateTrackLength = (pts) => {
       vehicle: vehicleToSave
     };
 
-    const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/save-worker.js');
-    const worker = new Worker(workerPath, {
-      workerData: {
-        tempFilePath,
-        positions,
-        sessionDataMeta,
-        DATA_DIR, tracks: stateManager.tracks,
-        trackMode
-      }
-    });
-
-    worker.on('message', (msg) => {
-      if (msg.status === 'success') {
-        console.log(`[自动录制] 后台保存成功，会话 ID: ${msg.sessionId}`);
-        
-        if (msg.tracksUpdate) {
-          const trUpdate = msg.tracksUpdate;
-          stateManager.tracks[trUpdate.id] = trUpdate;
-          saveTracksDatabase(stateManager.tracks);
-        }
-
-        // 核心修复：通知缓存比赛记录+1
-        if (msg.tracksUpdate && msg.tracksUpdate.id) {
-          stateManager.incrementSessionCount(msg.tracksUpdate.id);
-        } else if (trackId) {
-          stateManager.incrementSessionCount(trackId);
-        }
-
-        const sessionSummary = msg.sessionSummary;
-        const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
-        if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
-          stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          const finalTrackId = (msg.tracksUpdate && msg.tracksUpdate.id) || trackId;
-          if (finalTrackId && finalTrackId !== 'unknown' && !stateManager.vehicles[vehicleOrdinal].tracks.includes(finalTrackId)) {
-            stateManager.vehicles[vehicleOrdinal].tracks.push(finalTrackId);
-          }
-          if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
-            stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
-          }
-          saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
-        }
-
-        stateManager.io.emit('autoRecordStatus', { 
-          state: 'COMPLETED', 
+    runSaveWorker({
+      tempFilePath,
+      positions,
+      sessionDataMeta,
+      workerTrackMode: trackMode,
+      workerErrorLabel: '[自动录制] 后台保存工作线程出现错误:',
+      onSuccess: (msg) => {
+        applySavedSessionStats(msg, trackId);
+        stateManager.io.emit('autoRecordStatus', {
+          state: 'COMPLETED',
           message: `比赛结束，数据保存成功`,
           sessionId: msg.sessionId,
           trackId: msg.tracksUpdate ? msg.tracksUpdate.id : null,
           trackName: trackName
         });
-      } else {
-        console.error(`[自动录制] 后台保存失败: ${msg.error}`);
+      },
+      onFailure: (msg) => {
         stateManager.io.emit('autoRecordStatus', { state: 'ERROR', message: `保存失败: ${msg.error}` });
+      },
+      onWorkerError: (err) => {
+        stateManager.io.emit('autoRecordStatus', { state: 'ERROR', message: `工作线程错误: ${err.message}` });
       }
-
-      try {
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      } catch {}
-      
-      // 注意：trackMode 已在 stopAutoRecording() 捕获后立即清除，
-      // 此处不能再次 stateManager.setTrackMode(null)，否则会误杀用户随后开始的新赛道模式
-      worker.terminate();
-    });
-
-    worker.on('error', (err) => {
-      console.error(`[自动录制] 后台保存工作线程出现错误:`, err);
-      stateManager.io.emit('autoRecordStatus', { state: 'ERROR', message: `工作线程错误: ${err.message}` });
-      try {
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      } catch {}
-      // 同上，不在此清除 trackMode
-      worker.terminate();
     });
   }
 
@@ -286,13 +285,13 @@ const calculateTrackLength = (pts) => {
     const now = Date.now();
     const speed = telemetry.speedKmh || 0;
     const position = telemetry.position;
-    
+
     // 更新看门狗数据
     lastTelemetryPacket = telemetry;
     lastTelemetryPacketTime = now;
-    
+
     const isPositionValid = position && (position.x !== 0 || position.z !== 0);
-    
+
     if (isPositionValid && telemetry.isRaceOn) {
       const posKey = Math.round(position.x) + ',' + Math.round(position.z);
       if (lastSignificantPosition === posKey) {
@@ -302,18 +301,18 @@ const calculateTrackLength = (pts) => {
         lastSignificantPosition = posKey;
       }
     }
-    
+
     // 启动判定：必须在比赛中 且 有名次 且 比赛时间流动
-    const isStartConditionMet = telemetry.isRaceOn && 
-      telemetry.racePosition > 0 && 
+    const isStartConditionMet = telemetry.isRaceOn &&
+      telemetry.racePosition > 0 &&
       (telemetry.currentRaceTime && telemetry.currentRaceTime > 0);
 
     // 维持判定：只要 isRaceOn 是 true 就可以继续录制（防止倒车/暂停/瞬移/多人游戏名次为0导致的录制中断）
     const isRaceActive = telemetry.isRaceOn;
 
     // 检测是否为重新开始比赛 (当已经在录制中，但比赛时间突然归零/重置，说明玩家在菜单里点了“重新开始”)
-    const isRestart = (autoRecordState === 'RECORDING' || autoRecordState === 'POST_RACE') && 
-                      (telemetry.currentRaceTime !== undefined && telemetry.currentRaceTime < 2) && 
+    const isRestart = (autoRecordState === 'RECORDING' || autoRecordState === 'POST_RACE') &&
+                      (telemetry.currentRaceTime !== undefined && telemetry.currentRaceTime < 2) &&
                       (autoRecordStartTime && now - autoRecordStartTime > 10000);
 
     if (isRestart) {
@@ -334,7 +333,7 @@ const calculateTrackLength = (pts) => {
         if (!speedSustainStart) {
           speedSustainStart = now;
         }
-        
+
         const isRaceAlreadyInProgress = telemetry.currentRaceTime && telemetry.currentRaceTime > 30;
         const isStaticPosition = staticPositionCount > MAX_STATIC_COUNT;
         const isValidRace = !isStaticPosition || isRaceAlreadyInProgress;
@@ -368,7 +367,7 @@ const calculateTrackLength = (pts) => {
             autoRecordStopTimer = null;
           }
         }
-        
+
         // 持续写入遥测包和打点
         const nowTime = Date.now();
         if (nowTime - lastAutoRecordSaveTime >= 50) {
@@ -401,7 +400,7 @@ const calculateTrackLength = (pts) => {
             autoRacePositions.push(extractTrackPoint(telemetry));
             lastAutoPositionSaveTime = nowTime;
           }
-          
+
           const trackMode = stateManager.getTrackMode();
           // 路书播报依旧基于 isStartConditionMet 避免倒车/静止时播报，但正常比赛时继续
           if (isStartConditionMet && trackMode && trackMode.detail) {
@@ -411,7 +410,7 @@ const calculateTrackLength = (pts) => {
             }
           }
         }
-        
+
         const packetCount = stateManager.getPacketCount();
         if (packetCount % 30 === 0) {
           stateManager.io.emit('recordStats', {
@@ -454,13 +453,13 @@ const calculateTrackLength = (pts) => {
     });
   });
 
-  router.post('/record/start', (req, res) => { 
-    manualRacePositions.length = 0; 
+  router.post('/record/start', (req, res) => {
+    manualRacePositions.length = 0;
     manualRecordDataCount = 0;
     lastManualRecordSaveTime = 0;
     lastManualPositionSaveTime = 0;
-    isManualRecording = true; 
-    
+    isManualRecording = true;
+
     const tempDir = path.join(DATA_DIR, 'sessions');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     manualRecordTempPath = path.join(tempDir, `temp_manual_record_${Date.now()}.jsonl`);
@@ -468,24 +467,24 @@ const calculateTrackLength = (pts) => {
     manualRecordWriteStream.on('error', (err) => console.error('[手动录制] 文件写入流异常:', err));
 
     console.log(`[手动录制] 录制开始，流式写入临时文件: ${manualRecordTempPath}`);
-    res.json({ status: 'ok' }); 
+    res.json({ status: 'ok' });
   });
 
-  router.post('/record/stop', (req, res) => { 
-    isManualRecording = false; 
+  router.post('/record/stop', (req, res) => {
+    isManualRecording = false;
     if (manualRecordWriteStream) {
       manualRecordWriteStream.end();
       manualRecordWriteStream = null;
     }
     console.log(`[手动录制] 录制停止，已录制 ${manualRecordDataCount} 条数据，内存收集 ${manualRacePositions.length} 个轨迹点`);
-    res.json({ status: 'ok', count: manualRecordDataCount, positions: manualRacePositions.length }); 
+    res.json({ status: 'ok', count: manualRecordDataCount, positions: manualRacePositions.length });
   });
 
   router.post('/record/save', express.json(), (req, res) => {
     const ts = Date.now();
     const trackName = req.body.trackName || '未命名赛道';
     const trackId = req.body.trackId;
-    
+
     if (!manualRecordTempPath || !fs.existsSync(manualRecordTempPath)) {
       return res.status(400).json({ error: '没有录制数据或临时文件已丢失' });
     }
@@ -513,46 +512,14 @@ const calculateTrackLength = (pts) => {
     manualRacePositions = [];
     manualRecordDataCount = 0;
 
-    const workerPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../storage/save-worker.js');
-    const worker = new Worker(workerPath, {
-      workerData: {
-        tempFilePath,
-        positions,
-        sessionDataMeta,
-        DATA_DIR, tracks: stateManager.tracks,
-        trackMode: trackId ? { trackId, trackName } : null
-      }
-    });
-
-    worker.on('message', (msg) => {
-      if (msg.status === 'success') {
-        console.log(`[手动录制] 后台保存成功，会话 ID: ${msg.sessionId}`);
-        
-        if (msg.tracksUpdate) {
-          const trUpdate = msg.tracksUpdate;
-          stateManager.tracks[trUpdate.id] = trUpdate;
-          saveTracksDatabase(stateManager.tracks);
-        }
-
-        // 核心修复：通知缓存比赛记录+1
-        const targetTrackId = msg.tracksUpdate ? msg.tracksUpdate.id : trackId;
-        if (targetTrackId) {
-          stateManager.incrementSessionCount(targetTrackId);
-        }
-
-        const sessionSummary = msg.sessionSummary;
-        const vehicleOrdinal = sessionSummary.vehicle ? sessionSummary.vehicle.ordinal : null;
-        if (vehicleOrdinal && stateManager.vehicles[vehicleOrdinal]) {
-          stateManager.vehicles[vehicleOrdinal].raceCount = (stateManager.vehicles[vehicleOrdinal].raceCount || 0) + 1;
-          if (targetTrackId && targetTrackId !== 'unknown' && !stateManager.vehicles[vehicleOrdinal].tracks.includes(targetTrackId)) {
-            stateManager.vehicles[vehicleOrdinal].tracks.push(targetTrackId);
-          }
-          if (!stateManager.vehicles[vehicleOrdinal].bestLap || (sessionSummary.laps && sessionSummary.laps.best && sessionSummary.laps.best < stateManager.vehicles[vehicleOrdinal].bestLap)) {
-            stateManager.vehicles[vehicleOrdinal].bestLap = sessionSummary.laps?.best;
-          }
-          saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
-        }
-
+    runSaveWorker({
+      tempFilePath,
+      positions,
+      sessionDataMeta,
+      workerTrackMode: trackId ? { trackId, trackName } : null,
+      workerErrorLabel: '[手动录制] 保存工作线程发生错误:',
+      onSuccess: (msg) => {
+        const sessionSummary = applySavedSessionStats(msg, trackId);
         res.json({
           status: 'ok',
           filename: 'session_' + ts + '.json',
@@ -563,24 +530,13 @@ const calculateTrackLength = (pts) => {
           trajectoryCount: msg.tracksUpdate ? msg.tracksUpdate.trajectoryCount : 1,
           trackLength: msg.tracksUpdate ? msg.tracksUpdate.length : 0
         });
-      } else {
-        console.error(`[手动录制] 后台保存失败: ${msg.error}`);
+      },
+      onFailure: (msg) => {
         res.status(500).json({ error: `保存失败: ${msg.error}` });
+      },
+      onWorkerError: (err) => {
+        res.status(500).json({ error: `保存工作线程崩溃: ${err.message}` });
       }
-
-      try {
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      } catch {}
-      worker.terminate();
-    });
-
-    worker.on('error', (err) => {
-      console.error(`[手动录制] 保存工作线程发生错误:`, err);
-      res.status(500).json({ error: `保存工作线程崩溃: ${err.message}` });
-      try {
-        if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      } catch {}
-      worker.terminate();
     });
   });
 

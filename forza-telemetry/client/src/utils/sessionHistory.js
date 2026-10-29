@@ -1,6 +1,6 @@
 export const SESSION_PAGE_SIZE = 20;
 
-export const LEADERBOARD_VEHICLE_CLASSES = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
+const LEADERBOARD_VEHICLE_CLASSES = ['D', 'C', 'B', 'A', 'S1', 'S2', 'X'];
 
 export function getUniqueTracks(sessions) {
   return [...new Set(sessions.map(session => session.trackName || '未知赛道'))].filter(Boolean);

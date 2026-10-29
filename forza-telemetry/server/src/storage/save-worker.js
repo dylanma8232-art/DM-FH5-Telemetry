@@ -6,7 +6,7 @@ import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
 import { simplifyRDP } from '../utils/rdp.js';
-import { buildTrackFromTrajectories, buildRouteBook, generateSectors } from '../track-builder.js';
+import { buildTrackFromTrajectories, generateSectors } from '../track-builder.js';
 import { sqliteDb } from './sqlite-db.js';
 
 const brotliCompress = promisify(zlib.brotliCompress);
