@@ -6,6 +6,7 @@ import { PaceNoteGlossaryModal } from '../dashboard/PaceNotesPanel';
 import { SaveRecordingDialog } from './track/SaveRecordingDialog';
 import { MergePreviewCanvas } from './track/MergePreviewCanvas';
 import { TurnEditorTable } from './track/TurnEditorTable';
+import { TrackCandidateBanner } from './track/TrackCandidateBanner';
 import { SearchableTrackSelect } from './track/SearchableTrackSelect';
 import { movingAverageSmooth } from '../../utils/movingAverageSmooth';
 import { api } from '../../services/api';
@@ -2101,22 +2102,14 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
                           </button>
                         </div>
 
-                        {selectedTrackData.geometryCandidate && (
-                          <div style={{ marginBottom: 8, padding: 8, borderRadius: 5, border: '1px solid rgba(188,140,255,0.45)', background: 'rgba(188,140,255,0.08)' }}>
-                            <div style={{ fontSize: 10, color: '#d2a8ff', marginBottom: 5 }}>
-                              最新候选地图：{Math.round(selectedTrackData.geometryCandidate.length || 0)}m · {selectedTrackData.geometryCandidate.turns?.length || 0}弯
-                            </div>
-                            <button
-                              onClick={() => setConfirmDialog({
-                                message: '采用候选地图将替换当前正式地图，并根据候选弯道更新自动路书。已编辑路书中的锁定弯道会继续映射保留。',
-                                onConfirm: () => adoptCandidate(selectedTrack)
-                              })}
-                              style={btnPrimarySmallStyle}
-                            >
-                              采用候选地图
-                            </button>
-                          </div>
-                        )}
+                        <TrackCandidateBanner
+                          geometryCandidate={selectedTrackData.geometryCandidate}
+                          onAdopt={() => setConfirmDialog({
+                            message: '采用候选地图将替换当前正式地图，并根据候选弯道更新自动路书。已编辑路书中的锁定弯道会继续映射保留。',
+                            onConfirm: () => adoptCandidate(selectedTrack)
+                          })}
+                          adoptButtonStyle={btnPrimarySmallStyle}
+                        />
 
                         {/* 分项进度条 */}
                         {q?.details && (
