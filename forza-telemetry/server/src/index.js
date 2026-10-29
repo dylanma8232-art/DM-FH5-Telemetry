@@ -14,11 +14,11 @@ import { runSessionRetentionCleanup } from './services/retention.js';
 // 子系统与存储模块导入
 import { getLocalIPs, loadJSON, saveJSON } from './utils/helpers.js';
 import { sqliteDb } from './storage/sqlite-db.js';
-import { 
-  loadTracksDatabase, 
-  saveTracksDatabase, 
-  readTrackDetail, 
-  writeTrackDetail, 
+import {
+  loadTracksDatabase,
+  saveTracksDatabase,
+  readTrackDetailAsync,
+  writeTrackDetail,
   migrateOldSessions
 } from './storage/session-db.js';
 
@@ -69,6 +69,12 @@ let carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
 let packetCount = 0;
 let lastPacketTime = null;
 let currentData = null;
+
+// 车辆记账限频：lastUsed 最多 5s 刷一次，落盘也最多 5s 一次（避免每包字符串分配与写盘）
+const VEHICLE_ACCOUNTING_INTERVAL_MS = 5000;
+let lastVehicleAccountingTime = 0;
+let lastVehiclePersistTime = 0;
+let vehicleAccountingDirty = false;
 
 const udpServer = dgram.createSocket('udp4');
 const app = express();
@@ -124,6 +130,7 @@ let lastEmitTime = 0;
 
 udpServer.on('message', (msg, rinfo) => {
   packetCount++;
+  stateManager.setPacketCount(packetCount);
   lastPacketTime = new Date();
   
   const now = Date.now();
@@ -177,10 +184,16 @@ function processTelemetryPacket(telemetry, msgLength) {
         autoDetected: true
       };
       saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+      lastVehiclePersistTime = now;
+      vehicleAccountingDirty = false;
       console.log(`[Vehicle] 自动识别新车辆: ${vehicles[carOrd].name}`);
       io.emit('vehicleDetected', vehicles[carOrd]);
     } else {
-      vehicles[carOrd].lastUsed = new Date().toISOString();
+      if (now - lastVehicleAccountingTime >= VEHICLE_ACCOUNTING_INTERVAL_MS) {
+        vehicles[carOrd].lastUsed = new Date().toISOString();
+        lastVehicleAccountingTime = now;
+        vehicleAccountingDirty = true;
+      }
       let updated = false;
       if ((!vehicles[carOrd].name || vehicles[carOrd].name.startsWith('Car #')) && carsDatabase[carOrd]) {
         vehicles[carOrd].name = carsDatabase[carOrd];
@@ -191,8 +204,11 @@ function processTelemetryPacket(telemetry, msgLength) {
         vehicles[carOrd].pi = telemetry.car.performanceIndex;
         updated = true;
       }
-      if (updated) {
+      if (updated) vehicleAccountingDirty = true;
+      if (vehicleAccountingDirty && now - lastVehiclePersistTime >= VEHICLE_ACCOUNTING_INTERVAL_MS) {
         saveJSON(DATA_DIR + '/vehicles.json', vehicles);
+        lastVehiclePersistTime = now;
+        vehicleAccountingDirty = false;
       }
     }
   }
@@ -216,13 +232,21 @@ function processTelemetryPacket(telemetry, msgLength) {
     const tracksDir = path.join(DATA_DIR, 'tracks');
     if (fs.existsSync(tracksDir)) {
       const trackFiles = fs.readdirSync(tracksDir).filter(f => f.endsWith('.json') || f.endsWith('.json.br'));
-      let healedCount = 0;
-      for (const file of trackFiles) {
+      // 读盘阶段并发（写盘与检测仍串行，输出顺序与结果不变）
+      const loadedTracks = await Promise.all(trackFiles.map(async (file) => {
         const id = file.replace('.json.br', '').replace('.json', '');
         try {
-          const detail = readTrackDetail(id);
-          if (!detail) continue;
-          
+          return { file, id, detail: await readTrackDetailAsync(id) };
+        } catch (e) {
+          console.error(`[启动自愈合] 读取 ${file} 失败:`, e.message);
+          return null;
+        }
+      }));
+      let healedCount = 0;
+      for (const entry of loadedTracks) {
+        if (!entry || !entry.detail) continue;
+        const { file, id, detail } = entry;
+        try {
           if ((!detail.turns || detail.turns.length === 0) && detail.centerline && detail.centerline.length > 20) {
             console.log(`[启动自愈合] 修复赛道: ${detail.name || id}`);
             const turns = detectTurnsEnhanced(detail.centerline);

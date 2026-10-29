@@ -16,6 +16,10 @@ const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 let cachedSessionsList = null;
 let lastSessionsFetchTime = 0;
 
+let cachedLeaderboardsList = null;
+let lastLeaderboardsFetchTime = 0;
+const LEADERBOARDS_CACHE_TTL = 10000;
+
 // 获取比赛记录列表
 router.get('/api/sessions', asyncHandler(async (req, res) => {
   const now = Date.now();
@@ -24,12 +28,12 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
   }
 
   const sessionsDir = DATA_DIR + '/sessions';
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+  const files = (await fs.promises.readdir(sessionsDir)).filter((f) => f.endsWith('_summary.json'));
   const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
 
-  const sessions = files.map((f) => {
+  const parsed = await Promise.all(files.map(async (f) => {
     try {
-      const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
+      const data = JSON.parse(await fs.promises.readFile(sessionsDir + '/' + f, 'utf8'));
       const tune = data.tuneId && stateManager.tunes[data.tuneId] ? stateManager.tunes[data.tuneId] : null;
       const trackName = typeof stateManager.tracks !== 'undefined' && data.trackId && stateManager.tracks[data.trackId] ?
       stateManager.tracks[data.trackId].name :
@@ -90,7 +94,8 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
     } catch (e) {
       return null;
     }
-  }).filter((s) => s !== null);
+  }));
+  const sessions = parsed.filter((s) => s !== null);
 
   sessions.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
   cachedSessionsList = sessions;
@@ -100,15 +105,24 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
 
 // 获取全赛道最佳圈速与历史排名
 router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
+  const now = Date.now();
+  if (cachedLeaderboardsList && (now - lastLeaderboardsFetchTime < LEADERBOARDS_CACHE_TTL)) {
+    return res.json(cachedLeaderboardsList);
+  }
 
   const sessionsDir = DATA_DIR + '/sessions';
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+  const files = (await fs.promises.readdir(sessionsDir)).filter((f) => f.endsWith('_summary.json'));
 
   const leaderboards = {};
 
-  files.forEach((file) => {
+  const fileContents = await Promise.all(
+    files.map((file) => fs.promises.readFile(path.join(sessionsDir, file), 'utf8').catch(() => null))
+  );
+
+  fileContents.forEach((content) => {
+    if (!content) return;
     try {
-      const summary = JSON.parse(fs.readFileSync(path.join(sessionsDir, file), 'utf8'));
+      const summary = JSON.parse(content);
       if (summary.bestLap > 0 && summary.trackId) {
         if (!leaderboards[summary.trackId]) {
           leaderboards[summary.trackId] = [];
@@ -130,6 +144,8 @@ router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
     leaderboards[trackId].sort((a, b) => a.bestLap - b.bestLap);
   });
 
+  cachedLeaderboardsList = leaderboards;
+  lastLeaderboardsFetchTime = Date.now();
   res.json(leaderboards);
 
 
@@ -200,6 +216,8 @@ router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
   }
 
   stateManager.setLeaderboardCache(null);
+  cachedLeaderboardsList = null;
+  lastLeaderboardsFetchTime = 0;
   res.json({ status: 'ok' });
 
 

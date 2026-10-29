@@ -345,7 +345,12 @@ async function main() {
     lastLap = validRaceTimes[validRaceTimes.length - 1].currentRaceTime;
   }
 
-  let maxLap = hifiData.length > 0 ? Math.max(...hifiData.map(d => d.lapNumber || d.lapNum || 0)) : 0;
+  // 避免 Math.max(...Array) 在 30 万帧级数据上抛 RangeError（栈参数上限）
+  let maxLap = 0;
+  for (let i = 0; i < hifiData.length; i++) {
+    const lap = hifiData[i].lapNumber || hifiData[i].lapNum || 0;
+    if (lap > maxLap) maxLap = lap;
+  }
 
   // 恢复丢失的车辆数据并根据静态车辆库补全名称
   let vehicleToSave = sessionDataMeta.vehicle || null;
