@@ -157,3 +157,21 @@ test('备份恢复与导出分别保留二进制和 Blob 原始响应语义', as
     globalThis.fetch = originalFetch;
   }
 });
+
+test('单弯道建议速度契约使用 PUT /api/tracks/:id/turns/:index/speedHint', async () => {
+  let request;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
+  };
+  try {
+    const res = await api.tracks.updateTurnSpeedHintResponse('track_1', 3, { speedHint: 88 });
+    assert.equal(request.url, '/api/tracks/track_1/turns/3/speedHint');
+    assert.equal(request.options.method, 'PUT');
+    assert.deepEqual(JSON.parse(request.options.body), { speedHint: 88 });
+    assert.equal(res.ok, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

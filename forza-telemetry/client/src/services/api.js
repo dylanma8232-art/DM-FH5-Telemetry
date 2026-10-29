@@ -141,6 +141,8 @@ export const api = {
     updateTurnsResponse: (id, body) => putResponse(`/api/tracks/${id}/turns`, body),
     mergeTurnsResponse: (id, body) => postResponse(`/api/tracks/${id}/turns/merge`, body),
     updateTurnBoundsResponse: (id, turnIndex, body) => putResponse(`/api/tracks/${id}/turns/${turnIndex}/bounds`, body),
+    // B14：单弯道建议速度的最小载荷契约（后端 PUT /:id/turns/:index/speedHint 早已存在）
+    updateTurnSpeedHintResponse: (id, turnIndex, body) => putResponse(`/api/tracks/${id}/turns/${turnIndex}/speedHint`, body),
     splitTurnResponse: (id, body) => postResponse(`/api/tracks/${id}/turns/split`, body),
     mergeResponse: (body) => postResponse('/api/tracks/merge', body)
   },
