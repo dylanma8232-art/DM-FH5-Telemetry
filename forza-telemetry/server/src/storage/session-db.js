@@ -82,6 +82,44 @@ export function readTrackDetail(trackId) {
   return null;
 }
 
+export async function readTrackDetailAsync(trackId) {
+  const tracksDir = path.join(DATA_DIR, 'tracks');
+  const brPath = path.join(tracksDir, `${trackId}.json.br`);
+  const gzPath = path.join(tracksDir, `${trackId}.json.gz`);
+  const jsonPath = path.join(tracksDir, `${trackId}.json`);
+
+  if (fs.existsSync(brPath)) {
+    try {
+      const buffer = await fs.promises.readFile(brPath);
+      const decompressed = await zlib.brotliDecompress(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (e) {
+      console.error(`[readTrackDetailAsync] 解压 Brotli 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  if (fs.existsSync(gzPath)) {
+    try {
+      const buffer = await fs.promises.readFile(gzPath);
+      const decompressed = await zlib.gunzip(buffer);
+      return JSON.parse(decompressed.toString('utf8'));
+    } catch (e) {
+      console.error(`[readTrackDetailAsync] 解压 Gzip 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const content = await fs.promises.readFile(jsonPath, 'utf8');
+      return JSON.parse(content);
+    } catch (e) {
+      console.error(`[readTrackDetailAsync] 读取 JSON 赛道 ${trackId} 失败:`, e.message);
+    }
+  }
+
+  return null;
+}
+
 export function writeTrackDetail(trackId, trackDetail) {
   const tracksDir = path.join(DATA_DIR, 'tracks');
   const brPath = path.join(tracksDir, `${trackId}.json.br`);
@@ -95,10 +133,10 @@ export function writeTrackDetail(trackId, trackDetail) {
     
     const compressed = zlib.brotliCompressSync(buffer, {
       params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: 9
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 4
       }
     });
-    
+
     fs.writeFileSync(brPath, compressed);
 
     if (fs.existsSync(jsonPath)) {

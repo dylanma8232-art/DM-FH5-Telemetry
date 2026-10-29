@@ -399,15 +399,6 @@ const DATA_DIR = stateManager.DATA_DIR;
             autoRacePositions.push(extractTrackPoint(telemetry));
             lastAutoPositionSaveTime = nowTime;
           }
-
-          const trackMode = stateManager.getTrackMode();
-          // 路书播报依旧基于 isStartConditionMet 避免倒车/静止时播报，但正常比赛时继续
-          if (isStartConditionMet && trackMode && trackMode.detail) {
-            const track = trackMode.detail;
-            if (track.turns && track.turns.length > 0) {
-
-            }
-          }
         }
 
         const packetCount = stateManager.getPacketCount();
@@ -430,14 +421,6 @@ const DATA_DIR = stateManager.DATA_DIR;
             autoRecordStopTimer = null;
           }, STOP_DEBOUNCE_MS);
         }
-      }
-    }
-
-    const trackMode = stateManager.getTrackMode();
-    if (isManualRecording && isStartConditionMet && trackMode && trackMode.detail) {
-      const track = trackMode.detail;
-      if (track.turns && track.turns.length > 0 && isPositionValid) {
-
       }
     }
   }

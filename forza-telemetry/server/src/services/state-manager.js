@@ -39,14 +39,6 @@ class StateManager {
   getCurrentData() { return this.currentData; }
   getTrackMode() { return this.trackMode; }
   setTrackMode(mode) { this.trackMode = mode; }
-  getLastRecognitionResult() { return this.lastRecognitionResult; }
-  setLastRecognitionResult(res) { this.lastRecognitionResult = res; }
-  getRecognitionHistory() { return this.recognitionHistory || []; }
-  pushToRecognitionHistory(res) {
-    if (!this.recognitionHistory) this.recognitionHistory = [];
-    this.recognitionHistory.push(res);
-    if (this.recognitionHistory.length > 20) this.recognitionHistory = this.recognitionHistory.slice(-20);
-  }
   getPacketCount() { return this.packetCount; }
   setPacketCount(cnt) { this.packetCount = cnt; }
   getLeaderboardCache() { return this.leaderboardCache; }
