@@ -42,6 +42,109 @@ const modalContentStyle = {
   boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
 };
 
+// 构建静态层 Path2D：赛道底色/弯道段/边缘线/中心线/候选线一次构建，
+// 几何与画布尺寸不变时跨帧复用；平移缩放只重放变换矩阵，不再逐点重放 lineTo。
+// 坐标系与原逐帧绘制完全一致（屏幕坐标 + ctx.translate/scale），视觉零差异。
+function buildStaticPaths(points, smoothedCandidate, isLoop, candidateIsLoop, turns, toScreen) {
+  const roadBase = new Path2D();
+  const centerline = new Path2D();
+  const edgeLeft = new Path2D();
+  const edgeRight = new Path2D();
+  const turnSegments = [];
+
+  const s0 = toScreen(points[0]);
+  roadBase.moveTo(s0.sx, s0.sy);
+  centerline.moveTo(s0.sx, s0.sy);
+  for (let i = 1; i < points.length; i++) {
+    const sPt = toScreen(points[i]);
+    roadBase.lineTo(sPt.sx, sPt.sy);
+    centerline.lineTo(sPt.sx, sPt.sy);
+  }
+  if (isLoop) {
+    const sLast = toScreen(points[0]);
+    roadBase.lineTo(sLast.sx, sLast.sy);
+    centerline.lineTo(sLast.sx, sLast.sy);
+  }
+
+  // 两侧白色边缘线（与原 drawEdge 法线计算逐行一致）
+  const buildEdge = (path, isLeft) => {
+    for (let i = 0; i < points.length; i++) {
+      const p1 = points[i];
+      let nx = 0, nz = 0;
+
+      // 使用更宽的采样窗口来计算法线，过滤局部噪点
+      const lookAhead = Math.min(i + 3, points.length - 1);
+      const lookBehind = Math.max(i - 3, 0);
+
+      if (lookAhead > lookBehind) {
+        const dx = points[lookAhead].x - points[lookBehind].x;
+        const dz = points[lookAhead].z - points[lookBehind].z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        nx = -dz / len; nz = dx / len;
+      }
+
+      const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
+      const ex = p1.x + (isLeft ? nx : -nx) * w;
+      const ez = p1.z + (isLeft ? nz : -nz) * w;
+      const s = toScreen({ x: ex, z: ez });
+
+      if (i === 0) path.moveTo(s.sx, s.sy);
+      else path.lineTo(s.sx, s.sy);
+    }
+    if (isLoop) {
+      const lookAhead = Math.min(3, points.length - 1);
+      const lookBehind = Math.max(points.length - 4, 0);
+      const dx = points[lookAhead].x - points[lookBehind].x;
+      const dz = points[lookAhead].z - points[lookBehind].z;
+      const len = Math.sqrt(dx * dx + dz * dz) || 1;
+      const nx = -dz / len, nz = dx / len;
+      const p1 = points[0];
+      const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
+      const ex = p1.x + (isLeft ? nx : -nx) * w;
+      const ez = p1.z + (isLeft ? nz : -nz) * w;
+      const s = toScreen({ x: ex, z: ez });
+      path.lineTo(s.sx, s.sy);
+    }
+  };
+  buildEdge(edgeLeft, true);
+  buildEdge(edgeRight, false);
+
+  // 每个弯道的高亮段（用弯道自身的静态边界；正在编辑的弯道在绘制时实时重放）
+  (turns || []).forEach((turn) => {
+    const seg = new Path2D();
+    let startPt = false;
+    for (let i = 0; i < points.length; i++) {
+      const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
+      if (origIdx >= turn.startIdx && !startPt) {
+        const s = toScreen(points[i]);
+        seg.moveTo(s.sx, s.sy);
+        startPt = true;
+      } else if (startPt && origIdx <= turn.endIdx) {
+        const s = toScreen(points[i]);
+        seg.lineTo(s.sx, s.sy);
+      } else if (startPt && origIdx > turn.endIdx) {
+        break;
+      }
+    }
+    turnSegments.push(seg);
+  });
+
+  // 候选地图虚线（路径静态，虚线样式在绘制时按缩放设置）
+  let candidate = null;
+  if (smoothedCandidate) {
+    candidate = new Path2D();
+    const candidateStart = toScreen(smoothedCandidate[0]);
+    candidate.moveTo(candidateStart.sx, candidateStart.sy);
+    for (let i = 1; i < smoothedCandidate.length; i++) {
+      const point = toScreen(smoothedCandidate[i]);
+      candidate.lineTo(point.sx, point.sy);
+    }
+    if (candidateIsLoop) candidate.lineTo(candidateStart.sx, candidateStart.sy);
+  }
+
+  return { roadBase, centerline, edgeLeft, edgeRight, turnSegments, candidate };
+}
+
 export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigate, socket }) {
   const [tracks, setTracks] = useState({});
   const [selectedTrack, setSelectedTrack] = useState(null);
@@ -62,6 +165,8 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
   const mapContextRef = useRef({});
+  // 静态层 Path2D 缓存 + 失效键：几何/画布尺寸未变时跨帧复用，平移缩放零重建
+  const staticPathsRef = useRef(null);
   const [dragMode, setDragMode] = useState(null); // null, "start", "end"
   const [isHoveringHandle, setIsHoveringHandle] = useState(false); // 是否悬停在拖拽手柄上
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -799,7 +904,7 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
     const smoothedCandidate = candidatePoints
       ? movingAverageSmooth(candidatePoints, candidate.isLoop === true, 50, 5)
       : null;
-    
+
     // Save to ref for interactions
     if (mapContextRef) {
       mapContextRef.current = {
@@ -809,6 +914,17 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
       };
     }
 
+    // 静态层 Path2D 缓存：仅当几何/画布尺寸/弯道边界变化时重建
+    const turns = track.turns || [];
+    const cacheKey = `${points.length}|${canvas.width}x${canvas.height}|${candidatePoints ? candidatePoints.length : 0}|${turns.map(t => `${t.startIdx}-${t.endIdx}`).join(',')}`;
+    if (staticPathsRef.current?.key !== cacheKey) {
+      staticPathsRef.current = {
+        key: cacheKey,
+        paths: buildStaticPaths(points, smoothedCandidate, isLoop, candidatePoints ? (candidate.isLoop === true) : false, turns, toScreen)
+      };
+    }
+    const staticPaths = staticPathsRef.current.paths;
+
     ctx.save();
     ctx.translate(transform.x, transform.y);
     ctx.scale(transform.scale, transform.scale);
@@ -817,134 +933,59 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
     ctx.lineJoin = 'round';
 
     // 每场比赛更新的候选地图：紫色虚线，仅用于对比，不参与当前路书编辑。
-    if (smoothedCandidate) {
+    if (staticPaths.candidate) {
       ctx.setLineDash([7 / transform.scale, 5 / transform.scale]);
       ctx.lineWidth = 3 / transform.scale;
       ctx.strokeStyle = '#bc8cff';
-      ctx.beginPath();
-      const candidateStart = toScreen(smoothedCandidate[0]);
-      ctx.moveTo(candidateStart.sx, candidateStart.sy);
-      for (let i = 1; i < smoothedCandidate.length; i++) {
-        const point = toScreen(smoothedCandidate[i]);
-        ctx.lineTo(point.sx, point.sy);
-      }
-      if (candidate.isLoop) ctx.lineTo(candidateStart.sx, candidateStart.sy);
-      ctx.stroke();
+      ctx.stroke(staticPaths.candidate);
       ctx.setLineDash([]);
     }
 
     // 1. 绘制整体赛道底色（直道颜色）
     ctx.lineWidth = 12 * sc; // 基础路宽 12 米
     ctx.strokeStyle = 'rgba(56, 139, 253, 0.12)';
-    ctx.beginPath();
-    let s0 = toScreen(points[0]);
-    ctx.moveTo(s0.sx, s0.sy);
-    for (let i = 1; i < points.length; i++) {
-      const sPt = toScreen(points[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    if (isLoop) {
-      const sLast = toScreen(points[0]);
-      ctx.lineTo(sLast.sx, sLast.sy);
-    }
-    ctx.stroke();
+    ctx.stroke(staticPaths.roadBase);
 
-    // 2. 绘制每个弯道的高亮色
-    const turns = track.turns || [];
+    // 2. 绘制每个弯道的高亮色（预编译 Path2D 重放；正在编辑的弯道实时重放以反映拖拽）
     turns.forEach((turn, tIdx) => {
       const isEditing = editingTurnIndex === tIdx;
-      // 恢复所有的弯道区间高亮
       ctx.lineWidth = (isEditing ? 16 : 8) / transform.scale;
       ctx.strokeStyle = isEditing ? 'rgba(255, 211, 61, 0.85)' : 'rgba(240, 136, 62, 0.45)';
-      ctx.beginPath();
-      
-      // 找到弯道在平滑点阵中的对应点
-      let startPt = null;
-      // 如果正在编辑，使用实时的边界，否则用原本的
-      const currentStartIdx = (isEditing && editTurnForm) ? editTurnForm.startIdx : turn.startIdx;
-      const currentEndIdx = (isEditing && editTurnForm) ? editTurnForm.endIdx : turn.endIdx;
-
-      for(let i=0; i<points.length; i++) {
-        const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
-        if (origIdx >= currentStartIdx && !startPt) {
-          const s = toScreen(points[i]);
-          ctx.moveTo(s.sx, s.sy);
-          startPt = true;
-        } else if (startPt && origIdx <= currentEndIdx) {
-          const s = toScreen(points[i]);
-          ctx.lineTo(s.sx, s.sy);
-        } else if (startPt && origIdx > currentEndIdx) {
-          break;
+      if (isEditing) {
+        // 正在编辑时用实时边界重放，拖拽手柄即时反馈
+        ctx.beginPath();
+        const currentStartIdx = editTurnForm ? editTurnForm.startIdx : turn.startIdx;
+        const currentEndIdx = editTurnForm ? editTurnForm.endIdx : turn.endIdx;
+        let startPt = false;
+        for (let i = 0; i < points.length; i++) {
+          const origIdx = (points[i].origIdx !== undefined) ? points[i].origIdx : i;
+          if (origIdx >= currentStartIdx && !startPt) {
+            const s = toScreen(points[i]);
+            ctx.moveTo(s.sx, s.sy);
+            startPt = true;
+          } else if (startPt && origIdx <= currentEndIdx) {
+            const s = toScreen(points[i]);
+            ctx.lineTo(s.sx, s.sy);
+          } else if (startPt && origIdx > currentEndIdx) {
+            break;
+          }
         }
+        ctx.stroke();
+      } else {
+        ctx.stroke(staticPaths.turnSegments[tIdx]);
       }
-      ctx.stroke();
     });
 
     // 3. 绘制两侧白色边缘线 (细线，保持1个像素粗细)
     ctx.lineWidth = 1 / transform.scale;
-    
-    // 平滑边缘线法线计算，避免锯齿与尖刺
-    const drawEdge = (isLeft) => {
-      ctx.beginPath();
-      for (let i = 0; i < points.length; i++) {
-        const p1 = points[i];
-        let nx = 0, nz = 0;
-        
-        // 使用更宽的采样窗口来计算法线，过滤局部噪点
-        const lookAhead = Math.min(i + 3, points.length - 1);
-        const lookBehind = Math.max(i - 3, 0);
-        
-        if (lookAhead > lookBehind) {
-          const dx = points[lookAhead].x - points[lookBehind].x;
-          const dz = points[lookAhead].z - points[lookBehind].z;
-          const len = Math.sqrt(dx*dx + dz*dz) || 1;
-          nx = -dz/len; nz = dx/len;
-        }
-        
-        const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
-        const ex = p1.x + (isLeft ? nx : -nx) * w;
-        const ez = p1.z + (isLeft ? nz : -nz) * w;
-        const s = toScreen({x: ex, z: ez});
-        
-        if (i === 0) ctx.moveTo(s.sx, s.sy);
-        else ctx.lineTo(s.sx, s.sy);
-      }
-      if (isLoop) {
-        const lookAhead = Math.min(3, points.length - 1);
-        const lookBehind = Math.max(points.length - 4, 0);
-        const dx = points[lookAhead].x - points[lookBehind].x;
-        const dz = points[lookAhead].z - points[lookBehind].z;
-        const len = Math.sqrt(dx*dx + dz*dz) || 1;
-        const nx = -dz/len, nz = dx/len;
-        const p1 = points[0];
-        const w = Math.max(isLeft ? (p1.widthLeft || 0) : (p1.widthRight || 0), 6.0);
-        const ex = p1.x + (isLeft ? nx : -nx) * w;
-        const ez = p1.z + (isLeft ? nz : -nz) * w;
-        const s = toScreen({x: ex, z: ez});
-        ctx.lineTo(s.sx, s.sy);
-      }
-      ctx.stroke();
-    };
-
     ctx.strokeStyle = 'rgba(88, 166, 255, 0.35)';
-    drawEdge(true);
-    drawEdge(false);
+    ctx.stroke(staticPaths.edgeLeft);
+    ctx.stroke(staticPaths.edgeRight);
 
     // 4. 绘制主行车线 (中心线)
     ctx.lineWidth = 1.5 / transform.scale;
     ctx.strokeStyle = '#58a6ff';
-    ctx.beginPath();
-    const sStart = toScreen(points[0]);
-    ctx.moveTo(sStart.sx, sStart.sy);
-    for (let i = 1; i < points.length; i++) {
-      const sPt = toScreen(points[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    if (isLoop) {
-      const sFirst = toScreen(points[0]);
-      ctx.lineTo(sFirst.sx, sFirst.sy);
-    }
-    ctx.stroke();
+    ctx.stroke(staticPaths.centerline);
 
     // 5. 绘制起点/终点标记
     const sF = toScreen(points[0]);
