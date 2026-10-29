@@ -58,6 +58,8 @@ export function TrackThumbnail({ trackId }) {
 export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlightedPoints = [], cursorPoint = null, width = 300, height = 300, zoomOnSelect = false, channelsData = null }) {
   const canvasRef = useRef(null);
   const [positions, setPositions] = useState([]);
+  // 静态层 Path2D 缓存：路面/中心线/热力段仅当几何或缩放窗口变化时重建
+  const staticPathsRef = useRef(null);
 
   useEffect(() => {
     const fetchPositions = async () => {
@@ -128,98 +130,91 @@ export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlight
       pts = sampled;
     }
 
+    // 采样后的静态线（路面 + 中心线）与热力段构建 Path2D，几何/缩放窗口不变时跨渲染复用
+    const cacheKey = `${drawPositions.length}|${w}x${h}|${hasActiveZoom ? `${activePt.x},${activePt.z}` : 'full'}|${channelsData?.channels?.length || 0}|${pts.length}`;
+    if (staticPathsRef.current?.key !== cacheKey) {
+      const roadPath = new Path2D();
+      pts.forEach((p, i) => {
+        const px = (p.x - minX) * sc + ox;
+        const pz = h - oz - (p.z - minZ) * sc;
+        if (i === 0) roadPath.moveTo(px, pz);
+        else roadPath.lineTo(px, pz);
+      });
+
+      // 遥测异常热力层分段
+      let lockupPath = null, slipPath = null, bottomingPath = null;
+      if (channelsData?.channels && channelsData.channels.length >= 2) {
+        const channels = channelsData.channels;
+        lockupPath = new Path2D();
+        slipPath = new Path2D();
+        bottomingPath = new Path2D();
+
+        let prevPt = null;
+        channels.forEach((c) => {
+          const cx = (c.x - minX) * sc + ox;
+          const cz = h - oz - (c.z - minZ) * sc;
+          const currPt = { x: cx, y: cz };
+
+          if (prevPt) {
+            // 锁死 (刹车>100 且 任意轮胎滑移<-0.15)
+            const isLockup = c.brake > 100 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
+            if (isLockup) {
+              lockupPath.moveTo(prevPt.x, prevPt.y);
+              lockupPath.lineTo(currPt.x, currPt.y);
+            }
+
+            // 打滑 (油门>100 且 任意轮胎滑移>0.15)
+            const isSlip = c.accel > 100 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
+            if (isSlip) {
+              slipPath.moveTo(prevPt.x, prevPt.y);
+              slipPath.lineTo(currPt.x, currPt.y);
+            }
+
+            // 托底 (归一化悬挂行程<0.05)
+            const isBottoming = c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05;
+            if (isBottoming) {
+              bottomingPath.moveTo(prevPt.x, prevPt.y);
+              bottomingPath.lineTo(currPt.x, currPt.y);
+            }
+          }
+          prevPt = currPt;
+        });
+      }
+
+      staticPathsRef.current = { key: cacheKey, roadPath, lockupPath, slipPath, bottomingPath };
+    }
+    const staticPaths = staticPathsRef.current;
+
     // 绘制路面
     ctx.strokeStyle = '#30363d';
     ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.beginPath();
-    pts.forEach((p, i) => {
-      const px = (p.x - minX) * sc + ox;
-      const pz = h - oz - (p.z - minZ) * sc;
-      if (i === 0) ctx.moveTo(px, pz);
-      else ctx.lineTo(px, pz);
-    });
-    ctx.stroke();
+    ctx.stroke(staticPaths.roadPath);
 
     // 绘制中心线走线
     ctx.strokeStyle = '#223049';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.beginPath();
-    pts.forEach((p, i) => {
-      const px = (p.x - minX) * sc + ox;
-      const pz = h - oz - (p.z - minZ) * sc;
-      if (i === 0) ctx.moveTo(px, pz);
-      else ctx.lineTo(px, pz);
-    });
-    ctx.stroke();
+    ctx.stroke(staticPaths.roadPath);
 
-    // 绘制遥测异常热力图层
-    if (channelsData?.channels && channelsData.channels.length >= 2) {
-      const channels = channelsData.channels;
-      const lockupSegments = [];
-      const slipSegments = [];
-      const bottomingSegments = [];
-
-      let prevPt = null;
-      channels.forEach((c) => {
-        const cx = (c.x - minX) * sc + ox;
-        const cz = h - oz - (c.z - minZ) * sc;
-        const currPt = { x: cx, y: cz };
-
-        if (prevPt) {
-          // 锁死 (刹车>100 且 任意轮胎滑移<-0.15)
-          const isLockup = c.brake > 100 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
-          if (isLockup) {
-            lockupSegments.push({ p1: prevPt, p2: currPt });
-          }
-
-          // 打滑 (油门>100 且 任意轮胎滑移>0.15)
-          const isSlip = c.accel > 100 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
-          if (isSlip) {
-            slipSegments.push({ p1: prevPt, p2: currPt });
-          }
-
-          // 托底 (归一化悬挂行程<0.05)
-          const isBottoming = c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05;
-          if (isBottoming) {
-            bottomingSegments.push({ p1: prevPt, p2: currPt });
-          }
-        }
-        prevPt = currPt;
-      });
-
+    // 绘制遥测异常热力图层（预编译 Path2D 重放）
+    if (staticPaths.bottomingPath) {
       // 绘制托底段 (紫色)
       ctx.strokeStyle = 'rgba(188, 136, 255, 0.8)';
       ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      bottomingSegments.forEach(seg => {
-        ctx.moveTo(seg.p1.x, seg.p1.y);
-        ctx.lineTo(seg.p2.x, seg.p2.y);
-      });
-      ctx.stroke();
+      ctx.stroke(staticPaths.bottomingPath);
 
       // 绘制打滑段 (橙色)
       ctx.strokeStyle = 'rgba(210, 153, 34, 0.85)';
       ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      slipSegments.forEach(seg => {
-        ctx.moveTo(seg.p1.x, seg.p1.y);
-        ctx.lineTo(seg.p2.x, seg.p2.y);
-      });
-      ctx.stroke();
+      ctx.stroke(staticPaths.slipPath);
 
       // 绘制锁死段 (红色)
       ctx.strokeStyle = 'rgba(248, 81, 73, 0.9)';
       ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      lockupSegments.forEach(seg => {
-        ctx.moveTo(seg.p1.x, seg.p1.y);
-        ctx.lineTo(seg.p2.x, seg.p2.y);
-      });
-      ctx.stroke();
+      ctx.stroke(staticPaths.lockupPath);
     }
 
     // 绘制弯心标记点

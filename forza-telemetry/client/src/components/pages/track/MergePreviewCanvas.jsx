@@ -58,28 +58,28 @@ export function MergePreviewCanvas({ trackA, trackB }) {
 
     const toScreen = (p) => ({ sx: (p.x - minX) * sc + ox, sy: (maxZ - p.z) * sc + oz });
 
+    // Path2D 一次构建：两条赛道线仅在数据变化时重建（useEffect 依赖 dataA/dataB）
+    const buildPath = (pts) => {
+      const path = new Path2D();
+      const s0 = toScreen(pts[0]);
+      path.moveTo(s0.sx, s0.sy);
+      for (let i = 1; i < pts.length; i++) {
+        const sPt = toScreen(pts[i]);
+        path.lineTo(sPt.sx, sPt.sy);
+      }
+      return path;
+    };
+    const pathB = buildPath(pointsB);
+    const pathA = buildPath(pointsA);
+
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#58a6ff';
-    ctx.beginPath();
-    const sStartB = toScreen(pointsB[0]);
-    ctx.moveTo(sStartB.sx, sStartB.sy);
-    for (let i = 1; i < pointsB.length; i++) {
-      const sPt = toScreen(pointsB[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    ctx.stroke();
+    ctx.stroke(pathB);
 
     ctx.strokeStyle = '#f85149';
-    ctx.beginPath();
-    const sStartA = toScreen(pointsA[0]);
-    ctx.moveTo(sStartA.sx, sStartA.sy);
-    for (let i = 1; i < pointsA.length; i++) {
-      const sPt = toScreen(pointsA[i]);
-      ctx.lineTo(sPt.sx, sPt.sy);
-    }
-    ctx.stroke();
+    ctx.stroke(pathA);
 
     ctx.font = '10px sans-serif';
     ctx.fillStyle = '#58a6ff';
