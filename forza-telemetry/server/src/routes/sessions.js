@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
@@ -12,20 +11,16 @@ import {
   writeSummaryByFileName,
   deleteSessionFiles
 } from '../storage/session-store.js';
-import { loadJSON } from '../utils/helpers.js';
 import {
   buildCompactTelemetry,
   parseCompactFields,
   parseMaxPoints,
   parsePositionFields
 } from '../services/session-telemetry-compact.js';
+import { readCarsDatabase } from '../storage/reference-store.js';
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 
 const router = express.Router();
-
-const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 
 let cachedSessionsList = null;
@@ -43,7 +38,7 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
   }
 
   const files = await listSummaryFileNames();
-  const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+  const carsDatabase = readCarsDatabase();
   const summaryEntries = await readSummaries(files);
 
   const parsed = summaryEntries.map(({ filename: f, data }) => {
