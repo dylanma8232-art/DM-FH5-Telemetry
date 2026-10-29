@@ -54,6 +54,42 @@ test('遥测诊断接口保持既有请求路径', async () => {
   }
 });
 
+test('会话遥测精简通道使用新端点并保留缺省参数语义', async () => {
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    requests.push(url);
+    return new Response(JSON.stringify({ id: 'session-1', fields: ['positions'], positions: [] }), { status: 200 });
+  };
+
+  try {
+    await api.sessions.getTelemetryCompact('session-1');
+    await api.sessions.getTelemetryCompact('session-1', { fields: 'data,positions', maxPoints: 450 });
+    await api.sessions.getTelemetryCompact('session-1', { fields: 'positions', positionFields: 'x,y,z' });
+    assert.deepEqual(requests, [
+      '/api/sessions/session-1/telemetry/compact?fields=positions',
+      '/api/sessions/session-1/telemetry/compact?fields=data%2Cpositions&maxPoints=450',
+      '/api/sessions/session-1/telemetry/compact?fields=positions&positionFields=x%2Cy%2Cz'
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('会话遥测精简通道错误沿用统一状态码与消息', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: 'Session not found' }), { status: 404 });
+
+  try {
+    await assert.rejects(
+      api.sessions.getTelemetryCompact('missing'),
+      (error) => error.status === 404 && error.message === 'Session not found'
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('赛道原始响应方法保留页面的状态分支能力与请求语义', async () => {
   let request;
   const originalFetch = globalThis.fetch;

@@ -291,11 +291,14 @@ export function useSessionHistory({ onNavigate, navIntent }) {
     }
   };
 
-  // Round 2: 延迟加载完整session detail（回放/热力图需要时才加载）
+  // Round 2: 延迟加载回放所需的会话通道（地图兜底走线），只取最小字段集
   const loadSessionDetail = async (sessionId) => {
     if (detailLoaded) return;
     try {
-      const detailData = await api.sessions.get(sessionId);
+      const detailData = await api.sessions.getTelemetryCompact(sessionId, {
+        fields: 'positions',
+        positionFields: 'x,y,z'
+      });
       setSessionDetail(detailData);
       setDetailLoaded(true);
     } catch (e) {
