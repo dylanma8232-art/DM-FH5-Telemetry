@@ -262,16 +262,21 @@ router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req,
   const sessionsDir = DATA_DIR + '/sessions';
   let updatedCount = 0;
 
-  sessionIds.forEach((sessionId) => {
+  await Promise.all(sessionIds.map(async (sessionId) => {
     const filePath = path.join(sessionsDir, `${sessionId}_summary.json`);
-    if (fs.existsSync(filePath)) {
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    try {
+      const fileContent = await fs.promises.readFile(filePath, 'utf8');
+      const data = JSON.parse(fileContent);
       data.trackName = trackName;
       if (trackId) data.trackId = trackId;
       saveJSON(filePath, data);
       updatedCount++;
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
     }
-  });
+  }));
 
   res.json({ status: 'ok', updatedCount });
 
