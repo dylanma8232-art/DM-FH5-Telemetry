@@ -133,6 +133,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
   // 引用改装子 Hook
   const {
     autoUpgradeLoading,
+    aiUpgradeLoading,
+    aiUpgradeReason,
+    handleAiUpgrade,
     aiRaceType,
     setAiRaceType,
     segmentType,
@@ -1618,6 +1621,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
     basePi,
     setBasePi,
     autoUpgradeLoading,
+    aiUpgradeLoading,
+    aiUpgradeReason,
+    handleAiUpgrade,
     wizardStep,
     setWizardStep,
     buildMode,

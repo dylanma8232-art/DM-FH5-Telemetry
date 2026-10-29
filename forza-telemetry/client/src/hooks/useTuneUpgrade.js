@@ -13,9 +13,55 @@ export function useTuneUpgrade({
   createDefaultFormData
 }) {
   const [autoUpgradeLoading, setAutoUpgradeLoading] = useState(false)
+  const [aiUpgradeLoading, setAiUpgradeLoading] = useState(false)
+  const [aiUpgradeReason, setAiUpgradeReason] = useState('')
   const [aiRaceType, setAiRaceType] = useState('road')
   const [segmentType, setSegmentType] = useState('balanced')
   const [aiDriveType, setAiDriveType] = useState('awd')
+
+  // 把求解器/AI 返回的方案落地为表单状态（一键升级与 AI 改装共用，步骤与顺序保持原样）
+  const applyUpgradePlan = async (solveResult, { driveType, raceType, segmentType: segmentTypeArg }) => {
+    const resolvedShop = await api.vehicles.getUpgrades(formData.vehicleId, {
+      selections: JSON.stringify(solveResult.parts || {}),
+      driveType
+    })
+    const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType, segmentTypeArg)
+    setFormData(prev => ({
+      ...prev,
+      parts: resolvedShop.effectiveSelections || solveResult.parts || {},
+      tires: prev.tires && Object.keys(prev.tires).length > 0 ? prev.tires : initRecommendations.tires,
+      suspension: prev.suspension && Object.keys(prev.suspension).length > 0 ? prev.suspension : initRecommendations.suspension,
+      drivetrain: prev.drivetrain && Object.keys(prev.drivetrain).length > 0 ? prev.drivetrain : initRecommendations.drivetrain,
+      brakes: prev.brakes && Object.keys(prev.brakes).length > 0 ? prev.brakes : initRecommendations.brakes,
+      aero: prev.aero && Object.keys(prev.aero).length > 0 ? prev.aero : initRecommendations.aero
+    }))
+    setUpgradeShop(resolvedShop)
+    return true
+  }
+
+  // B03：大模型驱动的 AI 改装（后端 /upgrades/ai-solve 此前无任何前端调用方）
+  const handleAiUpgrade = async () => {
+    if (!formData.vehicleId || !upgradeShop) return { ok: false, error: '请先选择一辆车辆。' }
+    const draftVersion = draftVersionRef.current
+    setAiUpgradeLoading(true)
+    setAiUpgradeReason('')
+    try {
+      const aiResult = await api.vehicles.aiSolve(formData.vehicleId, {
+        parts: formData.parts || {},
+        targetPi,
+        raceType: aiRaceType,
+        driveType: aiDriveType
+      })
+      if (draftVersion !== draftVersionRef.current) return { ok: false, error: '' }
+      await applyUpgradePlan(aiResult, { driveType: aiDriveType, raceType: aiRaceType, segmentType })
+      setAiUpgradeReason(aiResult.aiReason || '')
+      return { ok: true, reason: aiResult.aiReason || '', prediction: aiResult.prediction }
+    } catch (e) {
+      return { ok: false, error: e.message || 'AI 改装失败' }
+    } finally {
+      setAiUpgradeLoading(false)
+    }
+  }
 
   // 一键升级：在用户选择的 PI 上限内寻找最高 PI 的组合。只有现有改装项
   // 组合确实无法再提高时，才允许低于目标 PI。
@@ -39,22 +85,11 @@ export function useTuneUpgrade({
       if (autoResult.withinTarget === false) {
         throw new Error(`当前车辆在目标 ${targetPi} PI 内没有可行方案，求解器返回 ${autoResult.prediction?.totalPi ?? '未知'} PI，未应用该方案。`)
       }
-      const resolvedShop = await api.vehicles.getUpgrades(formData.vehicleId, {
-        selections: JSON.stringify(autoResult.parts || {}),
-        driveType: preferredDriveType || aiDriveType
+      return await applyUpgradePlan(autoResult, {
+        driveType: preferredDriveType || aiDriveType,
+        raceType: raceType || aiRaceType,
+        segmentType: selectedSegmentType || segmentType
       })
-      const initRecommendations = getInitialParameterRecommendations(resolvedShop, raceType || aiRaceType, selectedSegmentType || segmentType)
-      setFormData(prev => ({
-        ...prev,
-        parts: resolvedShop.effectiveSelections || autoResult.parts || {},
-        tires: prev.tires && Object.keys(prev.tires).length > 0 ? prev.tires : initRecommendations.tires,
-        suspension: prev.suspension && Object.keys(prev.suspension).length > 0 ? prev.suspension : initRecommendations.suspension,
-        drivetrain: prev.drivetrain && Object.keys(prev.drivetrain).length > 0 ? prev.drivetrain : initRecommendations.drivetrain,
-        brakes: prev.brakes && Object.keys(prev.brakes).length > 0 ? prev.brakes : initRecommendations.brakes,
-        aero: prev.aero && Object.keys(prev.aero).length > 0 ? prev.aero : initRecommendations.aero
-      }))
-      setUpgradeShop(resolvedShop)
-      return true
     } catch (e) { /* 一键升级失败 */
       if (draftVersionRef.current !== draftVersionRef.current) return false
       alert('一键升级失败: ' + e.message)
@@ -66,6 +101,9 @@ export function useTuneUpgrade({
 
   return {
     autoUpgradeLoading,
+    aiUpgradeLoading,
+    aiUpgradeReason,
+    handleAiUpgrade,
     aiRaceType,
     setAiRaceType,
     segmentType,

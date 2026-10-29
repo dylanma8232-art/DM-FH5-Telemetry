@@ -61,6 +61,8 @@ export const api = {
       return get(`/api/vehicles/${id}/upgrades${params ? '?' + params : ''}`);
     },
     autoSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/solve`, body),
+    // 大模型驱动改装：后端只允许模型在已解析的合法配件 ID 中选择，返回结果仍需本地 PI 校验
+    aiSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/ai-solve`, body),
     validateUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/validate`, body),
   },
   tunes: {
