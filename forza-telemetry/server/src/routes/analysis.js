@@ -1,18 +1,14 @@
-import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";import { calculateDrivingLineAnalysis, calculateDrivingStyle, calculateDetailedStats, calculateDrivingScore, calculateGearingAnalysis, calculateSuspensionAnalysis, calculateDifferentialAnalysis, generateTuneDiagnosis, getBestLapNum, findClosestPoint } from '../services/physics-analyzer.js';
 import { stateManager } from '../services/state-manager.js';
 import { loadSession, readTrackDetail } from '../storage/session-db.js';
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
-import { loadJSON } from '../utils/helpers.js';
 import { lttbDownsample } from '../utils/lttb.js';
+import { readSummaries, listSummaryFileNames } from '../storage/session-store.js';
+import { readCarsDatabase } from '../storage/reference-store.js';
+import { readDiagnosisCache, writeDiagnosisCache } from '../storage/diagnosis-store.js';
 
 const router = express.Router();
-
-const DATA_DIR = stateManager.DATA_DIR;
-const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 // 内存分析结果高效缓存机制
 const analysisCache = new Map();
@@ -65,7 +61,7 @@ router.get('/:sessionId', asyncHandler(async (req, res) => {
   }
 
   if (ordinalKey && ordinalKey > 0) {
-    const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
+    const carsDatabase = readCarsDatabase();
     const vehicleFromState = stateManager.vehicles ? stateManager.vehicles[String(ordinalKey)] : null;
     const carName = vehicle?.name || vehicleFromState?.name || carsDatabase[String(ordinalKey)] || `车辆 #${ordinalKey}`;
     const carClass = vehicle?.class ?? vehicleFromState?.class ?? 0;
@@ -524,17 +520,13 @@ router.get('/:sessionId/turns', asyncHandler(async (req, res) => {
     currentLapFrames = rawData;
   }
 
-  const sessionsDir = path.join(DATA_DIR, 'sessions');
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
   const historySummaries = [];
 
-  for (const f of files) {
-    try {
-      const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
-      if (data.trackId === trackId && data.vehicle?.ordinal === session.vehicle?.ordinal) {
-        historySummaries.push(data);
-      }
-    } catch (e) {}
+  for (const { data } of await readSummaries(await listSummaryFileNames())) {
+    if (!data) continue;
+    if (data.trackId === trackId && data.vehicle?.ordinal === session.vehicle?.ordinal) {
+      historySummaries.push(data);
+    }
   }
 
   historySummaries.sort((a, b) => new Date(a.savedAt) - new Date(b.savedAt));
@@ -708,17 +700,11 @@ function calculateTireAnalysisStats(rawData) {
 // AI 赛后智能诊断缓存读取接口
 router.get('/:sessionId/ai-diagnosis', asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
-  const diagnosisDir = path.join(DATA_DIR, 'diagnoses');
-  const cachePath = path.join(diagnosisDir, `${sessionId}.json`);
   const keyConfigured = !!process.env.DASHSCOPE_API_KEY;
+  const cached = readDiagnosisCache(sessionId);
 
-  if (fs.existsSync(cachePath)) {
-    try {
-      const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
-      return res.json({ status: 'success', ...cached, keyConfigured });
-    } catch (e) {
-      // 忽略解析错误，视为未缓存
-    }
+  if (cached) {
+    return res.json({ status: 'success', ...cached, keyConfigured });
   }
 
   res.json({ status: 'empty', keyConfigured });
@@ -850,16 +836,13 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   const json = await apiResponse.json();
   const diagnosis = json.choices?.[0]?.message?.content || '生成报告为空';
 
-  const diagnosisDir = path.join(DATA_DIR, 'diagnoses');
-  fs.mkdirSync(diagnosisDir, { recursive: true });
-  const cachePath = path.join(diagnosisDir, `${sessionId}.json`);
   const cachedDiagnosis = {
     diagnosis,
     problemId: problemId || null,
     customQuestion: customQuestion || '',
     generatedAt: new Date().toISOString()
   };
-  fs.writeFileSync(cachePath, JSON.stringify(cachedDiagnosis, null, 2), 'utf8');
+  writeDiagnosisCache(sessionId, cachedDiagnosis);
 
   res.json({ status: 'success', ...cachedDiagnosis });
 
