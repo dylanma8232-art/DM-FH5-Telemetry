@@ -161,7 +161,11 @@ router.get('/compare', asyncHandler(async (req, res) => {
   if (!tuneA || !tuneB) {
     return res.status(404).json({ error: 'Tune not found' });
   }
-  if (tuneA.carOrdinal !== tuneB.carOrdinal) {
+  // 不同途径写入的 carOrdinal 可能是数字 123 或字符串 "123"，统一按字符串比对，
+  // 避免同一台车被误判为「不同车辆」。其余对比逻辑保持不变。
+  const normalizedCarA = tuneA.carOrdinal === undefined || tuneA.carOrdinal === null ? '' : String(tuneA.carOrdinal);
+  const normalizedCarB = tuneB.carOrdinal === undefined || tuneB.carOrdinal === null ? '' : String(tuneB.carOrdinal);
+  if (normalizedCarA !== normalizedCarB) {
     return res.status(400).json({ error: 'Tunes must be for the same car' });
   }
 
