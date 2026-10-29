@@ -1,7 +1,8 @@
 import { parentPort, workerData } from 'worker_threads';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import { existsSync, readFileSync } from 'fs';
+import { createReadStream, existsSync, readFileSync } from 'fs';
+import readline from 'readline';
 import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
@@ -114,6 +115,26 @@ function trimTrajectories(trajectories, maxCount = 5) {
   return trajectories.slice(-maxCount);
 }
 
+/**
+ * 流式逐行解析 JSONL 格式的临时遥测文件。
+ * 等价于「整文件读入 + split('\n') + 逐行 JSON.parse」，但峰值内存不随赛程长度增长：
+ * - 顺序：readline 按文件字节顺序逐行产出，与 split 数组顺序一致；
+ * - 空行：仍以 trim() 丢弃，与原先 `if (line.trim())` 完全一致；
+ * - 坏行：仍单独 try/catch 跳过，不中断后续行。
+ */
+async function readTelemetryJsonl(filepath) {
+  const frames = [];
+  const stream = createReadStream(filepath, { encoding: 'utf8' });
+  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    try {
+      frames.push(JSON.parse(line));
+    } catch {}
+  }
+  return frames;
+}
+
 // 辅助方法：读取 Brotli 赛道详情
 function readTrackDetail(DATA_DIR, trackId) {
   const brPath = path.join(DATA_DIR, 'tracks', `${trackId}.json.br`);
@@ -167,18 +188,10 @@ async function main() {
 
   console.log(`[Worker] 开始异步处理会话: ${sessionId}`);
 
-  // 1. 读取并解析临时 JSONL 遥测文件
+  // 1. 流式读取并解析临时 JSONL 遥测文件
   let hifiData = [];
   if (existsSync(tempFilePath)) {
-    const content = await fs.readFile(tempFilePath, 'utf8');
-    const lines = content.split('\n');
-    for (const line of lines) {
-      if (line.trim()) {
-        try {
-          hifiData.push(JSON.parse(line));
-        } catch {}
-      }
-    }
+    hifiData = await readTelemetryJsonl(tempFilePath);
   }
   console.log(`[Worker] 从临时文件加载了 ${hifiData.length} 条遥测数据`);
 
