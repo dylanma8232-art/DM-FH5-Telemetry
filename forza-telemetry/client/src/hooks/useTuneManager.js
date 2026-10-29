@@ -839,7 +839,8 @@ export function useTuneManager({ onNavigate, navIntent }) {
   const getVehicleName = (vehicleId) => {
     if (!vehicleId) return '未指定车辆'
     const v = vehicles[vehicleId]
-    return v?.name || '车辆 #' + vehicleId
+    // B07：车辆被删除后方案仍可查看，明确标注历史归档而不是裸编号
+    return v?.name || ('车辆 #' + vehicleId + '（原车已删除·历史归档）')
   }
 
   const formatDate = (dateStr) => {

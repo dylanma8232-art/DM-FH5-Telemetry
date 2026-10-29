@@ -239,11 +239,28 @@ router.post('/:id', express.json(), asyncHandler(async (req, res) => {
   res.json({ status: 'ok' });
 }));
 
-// 删除车辆信息
+// B07：查询某车关联的调校方案（删除前给前端确认用；不修改任何调校数据）
+function linkedTunesOf(vehicleId) {
+  const id = String(vehicleId);
+  return Object.entries(stateManager.tunes || {})
+    .filter(([, tune]) => tune && (String(tune.carOrdinal) === id || String(tune.vehicleId) === id))
+    .map(([tuneId, tune]) => ({ tuneId, name: tune.name || tuneId }));
+}
+
+router.get('/:id/linked-tunes', asyncHandler(async (req, res) => {
+  if (!stateManager.vehicles[req.params.id]) {
+    return res.status(404).json({ error: '车辆不存在' });
+  }
+  const tunes = linkedTunesOf(req.params.id);
+  res.json({ count: tunes.length, tunes });
+}));
+
+// 删除车辆信息（调校方案保留为历史归档，只在响应里报告关联数量）
 router.delete('/:id', asyncHandler(async (req, res) => {
+  const linkedTunes = linkedTunesOf(req.params.id).length;
   delete stateManager.vehicles[req.params.id];
   saveJSON(DATA_DIR + '/vehicles.json', stateManager.vehicles);
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', linkedTunes });
 }));
 
 

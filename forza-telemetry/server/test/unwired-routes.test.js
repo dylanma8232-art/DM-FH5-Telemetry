@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import tracksRouter from '../src/routes/tracks.js';
+import vehiclesRouter from '../src/routes/vehicles.js';
 import systemRouter from '../src/routes/system.js';
 
 // 契约测试：客户端 api.js / 页面实际调用的路径必须在服务端存在对应路由。
@@ -28,4 +29,8 @@ test('批量关联赛道路由必须注册在单场 /:id/track 之前（否则 b
   const singleIdx = paths.indexOf('PUT /api/sessions/:id/track');
   assert.ok(batchIdx >= 0 && singleIdx >= 0);
   assert.ok(batchIdx < singleIdx, `batch(${batchIdx}) 必须先于 :id(${singleIdx}) 注册`);
+});
+
+test('车辆关联调校查询路由已注册（B07 删除确认用）', () => {
+  assert.ok(routesOf(vehiclesRouter).includes('GET /:id/linked-tunes'));
 });
