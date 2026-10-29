@@ -13,3 +13,10 @@
 - **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/2
 - **改动文件**：
 - forza-telemetry/client/src/components/Header.jsx
+
+## 2026-10-29 05:28 迭代
+
+- **PR**：4 🧪 test: add comprehensive unit tests for simplifyRDP algorithm
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/4
+- **改动文件**：
+- forza-telemetry/server/test/rdp.test.js
