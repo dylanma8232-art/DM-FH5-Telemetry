@@ -9,6 +9,15 @@ import {
 } from '../services/track-service.js';
 import { readTrackDetail, saveTracksDatabase, deleteTrackDetail } from '../storage/session-db.js';
 import {
+  sessionsDirExists,
+  listSessionFileNames,
+  listSessionFileNamesSync,
+  listSummaryFileNamesSync,
+  readSummaryByFileName,
+  readSummaryByFileNameSync,
+  writeSummaryByFileName
+} from '../storage/session-store.js';
+import {
   generateSectors,
   buildRouteBook,
   validateTrackQuality,
@@ -16,12 +25,8 @@ import {
   calculateTurnAttributes
 } from '../track-builder.js';
 import { simplifyRDP } from '../utils/rdp.js';
-import { saveJSON } from '../utils/helpers.js';
 import express from 'express';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
 
-const DATA_DIR = stateManager.DATA_DIR;
 const router = express.Router();
 // 赛道列表增强 - 从 stateManager 内存快速缓存返回，避免 I/O 带来的严重延迟
 router.get('/', (req, res) => {
@@ -543,18 +548,17 @@ router.post('/merge', express.json(), asyncHandler(async (req, res) => {
       }
 
       // 同步更新关联的 sessions
-      const sessionsDir = DATA_DIR + '/sessions';
-      if (fs.existsSync(sessionsDir)) {
-        const sessionFiles = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+      if (sessionsDirExists()) {
+        const sessionFiles = listSummaryFileNamesSync();
         let updatedCount = 0;
         const targetName = stateManager.tracks[targetTrackId]?.name || currentTargetDetail.name || '未命名赛道';
         sessionFiles.forEach((file) => {
           try {
-            const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
+            const session = readSummaryByFileNameSync(file);
             if (session.trackId === sourceTrackId) {
               session.trackId = targetTrackId;
               session.trackName = targetName;
-              saveJSON(sessionsDir + '/' + file, session);
+              writeSummaryByFileName(file, session);
               updatedCount++;
               stateManager.incrementSessionCount(targetTrackId);
               stateManager.decrementSessionCount(sourceTrackId);
@@ -648,9 +652,8 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
 
     if (oldName !== newName) {
       try {
-        const sessionsDir = DATA_DIR + '/sessions';
-        if (fs.existsSync(sessionsDir)) {
-          const sessionFiles = await fsPromises.readdir(sessionsDir);
+        if (sessionsDirExists()) {
+          const sessionFiles = await listSessionFileNames();
           const summaryFiles = sessionFiles.filter((f) => f.endsWith('_summary.json'));
           let updatedCount = 0;
 
@@ -659,11 +662,10 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
             const chunk = summaryFiles.slice(i, i + limit);
             await Promise.all(chunk.map(async (file) => {
               try {
-                const data = await fsPromises.readFile(sessionsDir + '/' + file, 'utf8');
-                const session = JSON.parse(data);
+                const session = await readSummaryByFileName(file);
                 if (session.trackId === id && session.trackName !== newName) {
                   session.trackName = newName;
-                  saveJSON(sessionsDir + '/' + file, session);
+                  writeSummaryByFileName(file, session);
                   updatedCount++;
                 }
               } catch (e) {
@@ -709,15 +711,14 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
 // 批量导入历史比赛记录为赛道
 router.post('/import-sessions', express.json(), asyncHandler(async (req, res) => {
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('.json'));
+  const files = listSessionFileNamesSync().filter((f) => f.endsWith('.json'));
 
   let importedCount = 0;
   const results = [];
 
   files.forEach((file) => {
     try {
-      const session = JSON.parse(fs.readFileSync(sessionsDir + '/' + file, 'utf8'));
+      const session = readSummaryByFileNameSync(file);
 
       if (session.positions && session.positions.length > 10) {
         const trackId = 'track_' + Date.now() + '_' + importedCount;
@@ -740,7 +741,7 @@ router.post('/import-sessions', express.json(), asyncHandler(async (req, res) =>
         };
 
         session.trackId = trackId;
-        saveJSON(sessionsDir + '/' + file, session);
+        writeSummaryByFileName(file, session);
 
         importedCount++;
         results.push({ sessionId: session.id, trackId, trackName, points: session.positions.length, length: trackLength });

@@ -2,14 +2,23 @@ import { fileURLToPath } from 'url';
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
-import { saveJSON, loadJSON } from '../utils/helpers.js';
+import {
+  listSummaryFileNames,
+  readSummaryFileText,
+  summaryExists,
+  readSummarySync,
+  readSummaryByFileName,
+  writeSummary,
+  writeSummaryByFileName,
+  deleteSessionFiles
+} from '../storage/session-store.js';
+import { loadJSON } from '../utils/helpers.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
 
 const router = express.Router();
 
-const DATA_DIR = stateManager.DATA_DIR;
 const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../config/cars-database.json');
 
 
@@ -27,13 +36,12 @@ router.get('/api/sessions', asyncHandler(async (req, res) => {
     return res.json(cachedSessionsList);
   }
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const files = (await fs.promises.readdir(sessionsDir)).filter((f) => f.endsWith('_summary.json'));
+  const files = await listSummaryFileNames();
   const carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
 
   const parsed = await Promise.all(files.map(async (f) => {
     try {
-      const data = JSON.parse(await fs.promises.readFile(sessionsDir + '/' + f, 'utf8'));
+      const data = JSON.parse(await readSummaryFileText(f));
       const tune = data.tuneId && stateManager.tunes[data.tuneId] ? stateManager.tunes[data.tuneId] : null;
       const trackName = typeof stateManager.tracks !== 'undefined' && data.trackId && stateManager.tracks[data.trackId] ?
       stateManager.tracks[data.trackId].name :
@@ -110,13 +118,12 @@ router.get('/api/sessions/leaderboards', asyncHandler(async (req, res) => {
     return res.json(cachedLeaderboardsList);
   }
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const files = (await fs.promises.readdir(sessionsDir)).filter((f) => f.endsWith('_summary.json'));
+  const files = await listSummaryFileNames();
 
   const leaderboards = {};
 
   const fileContents = await Promise.all(
-    files.map((file) => fs.promises.readFile(path.join(sessionsDir, file), 'utf8').catch(() => null))
+    files.map((file) => readSummaryFileText(file).catch(() => null))
   );
 
   fileContents.forEach((content) => {
@@ -182,34 +189,7 @@ router.get('/api/sessions/:id/telemetry', asyncHandler(async (req, res) => {
 // 删除比赛记录
 router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const summaryPath = path.join(sessionsDir, `${req.params.id}_summary.json`);
-  const hifiPath = path.join(sessionsDir, `${req.params.id}_detail_hifi.json.br`);
-  const lowfiPath = path.join(sessionsDir, `${req.params.id}_detail_lowfi.json.br`);
-  const brPath = path.join(sessionsDir, `${req.params.id}_detail.json.br`);
-  const gzPath = path.join(sessionsDir, `${req.params.id}_detail.json.gz`);
-
-  let deleted = false;
-  if (fs.existsSync(summaryPath)) {
-    fs.unlinkSync(summaryPath);
-    deleted = true;
-  }
-  if (fs.existsSync(hifiPath)) {
-    fs.unlinkSync(hifiPath);
-    deleted = true;
-  }
-  if (fs.existsSync(lowfiPath)) {
-    fs.unlinkSync(lowfiPath);
-    deleted = true;
-  }
-  if (fs.existsSync(brPath)) {
-    fs.unlinkSync(brPath);
-    deleted = true;
-  }
-  if (fs.existsSync(gzPath)) {
-    fs.unlinkSync(gzPath);
-    deleted = true;
-  }
+  const deleted = deleteSessionFiles(req.params.id);
 
   if (!deleted) {
     return res.status(404).json({ error: 'Session not found' });
@@ -227,13 +207,11 @@ router.delete('/api/sessions/:id', asyncHandler(async (req, res) => {
 // 编辑比赛记录的赛道名称
 router.put('/api/sessions/:id/track', express.json(), asyncHandler(async (req, res) => {
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const filePath = path.join(sessionsDir, `${req.params.id}_summary.json`);
-  if (!fs.existsSync(filePath)) {
+  if (!summaryExists(req.params.id)) {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const data = readSummarySync(req.params.id);
   const newTrackName = req.body.trackName;
   if (!newTrackName) {
     return res.status(400).json({ error: 'trackName is required' });
@@ -244,7 +222,7 @@ router.put('/api/sessions/:id/track', express.json(), asyncHandler(async (req, r
     data.trackId = req.body.trackId;
   }
 
-  saveJSON(filePath, data);
+  writeSummary(req.params.id, data);
   res.json({ status: 'ok', trackName: newTrackName });
 
 
@@ -259,17 +237,15 @@ router.put('/api/sessions/batch/track', express.json(), asyncHandler(async (req,
     return res.status(400).json({ error: 'sessionIds array and trackName are required' });
   }
 
-  const sessionsDir = DATA_DIR + '/sessions';
   let updatedCount = 0;
 
   await Promise.all(sessionIds.map(async (sessionId) => {
-    const filePath = path.join(sessionsDir, `${sessionId}_summary.json`);
+    const filename = `${sessionId}_summary.json`;
     try {
-      const fileContent = await fs.promises.readFile(filePath, 'utf8');
-      const data = JSON.parse(fileContent);
+      const data = await readSummaryByFileName(filename);
       data.trackName = trackName;
       if (trackId) data.trackId = trackId;
-      saveJSON(filePath, data);
+      writeSummaryByFileName(filename, data);
       updatedCount++;
     } catch (err) {
       if (err.code !== 'ENOENT') {
