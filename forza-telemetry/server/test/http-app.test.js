@@ -28,7 +28,8 @@ test('HTTP 装配保持既有路由挂载顺序与兼容设置路径', () => {
     [
       ['/api/analysis', 'analysis'], ['/api/tracks', 'tracks'], ['/api/tunes', 'tunes'],
       ['/api/vehicles', 'vehicles'], ['/api/leaderboard', 'leaderboard'], ['/api', 'navigation'],
-      ['/api/system', 'system'], ['/api/settings', 'system'], ['/api', 'record'], ['/','sessions'],
+      ['/api/system', 'system'], ['/api/settings', 'system'], ['/api', 'system'],
+      ['/api', 'record'], ['/', 'sessions'],
     ],
   );
 });
