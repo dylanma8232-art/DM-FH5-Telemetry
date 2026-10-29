@@ -52,3 +52,12 @@
 - **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/8
 - **改动文件**：
 - forza-telemetry/server/src/storage/sqlite-db.js
+
+## 2026-10-29 05:35 迭代
+
+- **PR**：9 🧹 [Code Health] Extract API Key placeholder string to shared constant
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/9
+- **改动文件**：
+- forza-telemetry/client/src/components/pages/SessionHistoryPage.jsx
+- forza-telemetry/client/src/components/settings/SettingsPanel.jsx
+- forza-telemetry/client/src/utils/constants.js
