@@ -28,6 +28,20 @@ router.get('/', (req, res) => {
   res.json(getEnrichedTracks());
 });
 
+// 与 save-worker.js 的 calculateTrackLength 等价：3D 折线长度并四舍五入
+// （import-sessions 导入轨迹时用它写入 track.length，不改变任何赛道业务规则）
+function calculateTrackLength(points) {
+  if (!points || points.length < 2) return 0;
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i - 1].x;
+    const dy = (points[i].y || 0) - (points[i - 1].y || 0);
+    const dz = points[i].z - points[i - 1].z;
+    length += Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  return Math.round(length);
+}
+
 // 弯道编辑（拆分/拉扯边界）后统一：重建路书、落盘、同步内存缓存
 function persistTrackTurns(id, trackDetail) {
   trackDetail.routeBook = buildRouteBook(trackDetail.centerline, trackDetail.turns, trackDetail.centerline);
@@ -205,7 +219,7 @@ router.post('/:id/rebuild', asyncHandler(async (req, res) => {
 
   let trackDetail = readTrackDetail(id);
   if (!trackDetail) {
-    trackDetail = stateManager.tracks[id] ? { ...tracks[id] } : null;
+    trackDetail = stateManager.tracks[id] ? { ...stateManager.tracks[id] } : null;
   }
   if (!trackDetail) return res.status(404).json({ error: 'Track not found' });
 
@@ -624,7 +638,7 @@ router.put('/:id', express.json(), asyncHandler(async (req, res) => {
 
   let trackDetail = readTrackDetail(id);
   if (!trackDetail) {
-    trackDetail = { ...tracks[id] };
+    trackDetail = { ...stateManager.tracks[id] };
   }
 
   if (req.body.name) {
