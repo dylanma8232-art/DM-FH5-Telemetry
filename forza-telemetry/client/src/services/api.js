@@ -63,6 +63,7 @@ export const api = {
     autoSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/solve`, body),
     // 大模型驱动改装：后端只允许模型在已解析的合法配件 ID 中选择，返回结果仍需本地 PI 校验
     aiSolve: (id, body) => post(`/api/vehicles/${id}/upgrades/ai-solve`, body),
+    linkedTunes: (id) => get(`/api/vehicles/${id}/linked-tunes`),
     validateUpgrades: (id, body) => post(`/api/vehicles/${id}/upgrades/validate`, body),
   },
   tunes: {

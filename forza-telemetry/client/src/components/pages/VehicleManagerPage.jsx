@@ -49,6 +49,8 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
   const [vehicleTab, setVehicleTab] = useState('received');
   const [expandedManufacturers, setExpandedManufacturers] = useState({});
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  // B07：删除前先查该车关联的调校方案数量，供用户确认
+  const [deleteLinkedTunes, setDeleteLinkedTunes] = useState(0);
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -141,12 +143,30 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
 
   const deleteVehicle = async (id) => {
     try {
-      await api.vehicles.delete(id);
+      const res = await api.vehicles.delete(id);
       loadVehicles();
       setDeleteConfirmId(null);
-      toast('车辆已删除', 'success');
+      setDeleteLinkedTunes(0);
+      const archived = Number(res?.linkedTunes) || 0;
+      toast(archived > 0 ? `车辆已删除，${archived} 个调校方案保留为历史归档` : '车辆已删除', 'success');
     } catch (e) {
       toast(e.message || '删除失败', 'error');
+    }
+  };
+
+  // B07：点开删除确认前先取关联调校数量
+  const openDeleteConfirm = async (vehicleId) => {
+    if (deleteConfirmId === vehicleId) {
+      setDeleteConfirmId(null);
+      return;
+    }
+    setDeleteLinkedTunes(0);
+    setDeleteConfirmId(vehicleId);
+    try {
+      const info = await api.vehicles.linkedTunes(vehicleId);
+      setDeleteLinkedTunes(Number(info?.count) || 0);
+    } catch (e) {
+      setDeleteLinkedTunes(0);
     }
   };
 
@@ -759,15 +779,17 @@ export function VehicleManagerPage({ onNavigate, navIntent, socket }) {
                                   <button onClick={(e) => { e.stopPropagation(); startEdit(card.ord); }} className="btn-action-sm" style={{ padding: '2px 6px' }}>&#9998;</button>
                                   <div style={{ position: 'relative' }}>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deleteConfirmId === card.ord ? null : card.ord); }}
+                                      onClick={(e) => { e.stopPropagation(); openDeleteConfirm(card.ord); }}
                                       className="btn-action-danger-sm"
                                       style={{ padding: '2px 6px' }}
                                     >&#10005;</button>
                                     {deleteConfirmId === card.ord && (
                                       <InlineConfirm
-                                        message="确定删除此车辆？"
+                                        message={deleteLinkedTunes > 0
+                                          ? `确定删除此车辆？${deleteLinkedTunes} 个调校方案会保留为历史归档。`
+                                          : '确定删除此车辆？'}
                                         onConfirm={() => deleteVehicle(card.ord)}
-                                        onCancel={() => setDeleteConfirmId(null)}
+                                        onCancel={() => { setDeleteConfirmId(null); setDeleteLinkedTunes(0); }}
                                       />
                                     )}
                                   </div>
