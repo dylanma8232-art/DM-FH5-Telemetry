@@ -170,3 +170,16 @@
 - forza-telemetry/server/src/index.js
 - forza-telemetry/server/src/services/state-manager.js
 - forza-telemetry/server/test/state-manager.test.js
+
+## 2026-10-30 06:59 迭代
+
+- **PR**：33 Fix driveType resolution when drivetrain swap is stock
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/33
+- **改动文件**：
+- forza-telemetry/client/src/data/tunePresets.js
+- forza-telemetry/client/src/hooks/useTuneDiagnosis.js
+- forza-telemetry/client/src/hooks/useTuneManager.js
+- forza-telemetry/client/src/hooks/useTuneUpgrade.js
+- forza-telemetry/client/src/stores/useTuneStore.js
+- forza-telemetry/client/src/utils/tuneForm.js
+- forza-telemetry/client/test/tuneManager.test.js
