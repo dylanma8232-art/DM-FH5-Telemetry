@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { diagnoseFromTelemetry } from '../data/tunePresets'
-import { api } from '../services/api'
-import { convertFixesToSuggestedChanges } from '../utils/tuneForm'
+import { diagnoseFromTelemetry } from '../data/tunePresets.js'
+import { api } from '../services/api.js'
+import { convertFixesToSuggestedChanges } from '../utils/tuneForm.js'
 
 const RECOMMENDATION_PATHS = {
   frontTirePressure: ['tires', 'frontPressure'], rearTirePressure: ['tires', 'rearPressure'],

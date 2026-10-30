@@ -1,4 +1,4 @@
-import { getDefaultParts } from '../data/parts'
+import { getDefaultParts } from '../data/parts.js'
 
 // 将诊断规则的扁平参数键转换为调校表单的嵌套字段路径。
 export const FIX_PARAM_MAP = {

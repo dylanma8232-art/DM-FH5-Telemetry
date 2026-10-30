@@ -404,7 +404,7 @@ export const DRIVING_PROBLEMS = [
 
 
 // 引入声明式诊断规则配置
-import diagnoseRules from './diagnoseRules.json'
+import diagnoseRules from './diagnoseRules.json' with { type: 'json' }
 
 // 提取遥测帧的时序物理指标
 function calculateMetrics(frames) {

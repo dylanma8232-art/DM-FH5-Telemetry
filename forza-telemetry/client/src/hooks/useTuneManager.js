@@ -5,11 +5,11 @@ import {
   getDefaultParts,
   getTuneConstraints,
   getTuneDefaults
-} from '../data/parts'
-import { api } from '../services/api'
-import { useTuneStore } from '../stores/useTuneStore'
-import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade'
-import { useTuneDiagnosis } from './useTuneDiagnosis'
+} from '../data/parts.js'
+import { api } from '../services/api.js'
+import { useTuneStore } from '../stores/useTuneStore.js'
+import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade.js'
+import { useTuneDiagnosis } from './useTuneDiagnosis.js'
 import {
   FIX_PARAM_MAP,
   convertFixesToSuggestedChanges,
@@ -17,7 +17,26 @@ import {
   defaultFormData,
   isPiClassCap,
   nextPiClassCap
-} from '../utils/tuneForm'
+} from '../utils/tuneForm.js'
+
+export function resolveEffectiveDriveType(parts, aiDrive, shop, vehicle) {
+  const swap = parts?.drivetrain_swap?.optionId?.toLowerCase()
+  if (swap && ['fwd', 'rwd', 'awd'].includes(swap)) return swap
+
+  const ai = aiDrive?.toLowerCase()
+  if (ai && ['fwd', 'rwd', 'awd'].includes(ai)) return ai
+
+  const eff = shop?.effectiveDriveType?.toLowerCase()
+  if (eff && ['fwd', 'rwd', 'awd'].includes(eff)) return eff
+
+  const base = shop?.baseDriveType?.toLowerCase()
+  if (base && ['fwd', 'rwd', 'awd'].includes(base)) return base
+
+  const vDt = vehicle?.drivetrain?.toLowerCase()
+  if (vDt && ['fwd', 'rwd', 'awd'].includes(vDt)) return vDt
+
+  return null
+}
 
 export function useTuneManager({ onNavigate, navIntent }) {
   const {
@@ -527,7 +546,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
       raceType: buildMode === 'ai' ? aiRaceType : null,
       segmentType: buildMode === 'ai' ? segmentType : null,
-      driveType: formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null,
+      driveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]),
       ...normalizedTune,
       parts: { ...formData.parts },
       tuningCapabilities: formData.tuningCapabilities,
@@ -725,7 +744,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
       parts: formData.parts || upgradeShop.parts,
       capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || formData.tuningCapabilities?.driveType || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+      effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]) || formData.tuningCapabilities?.driveType
     }
     const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
     setFormData(prev => ({
@@ -882,7 +901,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
         parts: formData.parts || upgradeShop.effectiveSelections,
         capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-        effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+        effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId])
       }
       const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
       if (!recommended) return {}
@@ -924,7 +943,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
       parts: formData.parts || upgradeShop.effectiveSelections,
       capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+      effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId])
     }
     const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
     if (!recommended) return
