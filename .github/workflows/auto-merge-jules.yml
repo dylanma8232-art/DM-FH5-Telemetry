@@ -16,14 +16,37 @@ concurrency:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
     steps:
       - name: Identify Jules PR
         id: identify
         env:
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          TARGET_REPO: ${{ github.repository }}
           BODY: ${{ github.event.pull_request.body }}
           BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
+          IS_SAME_REPO=false
+          if [ "$HEAD_REPO" = "$TARGET_REPO" ] && [ -n "$HEAD_REPO" ]; then
+            IS_SAME_REPO=true
+          fi
+
+          IS_TRUSTED_USER=false
+          if [ "$PR_USER" = "$REPO_OWNER" ] || [ "$PR_USER" = "google-labs-jules[bot]" ] || [ "$PR_USER" = "jules[bot]" ] || [ "$PR_USER" = "github-actions[bot]" ]; then
+            IS_TRUSTED_USER=true
+          fi
+
+          MATCHES_PATTERN=false
           if printf '%s' "$BODY" | grep -q "PR created automatically by Jules" || printf '%s' "$BRANCH" | grep -Eq '[0-9]{15}'; then
+            MATCHES_PATTERN=true
+          fi
+
+          if [ "$IS_SAME_REPO" = "true" ] && [ "$IS_TRUSTED_USER" = "true" ] && [ "$MATCHES_PATTERN" = "true" ]; then
             echo "is_jules=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_jules=false" >> "$GITHUB_OUTPUT"
@@ -59,7 +82,7 @@ jobs:
         run: |
           echo "Waiting for CI on $PR_URL (sha=$SHA)..."
           for i in $(seq 1 90); do
-            CONC=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" -q '[.check_runs[] | select(.name=="ci")] | sort_by(.started_at // "0") | .[-1].conclusion // "pending"' 2>/dev/null || echo pending)
+            CONC=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" -q '[.check_runs[] | select(.name=="ci")] | sort_by(.started_at // "0") | .[-1].conclusion // "pending"' 2>/devnull || echo pending)
             case "$CONC" in
               success)
                 echo "CI passed, merging..."
