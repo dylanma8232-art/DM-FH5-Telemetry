@@ -5,11 +5,11 @@ import {
   getDefaultParts,
   getTuneConstraints,
   getTuneDefaults
-} from '../data/parts'
-import { api } from '../services/api'
-import { useTuneStore } from '../stores/useTuneStore'
-import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade'
-import { useTuneDiagnosis } from './useTuneDiagnosis'
+} from '../data/parts.js'
+import { api } from '../services/api.js'
+import { useTuneStore } from '../stores/useTuneStore.js'
+import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade.js'
+import { useTuneDiagnosis } from './useTuneDiagnosis.js'
 import {
   FIX_PARAM_MAP,
   convertFixesToSuggestedChanges,
@@ -17,7 +17,26 @@ import {
   defaultFormData,
   isPiClassCap,
   nextPiClassCap
-} from '../utils/tuneForm'
+} from '../utils/tuneForm.js'
+
+export function resolveEffectiveDriveType(parts, aiDrive, shop, vehicle) {
+  const swap = parts?.drivetrain_swap?.optionId?.toLowerCase()
+  if (swap && ['fwd', 'rwd', 'awd'].includes(swap)) return swap
+
+  const ai = aiDrive?.toLowerCase()
+  if (ai && ['fwd', 'rwd', 'awd'].includes(ai)) return ai
+
+  const eff = shop?.effectiveDriveType?.toLowerCase()
+  if (eff && ['fwd', 'rwd', 'awd'].includes(eff)) return eff
+
+  const base = shop?.baseDriveType?.toLowerCase()
+  if (base && ['fwd', 'rwd', 'awd'].includes(base)) return base
+
+  const vDt = vehicle?.drivetrain?.toLowerCase()
+  if (vDt && ['fwd', 'rwd', 'awd'].includes(vDt)) return vDt
+
+  return null
+}
 
 export function useTuneManager({ onNavigate, navIntent }) {
   const {
@@ -491,24 +510,24 @@ export function useTuneManager({ onNavigate, navIntent }) {
         return
       }
 
-      try {
+try {
         await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
       } catch (e) {
-        alert(e.message || '所选改装件不适用于当前车辆。');
+        alert(e.message || "所选改装件不适用于当前车辆。");
         return;
       }
 
       const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
       if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
-        alert('方案 PI 必须是 100 到 999 之间的整数。')
+        alert("方案 PI 必须是 100 到 999 之间的整数。")
         return
       }
 
       const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
         const constraint = tuneConstraints[`${category}.${field}`]
-        if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
+        if (raw === "" || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
         let value = Number(raw)
-        if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
+        if (category === "tires" && (field === "frontPressure" || field === "rearPressure") && value > constraint.max * 2) {
           value *= 0.0689476
         }
         const step = Number(constraint.step)
@@ -517,31 +536,31 @@ export function useTuneManager({ onNavigate, navIntent }) {
         return [field, Number(value.toFixed(6))]
       }))
       const normalizedTune = {
-        tires: normalizeGroup('tires', formData.tires),
-        suspension: normalizeGroup('suspension', formData.suspension),
-        drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
-        brakes: normalizeGroup('brakes', formData.brakes),
-        aero: normalizeGroup('aero', formData.aero)
+        tires: normalizeGroup("tires", formData.tires),
+        suspension: normalizeGroup("suspension", formData.suspension),
+        drivetrain: normalizeGroup("drivetrain", formData.drivetrain),
+        brakes: normalizeGroup("brakes", formData.brakes),
+        aero: normalizeGroup("aero", formData.aero)
       }
       setFormData(prev => ({ ...prev, ...normalizedTune }))
 
       const payload = {
         name: formData.name.trim(),
-        tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : (Array.isArray(formData.tags) ? formData.tags : []),
+        tags: typeof formData.tags === "string" ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : (Array.isArray(formData.tags) ? formData.tags : []),
         vehicleId: formData.vehicleId || null,
         basePi,
-        targetPi: buildMode === 'ai' ? targetPi : null,
+        targetPi: buildMode === "ai" ? targetPi : null,
         totalPi: confirmedPi,
         piConfirmed: solutionPi !== null,
-        generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
-        raceType: buildMode === 'ai' ? aiRaceType : null,
-        segmentType: buildMode === 'ai' ? segmentType : null,
-        driveType: formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null,
+        generationMode: buildMode === "capability" ? "assisted" : (buildMode === "ai" ? "ai" : "manual"),
+        raceType: buildMode === "ai" ? aiRaceType : null,
+        segmentType: buildMode === "ai" ? segmentType : null,
+        driveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]),
         ...normalizedTune,
         parts: { ...formData.parts },
         tuningCapabilities: formData.tuningCapabilities,
         freeMode: !!formData.freeMode,
-        notes: formData.notes || ''
+        notes: formData.notes || ""
       }
 
       setLoading(true)
@@ -564,16 +583,17 @@ export function useTuneManager({ onNavigate, navIntent }) {
       const targetId = overrideData.id || overrideData.tuneId
       const parsedTags = Array.isArray(overrideData.tags)
         ? overrideData.tags
-        : (typeof overrideData.tags === 'string'
-            ? overrideData.tags.split(',').map(t => t.trim()).filter(Boolean)
+        : (typeof overrideData.tags === "string"
+            ? overrideData.tags.split(",").map(t => t.trim()).filter(Boolean)
             : [])
 
-      const rawDriveType = overrideData.driveType || overrideData.parts?.drivetrain_swap?.optionId || null
-      const validDriveType = ['fwd', 'rwd', 'awd'].includes(rawDriveType?.toLowerCase()) ? rawDriveType.toLowerCase() : null
+      const resolvedDrive = resolveEffectiveDriveType(overrideData.parts, aiDriveType, upgradeShop, vehicles[overrideData.vehicleId])
+      const rawDriveType = overrideData.driveType || resolvedDrive || null
+      const validDriveType = ["fwd", "rwd", "awd"].includes(rawDriveType?.toLowerCase()) ? rawDriveType.toLowerCase() : null
 
       const payload = {
         name,
-        description: overrideData.description || '',
+        description: overrideData.description || "",
         tags: parsedTags,
         vehicleId: overrideData.vehicleId || null,
         carOrdinal: overrideData.carOrdinal || overrideData.vehicleId || null,
@@ -581,7 +601,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         targetPi: overrideData.targetPi || null,
         totalPi: Number.isFinite(Number(overrideData.totalPi)) ? Number(overrideData.totalPi) : null,
         piConfirmed: overrideData.piConfirmed === true,
-        generationMode: overrideData.generationMode || 'manual',
+        generationMode: overrideData.generationMode || "manual",
         raceType: overrideData.raceType || null,
         segmentType: overrideData.segmentType || null,
         driveType: validDriveType,
@@ -593,7 +613,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         parts: overrideData.parts || {},
         tuningCapabilities: overrideData.tuningCapabilities || null,
         freeMode: !!overrideData.freeMode,
-        notes: overrideData.notes || ''
+        notes: overrideData.notes || ""
       }
 
       setLoading(true)
@@ -788,7 +808,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
       parts: formData.parts || upgradeShop.parts,
       capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || formData.tuningCapabilities?.driveType || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+      effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]) || formData.tuningCapabilities?.driveType
     }
     const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
     setFormData(prev => ({
@@ -945,7 +965,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
         targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
         parts: formData.parts || upgradeShop.effectiveSelections,
         capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-        effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+        effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId])
       }
       const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
       if (!recommended) return {}
@@ -987,7 +1007,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       targetPi: targetPi || basePi || upgradeShop.targetPi || upgradeShop.basePi,
       parts: formData.parts || upgradeShop.effectiveSelections,
       capabilities: formData.tuningCapabilities || upgradeShop.capabilities,
-      effectiveDriveType: aiDriveType || formData.parts?.drivetrain_swap?.optionId || upgradeShop.effectiveDriveType || upgradeShop.baseDriveType
+      effectiveDriveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId])
     }
     const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
     if (!recommended) return
