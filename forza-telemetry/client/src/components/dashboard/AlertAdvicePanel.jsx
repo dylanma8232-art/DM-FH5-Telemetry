@@ -56,7 +56,7 @@ export function AlertAdvicePanel({ data }) {
 
     // ── 1. 制动锁死 (车轮锁死) ──────────────────
     if ((controls.brake || 0) > 0 && smoothSpeed > 20) {
-      const wheelRotationSpeed = data.wheelRotationSpeed || {};
+      const wheelRotationSpeed = telemetryFrame.wheelRotationSpeed || {};
       const minWheelSpeed = Math.min(
         wheelRotationSpeed.frontLeft ?? 100, wheelRotationSpeed.frontRight ?? 100,
         wheelRotationSpeed.rearLeft  ?? 100, wheelRotationSpeed.rearRight  ?? 100
