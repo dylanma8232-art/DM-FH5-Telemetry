@@ -22,8 +22,8 @@ export const saveTuneSchema = z.object({
   drivetrain: z.any().nullable().optional(),
   brakes: z.any().nullable().optional(),
   aero: z.any().nullable().optional(),
-  parts: z.record(z.any()).optional().default({}),
-  tuningCapabilities: z.record(z.any()).nullable().optional()
+  parts: z.record(z.string(), z.any()).optional().default({}),
+  tuningCapabilities: z.record(z.string(), z.any()).nullable().optional()
 });
 
 // Zod 异常格式化 Helper
