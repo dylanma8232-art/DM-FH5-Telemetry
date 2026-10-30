@@ -37,6 +37,7 @@ class StateManager {
   
   setIO(io) { this.io = io; }
   getCurrentData() { return this.currentData; }
+  setCurrentData(data) { this.currentData = data; }
   getTrackMode() { return this.trackMode; }
   setTrackMode(mode) { this.trackMode = mode; }
   getPacketCount() { return this.packetCount; }
