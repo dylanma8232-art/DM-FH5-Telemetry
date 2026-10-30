@@ -203,18 +203,19 @@ const DATA_DIR = stateManager.DATA_DIR;
       if (msg.status === 'success') {
         console.log(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 后台保存成功，会话 ID: ${msg.sessionId}`);
         onSuccess(msg);
+        cleanupTempFile();
       } else {
         console.error(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 后台保存失败: ${msg.error}`);
+        console.warn(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 原始录制数据已保留于临时文件以备恢复: ${tempFilePath}`);
         onFailure(msg);
       }
-      cleanupTempFile();
       worker.terminate();
     });
 
     worker.on('error', (err) => {
       console.error(`[${workerErrorLabel}]`, err);
+      console.warn(`[${sessionDataMeta.autoRecorded ? '自动录制' : '手动录制'}] 原始录制数据已保留于临时文件以备恢复: ${tempFilePath}`);
       onWorkerError(err);
-      cleanupTempFile();
       worker.terminate();
     });
   }

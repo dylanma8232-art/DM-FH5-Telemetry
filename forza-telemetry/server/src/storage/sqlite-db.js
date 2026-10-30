@@ -103,7 +103,12 @@ export const sqliteDb = {
    * 保存 Session 时序细节包 (原子事务写入)
    */
   saveSessionDetail: (sessionId, hifiBrBuffer, lowfiBrBuffer) => {
-    if (!db) return;
+    if (!db) {
+      throw new Error('SQLite database is unavailable');
+    }
+    if (!sessionId) {
+      throw new Error('sessionId is required for SQLite detail persistence');
+    }
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO sessions_detail (id, hifi_data_br, lowfi_data_br, updated_at)
       VALUES (?, ?, ?, ?)
