@@ -456,6 +456,7 @@ async function main() {
     console.log(`[Worker] SQLite 写入时序细节成功: ${sessionId}`);
   } catch (dbErr) {
     console.error(`[Worker] SQLite 写入 ${sessionId} 细节失败:`, dbErr.message);
+    throw dbErr;
   }
 
   // 清除本地遗存的细节包
