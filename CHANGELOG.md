@@ -134,3 +134,11 @@
 - **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/12
 - **改动文件**：
 - forza-telemetry/server/src/routes/sessions.js
+
+## 2026-10-30 03:53 迭代
+
+- **PR**：25 fix(ci): secure auto-merge-jules workflow against fork PR spoofing
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/25
+- **改动文件**：
+- .github/workflows/auto-merge-jules.yml
+- forza-telemetry/server/test/auto-merge-workflow.test.js
