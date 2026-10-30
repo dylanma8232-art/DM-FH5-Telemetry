@@ -5,6 +5,7 @@ import { stateManager } from '../services/state-manager.js';
 import { loadJSON } from '../utils/helpers.js';
 import { loadTracksDatabase } from '../storage/session-db.js';
 import { invalidateSummaryCache } from '../storage/session-store.js';
+import { sqliteDb } from '../storage/sqlite-db.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -36,7 +37,7 @@ function readDirRecursive(dir) {
       } catch (e) {
         result[item] = null;
       }
-    } else if (item.endsWith('.gz') || item.endsWith('.br')) {
+    } else if (item.endsWith('.gz') || item.endsWith('.br') || item.endsWith('.db')) {
       try {
         const buffer = fs.readFileSync(fullPath);
         result[item] = buffer.toString('base64');
@@ -58,7 +59,7 @@ function writeDirRecursive(dir, data) {
       } else {
         writeDirRecursive(fullPath, value);
       }
-    } else if ((key.endsWith('.gz') || key.endsWith('.br')) && typeof value === 'string') {
+    } else if ((key.endsWith('.gz') || key.endsWith('.br') || key.endsWith('.db')) && typeof value === 'string') {
       fs.writeFileSync(fullPath, Buffer.from(value, 'base64'));
     }
   }
@@ -120,17 +121,13 @@ const handleSetDashscopeKey = asyncHandler(async (req, res) => {
 });
 
 const handleBackupExport = asyncHandler(async (req, res) => {
-
+  sqliteDb.checkpoint();
   const backup = { version: 2, exportedAt: new Date().toISOString(), data: readDirRecursive(DATA_DIR) };
   const jsonStr = JSON.stringify(backup);
   const compressed = await gzipAsync(Buffer.from(jsonStr));
   res.setHeader('Content-Type', 'application/gzip');
   res.setHeader('Content-Disposition', `attachment; filename="fh5_telemetry_backup_${Date.now()}.json.gz"`);
   res.send(compressed);
-
-
-
-
 });
 
 const handleBackupRestore = asyncHandler(async (req, res) => {
@@ -144,10 +141,30 @@ const handleBackupRestore = asyncHandler(async (req, res) => {
   }
   if (!data || !data.data) return res.status(400).json({ error: 'Invalid backup file' });
 
+  // 1. 刷写 WAL 并安全关闭 SQLite 连接
+  sqliteDb.checkpoint();
+  sqliteDb.close();
+
+  // 2. 将当前 DATA_DIR 内容备份至 backupDir
   const backupDir = DATA_DIR + '_backup_' + Date.now();
   fs.mkdirSync(backupDir, { recursive: true });
   writeDirRecursive(backupDir, readDirRecursive(DATA_DIR));
+
+  // 3. 清理 DATA_DIR 下已有的旧 SQLite 数据库及日志文件
+  const oldDb = path.join(DATA_DIR, 'telemetry.db');
+  const oldWal = path.join(DATA_DIR, 'telemetry.db-wal');
+  const oldShm = path.join(DATA_DIR, 'telemetry.db-shm');
+  if (fs.existsSync(oldDb)) fs.unlinkSync(oldDb);
+  if (fs.existsSync(oldWal)) fs.unlinkSync(oldWal);
+  if (fs.existsSync(oldShm)) fs.unlinkSync(oldShm);
+
+  // 4. 写入恢复数据
   writeDirRecursive(DATA_DIR, data.data);
+
+  // 5. 重新建立 SQLite 数据库连接并迁移旧 Session 文件
+  sqliteDb.reopen();
+  sqliteDb.migrateAllOldSessions();
+
   // 整目录恢复后摘要解析缓存必须作废，避免读到恢复前的陈旧解析结果
   invalidateSummaryCache();
 
