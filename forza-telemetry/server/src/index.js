@@ -69,7 +69,6 @@ const carsDbPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'c
 let carsDatabase = fs.existsSync(carsDbPath) ? loadJSON(carsDbPath) : {};
 let packetCount = 0;
 let lastPacketTime = null;
-let currentData = null;
 
 // 车辆记账限频：lastUsed 最多 5s 刷一次，落盘也最多 5s 一次（避免每包字符串分配与写盘）
 const VEHICLE_ACCOUNTING_INTERVAL_MS = 5000;
@@ -94,7 +93,7 @@ const recordModule = recordRouterModule;
 // Socket.io 监听
 io.on('connection', (socket) => {
   console.log('[Socket] 客户端已连接:', socket.id);
-  socket.emit('telemetry', currentData || {
+  socket.emit('telemetry', stateManager.getCurrentData() || {
     isRaceOn: false,
     car: { ordinal: 0, class: 0, performanceIndex: 0, drivetrainType: 0 },
     controls: { gear: 0 },
@@ -123,7 +122,7 @@ configureHttpApp({
   staticDir: STATIC_DIR,
   hasStaticDir: fs.existsSync(STATIC_DIR),
   getStatus: () => ({ udpPort: UDP_PORT, ips: getLocalIPs(), packetCount, lastPacketTime, isReceiving: lastPacketTime && (Date.now() - new Date(lastPacketTime).getTime() < 2000), isManualRecording: recordModule.getIsManualRecording(), autoRecordState: recordModule.getAutoRecordState() }),
-  getCurrent: () => currentData || {},
+  getCurrent: () => stateManager.getCurrentData() || {},
 });
 
 // UDP 包接收分发循环
@@ -155,7 +154,7 @@ udpServer.on('message', (msg, rinfo) => {
 });
 
 function processTelemetryPacket(telemetry, msgLength) {
-  currentData = telemetry;
+  stateManager.setCurrentData(telemetry);
   telemetry._packetSize = msgLength;
   
   const now = Date.now();
