@@ -466,88 +466,151 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
 
 
-  const saveTune = async () => {
-    if (!formData.name.trim()) {
-      alert('请输入调校名称')
+  const saveTune = async (overrideData = null) => {
+    const isOverride = Boolean(overrideData)
+    const data = isOverride ? overrideData : formData
+    const name = (data.name || '').trim()
+
+    if (!name) {
+      const msg = '请输入调校名称'
+      if (isOverride) throw new Error(msg)
+      alert(msg)
       return
     }
 
-    if (!formData.vehicleId) {
-      alert('请先选择一辆车辆。')
+    if (!data.vehicleId) {
+      const msg = '请先选择一辆车辆。'
+      if (isOverride) throw new Error(msg)
+      alert(msg)
       return
     }
 
-    if (buildMode === 'capability' && solutionPi === null) {
-      alert('自动调教需要当前车辆在游戏内显示的实际 PI。')
-      return
-    }
-
-    try {
-      await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
-    } catch (e) {
-      alert(e.message || '所选改装件不适用于当前车辆。');
-      return;
-    }
-
-    const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
-    if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
-      alert('方案 PI 必须是 100 到 999 之间的整数。')
-      return
-    }
-
-    const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
-      const constraint = tuneConstraints[`${category}.${field}`]
-      if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
-      let value = Number(raw)
-      if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
-        value *= 0.0689476
+    if (!isOverride) {
+      if (buildMode === 'capability' && solutionPi === null) {
+        alert('自动调教需要当前车辆在游戏内显示的实际 PI。')
+        return
       }
-      const step = Number(constraint.step)
-      if (step > 0) value = constraint.min + Math.round((value - constraint.min) / step) * step
-      value = Math.min(constraint.max, Math.max(constraint.min, value))
-      return [field, Number(value.toFixed(6))]
-    }))
-    const normalizedTune = {
-      tires: normalizeGroup('tires', formData.tires),
-      suspension: normalizeGroup('suspension', formData.suspension),
-      drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
-      brakes: normalizeGroup('brakes', formData.brakes),
-      aero: normalizeGroup('aero', formData.aero)
-    }
-    setFormData(prev => ({ ...prev, ...normalizedTune }))
 
-    const payload = {
-      name: formData.name.trim(),
-      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-      vehicleId: formData.vehicleId || null,
-      basePi,
-      targetPi: buildMode === 'ai' ? targetPi : null,
-      totalPi: confirmedPi,
-      piConfirmed: solutionPi !== null,
-      generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
-      raceType: buildMode === 'ai' ? aiRaceType : null,
-      segmentType: buildMode === 'ai' ? segmentType : null,
-      driveType: formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null,
-      ...normalizedTune,
-      parts: { ...formData.parts },
-      tuningCapabilities: formData.tuningCapabilities,
-      freeMode: !!formData.freeMode,
-      notes: formData.notes || ''
-    }
-
-    setLoading(true)
-    try {
-      if (editingTune) {
-        await api.tunes.update(editingTune, payload);
-      } else {
-        await api.tunes.create(payload);
+      try {
+        await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
+      } catch (e) {
+        alert(e.message || '所选改装件不适用于当前车辆。');
+        return;
       }
-      await loadTunes()
-      closeModal()
-    } catch (e) { /* 保存调校失败 */
-      alert(`保存失败：${e.message}`)
-    } finally {
-      setLoading(false)
+
+      const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
+      if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
+        alert('方案 PI 必须是 100 到 999 之间的整数。')
+        return
+      }
+
+      const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
+        const constraint = tuneConstraints[`${category}.${field}`]
+        if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
+        let value = Number(raw)
+        if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
+          value *= 0.0689476
+        }
+        const step = Number(constraint.step)
+        if (step > 0) value = constraint.min + Math.round((value - constraint.min) / step) * step
+        value = Math.min(constraint.max, Math.max(constraint.min, value))
+        return [field, Number(value.toFixed(6))]
+      }))
+      const normalizedTune = {
+        tires: normalizeGroup('tires', formData.tires),
+        suspension: normalizeGroup('suspension', formData.suspension),
+        drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
+        brakes: normalizeGroup('brakes', formData.brakes),
+        aero: normalizeGroup('aero', formData.aero)
+      }
+      setFormData(prev => ({ ...prev, ...normalizedTune }))
+
+      const payload = {
+        name: formData.name.trim(),
+        tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : (Array.isArray(formData.tags) ? formData.tags : []),
+        vehicleId: formData.vehicleId || null,
+        basePi,
+        targetPi: buildMode === 'ai' ? targetPi : null,
+        totalPi: confirmedPi,
+        piConfirmed: solutionPi !== null,
+        generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
+        raceType: buildMode === 'ai' ? aiRaceType : null,
+        segmentType: buildMode === 'ai' ? segmentType : null,
+        driveType: formData.parts?.drivetrain_swap?.optionId || aiDriveType || upgradeShop?.effectiveDriveType || upgradeShop?.baseDriveType || null,
+        ...normalizedTune,
+        parts: { ...formData.parts },
+        tuningCapabilities: formData.tuningCapabilities,
+        freeMode: !!formData.freeMode,
+        notes: formData.notes || ''
+      }
+
+      setLoading(true)
+      try {
+        let res
+        if (editingTune) {
+          res = await api.tunes.update(editingTune, payload);
+        } else {
+          res = await api.tunes.create(payload);
+        }
+        await loadTunes()
+        closeModal()
+        return res
+      } catch (e) { /* 保存调校失败 */
+        alert(`保存失败：${e.message}`)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      const targetId = overrideData.id || overrideData.tuneId
+      const parsedTags = Array.isArray(overrideData.tags)
+        ? overrideData.tags
+        : (typeof overrideData.tags === 'string'
+            ? overrideData.tags.split(',').map(t => t.trim()).filter(Boolean)
+            : [])
+
+      const rawDriveType = overrideData.driveType || overrideData.parts?.drivetrain_swap?.optionId || null
+      const validDriveType = ['fwd', 'rwd', 'awd'].includes(rawDriveType?.toLowerCase()) ? rawDriveType.toLowerCase() : null
+
+      const payload = {
+        name,
+        description: overrideData.description || '',
+        tags: parsedTags,
+        vehicleId: overrideData.vehicleId || null,
+        carOrdinal: overrideData.carOrdinal || overrideData.vehicleId || null,
+        basePi: overrideData.basePi || null,
+        targetPi: overrideData.targetPi || null,
+        totalPi: Number.isFinite(Number(overrideData.totalPi)) ? Number(overrideData.totalPi) : null,
+        piConfirmed: overrideData.piConfirmed === true,
+        generationMode: overrideData.generationMode || 'manual',
+        raceType: overrideData.raceType || null,
+        segmentType: overrideData.segmentType || null,
+        driveType: validDriveType,
+        tires: overrideData.tires || null,
+        suspension: overrideData.suspension || null,
+        drivetrain: overrideData.drivetrain || null,
+        brakes: overrideData.brakes || null,
+        aero: overrideData.aero || null,
+        parts: overrideData.parts || {},
+        tuningCapabilities: overrideData.tuningCapabilities || null,
+        freeMode: !!overrideData.freeMode,
+        notes: overrideData.notes || ''
+      }
+
+      setLoading(true)
+      try {
+        let res
+        if (targetId) {
+          res = await api.tunes.update(targetId, payload)
+        } else {
+          res = await api.tunes.create(payload)
+        }
+        await loadTunes()
+        return res
+      } catch (e) {
+        throw e
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
