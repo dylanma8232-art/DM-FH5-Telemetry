@@ -1,0 +1,98 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2021 RJ Anderson #37 Polaris RZR Pro 4 Truck",
+  "basePi": 776,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 846,
+    "torqueNm": 870,
+    "massKg": 1964,
+    "topSpeedKph": 239,
+    "frontTireWidthMm": 325,
+    "rearTireWidthMm": 325
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.081Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -2,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 36,
+          "performanceScore": 904
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

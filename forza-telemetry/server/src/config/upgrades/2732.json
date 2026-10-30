@@ -1,0 +1,151 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1992 Hoonigan Mazda RX-7 Twerkstallion",
+  "basePi": 799,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 600,
+    "torqueNm": 800,
+    "massKg": 1300,
+    "topSpeedKph": 363,
+    "rearTireWidthMm": 265
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_200_1_3l",
+          "label": "1.3L Rotary Turbo 或 1.8L I4T，待核验",
+          "sourceValue": "200(1.3L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "1.3L Rotary Turbo",
+              "sourceVehicle": "Mazda Savanna RX-7",
+              "powerHp": 200,
+              "torqueLbFt": 196,
+              "aspiration": "1t",
+              "priceCredits": 11250,
+              "added": "Series 0"
+            },
+            {
+              "name": "1.8L I4T",
+              "sourceVehicle": "Peugeot 205 T16",
+              "powerHp": 200,
+              "torqueLbFt": 188,
+              "aspiration": "1t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -15,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_690",
+          "label": "670BHP Race Motor 或 2.6L 4 Rotor - Racing，待核验",
+          "sourceValue": "690",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "670BHP Race Motor",
+              "sourceVehicle": "Porsche Mission R",
+              "powerHp": 690,
+              "torqueLbFt": 741,
+              "aspiration": "e",
+              "priceCredits": 75000,
+              "added": "Series 21"
+            },
+            {
+              "name": "2.6L 4 Rotor - Racing",
+              "sourceVehicle": "Mazda 787B",
+              "powerHp": 690,
+              "torqueLbFt": 448,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 90
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

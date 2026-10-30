@@ -1,0 +1,121 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2020 Chevrolet #3 Corvette Racing C8.R",
+  "basePi": 910,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 500,
+    "torqueNm": 651,
+    "massKg": 1320,
+    "topSpeedKph": 318,
+    "frontTireWidthMm": 305,
+    "rearTireWidthMm": 310
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.075Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 250
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 14,
+          "performanceScore": 350
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

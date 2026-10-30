@@ -1,0 +1,257 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2005 Honda NSX-R GT",
+  "basePi": 725,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 276,
+    "torqueNm": 304,
+    "massKg": 1270,
+    "topSpeedKph": 285,
+    "rearTireWidthMm": 255
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_321",
+          "label": "3.2L I6 · 321 马力",
+          "sourceValue": "321",
+          "engineName": "3.2L I6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L I6",
+              "sourceVehicle": "BMW M3",
+              "powerHp": 321,
+              "torqueLbFt": 258,
+              "aspiration": "na",
+              "priceCredits": 10000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 45
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 139
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 24
+        },
+        {
+          "id": "engine_475_3l",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475(3L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 199
+        },
+        {
+          "id": "engine_573",
+          "label": "3.5L TT Hybrid · 573 马力",
+          "sourceValue": "573",
+          "engineName": "3.5L TT Hybrid",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.5L TT Hybrid",
+              "sourceVehicle": "Acura NSX",
+              "powerHp": 573,
+              "torqueLbFt": 623,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 297
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 23,
+          "performanceScore": 574
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_t",
+          "label": "涡轮增压",
+          "sourceValue": "T"
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        },
+        {
+          "id": "aspiration_cs",
+          "label": "离心式机械增压",
+          "sourceValue": "CS"
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

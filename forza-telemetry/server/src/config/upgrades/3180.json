@@ -1,0 +1,139 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1991 Peugeot 205 Rallye",
+  "basePi": 462,
+  "baseDriveType": "fwd",
+  "stockSpecs": {
+    "powerHp": 99,
+    "torqueNm": 118,
+    "massKg": 790,
+    "topSpeedKph": 193,
+    "rearTireWidthMm": 165
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.080Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 201
+        },
+        {
+          "id": "engine_200_1_8l",
+          "label": "1.3L Rotary Turbo 或 1.8L I4T，待核验",
+          "sourceValue": "200(1.8L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "1.3L Rotary Turbo",
+              "sourceVehicle": "Mazda Savanna RX-7",
+              "powerHp": 200,
+              "torqueLbFt": 196,
+              "aspiration": "1t",
+              "priceCredits": 11250,
+              "added": "Series 0"
+            },
+            {
+              "name": "1.8L I4T",
+              "sourceVehicle": "Peugeot 205 T16",
+              "powerHp": 200,
+              "torqueLbFt": 188,
+              "aspiration": "1t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 101
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_t",
+          "label": "涡轮增压",
+          "sourceValue": "T"
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Rally lights",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

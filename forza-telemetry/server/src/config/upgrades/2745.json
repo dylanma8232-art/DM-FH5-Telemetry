@@ -1,0 +1,137 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2015 Honda Ridgeline Baja Trophy Truck",
+  "basePi": 703,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 550,
+    "torqueNm": 637,
+    "massKg": 2132,
+    "topSpeedKph": 229,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 255
+        },
+        {
+          "id": "engine_552",
+          "label": "4.8L V10 · 552 马力",
+          "sourceValue": "552",
+          "engineName": "4.8L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.8L V10",
+              "sourceVehicle": "Lexus LFA",
+              "powerHp": 552,
+              "torqueLbFt": 354,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 2
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 300
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 48,
+          "performanceScore": 1200
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

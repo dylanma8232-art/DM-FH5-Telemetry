@@ -1,0 +1,59 @@
+# System files
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds
+dist/
+build/
+out/
+
+# IDE / Config
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Telemetry and Database files (Ignore all local databases/runs, keeping code clean)
+forza-telemetry/server/data/session_*.json
+forza-telemetry/server/data/sessions/session_*.json
+forza-telemetry/data/sessions/
+forza-telemetry/data/*.gz
+forza-telemetry/data/*.br
+forza-telemetry/data/*.json
+forza-telemetry/server/data/tracks-database.json
+
+# Codegraph files (Ignore local databases, socket, daemon files)
+.codegraph/codegraph.db
+.codegraph/codegraph.db-shm
+.codegraph/codegraph.db-wal
+.codegraph/daemon.pid
+.codegraph/sockets/
+.codegraph/logs/
+**/codegraph.db
+**/codegraph.db-shm
+**/codegraph.db-wal
+
+# Local Telemetry Data Folder
+forza-telemetry/data/
+
+# 启动脚本（本地使用）
+启动FH5遥测.command
+一键启动与数据清洗.command
+*.command
+*.sh
+
+# 其他
+pet-runs/
+forza-telemetry/data.zip

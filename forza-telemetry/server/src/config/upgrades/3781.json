@@ -1,0 +1,210 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2023 Porsche 911 GT3 RS",
+  "basePi": 867,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 518,
+    "torqueNm": 465,
+    "massKg": 1450,
+    "topSpeedKph": 309,
+    "frontTireWidthMm": 275,
+    "rearTireWidthMm": 335
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.080Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_493_34k",
+          "label": "4.0L F6 · 493 马力",
+          "sourceValue": "493(34k)",
+          "engineName": "4.0L F6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 34000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -1,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_424",
+          "label": "3.6 F6TT · 424 马力",
+          "sourceValue": "424",
+          "engineName": "3.6 F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.6 F6TT",
+              "sourceVehicle": "Porsche 911 GT2",
+              "powerHp": 424,
+              "torqueLbFt": 398,
+              "aspiration": "2t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -4,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_691",
+          "label": "3.8 F6TT · 691 马力",
+          "sourceValue": "691",
+          "engineName": "3.8 F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.8 F6TT",
+              "sourceVehicle": "Porsche 911 GT2 RS",
+              "powerHp": 691,
+              "torqueLbFt": 553,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 7,
+          "performanceScore": 173
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": 9,
+          "performanceScore": 232
+        },
+        {
+          "id": "engine_887",
+          "label": "4.6L V8 Hybrid · 887 马力",
+          "sourceValue": "887",
+          "engineName": "4.6L V8 Hybrid",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.6L V8 Hybrid",
+              "sourceVehicle": "Porsche 918 Spyder",
+              "powerHp": 887,
+              "torqueLbFt": 829,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 369
+        },
+        {
+          "id": "engine_536",
+          "label": "3.2L F6TT · 536 马力",
+          "sourceValue": "536",
+          "engineName": "3.2L F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L F6TT",
+              "sourceVehicle": "Porsche 911 GT1 Strassenversion",
+              "powerHp": 536,
+              "torqueLbFt": 442,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 10"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 18
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

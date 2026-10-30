@@ -1,0 +1,4482 @@
+{
+  "schemaVersion": 1,
+  "game": "Forza Horizon 5",
+  "updatedAt": "2026-07-17T09:52:24.083Z",
+  "profiles": {
+    "3005": {
+      "name": "1965 Peel Trident",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "247": {
+      "name": "1969 Toyota 2000GT",
+      "basePi": 487,
+      "baseDriveType": "rwd"
+    },
+    "249": {
+      "name": "1962 Ferrari 250 GTO",
+      "basePi": 612,
+      "baseDriveType": "rwd"
+    },
+    "251": {
+      "name": "1954 Mercedes-Benz 300 SL Coupe",
+      "basePi": 498,
+      "baseDriveType": "rwd"
+    },
+    "253": {
+      "name": "1994 Ferrari F355 Berlinetta",
+      "basePi": 717,
+      "baseDriveType": "rwd"
+    },
+    "255": {
+      "name": "1992 Ferrari 512 TR",
+      "basePi": 733,
+      "baseDriveType": "rwd"
+    },
+    "257": {
+      "name": "2002 Ferrari 575M Maranello",
+      "basePi": 747,
+      "baseDriveType": "rwd"
+    },
+    "260": {
+      "name": "1973 Porsche 911 Carrera RS",
+      "basePi": 601,
+      "baseDriveType": "rwd"
+    },
+    "261": {
+      "name": "1995 Porsche 911 GT2",
+      "basePi": 753,
+      "baseDriveType": "rwd"
+    },
+    "262": {
+      "name": "2004 Porsche 911 GT3",
+      "basePi": 778,
+      "baseDriveType": "rwd"
+    },
+    "265": {
+      "name": "1982 Porsche 911 Turbo 3.3",
+      "basePi": 666,
+      "baseDriveType": "rwd"
+    },
+    "266": {
+      "name": "1970 Porsche 914/6",
+      "basePi": 427,
+      "baseDriveType": "rwd"
+    },
+    "268": {
+      "name": "1989 Porsche 944 Turbo",
+      "basePi": 651,
+      "baseDriveType": "rwd"
+    },
+    "269": {
+      "name": "1987 Porsche 959",
+      "basePi": 764,
+      "baseDriveType": "awd"
+    },
+    "281": {
+      "name": "1968 Plymouth Barracuda Formula-S",
+      "basePi": 550,
+      "baseDriveType": "rwd"
+    },
+    "289": {
+      "name": "1969 Chevrolet Camaro Super Sport Coupe",
+      "basePi": 585,
+      "baseDriveType": "rwd"
+    },
+    "291": {
+      "name": "1990 Vauxhall Lotus Carlton",
+      "basePi": 635,
+      "baseDriveType": "rwd"
+    },
+    "292": {
+      "name": "2003 Porsche Carrera GT",
+      "basePi": 845,
+      "baseDriveType": "rwd"
+    },
+    "294": {
+      "name": "2002 Koenigsegg CC8S",
+      "basePi": 846,
+      "baseDriveType": "rwd"
+    },
+    "295": {
+      "name": "2003 Toyota Celica Sport Specialty II",
+      "basePi": 557,
+      "baseDriveType": "fwd"
+    },
+    "296": {
+      "name": "1998 TVR Cerbera Speed 12",
+      "basePi": 861,
+      "baseDriveType": "rwd"
+    },
+    "297": {
+      "name": "2003 Ferrari 360 Challenge Stradale",
+      "basePi": 773,
+      "baseDriveType": "rwd"
+    },
+    "299": {
+      "name": "1970 Chevrolet Chevelle Super Sport 454",
+      "basePi": 531,
+      "baseDriveType": "rwd"
+    },
+    "302": {
+      "name": "2004 Honda Civic Type-R",
+      "basePi": 600,
+      "baseDriveType": "fwd"
+    },
+    "306": {
+      "name": "1965 Shelby Cobra 427 S/C",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "309": {
+      "name": "1995 Volkswagen Corrado VR6",
+      "basePi": 533,
+      "baseDriveType": "fwd"
+    },
+    "312": {
+      "name": "1967 Chevrolet Corvette Stingray 427",
+      "basePi": 623,
+      "baseDriveType": "rwd"
+    },
+    "314": {
+      "name": "2002 Chevrolet Corvette Z06",
+      "basePi": 722,
+      "baseDriveType": "rwd"
+    },
+    "315": {
+      "name": "1970 Chevrolet Corvette ZR-1",
+      "basePi": 610,
+      "baseDriveType": "rwd"
+    },
+    "316": {
+      "name": "1988 Lamborghini Countach LP5000 QV",
+      "basePi": 735,
+      "baseDriveType": "rwd"
+    },
+    "320": {
+      "name": "1991 Honda CR-X SiR",
+      "basePi": 534,
+      "baseDriveType": "fwd"
+    },
+    "323": {
+      "name": "1992 Lancia Delta HF Integrale EVO",
+      "basePi": 602,
+      "baseDriveType": "awd"
+    },
+    "324": {
+      "name": "1999 Lamborghini Diablo GTR",
+      "basePi": 881,
+      "baseDriveType": "rwd"
+    },
+    "325": {
+      "name": "1997 Lamborghini Diablo SV",
+      "basePi": 763,
+      "baseDriveType": "rwd"
+    },
+    "326": {
+      "name": "1969 Ferrari Dino 246 GT",
+      "basePi": 535,
+      "baseDriveType": "rwd"
+    },
+    "327": {
+      "name": "1995 Mitsubishi Eclipse GSX",
+      "basePi": 543,
+      "baseDriveType": "awd"
+    },
+    "330": {
+      "name": "1971 Lotus Elan Sprint",
+      "basePi": 443,
+      "baseDriveType": "rwd"
+    },
+    "333": {
+      "name": "2002 Ferrari Enzo Ferrari",
+      "basePi": 857,
+      "baseDriveType": "rwd"
+    },
+    "335": {
+      "name": "2002 Lotus Esprit V8",
+      "basePi": 731,
+      "baseDriveType": "rwd"
+    },
+    "336": {
+      "name": "1961 Jaguar E-type",
+      "basePi": 525,
+      "baseDriveType": "rwd"
+    },
+    "338": {
+      "name": "1997 McLaren F1 GT",
+      "basePi": 866,
+      "baseDriveType": "rwd"
+    },
+    "340": {
+      "name": "1987 Ferrari F40",
+      "basePi": 784,
+      "baseDriveType": "rwd"
+    },
+    "342": {
+      "name": "1995 Ferrari F50",
+      "basePi": 789,
+      "baseDriveType": "rwd"
+    },
+    "343": {
+      "name": "1969 Nissan Fairlady Z 432",
+      "basePi": 482,
+      "baseDriveType": "rwd"
+    },
+    "344": {
+      "name": "2003 Nissan Fairlady Z",
+      "basePi": 650,
+      "baseDriveType": "rwd"
+    },
+    "345": {
+      "name": "1994 Nissan Fairlady Z Version S Twin Turbo",
+      "basePi": 607,
+      "baseDriveType": "rwd"
+    },
+    "348": {
+      "name": "2005 Ford GT",
+      "basePi": 786,
+      "baseDriveType": "rwd"
+    },
+    "349": {
+      "name": "1998 Nissan R390 (GT1)",
+      "basePi": 859,
+      "baseDriveType": "rwd"
+    },
+    "353": {
+      "name": "1992 Volkswagen Golf Gti 16v Mk2",
+      "basePi": 429,
+      "baseDriveType": "fwd"
+    },
+    "354": {
+      "name": "2003 Volkswagen Golf R32 ",
+      "basePi": 618,
+      "baseDriveType": "awd"
+    },
+    "357": {
+      "name": "1997 Mitsubishi GTO",
+      "basePi": 610,
+      "baseDriveType": "awd"
+    },
+    "358": {
+      "name": "1984 Ferrari 288 GTO",
+      "basePi": 750,
+      "baseDriveType": "rwd"
+    },
+    "363": {
+      "name": "1998 SUBARU Impreza 22B-STi Version",
+      "basePi": 640,
+      "baseDriveType": "awd"
+    },
+    "364": {
+      "name": "2004 SUBARU Impreza WRX STi",
+      "basePi": 652,
+      "baseDriveType": "awd"
+    },
+    "365": {
+      "name": "2005 SUBARU Impreza WRX STi",
+      "basePi": 669,
+      "baseDriveType": "awd"
+    },
+    "368": {
+      "name": "2001 Acura Integra Type-R",
+      "basePi": 596,
+      "baseDriveType": "fwd"
+    },
+    "374": {
+      "name": "2006 Mitsubishi Lancer Evolution IX MR",
+      "basePi": 632,
+      "baseDriveType": "awd"
+    },
+    "375": {
+      "name": "1999 Mitsubishi Lancer Evolution VI GSR",
+      "basePi": 659,
+      "baseDriveType": "awd"
+    },
+    "378": {
+      "name": "2004 Mitsubishi Lancer Evolution VIII MR",
+      "basePi": 664,
+      "baseDriveType": "awd"
+    },
+    "382": {
+      "name": "1997 BMW M3",
+      "basePi": 665,
+      "baseDriveType": "rwd"
+    },
+    "383": {
+      "name": "2005 BMW M3",
+      "basePi": 675,
+      "baseDriveType": "rwd"
+    },
+    "397": {
+      "name": "2005 Vauxhall Monaro VXR",
+      "basePi": 696,
+      "baseDriveType": "rwd"
+    },
+    "398": {
+      "name": "1995 Toyota MR2 GT",
+      "basePi": 632,
+      "baseDriveType": "rwd"
+    },
+    "405": {
+      "name": "2000 Ford SVT Cobra R",
+      "basePi": 648,
+      "baseDriveType": "rwd"
+    },
+    "411": {
+      "name": "2005 Honda NSX-R",
+      "basePi": 691,
+      "baseDriveType": "rwd"
+    },
+    "412": {
+      "name": "1992 Honda NSX-R",
+      "basePi": 691,
+      "baseDriveType": "rwd"
+    },
+    "417": {
+      "name": "1970 Buick GSX",
+      "basePi": 558,
+      "baseDriveType": "rwd"
+    },
+    "419": {
+      "name": "2006 Audi RS 4",
+      "basePi": 710,
+      "baseDriveType": "awd"
+    },
+    "420": {
+      "name": "2003 Audi RS 6",
+      "basePi": 677,
+      "baseDriveType": "awd"
+    },
+    "422": {
+      "name": "2002 Acura RSX Type-S",
+      "basePi": 585,
+      "baseDriveType": "fwd"
+    },
+    "423": {
+      "name": "1990 Mazda Savanna RX-7",
+      "basePi": 558,
+      "baseDriveType": "rwd"
+    },
+    "424": {
+      "name": "1997 Mazda RX-7",
+      "basePi": 645,
+      "baseDriveType": "rwd"
+    },
+    "425": {
+      "name": "2002 Mazda RX-7 Spirit R Type-A",
+      "basePi": 687,
+      "baseDriveType": "rwd"
+    },
+    "427": {
+      "name": "2003 Honda S2000",
+      "basePi": 630,
+      "baseDriveType": "rwd"
+    },
+    "432": {
+      "name": "2004 Saleen S7",
+      "basePi": 855,
+      "baseDriveType": "rwd"
+    },
+    "433": {
+      "name": "2005 TVR Sagaris",
+      "basePi": 779,
+      "baseDriveType": "rwd"
+    },
+    "439": {
+      "name": "1992 Nissan Silvia CLUB K's",
+      "basePi": 537,
+      "baseDriveType": "rwd"
+    },
+    "440": {
+      "name": "1994 Nissan Silvia K's",
+      "basePi": 617,
+      "baseDriveType": "rwd"
+    },
+    "441": {
+      "name": "2000 Nissan Silvia Spec-R",
+      "basePi": 632,
+      "baseDriveType": "rwd"
+    },
+    "444": {
+      "name": "1993 Nissan Skyline GT-R V-Spec",
+      "basePi": 626,
+      "baseDriveType": "awd"
+    },
+    "445": {
+      "name": "2002 Nissan Skyline GT-R V-Spec II",
+      "basePi": 657,
+      "baseDriveType": "awd"
+    },
+    "455": {
+      "name": "1985 Toyota Sprinter Trueno GT Apex",
+      "basePi": 480,
+      "baseDriveType": "rwd"
+    },
+    "458": {
+      "name": "1974 Lancia Stratos HF Stradale",
+      "basePi": 590,
+      "baseDriveType": "rwd"
+    },
+    "460": {
+      "name": "1992 Toyota Supra 2.0 GT",
+      "basePi": 558,
+      "baseDriveType": "rwd"
+    },
+    "461": {
+      "name": "1998 Toyota Supra RZ",
+      "basePi": 646,
+      "baseDriveType": "rwd"
+    },
+    "483": {
+      "name": "1999 Dodge Viper GTS ACR",
+      "basePi": 717,
+      "baseDriveType": "rwd"
+    },
+    "489": {
+      "name": "1993 Jaguar XJ220",
+      "basePi": 786,
+      "baseDriveType": "rwd"
+    },
+    "513": {
+      "name": "1969 Dodge Charger R/T",
+      "basePi": 548,
+      "baseDriveType": "rwd"
+    },
+    "565": {
+      "name": "2002 BMW M3-GTR",
+      "basePi": 747,
+      "baseDriveType": "rwd"
+    },
+    "567": {
+      "name": "1998 Nissan Silvia K's Aero",
+      "basePi": 609,
+      "baseDriveType": "rwd"
+    },
+    "568": {
+      "name": "1998 Mercedes-Benz AMG CLK GTR Forza Edition",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "569": {
+      "name": "2005 Honda NSX-R GT",
+      "basePi": 725,
+      "baseDriveType": "rwd"
+    },
+    "615": {
+      "name": "2007 Peugeot 207 Super 2000",
+      "basePi": 755,
+      "baseDriveType": "awd"
+    },
+    "625": {
+      "name": "2007 Honda Civic Type-R ",
+      "basePi": 574,
+      "baseDriveType": "fwd"
+    },
+    "633": {
+      "name": "1983 Audi Sport quattro",
+      "basePi": 638,
+      "baseDriveType": "awd"
+    },
+    "634": {
+      "name": "1980 Renault 5 Turbo",
+      "basePi": 521,
+      "baseDriveType": "rwd"
+    },
+    "637": {
+      "name": "1967 Lamborghini Miura P400",
+      "basePi": 625,
+      "baseDriveType": "rwd"
+    },
+    "639": {
+      "name": "1970 Dodge Challenger R/T",
+      "basePi": 551,
+      "baseDriveType": "rwd"
+    },
+    "641": {
+      "name": "1997 Toyota Soarer 2.5 GT-T",
+      "basePi": 601,
+      "baseDriveType": "rwd"
+    },
+    "642": {
+      "name": "1991 BMW M3",
+      "basePi": 583,
+      "baseDriveType": "rwd"
+    },
+    "1005": {
+      "name": "1973 Pontiac Firebird Trans Am SD-455",
+      "basePi": 551,
+      "baseDriveType": "rwd"
+    },
+    "1006": {
+      "name": "2005 Ferrari FXX",
+      "basePi": 956,
+      "baseDriveType": "rwd"
+    },
+    "1007": {
+      "name": "2008 Koenigsegg CCGT",
+      "basePi": 965,
+      "baseDriveType": "rwd"
+    },
+    "1009": {
+      "name": "2008 Mitsubishi Lancer Evolution X GSR",
+      "basePi": 649,
+      "baseDriveType": "awd"
+    },
+    "1011": {
+      "name": "2008 BMW M3",
+      "basePi": 725,
+      "baseDriveType": "rwd"
+    },
+    "1020": {
+      "name": "1996 Ferrari F50 GT",
+      "basePi": 976,
+      "baseDriveType": "rwd"
+    },
+    "1022": {
+      "name": "2007 Ferrari 430 Scuderia",
+      "basePi": 810,
+      "baseDriveType": "rwd"
+    },
+    "1023": {
+      "name": "1989 Ferrari F40 Competizione",
+      "basePi": 947,
+      "baseDriveType": "rwd"
+    },
+    "1032": {
+      "name": "2007 Alfa Romeo 8C Competizione",
+      "basePi": 755,
+      "baseDriveType": "rwd"
+    },
+    "1034": {
+      "name": "1994 Toyota Celica GT-Four ST205",
+      "basePi": 590,
+      "baseDriveType": "awd"
+    },
+    "1040": {
+      "name": "1981 BMW M1",
+      "basePi": 629,
+      "baseDriveType": "rwd"
+    },
+    "1041": {
+      "name": "1993 Ford SVT Cobra R",
+      "basePi": 539,
+      "baseDriveType": "rwd"
+    },
+    "1042": {
+      "name": "1971 Nissan Skyline 2000GT-R",
+      "basePi": 493,
+      "baseDriveType": "rwd"
+    },
+    "1043": {
+      "name": "1997 Nissan Skyline GT-R V-Spec",
+      "basePi": 635,
+      "baseDriveType": "awd"
+    },
+    "1045": {
+      "name": "1987 Pontiac Firebird Trans Am GTA",
+      "basePi": 485,
+      "baseDriveType": "rwd"
+    },
+    "1046": {
+      "name": "2008 Dodge Viper SRT10 ACR",
+      "basePi": 844,
+      "baseDriveType": "rwd"
+    },
+    "1059": {
+      "name": "2008 BMW Z4 M Coupe",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "1060": {
+      "name": "2008 SUBARU Impreza WRX STI",
+      "basePi": 649,
+      "baseDriveType": "awd"
+    },
+    "1063": {
+      "name": "1969 Dodge Charger Daytona HEMI",
+      "basePi": 595,
+      "baseDriveType": "rwd"
+    },
+    "1064": {
+      "name": "1979 Chevrolet Camaro Z28",
+      "basePi": 466,
+      "baseDriveType": "rwd"
+    },
+    "1069": {
+      "name": "2009 Chevrolet Corvette ZR1",
+      "basePi": 809,
+      "baseDriveType": "rwd"
+    },
+    "1081": {
+      "name": "2008 Aston Martin DBS",
+      "basePi": 746,
+      "baseDriveType": "rwd"
+    },
+    "1086": {
+      "name": "2009 Ford Focus RS",
+      "basePi": 660,
+      "baseDriveType": "awd"
+    },
+    "1090": {
+      "name": "2009 Mercedes-Benz SL 65 AMG Black Series",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "1093": {
+      "name": "1960 Chevrolet Corvette",
+      "basePi": 541,
+      "baseDriveType": "rwd"
+    },
+    "1098": {
+      "name": "2009 MINI John Cooper Works",
+      "basePi": 598,
+      "baseDriveType": "fwd"
+    },
+    "1103": {
+      "name": "2010 Nissan 370Z",
+      "basePi": 688,
+      "baseDriveType": "rwd"
+    },
+    "1104": {
+      "name": "1970 Datsun 510",
+      "basePi": 264,
+      "baseDriveType": "rwd"
+    },
+    "1105": {
+      "name": "1964 Aston Martin DB5",
+      "basePi": 548,
+      "baseDriveType": "rwd"
+    },
+    "1108": {
+      "name": "1985 Ford RS200 Evolution",
+      "basePi": 808,
+      "baseDriveType": "awd"
+    },
+    "1110": {
+      "name": "1994 Mazda MX-5 Miata",
+      "basePi": 445,
+      "baseDriveType": "rwd"
+    },
+    "1124": {
+      "name": "1980 Abarth Fiat 131",
+      "basePi": 510,
+      "baseDriveType": "rwd"
+    },
+    "1125": {
+      "name": "2008 Lamborghini Reventon",
+      "basePi": 817,
+      "baseDriveType": "awd"
+    },
+    "1126": {
+      "name": "2009 BMW M5",
+      "basePi": 719,
+      "baseDriveType": "rwd"
+    },
+    "1130": {
+      "name": "2011 Mercedes-Benz SLS AMG",
+      "basePi": 804,
+      "baseDriveType": "rwd"
+    },
+    "1131": {
+      "name": "2009 Ferrari 458 Italia",
+      "basePi": 823,
+      "baseDriveType": "rwd"
+    },
+    "1150": {
+      "name": "1965 Alfa Romeo Giulia Sprint GTA Stradale",
+      "basePi": 486,
+      "baseDriveType": "rwd"
+    },
+    "1154": {
+      "name": "1957 Ferrari 250 Testa Rossa",
+      "basePi": 691,
+      "baseDriveType": "rwd"
+    },
+    "1155": {
+      "name": "1965 Shelby Cobra Daytona Coupe",
+      "basePi": 637,
+      "baseDriveType": "rwd"
+    },
+    "1171": {
+      "name": "2010 Ferrari 599XX",
+      "basePi": 924,
+      "baseDriveType": "rwd"
+    },
+    "1173": {
+      "name": "2010 Lamborghini Murcielago LP 670-4 SV",
+      "basePi": 818,
+      "baseDriveType": "awd"
+    },
+    "1175": {
+      "name": "2010 Pagani Zonda R",
+      "basePi": 959,
+      "baseDriveType": "rwd"
+    },
+    "1181": {
+      "name": "2010 Aston Martin One-77",
+      "basePi": 843,
+      "baseDriveType": "rwd"
+    },
+    "1184": {
+      "name": "2009 Audi RS 6",
+      "basePi": 722,
+      "baseDriveType": "awd"
+    },
+    "1187": {
+      "name": "2009 Lotus 2-Eleven",
+      "basePi": 799,
+      "baseDriveType": "rwd"
+    },
+    "1202": {
+      "name": "2011 Penhall The Cholla",
+      "basePi": 655,
+      "baseDriveType": "rwd"
+    },
+    "1204": {
+      "name": "2010 Renault Megane R.S. 250",
+      "basePi": 657,
+      "baseDriveType": "fwd"
+    },
+    "1216": {
+      "name": "2011 Audi RS 3 Sportback",
+      "basePi": 682,
+      "baseDriveType": "awd"
+    },
+    "1219": {
+      "name": "1992 Bugatti EB110 Super Sport",
+      "basePi": 805,
+      "baseDriveType": "awd"
+    },
+    "1220": {
+      "name": "2010 Audi TT RS Coupe",
+      "basePi": 707,
+      "baseDriveType": "awd"
+    },
+    "1231": {
+      "name": "2010 Volkswagen Golf R",
+      "basePi": 645,
+      "baseDriveType": "awd"
+    },
+    "1234": {
+      "name": "2010 Porsche 911 Sport Classic",
+      "basePi": 756,
+      "baseDriveType": "rwd"
+    },
+    "1248": {
+      "name": "2010 Rossion Q1",
+      "basePi": 840,
+      "baseDriveType": "rwd"
+    },
+    "1253": {
+      "name": "2010 Noble M600",
+      "basePi": 877,
+      "baseDriveType": "rwd"
+    },
+    "1260": {
+      "name": "2010 Lexus LFA",
+      "basePi": 810,
+      "baseDriveType": "rwd"
+    },
+    "1264": {
+      "name": "2010 Renault Clio R.S.",
+      "basePi": 592,
+      "baseDriveType": "fwd"
+    },
+    "1267": {
+      "name": "1971 AMC Javelin AMX",
+      "basePi": 493,
+      "baseDriveType": "rwd"
+    },
+    "1268": {
+      "name": "2002 BMW Z3 M Coupe",
+      "basePi": 675,
+      "baseDriveType": "rwd"
+    },
+    "1269": {
+      "name": "1973 BMW 2002 Turbo",
+      "basePi": 531,
+      "baseDriveType": "rwd"
+    },
+    "1270": {
+      "name": "1982 DeLorean DMC-12",
+      "basePi": 464,
+      "baseDriveType": "rwd"
+    },
+    "1271": {
+      "name": "1957 Ferrari 250 California",
+      "basePi": 564,
+      "baseDriveType": "rwd"
+    },
+    "1272": {
+      "name": "1992 Ford Escort RS Cosworth",
+      "basePi": 565,
+      "baseDriveType": "awd"
+    },
+    "1273": {
+      "name": "1997 Honda Civic Type R",
+      "basePi": 553,
+      "baseDriveType": "fwd"
+    },
+    "1275": {
+      "name": "2006 Koenigsegg CCX",
+      "basePi": 870,
+      "baseDriveType": "rwd"
+    },
+    "1276": {
+      "name": "1977 Pontiac Firebird Trans Am",
+      "basePi": 418,
+      "baseDriveType": "rwd"
+    },
+    "1277": {
+      "name": "1971 Plymouth Cuda 426 Hemi",
+      "basePi": 547,
+      "baseDriveType": "rwd"
+    },
+    "1278": {
+      "name": "1973 Ford XB Falcon GT",
+      "basePi": 532,
+      "baseDriveType": "rwd"
+    },
+    "1281": {
+      "name": "1955 Porsche 550A Spyder",
+      "basePi": 513,
+      "baseDriveType": "rwd"
+    },
+    "1282": {
+      "name": "1993 Nissan 240SX SE",
+      "basePi": 445,
+      "baseDriveType": "rwd"
+    },
+    "1285": {
+      "name": "1965 Pontiac GTO",
+      "basePi": 484,
+      "baseDriveType": "rwd"
+    },
+    "1290": {
+      "name": "1986 BMW M635CSi",
+      "basePi": 589,
+      "baseDriveType": "rwd"
+    },
+    "1291": {
+      "name": "1970 Chevrolet El Camino Super Sport 454",
+      "basePi": 544,
+      "baseDriveType": "rwd"
+    },
+    "1293": {
+      "name": "1987 Ford Sierra Cosworth RS500",
+      "basePi": 604,
+      "baseDriveType": "rwd"
+    },
+    "1294": {
+      "name": "1991 GMC Syclone",
+      "basePi": 548,
+      "baseDriveType": "awd"
+    },
+    "1295": {
+      "name": "1982 Lancia 037 Stradale",
+      "basePi": 647,
+      "baseDriveType": "rwd"
+    },
+    "1296": {
+      "name": "1990 Mercedes-Benz 190E 2.5-16 Evolution II",
+      "basePi": 579,
+      "baseDriveType": "rwd"
+    },
+    "1297": {
+      "name": "1988 Mitsubishi Starion ESI-R",
+      "basePi": 549,
+      "baseDriveType": "rwd"
+    },
+    "1299": {
+      "name": "1983 Volvo 242 Turbo Evolution",
+      "basePi": 548,
+      "baseDriveType": "rwd"
+    },
+    "1300": {
+      "name": "1964 Chevrolet Impala Super Sport 409",
+      "basePi": 544,
+      "baseDriveType": "rwd"
+    },
+    "1301": {
+      "name": "1956 Jaguar D-Type",
+      "basePi": 630,
+      "baseDriveType": "rwd"
+    },
+    "1302": {
+      "name": "1977 Ford Escort RS1800",
+      "basePi": 477,
+      "baseDriveType": "rwd"
+    },
+    "1304": {
+      "name": "2010 Maserati Gran Turismo S",
+      "basePi": 702,
+      "baseDriveType": "rwd"
+    },
+    "1309": {
+      "name": "1969 Pontiac GTO Judge",
+      "basePi": 545,
+      "baseDriveType": "rwd"
+    },
+    "1314": {
+      "name": "1993 McLaren F1",
+      "basePi": 817,
+      "baseDriveType": "rwd"
+    },
+    "1318": {
+      "name": "1968 Ferrari 365 GTB/4",
+      "basePi": 637,
+      "baseDriveType": "rwd"
+    },
+    "1319": {
+      "name": "2010 Ferrari 599 GTO",
+      "basePi": 828,
+      "baseDriveType": "rwd"
+    },
+    "1322": {
+      "name": "2011 Lamborghini Sesto Elemento",
+      "basePi": 936,
+      "baseDriveType": "awd"
+    },
+    "1323": {
+      "name": "2011 Volkswagen Scirocco R",
+      "basePi": 663,
+      "baseDriveType": "fwd"
+    },
+    "1328": {
+      "name": "2011 Ford F-150 SVT Raptor",
+      "basePi": 518,
+      "baseDriveType": "awd"
+    },
+    "1329": {
+      "name": "1987 Buick Regal GNX",
+      "basePi": 564,
+      "baseDriveType": "rwd"
+    },
+    "1330": {
+      "name": "1970 Chevrolet Camaro Z28",
+      "basePi": 539,
+      "baseDriveType": "rwd"
+    },
+    "1332": {
+      "name": "1968 Dodge Dart HEMI Super Stock",
+      "basePi": 650,
+      "baseDriveType": "rwd"
+    },
+    "1334": {
+      "name": "1980 Lotus Esprit Turbo",
+      "basePi": 538,
+      "baseDriveType": "rwd"
+    },
+    "1338": {
+      "name": "1968 Pontiac Firebird",
+      "basePi": 533,
+      "baseDriveType": "rwd"
+    },
+    "1345": {
+      "name": "2006 HUMMER H1 Alpha",
+      "basePi": 354,
+      "baseDriveType": "awd"
+    },
+    "1350": {
+      "name": "2011 BMW X5 M",
+      "basePi": 666,
+      "baseDriveType": "awd"
+    },
+    "1351": {
+      "name": "1997 Lexus SC300",
+      "basePi": 555,
+      "baseDriveType": "rwd"
+    },
+    "1352": {
+      "name": "1970 Dodge Coronet Super Bee",
+      "basePi": 566,
+      "baseDriveType": "rwd"
+    },
+    "1354": {
+      "name": "1966 Chevrolet Nova Super Sport",
+      "basePi": 554,
+      "baseDriveType": "rwd"
+    },
+    "1355": {
+      "name": "1965 Ford Mustang GT Coupe",
+      "basePi": 499,
+      "baseDriveType": "rwd"
+    },
+    "1367": {
+      "name": "2003 BMW M5",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "1368": {
+      "name": "1988 BMW M5",
+      "basePi": 583,
+      "baseDriveType": "rwd"
+    },
+    "1369": {
+      "name": "2009 Pagani Zonda Cinque Roadster",
+      "basePi": 896,
+      "baseDriveType": "rwd"
+    },
+    "1370": {
+      "name": "1995 Audi Avant RS 2",
+      "basePi": 601,
+      "baseDriveType": "awd"
+    },
+    "1372": {
+      "name": "1930 Bentley 8 Litre",
+      "basePi": 181,
+      "baseDriveType": "rwd"
+    },
+    "1376": {
+      "name": "1999 Lotus Elise Series 1 Sport 190",
+      "basePi": 711,
+      "baseDriveType": "rwd"
+    },
+    "1379": {
+      "name": "1996 Chevrolet Impala Super Sport",
+      "basePi": 509,
+      "baseDriveType": "rwd"
+    },
+    "1380": {
+      "name": "1981 Volkswagen Scirocco S",
+      "basePi": 293,
+      "baseDriveType": "fwd"
+    },
+    "1381": {
+      "name": "1992 Mitsubishi Galant VR-4",
+      "basePi": 540,
+      "baseDriveType": "awd"
+    },
+    "1382": {
+      "name": "1990 SUBARU Legacy RS",
+      "basePi": 514,
+      "baseDriveType": "awd"
+    },
+    "1383": {
+      "name": "1998 Volkswagen Gti VR6 Mk3",
+      "basePi": 510,
+      "baseDriveType": "fwd"
+    },
+    "1385": {
+      "name": "2011 BMW 1 Series M Coupe",
+      "basePi": 712,
+      "baseDriveType": "rwd"
+    },
+    "1386": {
+      "name": "1958 Aston Martin DBR1",
+      "basePi": 678,
+      "baseDriveType": "rwd"
+    },
+    "1387": {
+      "name": "1998 Mercedes-Benz AMG CLK GTR",
+      "basePi": 829,
+      "baseDriveType": "rwd"
+    },
+    "1388": {
+      "name": "2012 Eagle (U.K.) Speedster",
+      "basePi": 723,
+      "baseDriveType": "rwd"
+    },
+    "1392": {
+      "name": "2011 Mazda RX-8 R3",
+      "basePi": 624,
+      "baseDriveType": "rwd"
+    },
+    "1393": {
+      "name": "1992 Alfa Romeo 155 Q4 ",
+      "basePi": 561,
+      "baseDriveType": "awd"
+    },
+    "1394": {
+      "name": "1992 GMC Typhoon",
+      "basePi": 538,
+      "baseDriveType": "awd"
+    },
+    "1395": {
+      "name": "1989 Toyota MR2 SC",
+      "basePi": 502,
+      "baseDriveType": "rwd"
+    },
+    "1397": {
+      "name": "2011 Lamborghini Gallardo LP 570-4 Superleggera",
+      "basePi": 814,
+      "baseDriveType": "awd"
+    },
+    "1398": {
+      "name": "2012 Lamborghini Gallardo LP 570-4 Spyder Performante",
+      "basePi": 797,
+      "baseDriveType": "awd"
+    },
+    "1417": {
+      "name": "2011 Audi RS 5 Coupe",
+      "basePi": 733,
+      "baseDriveType": "awd"
+    },
+    "1418": {
+      "name": "1995 BMW M5",
+      "basePi": 634,
+      "baseDriveType": "rwd"
+    },
+    "1426": {
+      "name": "2011 McLaren 12C Coupé",
+      "basePi": 832,
+      "baseDriveType": "rwd"
+    },
+    "1427": {
+      "name": "2012 Porsche 911 GT2 RS",
+      "basePi": 860,
+      "baseDriveType": "rwd"
+    },
+    "1428": {
+      "name": "2012 Ascari KZ1R",
+      "basePi": 829,
+      "baseDriveType": "rwd"
+    },
+    "1429": {
+      "name": "1969 Chevrolet Nova Super Sport 396",
+      "basePi": 545,
+      "baseDriveType": "rwd"
+    },
+    "1435": {
+      "name": "1963 Volkswagen Beetle",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "1451": {
+      "name": "2012 BMW M5",
+      "basePi": 766,
+      "baseDriveType": "rwd"
+    },
+    "1459": {
+      "name": "1955 Hoonigan Chevrolet Bel Air",
+      "basePi": 621,
+      "baseDriveType": "rwd"
+    },
+    "1460": {
+      "name": "2011 Ford Transit SuperSportVan",
+      "basePi": 347,
+      "baseDriveType": "rwd"
+    },
+    "1477": {
+      "name": "2011 Hot Wheels Bone Shaker",
+      "basePi": 790,
+      "baseDriveType": "rwd"
+    },
+    "1478": {
+      "name": "1986 Audi #2 Audi Sport quattro S1",
+      "basePi": 827,
+      "baseDriveType": "awd"
+    },
+    "1482": {
+      "name": "1973 AMC Gremlin X",
+      "basePi": 403,
+      "baseDriveType": "rwd"
+    },
+    "1486": {
+      "name": "1966 Ford Lotus Cortina",
+      "basePi": 389,
+      "baseDriveType": "rwd"
+    },
+    "1493": {
+      "name": "1995 BMW 850CSi",
+      "basePi": 610,
+      "baseDriveType": "rwd"
+    },
+    "1496": {
+      "name": "2012 Jeep Wrangler Rubicon",
+      "basePi": 463,
+      "baseDriveType": "awd"
+    },
+    "1500": {
+      "name": "2012 Mercedes-Benz SLK 55 AMG",
+      "basePi": 740,
+      "baseDriveType": "rwd"
+    },
+    "1510": {
+      "name": "1995 Ford SVT Cobra R",
+      "basePi": 625,
+      "baseDriveType": "rwd"
+    },
+    "1517": {
+      "name": "1992 Toyota Celica GT-Four RC ST185",
+      "basePi": 544,
+      "baseDriveType": "awd"
+    },
+    "1522": {
+      "name": "2012 Lamborghini Aventador J",
+      "basePi": 839,
+      "baseDriveType": "awd"
+    },
+    "1523": {
+      "name": "2012 Mercedes-Benz C 63 AMG Coupe Black Series",
+      "basePi": 768,
+      "baseDriveType": "rwd"
+    },
+    "1525": {
+      "name": "2012 MINI John Cooper Works GP",
+      "basePi": 628,
+      "baseDriveType": "fwd"
+    },
+    "1529": {
+      "name": "1973 Ford Capri RS3100",
+      "basePi": 497,
+      "baseDriveType": "rwd"
+    },
+    "1530": {
+      "name": "1940 Ford De Luxe Coupe",
+      "basePi": 130,
+      "baseDriveType": "rwd"
+    },
+    "1531": {
+      "name": "1983 GMC Vandura G-1500",
+      "basePi": 226,
+      "baseDriveType": "rwd"
+    },
+    "1532": {
+      "name": "2012 Hot Wheels Bad to the Blade",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "1533": {
+      "name": "1977 Holden Torana A9X",
+      "basePi": 517,
+      "baseDriveType": "rwd"
+    },
+    "1536": {
+      "name": "1973 Alpine A110 1600s",
+      "basePi": 550,
+      "baseDriveType": "rwd"
+    },
+    "1539": {
+      "name": "2012 Porsche 911 GT3 RS 4.0",
+      "basePi": 825,
+      "baseDriveType": "rwd"
+    },
+    "1549": {
+      "name": "1968 Alfa Romeo 33 Stradale",
+      "basePi": 707,
+      "baseDriveType": "rwd"
+    },
+    "1559": {
+      "name": "1955 Mercedes-Benz 300 SLR",
+      "basePi": 714,
+      "baseDriveType": "rwd"
+    },
+    "1562": {
+      "name": "2013 Renault Clio R.S. 200 EDC",
+      "basePi": 595,
+      "baseDriveType": "fwd"
+    },
+    "1564": {
+      "name": "1953 Chevrolet Corvette",
+      "basePi": 366,
+      "baseDriveType": "rwd"
+    },
+    "1568": {
+      "name": "1974 Honda Civic RS",
+      "basePi": 368,
+      "baseDriveType": "fwd"
+    },
+    "1572": {
+      "name": "1970 AMC Rebel \"The Machine\"",
+      "basePi": 531,
+      "baseDriveType": "rwd"
+    },
+    "1574": {
+      "name": "1958 Austin-Healey Sprite MkI",
+      "basePi": 131,
+      "baseDriveType": "rwd"
+    },
+    "1575": {
+      "name": "1988 Chevrolet Monte Carlo Super Sport",
+      "basePi": 396,
+      "baseDriveType": "rwd"
+    },
+    "1578": {
+      "name": "1962 Ferrari 250 GT Berlinetta Lusso",
+      "basePi": 590,
+      "baseDriveType": "rwd"
+    },
+    "1580": {
+      "name": "1973 Ford Escort RS1600",
+      "basePi": 476,
+      "baseDriveType": "rwd"
+    },
+    "1581": {
+      "name": "1956 Ford F-100",
+      "basePi": 302,
+      "baseDriveType": "rwd"
+    },
+    "1583": {
+      "name": "2012 Lamborghini Aventador LP700-4",
+      "basePi": 847,
+      "baseDriveType": "awd"
+    },
+    "1585": {
+      "name": "1968 Lancia Fulvia Coupe Rallye 1.6 HF",
+      "basePi": 526,
+      "baseDriveType": "fwd"
+    },
+    "1586": {
+      "name": "1962 Lincoln Continental",
+      "basePi": 381,
+      "baseDriveType": "rwd"
+    },
+    "1591": {
+      "name": "1984 Peugeot 205 Turbo 16",
+      "basePi": 616,
+      "baseDriveType": "awd"
+    },
+    "1592": {
+      "name": "1974 Toyota Celica GT",
+      "basePi": 315,
+      "baseDriveType": "rwd"
+    },
+    "1598": {
+      "name": "2010 BMW M3 GTS",
+      "basePi": 794,
+      "baseDriveType": "rwd"
+    },
+    "1599": {
+      "name": "2012 Hennessey Venom GT",
+      "basePi": 911,
+      "baseDriveType": "rwd"
+    },
+    "1601": {
+      "name": "2012 Lotus Exige S",
+      "basePi": 754,
+      "baseDriveType": "rwd"
+    },
+    "1607": {
+      "name": "2013 Audi RS 7 Sportback",
+      "basePi": 739,
+      "baseDriveType": "awd"
+    },
+    "1615": {
+      "name": "1969 FIAT Dino 2.4 Coupe",
+      "basePi": 498,
+      "baseDriveType": "rwd"
+    },
+    "1619": {
+      "name": "1967 Mercedes-Benz 280 SL",
+      "basePi": 478,
+      "baseDriveType": "rwd"
+    },
+    "1627": {
+      "name": "2013 Mercedes-Benz E 63 AMG",
+      "basePi": 751,
+      "baseDriveType": "awd"
+    },
+    "1651": {
+      "name": "2013 Aston Martin V12 Vantage S",
+      "basePi": 796,
+      "baseDriveType": "rwd"
+    },
+    "1652": {
+      "name": "2013 Caterham Superlight R500",
+      "basePi": 786,
+      "baseDriveType": "rwd"
+    },
+    "1653": {
+      "name": "2013 Hot Wheels Baja Bone Shaker",
+      "basePi": 700,
+      "baseDriveType": "awd"
+    },
+    "1654": {
+      "name": "2013 Ferrari LaFerrari",
+      "basePi": 934,
+      "baseDriveType": "rwd"
+    },
+    "1655": {
+      "name": "2013 SUBARU BRZ",
+      "basePi": 581,
+      "baseDriveType": "rwd"
+    },
+    "1658": {
+      "name": "2013 McLaren P1",
+      "basePi": 928,
+      "baseDriveType": "rwd"
+    },
+    "1661": {
+      "name": "1986 Lancia Delta S4",
+      "basePi": 682,
+      "baseDriveType": "awd"
+    },
+    "1662": {
+      "name": "1965 MINI Cooper S",
+      "basePi": 281,
+      "baseDriveType": "fwd"
+    },
+    "1667": {
+      "name": "2013 Mazda MX-5",
+      "basePi": 549,
+      "baseDriveType": "rwd"
+    },
+    "1668": {
+      "name": "1969 Ford Mustang Boss 302",
+      "basePi": 581,
+      "baseDriveType": "rwd"
+    },
+    "2002": {
+      "name": "2012 Pagani Huayra",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "2003": {
+      "name": "2012 Nissan GT-R Black Edition (R35)",
+      "basePi": 810,
+      "baseDriveType": "awd"
+    },
+    "2004": {
+      "name": "2013 Lamborghini Veneno",
+      "basePi": 910,
+      "baseDriveType": "awd"
+    },
+    "2005": {
+      "name": "2009 Honda S2000 CR",
+      "basePi": 635,
+      "baseDriveType": "rwd"
+    },
+    "2006": {
+      "name": "1995 Chevrolet Corvette ZR-1",
+      "basePi": 693,
+      "baseDriveType": "rwd"
+    },
+    "2007": {
+      "name": "2013 Toyota 86",
+      "basePi": 579,
+      "baseDriveType": "rwd"
+    },
+    "2010": {
+      "name": "2013 Audi RS 4 Avant",
+      "basePi": 728,
+      "baseDriveType": "awd"
+    },
+    "2011": {
+      "name": "2014 Ford Fiesta ST",
+      "basePi": 607,
+      "baseDriveType": "fwd"
+    },
+    "2017": {
+      "name": "1968 Abarth 595 esseesse",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2018": {
+      "name": "2013 BMW M6 Coupe",
+      "basePi": 758,
+      "baseDriveType": "rwd"
+    },
+    "2019": {
+      "name": "2003 Ford Focus RS",
+      "basePi": 593,
+      "baseDriveType": "fwd"
+    },
+    "2021": {
+      "name": "2013 Mercedes-Benz A 45 AMG",
+      "basePi": 707,
+      "baseDriveType": "awd"
+    },
+    "2022": {
+      "name": "2013 MINI X-Raid ALL4 Racing Countryman",
+      "basePi": 632,
+      "baseDriveType": "awd"
+    },
+    "2023": {
+      "name": "2013 Volvo C30 Polestar",
+      "basePi": 626,
+      "baseDriveType": "fwd"
+    },
+    "2034": {
+      "name": "2013 Ferrari 458 Speciale",
+      "basePi": 865,
+      "baseDriveType": "rwd"
+    },
+    "2038": {
+      "name": "2014 Alfa Romeo 4C",
+      "basePi": 755,
+      "baseDriveType": "rwd"
+    },
+    "2040": {
+      "name": "2014 BAC Mono",
+      "basePi": 868,
+      "baseDriveType": "rwd"
+    },
+    "2042": {
+      "name": "2013 KTM X-Bow R",
+      "basePi": 802,
+      "baseDriveType": "rwd"
+    },
+    "2049": {
+      "name": "1945 Willys MB Jeep",
+      "basePi": 198,
+      "baseDriveType": "awd"
+    },
+    "2066": {
+      "name": "1926 Bugatti Type 35 C",
+      "basePi": 285,
+      "baseDriveType": "rwd"
+    },
+    "2068": {
+      "name": "1939 Maserati 8CTF",
+      "basePi": 657,
+      "baseDriveType": "rwd"
+    },
+    "2069": {
+      "name": "1939 Mercedes-Benz W154",
+      "basePi": 672,
+      "baseDriveType": "rwd"
+    },
+    "2096": {
+      "name": "1939 Auto Union Type D",
+      "basePi": 675,
+      "baseDriveType": "rwd"
+    },
+    "2105": {
+      "name": "2013 Dodge SRT Viper GTS Anniversary Edition",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "2108": {
+      "name": "2014 Jeep Grand Cherokee SRT",
+      "basePi": 680,
+      "baseDriveType": "awd"
+    },
+    "2119": {
+      "name": "1984 Honda Civic CRX Mugen",
+      "basePi": 499,
+      "baseDriveType": "fwd"
+    },
+    "2121": {
+      "name": "1994 Honda Prelude Si",
+      "basePi": 521,
+      "baseDriveType": "fwd"
+    },
+    "2128": {
+      "name": "2013 Cadillac XTS Limousine",
+      "basePi": 492,
+      "baseDriveType": "fwd"
+    },
+    "2130": {
+      "name": "2013 Chevrolet Summit Racing Pro Stock Camaro",
+      "basePi": 919,
+      "baseDriveType": "rwd"
+    },
+    "2131": {
+      "name": "2014 HSV GEN-F GTS",
+      "basePi": 721,
+      "baseDriveType": "rwd"
+    },
+    "2133": {
+      "name": "2015 BMW i8",
+      "basePi": 764,
+      "baseDriveType": "awd"
+    },
+    "2135": {
+      "name": "1997 Land Rover Defender 90",
+      "basePi": 366,
+      "baseDriveType": "awd"
+    },
+    "2140": {
+      "name": "1980 SUBARU BRAT GL",
+      "basePi": 273,
+      "baseDriveType": "awd"
+    },
+    "2142": {
+      "name": "2014 Volkswagen Golf R",
+      "basePi": 663,
+      "baseDriveType": "awd"
+    },
+    "2145": {
+      "name": "2014 Ford Ranger T6 Rally Raid",
+      "basePi": 643,
+      "baseDriveType": "awd"
+    },
+    "2146": {
+      "name": "2014 Local Motors Rally Fighter",
+      "basePi": 716,
+      "baseDriveType": "rwd"
+    },
+    "2147": {
+      "name": "1986 MG Metro 6R4",
+      "basePi": 811,
+      "baseDriveType": "awd"
+    },
+    "2148": {
+      "name": "2013 Mercedes-Benz G 65 AMG",
+      "basePi": 639,
+      "baseDriveType": "awd"
+    },
+    "2149": {
+      "name": "1993 Renault Clio Williams",
+      "basePi": 511,
+      "baseDriveType": "fwd"
+    },
+    "2151": {
+      "name": "1963 Volkswagen Type 2 De Luxe",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2154": {
+      "name": "2014 BMW M4 Coupe",
+      "basePi": 782,
+      "baseDriveType": "rwd"
+    },
+    "2158": {
+      "name": "1981 Ford Fiesta XR2",
+      "basePi": 369,
+      "baseDriveType": "fwd"
+    },
+    "2161": {
+      "name": "1965 Alfa Romeo Giulia TZ2",
+      "basePi": 641,
+      "baseDriveType": "rwd"
+    },
+    "2162": {
+      "name": "2015 Jaguar F-TYPE R Coupe",
+      "basePi": 777,
+      "baseDriveType": "rwd"
+    },
+    "2163": {
+      "name": "2016 Honda Civic Type R",
+      "basePi": 699,
+      "baseDriveType": "fwd"
+    },
+    "2164": {
+      "name": "2014 Lamborghini Huracán LP 610-4",
+      "basePi": 838,
+      "baseDriveType": "awd"
+    },
+    "2168": {
+      "name": "2015 SUBARU WRX STI",
+      "basePi": 675,
+      "baseDriveType": "awd"
+    },
+    "2171": {
+      "name": "2005 Mazda Mazdaspeed MX-5",
+      "basePi": 587,
+      "baseDriveType": "rwd"
+    },
+    "2173": {
+      "name": "2015 MG MG3",
+      "basePi": 444,
+      "baseDriveType": "fwd"
+    },
+    "2175": {
+      "name": "2015 Lexus RC F",
+      "basePi": 741,
+      "baseDriveType": "rwd"
+    },
+    "2176": {
+      "name": "1986 Lamborghini LM 002",
+      "basePi": 562,
+      "baseDriveType": "awd"
+    },
+    "2177": {
+      "name": "2015 Chevrolet Corvette Z06",
+      "basePi": 852,
+      "baseDriveType": "rwd"
+    },
+    "2178": {
+      "name": "2001 Audi RS 4 Avant",
+      "basePi": 663,
+      "baseDriveType": "awd"
+    },
+    "2179": {
+      "name": "2015 Audi S1",
+      "basePi": 644,
+      "baseDriveType": "awd"
+    },
+    "2180": {
+      "name": "2015 Audi RS 6 Avant",
+      "basePi": 754,
+      "baseDriveType": "awd"
+    },
+    "2181": {
+      "name": "2013 Audi R8 Coupe V10 plus 5.2 FSI quattro",
+      "basePi": 802,
+      "baseDriveType": "awd"
+    },
+    "2182": {
+      "name": "2015 Audi TTS Coupe",
+      "basePi": 724,
+      "baseDriveType": "awd"
+    },
+    "2183": {
+      "name": "2015 Chevrolet Camaro Z/28",
+      "basePi": 797,
+      "baseDriveType": "rwd"
+    },
+    "2184": {
+      "name": "2013 Donkervoort D8 GTO",
+      "basePi": 814,
+      "baseDriveType": "rwd"
+    },
+    "2185": {
+      "name": "2015 Jaguar XFR-S",
+      "basePi": 728,
+      "baseDriveType": "rwd"
+    },
+    "2188": {
+      "name": "2015 Koenigsegg One:1",
+      "basePi": 983,
+      "baseDriveType": "rwd"
+    },
+    "2189": {
+      "name": "2015 McLaren 650S Coupe",
+      "basePi": 859,
+      "baseDriveType": "rwd"
+    },
+    "2194": {
+      "name": "2014 Ferrari California T",
+      "basePi": 784,
+      "baseDriveType": "rwd"
+    },
+    "2195": {
+      "name": "1980 FIAT 124 Sport Spider",
+      "basePi": 288,
+      "baseDriveType": "rwd"
+    },
+    "2209": {
+      "name": "1992 Mazda 323 GT-R",
+      "basePi": 589,
+      "baseDriveType": "awd"
+    },
+    "2216": {
+      "name": "1958 Plymouth Fury",
+      "basePi": 477,
+      "baseDriveType": "rwd"
+    },
+    "2217": {
+      "name": "1996 SUBARU SVX",
+      "basePi": 574,
+      "baseDriveType": "awd"
+    },
+    "2235": {
+      "name": "2015 Jaguar XKR-S GT",
+      "basePi": 778,
+      "baseDriveType": "rwd"
+    },
+    "2242": {
+      "name": "2015 Mercedes-AMG GT S",
+      "basePi": 797,
+      "baseDriveType": "rwd"
+    },
+    "2258": {
+      "name": "1970 Volkswagen #1107 Desert Dingo Racing Stock Bug",
+      "basePi": 371,
+      "baseDriveType": "rwd"
+    },
+    "2262": {
+      "name": "2016 Cadillac ATS-V",
+      "basePi": 716,
+      "baseDriveType": "rwd"
+    },
+    "2263": {
+      "name": "2015 Dodge Challenger SRT Hellcat",
+      "basePi": 755,
+      "baseDriveType": "rwd"
+    },
+    "2267": {
+      "name": "2016 Mazda MX-5",
+      "basePi": 620,
+      "baseDriveType": "rwd"
+    },
+    "2270": {
+      "name": "1973 Nissan Skyline H/T 2000GT-R",
+      "basePi": 518,
+      "baseDriveType": "rwd"
+    },
+    "2289": {
+      "name": "2014 Porsche 911 Turbo S",
+      "basePi": 808,
+      "baseDriveType": "awd"
+    },
+    "2290": {
+      "name": "2014 Porsche 918 Spyder",
+      "basePi": 920,
+      "baseDriveType": "awd"
+    },
+    "2293": {
+      "name": "2015 Porsche Cayman GTS",
+      "basePi": 767,
+      "baseDriveType": "rwd"
+    },
+    "2297": {
+      "name": "2012 Volkswagen Santana",
+      "basePi": 340,
+      "baseDriveType": "fwd"
+    },
+    "2352": {
+      "name": "2017 Acura NSX",
+      "basePi": 831,
+      "baseDriveType": "awd"
+    },
+    "2357": {
+      "name": "2017 Ford Focus RS",
+      "basePi": 702,
+      "baseDriveType": "awd"
+    },
+    "2363": {
+      "name": "2017 Ford GT",
+      "basePi": 863,
+      "baseDriveType": "rwd"
+    },
+    "2371": {
+      "name": "2014 Ferrari FXX K",
+      "basePi": 979,
+      "baseDriveType": "rwd"
+    },
+    "2372": {
+      "name": "1932 Ford De Luxe Five-Window Coupe",
+      "basePi": 126,
+      "baseDriveType": "rwd"
+    },
+    "2400": {
+      "name": "2016 Ford Shelby GT350R",
+      "basePi": 815,
+      "baseDriveType": "rwd"
+    },
+    "2405": {
+      "name": "2000 Lotus 340R",
+      "basePi": 700,
+      "baseDriveType": "rwd"
+    },
+    "2412": {
+      "name": "1957 BMW Isetta 300 Export",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2416": {
+      "name": "1971 Meyers Manx",
+      "basePi": 291,
+      "baseDriveType": "rwd"
+    },
+    "2417": {
+      "name": "1973 Holden HQ Monaro GTS 350",
+      "basePi": 525,
+      "baseDriveType": "rwd"
+    },
+    "2420": {
+      "name": "1984 Opel Manta 400",
+      "basePi": 691,
+      "baseDriveType": "rwd"
+    },
+    "2421": {
+      "name": "2016 Cadillac CTS-V Sedan",
+      "basePi": 761,
+      "baseDriveType": "rwd"
+    },
+    "2422": {
+      "name": "2014 HSV Limited Edition Gen-F GTS Maloo",
+      "basePi": 742,
+      "baseDriveType": "rwd"
+    },
+    "2423": {
+      "name": "1969 Lola #6 Penske Sunoco T70 MkIIIB",
+      "basePi": 818,
+      "baseDriveType": "rwd"
+    },
+    "2424": {
+      "name": "2015 Mercedes-Benz #24 Tankpool24 Racing Truck",
+      "basePi": 702,
+      "baseDriveType": "rwd"
+    },
+    "2427": {
+      "name": "2016 Vauxhall Corsa VXR",
+      "basePi": 584,
+      "baseDriveType": "fwd"
+    },
+    "2428": {
+      "name": "2016 W Motors Lykan HyperSport",
+      "basePi": 877,
+      "baseDriveType": "rwd"
+    },
+    "2430": {
+      "name": "2016 Ariel Nomad",
+      "basePi": 711,
+      "baseDriveType": "rwd"
+    },
+    "2431": {
+      "name": "2015 BMW X6 M",
+      "basePi": 687,
+      "baseDriveType": "awd"
+    },
+    "2432": {
+      "name": "1975 DS Automobiles DS 23",
+      "basePi": 330,
+      "baseDriveType": "fwd"
+    },
+    "2437": {
+      "name": "2015 Infiniti Q60 Concept",
+      "basePi": 735,
+      "baseDriveType": "rwd"
+    },
+    "2467": {
+      "name": "2015 Ferrari 488 GTB",
+      "basePi": 863,
+      "baseDriveType": "rwd"
+    },
+    "2468": {
+      "name": "2015 Dodge Charger SRT Hellcat",
+      "basePi": 762,
+      "baseDriveType": "rwd"
+    },
+    "2469": {
+      "name": "1965 Toyota Sports 800",
+      "basePi": 246,
+      "baseDriveType": "rwd"
+    },
+    "2471": {
+      "name": "2016 Mercedes-AMG C 63 S Coupe",
+      "basePi": 755,
+      "baseDriveType": "rwd"
+    },
+    "2472": {
+      "name": "2015 McLaren 570S Coupe",
+      "basePi": 824,
+      "baseDriveType": "rwd"
+    },
+    "2473": {
+      "name": "2016 Audi R8 V10 plus",
+      "basePi": 834,
+      "baseDriveType": "awd"
+    },
+    "2474": {
+      "name": "2016 Zenvo ST1",
+      "basePi": 883,
+      "baseDriveType": "rwd"
+    },
+    "2475": {
+      "name": "2016 Spania GTA GTA Spano",
+      "basePi": 915,
+      "baseDriveType": "rwd"
+    },
+    "2477": {
+      "name": "2016 BMW M2 Coupé",
+      "basePi": 718,
+      "baseDriveType": "rwd"
+    },
+    "2479": {
+      "name": "2016 Lamborghini Aventador Superveloce",
+      "basePi": 872,
+      "baseDriveType": "awd"
+    },
+    "2486": {
+      "name": "2015 Radical RXC Turbo",
+      "basePi": 928,
+      "baseDriveType": "rwd"
+    },
+    "2489": {
+      "name": "2016 Abarth 695 Biposto",
+      "basePi": 657,
+      "baseDriveType": "fwd"
+    },
+    "2492": {
+      "name": "2016 Jaguar F-TYPE Project 7",
+      "basePi": 786,
+      "baseDriveType": "rwd"
+    },
+    "2493": {
+      "name": "2015 Aston Martin Vantage GT12",
+      "basePi": 829,
+      "baseDriveType": "rwd"
+    },
+    "2494": {
+      "name": "2015 Land Rover Range Rover Sport SVR",
+      "basePi": 722,
+      "baseDriveType": "awd"
+    },
+    "2497": {
+      "name": "2015 Mercedes-Benz #24 Tankpool24 Racing Truck Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "2504": {
+      "name": "1946 Ford Super Deluxe Station Wagon",
+      "basePi": 124,
+      "baseDriveType": "rwd"
+    },
+    "2507": {
+      "name": "1955 Chevrolet 150 Utility Sedan",
+      "basePi": 360,
+      "baseDriveType": "rwd"
+    },
+    "2510": {
+      "name": "1974 Holden Sandman HQ panel van",
+      "basePi": 501,
+      "baseDriveType": "rwd"
+    },
+    "2511": {
+      "name": "1976 Jeep CJ5 Renegade",
+      "basePi": 431,
+      "baseDriveType": "awd"
+    },
+    "2512": {
+      "name": "1987 Nissan Skyline GTS-R (HR31)",
+      "basePi": 543,
+      "baseDriveType": "rwd"
+    },
+    "2515": {
+      "name": "2011 SUBARU WRX STI ",
+      "basePi": 668,
+      "baseDriveType": "awd"
+    },
+    "2517": {
+      "name": "2014 Ford #11 Rockstar F-150 Trophy Truck",
+      "basePi": 731,
+      "baseDriveType": "rwd"
+    },
+    "2521": {
+      "name": "2015 Polaris RZR XP 1000 EPS",
+      "basePi": 501,
+      "baseDriveType": "awd"
+    },
+    "2526": {
+      "name": "2016 Koenigsegg Regera",
+      "basePi": 966,
+      "baseDriveType": "rwd"
+    },
+    "2527": {
+      "name": "2017 Aston Martin DB11",
+      "basePi": 787,
+      "baseDriveType": "rwd"
+    },
+    "2528": {
+      "name": "2016 Porsche 911 GT3 RS",
+      "basePi": 864,
+      "baseDriveType": "rwd"
+    },
+    "2529": {
+      "name": "2016 Porsche Cayman GT4",
+      "basePi": 819,
+      "baseDriveType": "rwd"
+    },
+    "2534": {
+      "name": "1993 Porsche 968 Turbo S",
+      "basePi": 701,
+      "baseDriveType": "rwd"
+    },
+    "2541": {
+      "name": "2016 Lotus 3-Eleven",
+      "basePi": 839,
+      "baseDriveType": "rwd"
+    },
+    "2542": {
+      "name": "2017 Alfa Romeo Giulia Quadrifoglio",
+      "basePi": 775,
+      "baseDriveType": "rwd"
+    },
+    "2543": {
+      "name": "2016 Ford #66 Ford Racing GT Le Mans",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "2544": {
+      "name": "2016 Dodge Viper ACR",
+      "basePi": 873,
+      "baseDriveType": "rwd"
+    },
+    "2549": {
+      "name": "1970 Porsche #3 917 LH",
+      "basePi": 856,
+      "baseDriveType": "rwd"
+    },
+    "2551": {
+      "name": "2014 Ford FPV Limited Edition Pursuit Ute",
+      "basePi": 685,
+      "baseDriveType": "rwd"
+    },
+    "2552": {
+      "name": "2015 Alumicraft Class 10 Race Car",
+      "basePi": 642,
+      "baseDriveType": "rwd"
+    },
+    "2558": {
+      "name": "1970 International Scout 800A",
+      "basePi": 384,
+      "baseDriveType": "awd"
+    },
+    "2559": {
+      "name": "1959 Jaguar Mk II 3.8",
+      "basePi": 448,
+      "baseDriveType": "rwd"
+    },
+    "2560": {
+      "name": "1972 Land Rover Series III",
+      "basePi": 100,
+      "baseDriveType": "awd"
+    },
+    "2562": {
+      "name": "2014 Morgan 3 Wheeler",
+      "basePi": 488,
+      "baseDriveType": "rwd"
+    },
+    "2563": {
+      "name": "1972 Reliant Supervan III",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2566": {
+      "name": "1979 Toyota FJ40",
+      "basePi": 269,
+      "baseDriveType": "awd"
+    },
+    "2568": {
+      "name": "1969 Volkswagen Class 5/1600 Baja Bug",
+      "basePi": 349,
+      "baseDriveType": "rwd"
+    },
+    "2569": {
+      "name": "2015 Ultima Evolution Coupe 1020",
+      "basePi": 961,
+      "baseDriveType": "rwd"
+    },
+    "2570": {
+      "name": "2015 Jaguar XE-S",
+      "basePi": 671,
+      "baseDriveType": "rwd"
+    },
+    "2571": {
+      "name": "2017 Jaguar F-PACE S",
+      "basePi": 674,
+      "baseDriveType": "awd"
+    },
+    "2574": {
+      "name": "2554 AMG Transport Dynamics M12S Warthog CST",
+      "basePi": 719,
+      "baseDriveType": "awd"
+    },
+    "2575": {
+      "name": "2011 Koenigsegg Agera",
+      "basePi": 894,
+      "baseDriveType": "rwd"
+    },
+    "2576": {
+      "name": "2005 Hot Wheels Ford Mustang",
+      "basePi": 819,
+      "baseDriveType": "rwd"
+    },
+    "2577": {
+      "name": "2015 Ferrari F12tdf",
+      "basePi": 884,
+      "baseDriveType": "rwd"
+    },
+    "2580": {
+      "name": "2015 Ford Falcon GT F 351",
+      "basePi": 718,
+      "baseDriveType": "rwd"
+    },
+    "2584": {
+      "name": "1985 HDT VK Commodore Group A",
+      "basePi": 550,
+      "baseDriveType": "rwd"
+    },
+    "2585": {
+      "name": "1972 Ford Falcon XA GT-HO",
+      "basePi": 624,
+      "baseDriveType": "rwd"
+    },
+    "2586": {
+      "name": "2015 Volvo V60 Polestar",
+      "basePi": 662,
+      "baseDriveType": "awd"
+    },
+    "2613": {
+      "name": "1970 GMC Jimmy",
+      "basePi": 521,
+      "baseDriveType": "rwd"
+    },
+    "2614": {
+      "name": "1968 Ford Mustang GT 2+2 Fastback",
+      "basePi": 498,
+      "baseDriveType": "rwd"
+    },
+    "2616": {
+      "name": "2016 Lamborghini Centenario LP 770-4",
+      "basePi": 884,
+      "baseDriveType": "awd"
+    },
+    "2618": {
+      "name": "2017 Nissan GT-R (R35)",
+      "basePi": 814,
+      "baseDriveType": "awd"
+    },
+    "2624": {
+      "name": "2018 Bugatti Chiron",
+      "basePi": 927,
+      "baseDriveType": "awd"
+    },
+    "2625": {
+      "name": "2016 Bentley Bentayga",
+      "basePi": 727,
+      "baseDriveType": "awd"
+    },
+    "2628": {
+      "name": "2016 BMW M4 GTS",
+      "basePi": 814,
+      "baseDriveType": "rwd"
+    },
+    "2636": {
+      "name": "1993 Toyota #1 T100 Baja Truck",
+      "basePi": 693,
+      "baseDriveType": "rwd"
+    },
+    "2647": {
+      "name": "2016 Pagani Huayra BC Coupe",
+      "basePi": 929,
+      "baseDriveType": "rwd"
+    },
+    "2648": {
+      "name": "2016 Hoonigan Gymkhana 9 Ford Focus RS RX",
+      "basePi": 864,
+      "baseDriveType": "awd"
+    },
+    "2649": {
+      "name": "2010 Ford Crown Victoria Police Interceptor",
+      "basePi": 462,
+      "baseDriveType": "rwd"
+    },
+    "2652": {
+      "name": "1997 Mitsubishi Montero Evolution",
+      "basePi": 457,
+      "baseDriveType": "awd"
+    },
+    "2654": {
+      "name": "2017 Mercedes-AMG GT R",
+      "basePi": 837,
+      "baseDriveType": "rwd"
+    },
+    "2656": {
+      "name": "2007 Toyota Hilux Arctic Trucks AT38",
+      "basePi": 457,
+      "baseDriveType": "awd"
+    },
+    "2659": {
+      "name": "1998 Porsche 911 GT1 Strassenversion",
+      "basePi": 840,
+      "baseDriveType": "rwd"
+    },
+    "2662": {
+      "name": "2016 Nissan Titan Warrior Concept",
+      "basePi": 486,
+      "baseDriveType": "awd"
+    },
+    "2663": {
+      "name": "2016 RJ Anderson #37 Polaris RZR-Rockstar Energy Pro 2 Truck",
+      "basePi": 776,
+      "baseDriveType": "rwd"
+    },
+    "2665": {
+      "name": "2017 Bentley Continental Supersports",
+      "basePi": 769,
+      "baseDriveType": "awd"
+    },
+    "2699": {
+      "name": "1965 MINI Cooper S Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "2729": {
+      "name": "1972 Hoonigan Chevrolet Napalm Nova",
+      "basePi": 731,
+      "baseDriveType": "rwd"
+    },
+    "2730": {
+      "name": "1978 Hoonigan Ford Escort RS1800",
+      "basePi": 820,
+      "baseDriveType": "rwd"
+    },
+    "2732": {
+      "name": "1992 Hoonigan Mazda RX-7 Twerkstallion",
+      "basePi": 799,
+      "baseDriveType": "rwd"
+    },
+    "2734": {
+      "name": "1965 Hoonigan Ford \"Hoonicorn\" Mustang",
+      "basePi": 951,
+      "baseDriveType": "awd"
+    },
+    "2736": {
+      "name": "1991 Hoonigan Rauh-Welt Begriff Porsche 911 Turbo",
+      "basePi": 811,
+      "baseDriveType": "rwd"
+    },
+    "2738": {
+      "name": "1995 Nissan NISMO GT-R LM",
+      "basePi": 658,
+      "baseDriveType": "rwd"
+    },
+    "2739": {
+      "name": "2017 Chevrolet Camaro ZL1",
+      "basePi": 821,
+      "baseDriveType": "rwd"
+    },
+    "2740": {
+      "name": "2017 Abarth 124 Spider",
+      "basePi": 562,
+      "baseDriveType": "rwd"
+    },
+    "2741": {
+      "name": "2017 Porsche Panamera Turbo",
+      "basePi": 767,
+      "baseDriveType": "awd"
+    },
+    "2742": {
+      "name": "2016 Jeep Trailcat",
+      "basePi": 744,
+      "baseDriveType": "awd"
+    },
+    "2743": {
+      "name": "2016 Toyota Land Cruiser Arctic Trucks AT37",
+      "basePi": 404,
+      "baseDriveType": "awd"
+    },
+    "2744": {
+      "name": "2004 Nissan Pickup #23 Rally Raid",
+      "basePi": 577,
+      "baseDriveType": "awd"
+    },
+    "2745": {
+      "name": "2015 Honda Ridgeline Baja Trophy Truck",
+      "basePi": 703,
+      "baseDriveType": "rwd"
+    },
+    "2750": {
+      "name": "1969 Hot Wheels Twin Mill",
+      "basePi": 798,
+      "baseDriveType": "rwd"
+    },
+    "2751": {
+      "name": "2012 Jaguar XKR-S",
+      "basePi": 756,
+      "baseDriveType": "rwd"
+    },
+    "2755": {
+      "name": "2018 Porsche 911 GT2 RS",
+      "basePi": 888,
+      "baseDriveType": "rwd"
+    },
+    "2773": {
+      "name": "2018 Porsche Cayenne Turbo",
+      "basePi": 744,
+      "baseDriveType": "awd"
+    },
+    "2775": {
+      "name": "2017 Porsche #92 Porsche GT Team 911 RSR",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "2792": {
+      "name": "1966 Ford #2 GT40 MkII",
+      "basePi": 771,
+      "baseDriveType": "rwd"
+    },
+    "2793": {
+      "name": "1967 Ferrari #24 Ferrari Spa 330 P4",
+      "basePi": 780,
+      "baseDriveType": "rwd"
+    },
+    "2822": {
+      "name": "1985 Nissan Safari Turbo",
+      "basePi": 230,
+      "baseDriveType": "awd"
+    },
+    "2825": {
+      "name": "1997 Lotus Elise GT1",
+      "basePi": 794,
+      "baseDriveType": "rwd"
+    },
+    "2838": {
+      "name": "2017 Ram 2500 Power Wagon",
+      "basePi": 467,
+      "baseDriveType": "awd"
+    },
+    "2839": {
+      "name": "2018 Dodge Durango SRT",
+      "basePi": 666,
+      "baseDriveType": "awd"
+    },
+    "2841": {
+      "name": "2018 Jaguar I-PACE",
+      "basePi": 705,
+      "baseDriveType": "awd"
+    },
+    "2844": {
+      "name": "2017 VUHL 05RR",
+      "basePi": 886,
+      "baseDriveType": "rwd"
+    },
+    "2846": {
+      "name": "2018 McLaren 720S Coupe",
+      "basePi": 899,
+      "baseDriveType": "rwd"
+    },
+    "2847": {
+      "name": "2017 Chevrolet Colorado ZR2",
+      "basePi": 530,
+      "baseDriveType": "awd"
+    },
+    "2865": {
+      "name": "2017 Maserati Levante S",
+      "basePi": 696,
+      "baseDriveType": "awd"
+    },
+    "2869": {
+      "name": "1971 Porsche #23 917/20",
+      "basePi": 849,
+      "baseDriveType": "rwd"
+    },
+    "2870": {
+      "name": "2018 Honda Civic Type R",
+      "basePi": 727,
+      "baseDriveType": "fwd"
+    },
+    "2871": {
+      "name": "2018 Can-Am Maverick X RS Turbo R",
+      "basePi": 670,
+      "baseDriveType": "awd"
+    },
+    "2872": {
+      "name": "2019 Hyundai Veloster N",
+      "basePi": 645,
+      "baseDriveType": "fwd"
+    },
+    "2874": {
+      "name": "2018 Nissan Sentra NISMO",
+      "basePi": 591,
+      "baseDriveType": "fwd"
+    },
+    "2908": {
+      "name": "2012 Ferrari 599XX Evoluzione",
+      "basePi": 952,
+      "baseDriveType": "rwd"
+    },
+    "2909": {
+      "name": "2018 Dodge Challenger SRT Demon",
+      "basePi": 786,
+      "baseDriveType": "rwd"
+    },
+    "2910": {
+      "name": "2017 Koenigsegg Agera RS",
+      "basePi": 980,
+      "baseDriveType": "rwd"
+    },
+    "2911": {
+      "name": "1953 Morris Minor 1000",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2930": {
+      "name": "1932 Ford De Luxe Five-Window Coupe Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "2935": {
+      "name": "2018 Funco Motorsports F9",
+      "basePi": 821,
+      "baseDriveType": "rwd"
+    },
+    "2937": {
+      "name": "2017 Ford #14 Rahal Letterman Lanigan Racing GRC Fiesta",
+      "basePi": 860,
+      "baseDriveType": "awd"
+    },
+    "2948": {
+      "name": "1998 Mitsubishi FTO GP Version R",
+      "basePi": 585,
+      "baseDriveType": "fwd"
+    },
+    "2951": {
+      "name": "2003 Nissan Fairlady Z Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "2964": {
+      "name": "1953 Morris Minor 1000 Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "2968": {
+      "name": "2023 Aston Martin Valkyrie",
+      "basePi": 978,
+      "baseDriveType": "rwd"
+    },
+    "2972": {
+      "name": "2019 Ferrari #62 Risi Competitizione 488 GTE",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "2973": {
+      "name": "2017 Alpine A110",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "2974": {
+      "name": "2017 Ferrari 812 Superfast",
+      "basePi": 878,
+      "baseDriveType": "rwd"
+    },
+    "2976": {
+      "name": "1930 Bentley Blower 4-1/2 Litre Supercharged",
+      "basePi": 207,
+      "baseDriveType": "rwd"
+    },
+    "2979": {
+      "name": "1959 Ford Anglia 105E",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2980": {
+      "name": "1964 Ford GT40 Mk I",
+      "basePi": 754,
+      "baseDriveType": "rwd"
+    },
+    "2981": {
+      "name": "1986 Ford Escort RS Turbo",
+      "basePi": 516,
+      "baseDriveType": "fwd"
+    },
+    "2982": {
+      "name": "1977 Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+      "basePi": 896,
+      "baseDriveType": "awd"
+    },
+    "2984": {
+      "name": "1991 Hoonigan Gymkhana 10 Ford Escort Cosworth Group A",
+      "basePi": 862,
+      "baseDriveType": "awd"
+    },
+    "2985": {
+      "name": "1973 Land Rover Range Rover",
+      "basePi": 274,
+      "baseDriveType": "awd"
+    },
+    "2986": {
+      "name": "2014 Mercedes-Benz Unimog U5023",
+      "basePi": 103,
+      "baseDriveType": "awd"
+    },
+    "2987": {
+      "name": "1962 Peel P50",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "2988": {
+      "name": "2018 McLaren Senna",
+      "basePi": 934,
+      "baseDriveType": "rwd"
+    },
+    "2989": {
+      "name": "1933 Napier Napier-Railton",
+      "basePi": 603,
+      "baseDriveType": "rwd"
+    },
+    "2992": {
+      "name": "1964 Jaguar Lightweight E-Type",
+      "basePi": 688,
+      "baseDriveType": "rwd"
+    },
+    "2993": {
+      "name": "2018 TVR Griffith",
+      "basePi": 825,
+      "baseDriveType": "rwd"
+    },
+    "2995": {
+      "name": "1983 Volkswagen Golf GTI",
+      "basePi": 428,
+      "baseDriveType": "fwd"
+    },
+    "2996": {
+      "name": "2015 Formula Drift #13 Ford Mustang",
+      "basePi": 825,
+      "baseDriveType": "rwd"
+    },
+    "2997": {
+      "name": "2016 Formula Drift #530 HSV Maloo Gen-F",
+      "basePi": 808,
+      "baseDriveType": "rwd"
+    },
+    "3000": {
+      "name": "1997 Formula Drift #777 Nissan 240SX",
+      "basePi": 826,
+      "baseDriveType": "rwd"
+    },
+    "3003": {
+      "name": "2006 Formula Drift #43 Dodge Viper SRT10",
+      "basePi": 826,
+      "baseDriveType": "rwd"
+    },
+    "3006": {
+      "name": "1965 Hoonigan Gymkhana 10 Ford Hoonicorn Mustang",
+      "basePi": 952,
+      "baseDriveType": "awd"
+    },
+    "3007": {
+      "name": "2017 Volkswagen #34 Volkswagen Andretti Rallycross Beetle",
+      "basePi": 851,
+      "baseDriveType": "awd"
+    },
+    "3020": {
+      "name": "1973 Volkswagen Thing",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "3021": {
+      "name": "1966 Porsche 906 Carrera 6",
+      "basePi": 732,
+      "baseDriveType": "rwd"
+    },
+    "3026": {
+      "name": "1929 Mercedes-Benz SSK",
+      "basePi": 256,
+      "baseDriveType": "rwd"
+    },
+    "3031": {
+      "name": "1985 Porsche #185 959 Prodrive Rally Raid",
+      "basePi": 742,
+      "baseDriveType": "awd"
+    },
+    "3035": {
+      "name": "2018 KTM X-Bow GT4",
+      "basePi": 845,
+      "baseDriveType": "rwd"
+    },
+    "3036": {
+      "name": "1959 Porsche 356 A 1600 Super",
+      "basePi": 241,
+      "baseDriveType": "rwd"
+    },
+    "3037": {
+      "name": "1989 Formula Drift #98 BMW 325i",
+      "basePi": 813,
+      "baseDriveType": "rwd"
+    },
+    "3046": {
+      "name": "2018 Ford Mustang GT",
+      "basePi": 756,
+      "baseDriveType": "rwd"
+    },
+    "3051": {
+      "name": "2017 Ford M-Sport Fiesta RS",
+      "basePi": 808,
+      "baseDriveType": "awd"
+    },
+    "3055": {
+      "name": "2010 Jaguar C-X75",
+      "basePi": 880,
+      "baseDriveType": "awd"
+    },
+    "3062": {
+      "name": "1970 Ferrari 512 S",
+      "basePi": 861,
+      "baseDriveType": "rwd"
+    },
+    "3063": {
+      "name": "2018 Mercedes-Benz X-Class",
+      "basePi": 368,
+      "baseDriveType": "awd"
+    },
+    "3064": {
+      "name": "2018 Mercedes-AMG GT 4-Door Coupe",
+      "basePi": 768,
+      "baseDriveType": "awd"
+    },
+    "3069": {
+      "name": "2016 Honda Civic Coupe ",
+      "basePi": 861,
+      "baseDriveType": "awd"
+    },
+    "3071": {
+      "name": "2018 BMW M5",
+      "basePi": 784,
+      "baseDriveType": "awd"
+    },
+    "3072": {
+      "name": "2019 Porsche 911 GT3 RS",
+      "basePi": 860,
+      "baseDriveType": "rwd"
+    },
+    "3073": {
+      "name": "2018 BMW #1 BMW M Motorsport M8 GTE",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "3074": {
+      "name": "2018 Porsche Macan LPR Rally Raid",
+      "basePi": 637,
+      "baseDriveType": "awd"
+    },
+    "3078": {
+      "name": "1966 Volkswagen Double Cab Pick-Up",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "3082": {
+      "name": "2008 Maserati MC12 Versione Corsa",
+      "basePi": 961,
+      "baseDriveType": "rwd"
+    },
+    "3087": {
+      "name": "2014 McLaren 650S Spider",
+      "basePi": 856,
+      "baseDriveType": "rwd"
+    },
+    "3088": {
+      "name": "2018 DeBerti Chevrolet Silverado 1500 Drift Truck",
+      "basePi": 798,
+      "baseDriveType": "rwd"
+    },
+    "3089": {
+      "name": "2018 Exomotive Exocet Off-Road",
+      "basePi": 682,
+      "baseDriveType": "rwd"
+    },
+    "3091": {
+      "name": "2019 Aston Martin Vantage",
+      "basePi": 801,
+      "baseDriveType": "rwd"
+    },
+    "3093": {
+      "name": "2018 Ford #25 Mustang RTR",
+      "basePi": 834,
+      "baseDriveType": "rwd"
+    },
+    "3094": {
+      "name": "2018 Morgan Aero GT",
+      "basePi": 784,
+      "baseDriveType": "rwd"
+    },
+    "3097": {
+      "name": "1953 Jaguar C-Type",
+      "basePi": 599,
+      "baseDriveType": "rwd"
+    },
+    "3107": {
+      "name": "2014 Mercedes-Benz G 63 AMG 6x6",
+      "basePi": 606,
+      "baseDriveType": "awd"
+    },
+    "3108": {
+      "name": "2018 Ford Mustang RTR Spec 5",
+      "basePi": 757,
+      "baseDriveType": "rwd"
+    },
+    "3109": {
+      "name": "2018 DeBerti F-150 Prerunner Truck",
+      "basePi": 691,
+      "baseDriveType": "rwd"
+    },
+    "3110": {
+      "name": "2018 DeBerti Wrangler Unlimited",
+      "basePi": 749,
+      "baseDriveType": "awd"
+    },
+    "3111": {
+      "name": "1951 Porsche #46 356 SL Gmund Coupe",
+      "basePi": 242,
+      "baseDriveType": "rwd"
+    },
+    "3112": {
+      "name": "2017 Ferrari #25 Corse Clienti 488 Challenge",
+      "basePi": 911,
+      "baseDriveType": "rwd"
+    },
+    "3115": {
+      "name": "2016 Hoonigan Gymkhana 10 Ford Focus RS RX",
+      "basePi": 864,
+      "baseDriveType": "awd"
+    },
+    "3116": {
+      "name": "1953 Morris Minor Series II Traveler",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "3117": {
+      "name": "2018 Porsche 718 Cayman GTS",
+      "basePi": 785,
+      "baseDriveType": "rwd"
+    },
+    "3118": {
+      "name": "2019 Chevrolet Corvette ZR1",
+      "basePi": 871,
+      "baseDriveType": "rwd"
+    },
+    "3119": {
+      "name": "1986 Hoonigan Ford RS200 Evolution",
+      "basePi": 904,
+      "baseDriveType": "awd"
+    },
+    "3120": {
+      "name": "2019 Lamborghini Urus",
+      "basePi": 767,
+      "baseDriveType": "awd"
+    },
+    "3122": {
+      "name": "2017 Ferrari GTC4Lusso",
+      "basePi": 816,
+      "baseDriveType": "awd"
+    },
+    "3123": {
+      "name": "2019 Porsche 911 Carrera S",
+      "basePi": 819,
+      "baseDriveType": "rwd"
+    },
+    "3125": {
+      "name": "2017 Aston Martin Vanquish Zagato Coupe",
+      "basePi": 803,
+      "baseDriveType": "rwd"
+    },
+    "3126": {
+      "name": "1965 Ford Transit",
+      "basePi": 100,
+      "baseDriveType": "rwd"
+    },
+    "3128": {
+      "name": "2017 Ford #25 'Brocky' Ultra4 Bronco RTR",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3129": {
+      "name": "2008 Renault Mégane R26.R",
+      "basePi": 678,
+      "baseDriveType": "fwd"
+    },
+    "3131": {
+      "name": "2018 MINI John Cooper Works Countryman ALL4",
+      "basePi": 537,
+      "baseDriveType": "awd"
+    },
+    "3132": {
+      "name": "2018 MINI X-Raid John Cooper Works Buggy",
+      "basePi": 632,
+      "baseDriveType": "rwd"
+    },
+    "3134": {
+      "name": "2018 Renault Megane R.S.",
+      "basePi": 670,
+      "baseDriveType": "fwd"
+    },
+    "3136": {
+      "name": "2018 Land Rover Range Rover Velar First Edition",
+      "basePi": 638,
+      "baseDriveType": "awd"
+    },
+    "3140": {
+      "name": "2019 Rimac Concept Two",
+      "basePi": 963,
+      "baseDriveType": "awd"
+    },
+    "3141": {
+      "name": "2018 Apollo Intensa Emozione",
+      "basePi": 963,
+      "baseDriveType": "rwd"
+    },
+    "3142": {
+      "name": "1965 Morris Mini-Traveller",
+      "basePi": 100,
+      "baseDriveType": "fwd"
+    },
+    "3149": {
+      "name": "2018 Chevrolet Camaro ZL1 1LE",
+      "basePi": 824,
+      "baseDriveType": "rwd"
+    },
+    "3150": {
+      "name": "1964 Porsche 356 C Cabriolet Emory Special",
+      "basePi": 651,
+      "baseDriveType": "rwd"
+    },
+    "3151": {
+      "name": "2018 Ford #88 Mustang RTR",
+      "basePi": 834,
+      "baseDriveType": "rwd"
+    },
+    "3153": {
+      "name": "2018 McLaren 600LT Coupe",
+      "basePi": 868,
+      "baseDriveType": "rwd"
+    },
+    "3154": {
+      "name": "2019 McLaren 720S Spider",
+      "basePi": 887,
+      "baseDriveType": "rwd"
+    },
+    "3156": {
+      "name": "2019 McLaren Speedtail",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "3160": {
+      "name": "1995 Porsche 911 Carrera 2 by Gunther Werks",
+      "basePi": 804,
+      "baseDriveType": "rwd"
+    },
+    "3163": {
+      "name": "2018 Chevrolet Hot Wheels COPO Camaro",
+      "basePi": 867,
+      "baseDriveType": "rwd"
+    },
+    "3164": {
+      "name": "2018 Jeep Grand Cherokee Trackhawk",
+      "basePi": 749,
+      "baseDriveType": "awd"
+    },
+    "3167": {
+      "name": "1970 Ford GT70",
+      "basePi": 671,
+      "baseDriveType": "rwd"
+    },
+    "3168": {
+      "name": "2019 Bugatti Divo",
+      "basePi": 958,
+      "baseDriveType": "awd"
+    },
+    "3169": {
+      "name": "2008 Dodge Magnum SRT8",
+      "basePi": 669,
+      "baseDriveType": "rwd"
+    },
+    "3170": {
+      "name": "1994 Ford Supervan 3",
+      "basePi": 820,
+      "baseDriveType": "rwd"
+    },
+    "3172": {
+      "name": "1991 Bentley Turbo R",
+      "basePi": 543,
+      "baseDriveType": "rwd"
+    },
+    "3173": {
+      "name": "2019 BMW Z4 Roadster",
+      "basePi": 751,
+      "baseDriveType": "rwd"
+    },
+    "3174": {
+      "name": "2019 Ford Ranger Raptor",
+      "basePi": 451,
+      "baseDriveType": "awd"
+    },
+    "3175": {
+      "name": "1992 Mercedes-Benz 500 E",
+      "basePi": 616,
+      "baseDriveType": "rwd"
+    },
+    "3176": {
+      "name": "1987 Mercedes-Benz AMG Hammer Coupe",
+      "basePi": 681,
+      "baseDriveType": "rwd"
+    },
+    "3177": {
+      "name": "1987 Mercedes-Benz AMG Hammer Wagon",
+      "basePi": 675,
+      "baseDriveType": "rwd"
+    },
+    "3178": {
+      "name": "2006 Mercedes-Benz E 55 AMG Wagon",
+      "basePi": 698,
+      "baseDriveType": "rwd"
+    },
+    "3180": {
+      "name": "1991 Peugeot 205 Rallye",
+      "basePi": 462,
+      "baseDriveType": "fwd"
+    },
+    "3181": {
+      "name": "1986 Ford Mustang SVO",
+      "basePi": 525,
+      "baseDriveType": "rwd"
+    },
+    "3182": {
+      "name": "2016 Renault Clio R.S. 16 Concept",
+      "basePi": 686,
+      "baseDriveType": "fwd"
+    },
+    "3183": {
+      "name": "1967 Ford Racing Escort Mk1",
+      "basePi": 636,
+      "baseDriveType": "rwd"
+    },
+    "3184": {
+      "name": "1977 Ford #5 Escort RS1800 MkII",
+      "basePi": 662,
+      "baseDriveType": "rwd"
+    },
+    "3185": {
+      "name": "2019 Aston Martin DBS Superleggera",
+      "basePi": 835,
+      "baseDriveType": "rwd"
+    },
+    "3188": {
+      "name": "1989 Porsche #65 Rothsport Racing 911 'Desert Flyer'",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "3189": {
+      "name": "2019 Hennessey VelociRaptor 6x6",
+      "basePi": 634,
+      "baseDriveType": "awd"
+    },
+    "3190": {
+      "name": "2003 Ford F-150 SVT Lightning",
+      "basePi": 585,
+      "baseDriveType": "rwd"
+    },
+    "3191": {
+      "name": "1973 Lamborghini Espada 400 GT",
+      "basePi": 597,
+      "baseDriveType": "rwd"
+    },
+    "3194": {
+      "name": "2018 Italdesign Zerouno",
+      "basePi": 869,
+      "baseDriveType": "awd"
+    },
+    "3195": {
+      "name": "2018 ATS GT",
+      "basePi": 877,
+      "baseDriveType": "rwd"
+    },
+    "3196": {
+      "name": "2019 RAESR Tachyon Speed",
+      "basePi": 983,
+      "baseDriveType": "awd"
+    },
+    "3197": {
+      "name": "2018 Mercedes-AMG GT3",
+      "basePi": 890,
+      "baseDriveType": "rwd"
+    },
+    "3199": {
+      "name": "2003 Ford Mustang SVT Cobra",
+      "basePi": 639,
+      "baseDriveType": "rwd"
+    },
+    "3201": {
+      "name": "1966 Oldsmobile Toronado",
+      "basePi": 403,
+      "baseDriveType": "fwd"
+    },
+    "3206": {
+      "name": "1970 Mercury Cyclone Spoiler",
+      "basePi": 491,
+      "baseDriveType": "rwd"
+    },
+    "3211": {
+      "name": "2017 Aston Martin Vulcan AMR Pro",
+      "basePi": 953,
+      "baseDriveType": "rwd"
+    },
+    "3212": {
+      "name": "2019 Zenvo TSR-S",
+      "basePi": 927,
+      "baseDriveType": "rwd"
+    },
+    "3214": {
+      "name": "2019 Porsche #70 Porsche Motorsport 935",
+      "basePi": 932,
+      "baseDriveType": "rwd"
+    },
+    "3215": {
+      "name": "2019 Porsche 911 Speedster",
+      "basePi": 813,
+      "baseDriveType": "rwd"
+    },
+    "3217": {
+      "name": "2018 Lamborghini Huracán Performante",
+      "basePi": 874,
+      "baseDriveType": "awd"
+    },
+    "3218": {
+      "name": "2018 Porsche 911 GT3 R",
+      "basePi": 890,
+      "baseDriveType": "rwd"
+    },
+    "3225": {
+      "name": "2018 Ferrari Portofino",
+      "basePi": 814,
+      "baseDriveType": "rwd"
+    },
+    "3226": {
+      "name": "2017 Ferrari J50",
+      "basePi": 857,
+      "baseDriveType": "rwd"
+    },
+    "3227": {
+      "name": "2019 Ferrari 488 Pista",
+      "basePi": 889,
+      "baseDriveType": "rwd"
+    },
+    "3228": {
+      "name": "1999 Ford Racing Puma",
+      "basePi": 514,
+      "baseDriveType": "fwd"
+    },
+    "3232": {
+      "name": "2013 Ford Shelby GT500",
+      "basePi": 756,
+      "baseDriveType": "rwd"
+    },
+    "3235": {
+      "name": "1982 Volkswagen Pickup LX",
+      "basePi": 100,
+      "baseDriveType": "fwd"
+    },
+    "3239": {
+      "name": "2018 Lamborghini #63 Squadra Corse Huracán Super Trofeo Evo",
+      "basePi": 906,
+      "baseDriveType": "rwd"
+    },
+    "3241": {
+      "name": "2018 SUBARU WRX STI ARX Supercar",
+      "basePi": 849,
+      "baseDriveType": "awd"
+    },
+    "3242": {
+      "name": "2014 Cadillac CTS-V Sport Wagon",
+      "basePi": 724,
+      "baseDriveType": "rwd"
+    },
+    "3244": {
+      "name": "1964 Plymouth Belvedere",
+      "basePi": 529,
+      "baseDriveType": "rwd"
+    },
+    "3247": {
+      "name": "2018 Formula Drift #64 Nissan 370Z",
+      "basePi": 843,
+      "baseDriveType": "rwd"
+    },
+    "3248": {
+      "name": "1990 Porsche 911 Reimagined by Singer - DLS",
+      "basePi": 830,
+      "baseDriveType": "rwd"
+    },
+    "3249": {
+      "name": "2007 Formula Drift #117 599 GTB Fiorano",
+      "basePi": 852,
+      "baseDriveType": "rwd"
+    },
+    "3250": {
+      "name": "2018 Mercedes-AMG E 63 S",
+      "basePi": 778,
+      "baseDriveType": "awd"
+    },
+    "3252": {
+      "name": "1949 Hot Wheels Ford F-5 Dually Custom Hot Rod",
+      "basePi": 630,
+      "baseDriveType": "rwd"
+    },
+    "3255": {
+      "name": "2020 Jeep Gladiator Rubicon",
+      "basePi": 456,
+      "baseDriveType": "awd"
+    },
+    "3257": {
+      "name": "1990 Nissan Pulsar GTi-R",
+      "basePi": 594,
+      "baseDriveType": "awd"
+    },
+    "3261": {
+      "name": "1968 Renault 4L Export",
+      "basePi": 100,
+      "baseDriveType": "fwd"
+    },
+    "3264": {
+      "name": "2018 Audi RS 5 Coupé",
+      "basePi": 750,
+      "baseDriveType": "awd"
+    },
+    "3271": {
+      "name": "2005 MG XPower SV-R",
+      "basePi": 694,
+      "baseDriveType": "rwd"
+    },
+    "3274": {
+      "name": "1990 Aston Martin Lagonda",
+      "basePi": 502,
+      "baseDriveType": "rwd"
+    },
+    "3276": {
+      "name": "2018 Saleen S1",
+      "basePi": 821,
+      "baseDriveType": "rwd"
+    },
+    "3277": {
+      "name": "2020 Ford Mustang Shelby GT500",
+      "basePi": 836,
+      "baseDriveType": "rwd"
+    },
+    "3281": {
+      "name": "2015 Cadillac #3 Cadillac Racing ATS-V.R",
+      "basePi": 890,
+      "baseDriveType": "rwd"
+    },
+    "3284": {
+      "name": "2019 Hennessey Camaro Exorcist",
+      "basePi": 857,
+      "baseDriveType": "rwd"
+    },
+    "3285": {
+      "name": "2019 Brabham BT62",
+      "basePi": 974,
+      "baseDriveType": "rwd"
+    },
+    "3286": {
+      "name": "2018 Audi TT RS",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3287": {
+      "name": "1991 Jaguar Sport XJR-15",
+      "basePi": 828,
+      "baseDriveType": "rwd"
+    },
+    "3288": {
+      "name": "1993 Schuppan 962CR",
+      "basePi": 869,
+      "baseDriveType": "rwd"
+    },
+    "3289": {
+      "name": "2018 Lamborghini Aventador SVJ",
+      "basePi": 889,
+      "baseDriveType": "awd"
+    },
+    "3293": {
+      "name": "1993 Jaguar XJ220S TWR",
+      "basePi": 848,
+      "baseDriveType": "rwd"
+    },
+    "3307": {
+      "name": "2019 Nissan 370Z NISMO",
+      "basePi": 718,
+      "baseDriveType": "rwd"
+    },
+    "3311": {
+      "name": "2018 Ferrari FXX-K EVO",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "3312": {
+      "name": "2019 Ferrari Monza SP2",
+      "basePi": 867,
+      "baseDriveType": "rwd"
+    },
+    "3315": {
+      "name": "2020 Koenigsegg Jesko",
+      "basePi": 971,
+      "baseDriveType": "rwd"
+    },
+    "3318": {
+      "name": "2018 Audi RS 4 Avant",
+      "basePi": 751,
+      "baseDriveType": "awd"
+    },
+    "3320": {
+      "name": "2019 Italdesign DaVinci Concept",
+      "basePi": 809,
+      "baseDriveType": "awd"
+    },
+    "3331": {
+      "name": "2006 Noble M400",
+      "basePi": 829,
+      "baseDriveType": "rwd"
+    },
+    "3334": {
+      "name": "2019 Elemental RP1",
+      "basePi": 867,
+      "baseDriveType": "rwd"
+    },
+    "3359": {
+      "name": "2021 Audi RS e-tron GT",
+      "basePi": 770,
+      "baseDriveType": "awd"
+    },
+    "3360": {
+      "name": "2020 Automobili Pininfarina Battista",
+      "basePi": 928,
+      "baseDriveType": "awd"
+    },
+    "3364": {
+      "name": "2019 Aston Martin Valhalla Concept Car",
+      "basePi": 959,
+      "baseDriveType": "awd"
+    },
+    "3366": {
+      "name": "2016 NIO EP9",
+      "basePi": 998,
+      "baseDriveType": "awd"
+    },
+    "3367": {
+      "name": "2019 Ferrari F8 Tributo",
+      "basePi": 891,
+      "baseDriveType": "rwd"
+    },
+    "3369": {
+      "name": "2020 Chevrolet Corvette Stingray Coupe",
+      "basePi": 806,
+      "baseDriveType": "rwd"
+    },
+    "3370": {
+      "name": "1994 Hoonigan Ford Escort RS Cosworth WRC 'Cossie V2'",
+      "basePi": 783,
+      "baseDriveType": "awd"
+    },
+    "3371": {
+      "name": "2020 Lamborghini Huracán EVO",
+      "basePi": 851,
+      "baseDriveType": "awd"
+    },
+    "3373": {
+      "name": "2019 Toyota 4Runner TRD Pro",
+      "basePi": 531,
+      "baseDriveType": "awd"
+    },
+    "3374": {
+      "name": "2019 Toyota Tacoma TRD Pro",
+      "basePi": 518,
+      "baseDriveType": "awd"
+    },
+    "3395": {
+      "name": "1967 Renault 8 Gordini",
+      "basePi": 435,
+      "baseDriveType": "fwd"
+    },
+    "3400": {
+      "name": "2009 Formula Drift #99 Mazda RX-8",
+      "basePi": 829,
+      "baseDriveType": "rwd"
+    },
+    "3402": {
+      "name": "2020 Toyota GR Supra",
+      "basePi": 731,
+      "baseDriveType": "rwd"
+    },
+    "3404": {
+      "name": "2020 Ford #2069 Ford Performance Bronco R",
+      "basePi": 544,
+      "baseDriveType": "awd"
+    },
+    "3405": {
+      "name": "2018 Hot Wheels 2JetZ",
+      "basePi": 854,
+      "baseDriveType": "rwd"
+    },
+    "3407": {
+      "name": "1957 Hot Wheels Nash Metropolitan Custom",
+      "basePi": 631,
+      "baseDriveType": "rwd"
+    },
+    "3411": {
+      "name": "1995 Formula Drift #34 Toyota Supra MKIV",
+      "basePi": 845,
+      "baseDriveType": "rwd"
+    },
+    "3412": {
+      "name": "2019 SUBARU STI S209",
+      "basePi": 689,
+      "baseDriveType": "awd"
+    },
+    "3413": {
+      "name": "2021 Volkswagen Golf R",
+      "basePi": 668,
+      "baseDriveType": "awd"
+    },
+    "3414": {
+      "name": "2020 Land Rover Defender 110 X",
+      "basePi": 534,
+      "baseDriveType": "awd"
+    },
+    "3415": {
+      "name": "1966 Jaguar XJ13",
+      "basePi": 779,
+      "baseDriveType": "rwd"
+    },
+    "3419": {
+      "name": "2020 Toyota Tundra TRD Pro",
+      "basePi": 562,
+      "baseDriveType": "awd"
+    },
+    "3428": {
+      "name": "2019 Ginetta G10 RM",
+      "basePi": 769,
+      "baseDriveType": "rwd"
+    },
+    "3437": {
+      "name": "2020 McLaren GT",
+      "basePi": 823,
+      "baseDriveType": "rwd"
+    },
+    "3438": {
+      "name": "1961 DeBerti Ford Econoline 'Shop Rod'",
+      "basePi": 799,
+      "baseDriveType": "rwd"
+    },
+    "3439": {
+      "name": "2019 DeBerti Ford Super Duty F-250 Lariat 'Transformer'",
+      "basePi": 665,
+      "baseDriveType": "awd"
+    },
+    "3441": {
+      "name": "2019 DeBerti Toyota Tacoma TRD \"The Performance Truck\"",
+      "basePi": 836,
+      "baseDriveType": "rwd"
+    },
+    "3445": {
+      "name": "2020 Porsche Taycan Turbo S",
+      "basePi": 807,
+      "baseDriveType": "awd"
+    },
+    "3446": {
+      "name": "2017 Formula Drift #357 Chevrolet Corvette Z06",
+      "basePi": 835,
+      "baseDriveType": "rwd"
+    },
+    "3449": {
+      "name": "2020 Lotus Evija",
+      "basePi": 994,
+      "baseDriveType": "awd"
+    },
+    "3453": {
+      "name": "2020 Audi TT RS Coupe",
+      "basePi": 765,
+      "baseDriveType": "awd"
+    },
+    "3454": {
+      "name": "2020 Audi RS 3 Sedan",
+      "basePi": 734,
+      "baseDriveType": "awd"
+    },
+    "3457": {
+      "name": "2020 Lexus #14 VASSER SULLIVAN RC F GT3",
+      "basePi": 890,
+      "baseDriveType": "rwd"
+    },
+    "3476": {
+      "name": "2020 Ford Super Duty F-450 DRW Platinum",
+      "basePi": 466,
+      "baseDriveType": "awd"
+    },
+    "3477": {
+      "name": "2020 Chevrolet Silverado LT Trail Boss",
+      "basePi": 561,
+      "baseDriveType": "awd"
+    },
+    "3482": {
+      "name": "2021 McLaren 765LT",
+      "basePi": 913,
+      "baseDriveType": "rwd"
+    },
+    "3484": {
+      "name": "1975 Ford Bronco",
+      "basePi": 421,
+      "baseDriveType": "awd"
+    },
+    "3485": {
+      "name": "2017 Ford F-150 Raptor",
+      "basePi": 559,
+      "baseDriveType": "awd"
+    },
+    "3489": {
+      "name": "2021 Ford Bronco",
+      "basePi": 560,
+      "baseDriveType": "awd"
+    },
+    "3490": {
+      "name": "2020 Chevrolet #3 Corvette Racing C8.R",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "3492": {
+      "name": "2020 KTM X-Bow GT2",
+      "basePi": 931,
+      "baseDriveType": "rwd"
+    },
+    "3495": {
+      "name": "2006 Mosler MT900 GT3",
+      "basePi": 910,
+      "baseDriveType": "rwd"
+    },
+    "3498": {
+      "name": "2017 Saleen S7 LM",
+      "basePi": 918,
+      "baseDriveType": "rwd"
+    },
+    "3499": {
+      "name": "2020 Saleen Sportruck XR Black Label",
+      "basePi": 666,
+      "baseDriveType": "awd"
+    },
+    "3508": {
+      "name": "1986 Citroën BX4TC",
+      "basePi": 567,
+      "baseDriveType": "awd"
+    },
+    "3518": {
+      "name": "2020 BMW M8 Competition Coupe",
+      "basePi": 791,
+      "baseDriveType": "awd"
+    },
+    "3520": {
+      "name": "2021 Lexus LC 500",
+      "basePi": 719,
+      "baseDriveType": "rwd"
+    },
+    "3523": {
+      "name": "2020 Formula Drift #151 Toyota GR Supra",
+      "basePi": 863,
+      "baseDriveType": "rwd"
+    },
+    "3524": {
+      "name": "2019 Formula Drift #411 Toyota Corolla Hatchback",
+      "basePi": 840,
+      "baseDriveType": "rwd"
+    },
+    "3528": {
+      "name": "2010 Forsberg Racing Toyota Gumout 2JZ Camry Stock Car",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3529": {
+      "name": "1975 Forsberg Racing Nissan \"Gold Leader\" Datsun 280Z",
+      "basePi": 791,
+      "baseDriveType": "rwd"
+    },
+    "3530": {
+      "name": "2021 Forsberg Racing Nissan 'Altimaniac'",
+      "basePi": 881,
+      "baseDriveType": "rwd"
+    },
+    "3531": {
+      "name": "2014 Forsberg Racing Nissan 'SafariZ' 370Z Safari Rally Tribute",
+      "basePi": 720,
+      "baseDriveType": "rwd"
+    },
+    "3533": {
+      "name": "2022 Volkswagen Golf R",
+      "basePi": 672,
+      "baseDriveType": "awd"
+    },
+    "3534": {
+      "name": "2021 MINI John Cooper Works GP",
+      "basePi": 719,
+      "baseDriveType": "fwd"
+    },
+    "3537": {
+      "name": "2020 MG #20 MG6 XPower",
+      "basePi": 800,
+      "baseDriveType": "fwd"
+    },
+    "3539": {
+      "name": "2020 SIERRA Cars #23 Yokohama ALPHA",
+      "basePi": 986,
+      "baseDriveType": "rwd"
+    },
+    "3540": {
+      "name": "2021 SIERRA Cars RX3",
+      "basePi": 737,
+      "baseDriveType": "rwd"
+    },
+    "3543": {
+      "name": "2022 Pagani Huayra R",
+      "basePi": 985,
+      "baseDriveType": "rwd"
+    },
+    "3546": {
+      "name": "2020 Lexus RC F Track Edition",
+      "basePi": 777,
+      "baseDriveType": "rwd"
+    },
+    "3547": {
+      "name": "2020 Xpeng P7",
+      "basePi": 722,
+      "baseDriveType": "awd"
+    },
+    "3548": {
+      "name": "2013 Wuling Sunshine S",
+      "basePi": 207,
+      "baseDriveType": "rwd"
+    },
+    "3549": {
+      "name": "2021 Alumicraft #122 Class 1 Buggy",
+      "basePi": 689,
+      "baseDriveType": "rwd"
+    },
+    "3551": {
+      "name": "2020 Formula Drift #91 BMW M2",
+      "basePi": 839,
+      "baseDriveType": "rwd"
+    },
+    "3552": {
+      "name": "2020 Lynk & Co #100 Cyan Racing 03",
+      "basePi": 800,
+      "baseDriveType": "fwd"
+    },
+    "3553": {
+      "name": "1973 Hoonigan Volkswagen Baja Beetle Class 5/1600 'Scumbug'",
+      "basePi": 524,
+      "baseDriveType": "rwd"
+    },
+    "3554": {
+      "name": "2005 Mitsubishi #1 Sierra Sierra Enterprises Lancer Evolution Time Attack",
+      "basePi": 967,
+      "baseDriveType": "awd"
+    },
+    "3556": {
+      "name": "2011 Bugatti Veyron Super Sport",
+      "basePi": 913,
+      "baseDriveType": "awd"
+    },
+    "3559": {
+      "name": "1953 Chevrolet Corvette Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "3561": {
+      "name": "1969 Dodge Charger R/T Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3562": {
+      "name": "2018 Exomotive Exocet Off-Road Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "3564": {
+      "name": "1999 Ford Racing Puma Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "awd"
+    },
+    "3568": {
+      "name": "2010 Maserati Gran Turismo S Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3570": {
+      "name": "1971 Meyers Manx Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "3572": {
+      "name": "2016 Pagani Huayra BC Forza Edition",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "3573": {
+      "name": "1987 Pontiac Firebird Trans Am GTA Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3574": {
+      "name": "2019 Porsche 911 GT3 RS Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "awd"
+    },
+    "3577": {
+      "name": "1963 Volkswagen Beetle Forza Edition",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3580": {
+      "name": "2021 Aston Martin DBX",
+      "basePi": 732,
+      "baseDriveType": "awd"
+    },
+    "3583": {
+      "name": "2021 Audi RS 6 Avant",
+      "basePi": 763,
+      "baseDriveType": "awd"
+    },
+    "3584": {
+      "name": "2021 Audi RS 7 Sportback",
+      "basePi": 768,
+      "baseDriveType": "awd"
+    },
+    "3588": {
+      "name": "2021 Bentley Flying Spur",
+      "basePi": 719,
+      "baseDriveType": "awd"
+    },
+    "3590": {
+      "name": "1972 Chevrolet K10 Custom",
+      "basePi": 369,
+      "baseDriveType": "awd"
+    },
+    "3594": {
+      "name": "2020 Ferrari Roma",
+      "basePi": 830,
+      "baseDriveType": "rwd"
+    },
+    "3595": {
+      "name": "2020 Ferrari SF90 Stradale",
+      "basePi": 915,
+      "baseDriveType": "awd"
+    },
+    "3597": {
+      "name": "1986 Ford F-150 XLT Lariat",
+      "basePi": 357,
+      "baseDriveType": "awd"
+    },
+    "3598": {
+      "name": "2021 Ford Mustang Mach-E 1400",
+      "basePi": 900,
+      "baseDriveType": "awd"
+    },
+    "3599": {
+      "name": "2022 Gordon Murray Automotive T.50",
+      "basePi": 936,
+      "baseDriveType": "rwd"
+    },
+    "3600": {
+      "name": "2021 Hennessey Venom F5",
+      "basePi": 964,
+      "baseDriveType": "rwd"
+    },
+    "3602": {
+      "name": "2019 Jaguar XE SV Project 8",
+      "basePi": 830,
+      "baseDriveType": "awd"
+    },
+    "3603": {
+      "name": "2019 Casey Currie Motorsports #4402 Ultra 4 'Trophy Jeep'",
+      "basePi": 745,
+      "baseDriveType": "awd"
+    },
+    "3604": {
+      "name": "2020 Jimco #179 Hammerhead Class 1",
+      "basePi": 763,
+      "baseDriveType": "rwd"
+    },
+    "3605": {
+      "name": "2019 Jimco #240 Fastball Racing Spec Trophy Truck",
+      "basePi": 623,
+      "baseDriveType": "rwd"
+    },
+    "3606": {
+      "name": "2020 Lamborghini Essenza SCV12",
+      "basePi": 967,
+      "baseDriveType": "rwd"
+    },
+    "3608": {
+      "name": "2020 Lamborghini Sián Roadster",
+      "basePi": 881,
+      "baseDriveType": "awd"
+    },
+    "3616": {
+      "name": "2021 Mercedes-AMG GT Black Series",
+      "basePi": 884,
+      "baseDriveType": "rwd"
+    },
+    "3617": {
+      "name": "2021 Mercedes-AMG SL 63",
+      "basePi": 789,
+      "baseDriveType": "awd"
+    },
+    "3620": {
+      "name": "2023 Nissan Z",
+      "basePi": 736,
+      "baseDriveType": "rwd"
+    },
+    "3622": {
+      "name": "2020 Nissan GT-R NISMO (R35)",
+      "basePi": 846,
+      "baseDriveType": "awd"
+    },
+    "3625": {
+      "name": "2021 Rimac Nevera",
+      "basePi": 968,
+      "baseDriveType": "awd"
+    },
+    "3629": {
+      "name": "2021 Toyota GR Yaris",
+      "basePi": 672,
+      "baseDriveType": "awd"
+    },
+    "3631": {
+      "name": "2022 Aston Martin Valkyrie AMR Pro",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "3644": {
+      "name": "2021 BMW M3 Competition Sedan",
+      "basePi": 772,
+      "baseDriveType": "rwd"
+    },
+    "3645": {
+      "name": "2021 BMW M4 Competition Coupé",
+      "basePi": 778,
+      "baseDriveType": "rwd"
+    },
+    "3650": {
+      "name": "2021 Mercedes-AMG Mercedes-AMG ONE",
+      "basePi": 927,
+      "baseDriveType": "awd"
+    },
+    "3655": {
+      "name": "2021 McLaren 620R",
+      "basePi": 864,
+      "baseDriveType": "rwd"
+    },
+    "3657": {
+      "name": "2022 Rivian R1T",
+      "basePi": 718,
+      "baseDriveType": "awd"
+    },
+    "3658": {
+      "name": "2022 Rivian R1S",
+      "basePi": 726,
+      "baseDriveType": "awd"
+    },
+    "3661": {
+      "name": "2018 Lotus Exige Cup 430",
+      "basePi": 833,
+      "baseDriveType": "rwd"
+    },
+    "3662": {
+      "name": "2021 RJ Anderson #37 Polaris RZR Pro 4 Truck",
+      "basePi": 776,
+      "baseDriveType": "awd"
+    },
+    "3665": {
+      "name": "2021 SIERRA Cars 700R",
+      "basePi": 737,
+      "baseDriveType": "rwd"
+    },
+    "3667": {
+      "name": "2021 Porsche 911 GT3",
+      "basePi": 858,
+      "baseDriveType": "rwd"
+    },
+    "3668": {
+      "name": "2023 McLaren Artura",
+      "basePi": 860,
+      "baseDriveType": "rwd"
+    },
+    "3670": {
+      "name": "2001 Ford #4 Ford Focus RS",
+      "basePi": 749,
+      "baseDriveType": "awd"
+    },
+    "3672": {
+      "name": "2020 Lamborghini Huracán STO",
+      "basePi": 883,
+      "baseDriveType": "rwd"
+    },
+    "3673": {
+      "name": "2020 Lamborghini SC20",
+      "basePi": 884,
+      "baseDriveType": "awd"
+    },
+    "3676": {
+      "name": "2021 Hyundai #98 Bryan Herta Autosport Elantra N",
+      "basePi": 800,
+      "baseDriveType": "fwd"
+    },
+    "3677": {
+      "name": "2021 Lynk & Co 03+",
+      "basePi": 679,
+      "baseDriveType": "awd"
+    },
+    "3678": {
+      "name": "2020 Hyundai I30 N",
+      "basePi": 670,
+      "baseDriveType": "fwd"
+    },
+    "3681": {
+      "name": "1998 Toyota Supra RZ 'Welcome Pack'",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "3682": {
+      "name": "2018 Apollo Intensa Emozione 'Welcome Pack'",
+      "basePi": 998,
+      "baseDriveType": "rwd"
+    },
+    "3683": {
+      "name": "2008 Mitsubishi Lancer Evolution X GSR 'Welcome Pack'",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "3684": {
+      "name": "2020 Ford #2069 Ford Performance Bronco R 'Welcome Pack'",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "3685": {
+      "name": "2020 Porsche Taycan Turbo S 'Welcome Pack'",
+      "basePi": 900,
+      "baseDriveType": "awd"
+    },
+    "3686": {
+      "name": "2021 Polaris RZR Pro XP Factory Racing Limited Edition",
+      "basePi": 516,
+      "baseDriveType": "awd"
+    },
+    "3687": {
+      "name": "2021 Polaris RZR Pro XP Ultimate",
+      "basePi": 593,
+      "baseDriveType": "awd"
+    },
+    "3689": {
+      "name": "2021 MG MG6 XPower",
+      "basePi": 716,
+      "baseDriveType": "fwd"
+    },
+    "3692": {
+      "name": "2022 Ford F-150 Lightning Platinum",
+      "basePi": 607,
+      "baseDriveType": "awd"
+    },
+    "3693": {
+      "name": "2022 Alumicraft #6165 Trick Truck",
+      "basePi": 596,
+      "baseDriveType": "rwd"
+    },
+    "3696": {
+      "name": "1967 Shelby GT 500",
+      "basePi": 577,
+      "baseDriveType": "rwd"
+    },
+    "3697": {
+      "name": "2020 Jaguar F-Type SVR",
+      "basePi": 806,
+      "baseDriveType": "awd"
+    },
+    "3698": {
+      "name": "2022 Porsche Mission R",
+      "basePi": 925,
+      "baseDriveType": "awd"
+    },
+    "3699": {
+      "name": "2017 Ford GT 'OPI Edition'",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3700": {
+      "name": "2021 McLaren Sabre",
+      "basePi": 887,
+      "baseDriveType": "rwd"
+    },
+    "3702": {
+      "name": "2013 Formula Drift #777 Chevrolet Corvette",
+      "basePi": 848,
+      "baseDriveType": "rwd"
+    },
+    "3703": {
+      "name": "2000 Hot Wheels Deora II",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "3704": {
+      "name": "2012 Hot Wheels Rip Rod",
+      "basePi": 715,
+      "baseDriveType": "rwd"
+    },
+    "3706": {
+      "name": "1970 Hot Wheels Pontiac Firebird Trans Am Custom",
+      "basePi": 894,
+      "baseDriveType": "rwd"
+    },
+    "3708": {
+      "name": "2022 Extreme E #125 ABT Cupra XE",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3709": {
+      "name": "2022 Extreme E #22 JBXE",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3710": {
+      "name": "2022 Extreme E #23 Genesys Andretti United",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3711": {
+      "name": "2022 Extreme E #42 XITE Racing Team",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3712": {
+      "name": "2022 Extreme E #44 X44",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3713": {
+      "name": "2022 Extreme E #5 Veloce Racing",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3714": {
+      "name": "2022 Extreme E #55 ACCIONA / Sainz XE Team",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3715": {
+      "name": "2022 Extreme E #6 Rosberg X Racing",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3716": {
+      "name": "2023 Lotus Emira",
+      "basePi": 767,
+      "baseDriveType": "rwd"
+    },
+    "3719": {
+      "name": "2022 Cadillac CT4-V Blackwing",
+      "basePi": 760,
+      "baseDriveType": "rwd"
+    },
+    "3720": {
+      "name": "2022 Cadillac CT5-V Blackwing",
+      "basePi": 799,
+      "baseDriveType": "rwd"
+    },
+    "3722": {
+      "name": "2022 GMC HUMMER EV Pickup",
+      "basePi": 718,
+      "baseDriveType": "awd"
+    },
+    "3724": {
+      "name": "2022 Ferrari 296 GTB",
+      "basePi": 892,
+      "baseDriveType": "rwd"
+    },
+    "3727": {
+      "name": "2022 Extreme E #58 McLaren Racing",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3728": {
+      "name": "2021 Bentley Continental GT Convertible",
+      "basePi": 759,
+      "baseDriveType": "awd"
+    },
+    "3729": {
+      "name": "1976 Volkswagen SP-2",
+      "basePi": 252,
+      "baseDriveType": "rwd"
+    },
+    "3732": {
+      "name": "2021 Volkswagen ID.4",
+      "basePi": 527,
+      "baseDriveType": "rwd"
+    },
+    "3733": {
+      "name": "2022 Extreme E #99 Chip Ganassi Racing GMC Hummer EV",
+      "basePi": 748,
+      "baseDriveType": "awd"
+    },
+    "3734": {
+      "name": "2022 BMW i4 eDrive40",
+      "basePi": 633,
+      "baseDriveType": "rwd"
+    },
+    "3735": {
+      "name": "2022 SUBARU BRZ",
+      "basePi": 673,
+      "baseDriveType": "rwd"
+    },
+    "3736": {
+      "name": "2022 Ford Bronco Raptor",
+      "basePi": 588,
+      "baseDriveType": "awd"
+    },
+    "3737": {
+      "name": "2022 BMW iX xDrive50",
+      "basePi": 703,
+      "baseDriveType": "awd"
+    },
+    "3740": {
+      "name": "2022 Hennessey Mammoth 6x6",
+      "basePi": 697,
+      "baseDriveType": "awd"
+    },
+    "3741": {
+      "name": "1996 Formula Drift #51 Donut Media Nissan 240SX",
+      "basePi": 822,
+      "baseDriveType": "rwd"
+    },
+    "3742": {
+      "name": "2003 Nissan Donut Media 350Z 'Hi Car'",
+      "basePi": 792,
+      "baseDriveType": "rwd"
+    },
+    "3743": {
+      "name": "2004 Nissan Donut Media 350Z 'Low Car'",
+      "basePi": 733,
+      "baseDriveType": "rwd"
+    },
+    "3744": {
+      "name": "2023 Formula Drift #64 Forsberg Racing Nissan Z",
+      "basePi": 854,
+      "baseDriveType": "rwd"
+    },
+    "3746": {
+      "name": "2022 CUPRA Formentor VZ5",
+      "basePi": 740,
+      "baseDriveType": "awd"
+    },
+    "3747": {
+      "name": "2022 CUPRA Tavascan Concept",
+      "basePi": 677,
+      "baseDriveType": "awd"
+    },
+    "3748": {
+      "name": "2022 CUPRA UrbanRebel Concept",
+      "basePi": 854,
+      "baseDriveType": "awd"
+    },
+    "3749": {
+      "name": "2013 Dodge SRT Viper GTS",
+      "basePi": 813,
+      "baseDriveType": "rwd"
+    },
+    "3753": {
+      "name": "2023 Lamborghini Huracán Tecnica",
+      "basePi": 850,
+      "baseDriveType": "rwd"
+    },
+    "3755": {
+      "name": "2022 Ford Supervan 4",
+      "basePi": 953,
+      "baseDriveType": "awd"
+    },
+    "3757": {
+      "name": "2024 Czinger 21C",
+      "basePi": 998,
+      "baseDriveType": "awd"
+    },
+    "3760": {
+      "name": "2022 Porsche 718 Cayman GT4 RS",
+      "basePi": 850,
+      "baseDriveType": "rwd"
+    },
+    "3761": {
+      "name": "2022 Toyota GR86",
+      "basePi": 676,
+      "baseDriveType": "rwd"
+    },
+    "3763": {
+      "name": "2023 BMW M2",
+      "basePi": 762,
+      "baseDriveType": "rwd"
+    },
+    "3764": {
+      "name": "2022 BMW M5 CS",
+      "basePi": 827,
+      "baseDriveType": "awd"
+    },
+    "3766": {
+      "name": "2023 Chevrolet Corvette Z06",
+      "basePi": 855,
+      "baseDriveType": "rwd"
+    },
+    "3771": {
+      "name": "2024 Chevrolet Corvette E-Ray",
+      "basePi": 834,
+      "baseDriveType": "awd"
+    },
+    "3774": {
+      "name": "2021 Lamborghini Countach LPI 800-4",
+      "basePi": 865,
+      "baseDriveType": "awd"
+    },
+    "3775": {
+      "name": "2021 Lamborghini Aventador LP 780-4 Ultimae",
+      "basePi": 878,
+      "baseDriveType": "awd"
+    },
+    "3781": {
+      "name": "2023 Porsche 911 GT3 RS",
+      "basePi": 867,
+      "baseDriveType": "rwd"
+    },
+    "3785": {
+      "name": "1997 Volvo 850 R",
+      "basePi": 511,
+      "baseDriveType": "fwd"
+    },
+    "3786": {
+      "name": "2013 Ariel Atom 500 V8",
+      "basePi": 924,
+      "baseDriveType": "rwd"
+    },
+    "3787": {
+      "name": "2022 Lynk & Co 05+",
+      "basePi": 622,
+      "baseDriveType": "awd"
+    },
+    "3788": {
+      "name": "2022 Lynk & Co 02 Hatchback",
+      "basePi": 637,
+      "baseDriveType": "fwd"
+    },
+    "3789": {
+      "name": "2022 Wuling Hongguang Mini EV Macaron",
+      "basePi": 136,
+      "baseDriveType": "rwd"
+    },
+    "3791": {
+      "name": "2009 Pagani Zonda Cinque Roadster 'Oreo Edition'",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    },
+    "3793": {
+      "name": "2023 MG Cyberster",
+      "basePi": 767,
+      "baseDriveType": "awd"
+    },
+    "3794": {
+      "name": "2022 MG MG7",
+      "basePi": 636,
+      "baseDriveType": "fwd"
+    },
+    "3795": {
+      "name": "2023 Meyers Manx 2.0 EV",
+      "basePi": 649,
+      "baseDriveType": "rwd"
+    },
+    "3808": {
+      "name": "1956 Chevrolet Barbie Movie' Corvette EV",
+      "basePi": 658,
+      "baseDriveType": "rwd"
+    },
+    "3809": {
+      "name": "2022 GMC Barbie Movie' HUMMER EV PICKUP",
+      "basePi": 718,
+      "baseDriveType": "awd"
+    },
+    "3810": {
+      "name": "2010 Nissan Tsuru",
+      "basePi": 444,
+      "baseDriveType": "fwd"
+    },
+    "3811": {
+      "name": "2023 Lucid Air Sapphire",
+      "basePi": 884,
+      "baseDriveType": "awd"
+    },
+    "3819": {
+      "name": "2022 SUBARU WRX",
+      "basePi": 663,
+      "baseDriveType": "rwd"
+    },
+    "3820": {
+      "name": "2022 Hyundai Kona N",
+      "basePi": 684,
+      "baseDriveType": "fwd"
+    },
+    "3823": {
+      "name": "2022 Mazda MX-5 Miata RF",
+      "basePi": 626,
+      "baseDriveType": "rwd"
+    },
+    "3827": {
+      "name": "2023 Hyundai IONIQ 5 N",
+      "basePi": 756,
+      "baseDriveType": "awd"
+    },
+    "3828": {
+      "name": "2022 Hyundai IONIQ 6",
+      "basePi": 686,
+      "baseDriveType": "awd"
+    },
+    "3829": {
+      "name": "2022 Hyundai N Vision 74",
+      "basePi": 799,
+      "baseDriveType": "rwd"
+    },
+    "3830": {
+      "name": "1992 Universal Studios Jeep Wrangler Sahara 'Jurassic Park'",
+      "basePi": 344,
+      "baseDriveType": "awd"
+    },
+    "3832": {
+      "name": "1973 Fast and Furious Datsun 240Z 'Fast X'",
+      "basePi": 838,
+      "baseDriveType": "rwd"
+    },
+    "3835": {
+      "name": "1966 Fast and Furious Chevrolet Impala Super Sport 'Fast X'",
+      "basePi": 836,
+      "baseDriveType": "rwd"
+    },
+    "3836": {
+      "name": "2022 Fast and Furious Dodge Charger SRT Hellcat Redeye Widebody 'Fast X'",
+      "basePi": 831,
+      "baseDriveType": "rwd"
+    },
+    "3837": {
+      "name": "1970 Fast and Furious Dodge Charger 'Fast X'",
+      "basePi": 855,
+      "baseDriveType": "rwd"
+    },
+    "3838": {
+      "name": "2022 Fast and Furious Flip Car 2.0 'Fast X'",
+      "basePi": 815,
+      "baseDriveType": "rwd"
+    },
+    "3840": {
+      "name": "2023 Lamborghini Huracán Sterrato",
+      "basePi": 836,
+      "baseDriveType": "awd"
+    },
+    "3846": {
+      "name": "2024 Ford Mustang GT",
+      "basePi": 739,
+      "baseDriveType": "rwd"
+    },
+    "3847": {
+      "name": "2024 Ford Mustang Dark Horse",
+      "basePi": 772,
+      "baseDriveType": "rwd"
+    },
+    "3848": {
+      "name": "2023 Toyota Camry TRD",
+      "basePi": 643,
+      "baseDriveType": "fwd"
+    },
+    "3849": {
+      "name": "2023 Ford F-150 Raptor R",
+      "basePi": 659,
+      "baseDriveType": "awd"
+    },
+    "3850": {
+      "name": "2021 Dodge Durango SRT Hellcat",
+      "basePi": 744,
+      "baseDriveType": "awd"
+    },
+    "3851": {
+      "name": "1991 Toyota Sera",
+      "basePi": 447,
+      "baseDriveType": "fwd"
+    },
+    "3854": {
+      "name": "1993 Autozam AZ-1",
+      "basePi": 450,
+      "baseDriveType": "rwd"
+    },
+    "3855": {
+      "name": "1991 Nissan Figaro",
+      "basePi": 324,
+      "baseDriveType": "fwd"
+    },
+    "3856": {
+      "name": "1987 Nissan Be-1",
+      "basePi": 257,
+      "baseDriveType": "rwd"
+    },
+    "3858": {
+      "name": "1997 Nissan Stagea Four V",
+      "basePi": 547,
+      "baseDriveType": "awd"
+    },
+    "3860": {
+      "name": "1989 Nissan S-Cargo",
+      "basePi": 222,
+      "baseDriveType": "rwd"
+    },
+    "3864": {
+      "name": "2023 KIA EV6 GT",
+      "basePi": 719,
+      "baseDriveType": "awd"
+    },
+    "3881": {
+      "name": "1981 Universal Studios Back to the Future Time Machine 1",
+      "basePi": 455,
+      "baseDriveType": "rwd"
+    },
+    "3882": {
+      "name": "1981 Universal Studios Back to the Future Time Machine 2",
+      "basePi": 435,
+      "baseDriveType": "rwd"
+    },
+    "3883": {
+      "name": "1981 Universal Studios Back to the Future Time Machine 3",
+      "basePi": 335,
+      "baseDriveType": "rwd"
+    },
+    "3884": {
+      "name": "1982 Universal Studios K.I.T.T.",
+      "basePi": 743,
+      "baseDriveType": "rwd"
+    },
+    "3886": {
+      "name": "1995 Mitsubishi Lancer Evolution III GSR",
+      "basePi": 632,
+      "baseDriveType": "awd"
+    },
+    "3890": {
+      "name": "2023 Porsche Taycan Cross Turismo Turbo S",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "3891": {
+      "name": "2024 Lamborghini Revuelto",
+      "basePi": 902,
+      "baseDriveType": "awd"
+    },
+    "3896": {
+      "name": "1965 DeBerti Chevrolet C10 'Slayer'",
+      "basePi": 802,
+      "baseDriveType": "rwd"
+    },
+    "3903": {
+      "name": "2023 Ford Fiesta ST",
+      "basePi": 615,
+      "baseDriveType": "fwd"
+    },
+    "3904": {
+      "name": "2022 Ford Focus ST",
+      "basePi": 707,
+      "baseDriveType": "fwd"
+    },
+    "3910": {
+      "name": "2023 Porsche 911 Rallye",
+      "basePi": 800,
+      "baseDriveType": "awd"
+    },
+    "3914": {
+      "name": "1991 Toyota Chaser GT Twin Turbo",
+      "basePi": 597,
+      "baseDriveType": "rwd"
+    },
+    "3921": {
+      "name": "2024 Nissan Z NISMO",
+      "basePi": 765,
+      "baseDriveType": "rwd"
+    },
+    "3929": {
+      "name": "1989 Nissan PAO",
+      "basePi": 228,
+      "baseDriveType": "rwd"
+    },
+    "3951": {
+      "name": "2023 Porsche 911 GT3 R",
+      "basePi": 890,
+      "baseDriveType": "rwd"
+    },
+    "3953": {
+      "name": "2023 Porsche 911 Turbo S",
+      "basePi": 857,
+      "baseDriveType": "awd"
+    },
+    "3959": {
+      "name": "2022 Dodge Challenger SRT Super Stock",
+      "basePi": 802,
+      "baseDriveType": "rwd"
+    },
+    "3972": {
+      "name": "1969 Chevrolet Camaro Jordan Luka 3 Forza Edition",
+      "basePi": 800,
+      "baseDriveType": "rwd"
+    },
+    "9007": {
+      "name": "1994 Ford Supervan 3 'Donut Media Edition'",
+      "basePi": 900,
+      "baseDriveType": "rwd"
+    }
+  }
+}

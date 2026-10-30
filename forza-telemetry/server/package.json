@@ -1,0 +1,21 @@
+{
+  "name": "forza-telemetry-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npm rebuild better-sqlite3 --silent && node src/index.js",
+    "dev": "npm rebuild better-sqlite3 --silent && node --watch src/index.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "debug-udp": "node src/utils/listen-and-classify.js",
+    "recompress": "node recompress-background.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "knip": "^6.26.0"
+  }
+}

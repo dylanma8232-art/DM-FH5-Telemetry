@@ -1,0 +1,77 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1977 Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+  "basePi": 896,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 914,
+    "torqueNm": 952,
+    "massKg": 1456,
+    "topSpeedKph": 278,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_914",
+          "label": "Racing V6TT · 914 马力",
+          "sourceValue": "914",
+          "engineName": "Racing V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing V6TT",
+              "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+              "powerHp": 914,
+              "torqueLbFt": 702,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

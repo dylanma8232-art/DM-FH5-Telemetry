@@ -1,0 +1,187 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2018 Ford Mustang GT",
+  "basePi": 756,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 460,
+    "torqueNm": 569,
+    "massKg": 1681,
+    "topSpeedKph": 308,
+    "rearTireWidthMm": 275
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_475d",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475d",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 15
+        },
+        {
+          "id": "engine_640",
+          "label": "8.4L V10 · 640 马力",
+          "sourceValue": "640",
+          "engineName": "8.4L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.4L V10",
+              "sourceVehicle": "Dodge SRT Viper GTS",
+              "powerHp": 640,
+              "torqueLbFt": 600,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 7,
+          "performanceScore": 180
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 14,
+          "performanceScore": 340
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

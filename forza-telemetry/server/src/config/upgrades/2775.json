@@ -1,0 +1,37 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2017 Porsche #92 Porsche GT Team 911 RSR",
+  "basePi": 910,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 503,
+    "torqueNm": 461,
+    "massKg": 1243,
+    "topSpeedKph": 297,
+    "frontTireWidthMm": 300,
+    "rearTireWidthMm": 310
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.081Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

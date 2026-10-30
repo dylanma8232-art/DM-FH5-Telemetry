@@ -1,0 +1,57 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2013 Formula Drift #777 Chevrolet Corvette",
+  "basePi": 848,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1050,
+    "torqueNm": 1152,
+    "massKg": 1361,
+    "topSpeedKph": 279,
+    "rearTireWidthMm": 285
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -1,0 +1,100 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2009 Formula Drift #99 Mazda RX-8",
+  "basePi": 829,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1000,
+    "torqueNm": 767,
+    "massKg": 1281,
+    "topSpeedKph": 290,
+    "rearTireWidthMm": 275
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -8,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_690",
+          "label": "670BHP Race Motor 或 2.6L 4 Rotor - Racing，待核验",
+          "sourceValue": "690",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "670BHP Race Motor",
+              "sourceVehicle": "Porsche Mission R",
+              "powerHp": 690,
+              "torqueLbFt": 741,
+              "aspiration": "e",
+              "priceCredits": 75000,
+              "added": "Series 21"
+            },
+            {
+              "name": "2.6L 4 Rotor - Racing",
+              "sourceVehicle": "Mazda 787B",
+              "powerHp": 690,
+              "torqueLbFt": 448,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -12,
+          "performanceScore": 0
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

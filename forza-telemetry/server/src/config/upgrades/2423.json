@@ -1,0 +1,91 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1969 Lola #6 Penske Sunoco T70 MkIIIB",
+  "basePi": 818,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 460,
+    "torqueNm": 536,
+    "massKg": 840,
+    "topSpeedKph": 310,
+    "rearTireWidthMm": 380
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.079Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_510",
+          "label": "6.2L V8 · 510 马力",
+          "sourceValue": "510",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Mercedes-Benz C 63 AMG Coupé Black Series",
+              "powerHp": 510,
+              "torqueLbFt": 457,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 50
+        },
+        {
+          "id": "engine_602",
+          "label": "5.2L V10 · 602 马力",
+          "sourceValue": "602",
+          "engineName": "5.2L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V10",
+              "sourceVehicle": "Lamborghini Huracán LP 610-4",
+              "powerHp": 602,
+              "torqueLbFt": 413,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 142
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

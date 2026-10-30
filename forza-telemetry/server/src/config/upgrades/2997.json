@@ -1,0 +1,36 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2016 Formula Drift #530 HSV Maloo Gen-F",
+  "basePi": 808,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1000,
+    "torqueNm": 1220,
+    "massKg": 1315,
+    "topSpeedKph": 323,
+    "rearTireWidthMm": 265
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

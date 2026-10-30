@@ -1,0 +1,71 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2019 Formula Drift #411 Toyota Corolla Hatchback",
+  "basePi": 840,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1185,
+    "torqueNm": 1175,
+    "massKg": 1432,
+    "topSpeedKph": 303,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -15,
+          "performanceScore": 0
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

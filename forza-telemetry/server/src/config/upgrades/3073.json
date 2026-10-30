@@ -1,0 +1,37 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2018 BMW #1 BMW M Motorsport M8 GTE",
+  "basePi": 910,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 600,
+    "torqueNm": 678,
+    "massKg": 1320,
+    "topSpeedKph": 321,
+    "frontTireWidthMm": 300,
+    "rearTireWidthMm": 310
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.075Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

@@ -1,0 +1,168 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2011 BMW X5 M",
+  "basePi": 666,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 547,
+    "torqueNm": 679,
+    "massKg": 2435,
+    "topSpeedKph": 283,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.075Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_475d",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475d",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -3,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_602",
+          "label": "5.2L V10 · 602 马力",
+          "sourceValue": "602",
+          "engineName": "5.2L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V10",
+              "sourceVehicle": "Lamborghini Huracán LP 610-4",
+              "powerHp": 602,
+              "torqueLbFt": 413,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 55
+        },
+        {
+          "id": "engine_805",
+          "label": "Racing 3.0L I6T · 805 马力",
+          "sourceValue": "805",
+          "engineName": "Racing 3.0L I6T",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 3.0L I6T",
+              "sourceVehicle": null,
+              "powerHp": 805,
+              "torqueLbFt": 571,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 258
+        },
+        {
+          "id": "engine_700",
+          "label": "6.0L W12TT 或 6.5L V12，待核验",
+          "sourceValue": "700",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "6.0L W12TT",
+              "sourceVehicle": "Bentley Continental Supersports",
+              "powerHp": 700,
+              "torqueLbFt": 749,
+              "aspiration": "2t",
+              "priceCredits": 100000,
+              "added": "Series 12"
+            },
+            {
+              "name": "6.5L V12",
+              "sourceVehicle": "Lamborghini Aventador LP700-4",
+              "powerHp": 700,
+              "torqueLbFt": 509,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 6,
+          "performanceScore": 153
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / Offroad",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

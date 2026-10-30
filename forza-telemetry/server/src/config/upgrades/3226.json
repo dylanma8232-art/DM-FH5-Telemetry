@@ -1,0 +1,113 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2017 Ferrari J50",
+  "basePi": 857,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 681,
+    "torqueNm": 759,
+    "massKg": 1525,
+    "topSpeedKph": 372,
+    "rearTireWidthMm": 305
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.076Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_1036",
+          "label": "6.3L V12 Hybrid · 1036 马力",
+          "sourceValue": "1036",
+          "engineName": "6.3L V12 Hybrid",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.3L V12 Hybrid",
+              "sourceVehicle": "Ferrari FXX K",
+              "powerHp": 1036,
+              "torqueLbFt": 664,
+              "aspiration": "na",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 14,
+          "performanceScore": 355
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

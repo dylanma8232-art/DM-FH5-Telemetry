@@ -1,0 +1,42 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2018 Hot Wheels 2JetZ",
+  "basePi": 854,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 639,
+    "torqueNm": 862,
+    "massKg": 789,
+    "topSpeedKph": 296,
+    "rearTireWidthMm": 275
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

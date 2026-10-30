@@ -1,0 +1,156 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1987 Mercedes-Benz AMG Hammer Coupe",
+  "basePi": 681,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 379,
+    "torqueNm": 565,
+    "massKg": 1651,
+    "topSpeedKph": 315,
+    "rearTireWidthMm": 235
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.079Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_602",
+          "label": "5.2L V10 · 602 马力",
+          "sourceValue": "602",
+          "engineName": "5.2L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V10",
+              "sourceVehicle": "Lamborghini Huracán LP 610-4",
+              "powerHp": 602,
+              "torqueLbFt": 413,
+              "aspiration": "na",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 9,
+          "performanceScore": 223
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 19,
+          "performanceScore": 471
+        },
+        {
+          "id": "engine_622",
+          "label": "6.9L V12 · 622 马力",
+          "sourceValue": "622",
+          "engineName": "6.9L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.9L V12",
+              "sourceVehicle": "Mercedes-Benz AMG CLK GTR",
+              "powerHp": 622,
+              "torqueLbFt": 539,
+              "aspiration": "na",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 243
+        }
+      ]
+    },
+    {
+      "id": "aspiration_swap",
+      "label": "增压方式置换",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂增压方式",
+          "piEstimate": 0
+        },
+        {
+          "id": "aspiration_tt",
+          "label": "双涡轮增压",
+          "sourceValue": "TT"
+        },
+        {
+          "id": "aspiration_pds",
+          "label": "机械增压",
+          "sourceValue": "PDS"
+        }
+      ]
+    },
+    {
+      "id": "widebody",
+      "label": "宽体与车身套件",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂车身",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_widebody",
+          "label": "可用宽体或车身套件",
+          "sourceValue": "Widebody",
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

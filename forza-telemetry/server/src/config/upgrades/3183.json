@@ -1,0 +1,120 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1967 Ford Racing Escort Mk1",
+  "basePi": 636,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 200,
+    "torqueNm": 217,
+    "massKg": 960,
+    "topSpeedKph": 203,
+    "rearTireWidthMm": 185
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 100
+        },
+        {
+          "id": "engine_224",
+          "label": "2.0L I4 - Turbo · 224 马力",
+          "sourceValue": "224",
+          "engineName": "2.0L I4 - Turbo",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L I4 - Turbo",
+              "sourceVehicle": "Ford Escort RS Cosworth",
+              "powerHp": 224,
+              "torqueLbFt": 224,
+              "aspiration": "1t",
+              "priceCredits": 33000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 24
+        },
+        {
+          "id": "engine_506",
+          "label": "2.1L I4 - Turbo 或 2.9L V6TT，待核验",
+          "sourceValue": "506",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "2.1L I4 - Turbo",
+              "sourceVehicle": "Ford RS200 Evolution",
+              "powerHp": 506,
+              "torqueLbFt": 401,
+              "aspiration": "1t",
+              "priceCredits": 40000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.9L V6TT",
+              "sourceVehicle": "Alfa Romeo Giulia Quadrifoglio",
+              "powerHp": 506,
+              "torqueLbFt": 443,
+              "aspiration": "2t",
+              "priceCredits": 60000,
+              "added": "Series 24"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 306
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

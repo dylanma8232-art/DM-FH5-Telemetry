@@ -1,0 +1,86 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1939 Maserati 8CTF",
+  "basePi": 657,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 360,
+    "torqueNm": 450,
+    "massKg": 800,
+    "topSpeedKph": 287,
+    "rearTireWidthMm": 190
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.079Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_375",
+          "label": "2.5L I5 TURBO 或 3.5L V8，待核验",
+          "sourceValue": "375",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "2.5L I5 TURBO",
+              "sourceVehicle": "Donkervoort D8 GTO",
+              "powerHp": 375,
+              "torqueLbFt": 350,
+              "aspiration": "tc",
+              "priceCredits": 30000,
+              "added": "Series 4"
+            },
+            {
+              "name": "3.5L V8",
+              "sourceVehicle": "Ferrari F355 Berlinetta",
+              "powerHp": 375,
+              "torqueLbFt": 288,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 15
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -1,0 +1,37 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2023 KIA EV6 GT",
+  "basePi": 719,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 577,
+    "torqueNm": 739,
+    "massKg": 2175,
+    "topSpeedKph": 259,
+    "frontTireWidthMm": 255,
+    "rearTireWidthMm": 255
+  },
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

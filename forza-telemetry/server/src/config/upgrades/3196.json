@@ -1,0 +1,37 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2019 RAESR Tachyon Speed",
+  "basePi": 983,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 1251,
+    "torqueNm": 4949,
+    "massKg": 1451,
+    "topSpeedKph": 390,
+    "frontTireWidthMm": 285,
+    "rearTireWidthMm": 335
+  },
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.081Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

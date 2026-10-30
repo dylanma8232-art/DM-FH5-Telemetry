@@ -1,0 +1,194 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1980 Lotus Esprit Turbo",
+  "basePi": 538,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 205,
+    "torqueNm": 263,
+    "massKg": 986,
+    "topSpeedKph": 234,
+    "frontTireWidthMm": 195,
+    "rearTireWidthMm": 235
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.079Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_321",
+          "label": "3.2L I6 · 321 马力",
+          "sourceValue": "321",
+          "engineName": "3.2L I6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.2L I6",
+              "sourceVehicle": "BMW M3",
+              "powerHp": 321,
+              "torqueLbFt": 258,
+              "aspiration": "na",
+              "priceCredits": 10000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 116
+        },
+        {
+          "id": "engine_212",
+          "label": "2.0L I4 - VVT · 212 马力",
+          "sourceValue": "212",
+          "engineName": "2.0L I4 - VVT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L I4 - VVT",
+              "sourceVehicle": "Honda Civic Type-R",
+              "powerHp": 212,
+              "torqueLbFt": 149,
+              "aspiration": "na",
+              "priceCredits": 12000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 7
+        },
+        {
+          "id": "engine_327",
+          "label": "2.6L I6 - TT · 327 马力",
+          "sourceValue": "327",
+          "engineName": "2.6L I6 - TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.6L I6 - TT",
+              "sourceVehicle": "Nissan Skyline GT-R V-Spec II",
+              "powerHp": 327,
+              "torqueLbFt": 293,
+              "aspiration": "2t",
+              "priceCredits": 23000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 122
+        },
+        {
+          "id": "engine_526",
+          "label": "5.2L V8 · 526 马力",
+          "sourceValue": "526",
+          "engineName": "5.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V8",
+              "sourceVehicle": "Ford Shelby GT350R",
+              "powerHp": 526,
+              "torqueLbFt": 429,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 13,
+          "performanceScore": 321
+        },
+        {
+          "id": "engine_300",
+          "label": "1.6L I4 - Turbo Rally · 300 马力",
+          "sourceValue": "300",
+          "engineName": "1.6L I4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "1.6L I4 - Turbo Rally",
+              "sourceVehicle": null,
+              "powerHp": 300,
+              "torqueLbFt": 332,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 95
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}
