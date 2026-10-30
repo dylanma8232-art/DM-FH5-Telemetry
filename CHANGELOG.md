@@ -193,3 +193,14 @@
 - forza-telemetry/client/src/components/dashboard/AlertAdvicePanel.jsx
 - forza-telemetry/client/test/alertAdvicePanel.test.js
 - forza-telemetry/client/test/jsx-loader.js
+
+## 2026-10-30 07:30 迭代
+
+- **PR**：30 Fix SQLite write failure handling and raw recording retention
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/30
+- **改动文件**：
+- .github/workflows/auto-merge-jules.yml
+- forza-telemetry/server/src/routes/record.js
+- forza-telemetry/server/src/storage/save-worker.js
+- forza-telemetry/server/src/storage/sqlite-db.js
+- forza-telemetry/server/test/sqlite-save-failure.test.js
