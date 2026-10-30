@@ -5,11 +5,11 @@ import {
   getDefaultParts,
   getTuneConstraints,
   getTuneDefaults
-} from '../data/parts'
-import { api } from '../services/api'
-import { useTuneStore } from '../stores/useTuneStore'
-import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade'
-import { useTuneDiagnosis } from './useTuneDiagnosis'
+} from '../data/parts.js'
+import { api } from '../services/api.js'
+import { useTuneStore } from '../stores/useTuneStore.js'
+import { getInitialParameterRecommendations, useTuneUpgrade } from './useTuneUpgrade.js'
+import { useTuneDiagnosis } from './useTuneDiagnosis.js'
 import {
   FIX_PARAM_MAP,
   convertFixesToSuggestedChanges,
@@ -17,7 +17,7 @@ import {
   defaultFormData,
   isPiClassCap,
   nextPiClassCap
-} from '../utils/tuneForm'
+} from '../utils/tuneForm.js'
 
 export function useTuneManager({ onNavigate, navIntent }) {
   const {
@@ -217,27 +217,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
         }
       }
 
-      // 改装配件或能力变更后，自动实时更新参数推荐
-      if (resolved?.tuneParameters?.length) {
-        const mergedShop = {
-          ...resolved,
-          targetPi: targetPi || basePi || resolved.targetPi || resolved.basePi,
-          parts: resolved.effectiveSelections || parts,
-          capabilities: tuningCapabilities || resolved.capabilities,
-          effectiveDriveType: driveType || resolved.effectiveDriveType || resolved.baseDriveType
-        }
-        const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
-        if (recommended) {
-          setFormData(prev => ({
-            ...prev,
-            tires: { ...prev.tires, ...recommended.tires },
-            suspension: { ...prev.suspension, ...recommended.suspension },
-            drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
-            brakes: { ...prev.brakes, ...recommended.brakes },
-            aero: { ...prev.aero, ...recommended.aero }
-          }))
-        }
-      }
     } catch (_) {
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop({ status: 'unverified', message: '无法读取该车辆的改装资料。', slots: [], tuneParameters: [] })
