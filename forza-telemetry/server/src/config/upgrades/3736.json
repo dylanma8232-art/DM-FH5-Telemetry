@@ -1,0 +1,171 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2022 Ford Bronco Raptor",
+  "basePi": 588,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 418,
+    "torqueNm": 597,
+    "massKg": 2600,
+    "topSpeedKph": 228,
+    "frontTireWidthMm": 315,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_662",
+          "label": "5.8L V8 - DSC · 662 马力",
+          "sourceValue": "662",
+          "engineName": "5.8L V8 - DSC",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.8L V8 - DSC",
+              "sourceVehicle": "Ford Shelby GT500",
+              "powerHp": 662,
+              "torqueLbFt": 631,
+              "aspiration": "ts",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 244
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 17,
+          "performanceScore": 432
+        },
+        {
+          "id": "engine_914",
+          "label": "Racing V6TT · 914 马力",
+          "sourceValue": "914",
+          "engineName": "Racing V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing V6TT",
+              "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+              "powerHp": 914,
+              "torqueLbFt": 702,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 20,
+          "performanceScore": 496
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 53,
+          "performanceScore": 1332
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Aftermarket, side doors",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

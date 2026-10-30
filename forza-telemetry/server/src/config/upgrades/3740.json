@@ -1,0 +1,110 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2022 Hennessey Mammoth 6x6",
+  "basePi": 697,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 1012,
+    "torqueNm": 1314,
+    "massKg": 3561,
+    "topSpeedKph": 288
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_914",
+          "label": "Racing V6TT · 914 马力",
+          "sourceValue": "914",
+          "engineName": "Racing V6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing V6TT",
+              "sourceVehicle": "Hoonigan Gymkhana 10 Ford F-150 'Hoonitruck'",
+              "powerHp": 914,
+              "torqueLbFt": 702,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -4,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_1500",
+          "label": "8.9L V8 DSC · 1500 马力",
+          "sourceValue": "1500",
+          "engineName": "8.9L V8 DSC",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.9L V8 DSC",
+              "sourceVehicle": "Hot Wheels Monster Trucks Bone Shaker",
+              "powerHp": 1500,
+              "torqueLbFt": 1100,
+              "aspiration": "ps",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 20,
+          "performanceScore": 488
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 30,
+          "performanceScore": 738
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

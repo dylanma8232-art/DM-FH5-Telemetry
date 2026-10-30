@@ -1,0 +1,119 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2012 Nissan GT-R Black Edition (R35)",
+  "basePi": 810,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 542,
+    "torqueNm": 632,
+    "massKg": 1737,
+    "topSpeedKph": 341,
+    "rearTireWidthMm": 285
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.080Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_542_3_8l",
+          "label": "3.5L V6TT 或 3.8L V6 - TT，待核验",
+          "sourceValue": "542(3.8L)",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.5L V6TT",
+              "sourceVehicle": "Jaguar XJ220",
+              "powerHp": 542,
+              "torqueLbFt": 473,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "3.8L V6 - TT",
+              "sourceVehicle": "Nissan GT-R Black Edition",
+              "powerHp": 542,
+              "torqueLbFt": 466,
+              "aspiration": "2t",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 0
+        }
+      ]
+    },
+    {
+      "id": "widebody",
+      "label": "宽体与车身套件",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂车身",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_widebody",
+          "label": "可用宽体或车身套件",
+          "sourceValue": "Preset / WB",
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset / WB",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

@@ -1,0 +1,140 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1989 Porsche #65 Rothsport Racing 911 'Desert Flyer'",
+  "basePi": 694,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 325,
+    "torqueNm": 389,
+    "massKg": 1288,
+    "topSpeedKph": 214,
+    "rearTireWidthMm": 235
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "na",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.081Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_330",
+          "label": "2.0L F4 - Turbo Rally · 330 马力",
+          "sourceValue": "330",
+          "engineName": "2.0L F4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L F4 - Turbo Rally",
+              "sourceVehicle": "Subaru WRX STI VT15R Rally Car",
+              "powerHp": 330,
+              "torqueLbFt": 480,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 0,
+          "performanceScore": 5
+        },
+        {
+          "id": "engine_493_34k",
+          "label": "4.0L F6 · 493 马力",
+          "sourceValue": "493(34k)",
+          "engineName": "4.0L F6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 34000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 7,
+          "performanceScore": 168
+        },
+        {
+          "id": "engine_691",
+          "label": "3.8 F6TT · 691 马力",
+          "sourceValue": "691",
+          "engineName": "3.8 F6TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.8 F6TT",
+              "sourceVehicle": "Porsche 911 GT2 RS",
+              "powerHp": 691,
+              "torqueLbFt": 553,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 366
+        },
+        {
+          "id": "engine_887",
+          "label": "4.6L V8 Hybrid · 887 马力",
+          "sourceValue": "887",
+          "engineName": "4.6L V8 Hybrid",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.6L V8 Hybrid",
+              "sourceVehicle": "Porsche 918 Spyder",
+              "powerHp": 887,
+              "torqueLbFt": 829,
+              "aspiration": "na",
+              "priceCredits": 60000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 22,
+          "performanceScore": 562
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

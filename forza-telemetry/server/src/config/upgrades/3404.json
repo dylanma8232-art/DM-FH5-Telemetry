@@ -1,0 +1,199 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2020 Ford #2069 Ford Performance Bronco R",
+  "basePi": 544,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 325,
+    "torqueNm": 542,
+    "massKg": 2948,
+    "topSpeedKph": 190,
+    "rearTireWidthMm": 315
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 90
+        },
+        {
+          "id": "engine_640",
+          "label": "8.4L V10 · 640 马力",
+          "sourceValue": "640",
+          "engineName": "8.4L V10",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.4L V10",
+              "sourceVehicle": "Dodge SRT Viper GTS",
+              "powerHp": 640,
+              "torqueLbFt": 600,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 13,
+          "performanceScore": 315
+        },
+        {
+          "id": "engine_662",
+          "label": "5.8L V8 - DSC · 662 马力",
+          "sourceValue": "662",
+          "engineName": "5.8L V8 - DSC",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.8L V8 - DSC",
+              "sourceVehicle": "Ford Shelby GT500",
+              "powerHp": 662,
+              "torqueLbFt": 631,
+              "aspiration": "ts",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 13,
+          "performanceScore": 337
+        },
+        {
+          "id": "engine_700v",
+          "label": "6.0L W12TT 或 6.5L V12，待核验",
+          "sourceValue": "700V",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "6.0L W12TT",
+              "sourceVehicle": "Bentley Continental Supersports",
+              "powerHp": 700,
+              "torqueLbFt": 749,
+              "aspiration": "2t",
+              "priceCredits": 100000,
+              "added": "Series 12"
+            },
+            {
+              "name": "6.5L V12",
+              "sourceVehicle": "Lamborghini Aventador LP700-4",
+              "powerHp": 700,
+              "torqueLbFt": 509,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 15,
+          "performanceScore": 375
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 21,
+          "performanceScore": 525
+        },
+        {
+          "id": "engine_1750",
+          "label": "7.4L V8TT · 1750 马力",
+          "sourceValue": "1750",
+          "engineName": "7.4L V8TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.4L V8TT",
+              "sourceVehicle": "Funco Motorsports F9",
+              "powerHp": 1750,
+              "torqueLbFt": 1475,
+              "aspiration": "2t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 57,
+          "performanceScore": 1425
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "light bar",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

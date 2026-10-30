@@ -1,0 +1,139 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2014 Mercedes-Benz Unimog U5023",
+  "basePi": 103,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 228,
+    "torqueNm": 899,
+    "massKg": 7000,
+    "topSpeedKph": 125,
+    "rearTireWidthMm": 395
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.079Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_475d",
+          "label": "3.0L V8 - Racing 或 6.7L V8T Diesel，待核验",
+          "sourceValue": "475d",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "3.0L V8 - Racing",
+              "sourceVehicle": "Ariel Atom 500 V8",
+              "powerHp": 475,
+              "torqueLbFt": 268,
+              "aspiration": "na",
+              "priceCredits": 38000,
+              "added": "Series 0"
+            },
+            {
+              "name": "6.7L V8T Diesel",
+              "sourceVehicle": "Ford Super Duty F-450 DRW Platinum",
+              "powerHp": 475,
+              "torqueLbFt": 1050,
+              "aspiration": "1t",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 10,
+          "performanceScore": 247
+        },
+        {
+          "id": "engine_1080",
+          "label": "12.8L I6T Diesel · 1080 马力",
+          "sourceValue": "1080",
+          "engineName": "12.8L I6T Diesel",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "12.8L I6T Diesel",
+              "sourceVehicle": "Mercedes-Benz #24 Tankpool24 Racing Truck",
+              "powerHp": 1080,
+              "torqueLbFt": 3688,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 34,
+          "performanceScore": 852
+        },
+        {
+          "id": "engine_2400",
+          "label": "12.8L I6T Diesel · 2400 马力",
+          "sourceValue": "2400",
+          "engineName": "12.8L I6T Diesel",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "12.8L I6T Diesel",
+              "sourceVehicle": "Volvo Iron Knight",
+              "powerHp": 2400,
+              "torqueLbFt": 4422,
+              "aspiration": "1t",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 87,
+          "performanceScore": 2172
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Bars / bed",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

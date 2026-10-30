@@ -1,0 +1,42 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1939 Auto Union Type D",
+  "basePi": 675,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 485,
+    "torqueNm": 560,
+    "massKg": 1280,
+    "topSpeedKph": 367,
+    "rearTireWidthMm": 200
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.075Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

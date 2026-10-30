@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1117" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FH5遥测" />
+    <meta name="description" content="Forza Horizon 5 遥测数据分析工具" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>FH5 遥测仪表盘</title>
+    <style>
+      :root {
+        --bg-primary: #0d1117;
+        --bg-secondary: #161b22;
+        --bg-tertiary: #21262d;
+        --bg-hover: rgba(255,255,255,0.04);
+        --text-primary: #c9d1d9;
+        --text-secondary: #8b949e;
+        --text-muted: #484f58;
+        --border: #21262d;
+        --border-hover: #30363d;
+        --accent: #58a6ff;
+        --accent-light: rgba(88,166,255,0.15);
+        --success: #3fb950;
+        --success-light: rgba(63,185,80,0.15);
+        --warning: #d29922;
+        --warning-light: rgba(210,153,34,0.15);
+        --danger: #f85149;
+        --danger-light: rgba(248,81,73,0.15);
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --font-xs: 9px;
+        --font-sm: 11px;
+        --font-md: 12px;
+        --font-lg: 14px;
+        --font-xl: 16px;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      html, body, #root {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        overscroll-behavior: none;
+      }
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+        touch-action: manipulation;
+      }
+      #root {
+        display: flex;
+        flex-direction: column;
+      }
+      button {
+        transition: all 0.2s ease;
+      }
+      button:hover {
+        transform: translateY(-0.5px);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+      button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+      a { color: var(--accent); }
+      a:hover { text-decoration: underline; }
+    </style>
+    <style>
+      @keyframes toastSlideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+      @keyframes paramHighlight {
+        0% { background-color: rgba(63, 185, 80, 0); }
+        50% { background-color: rgba(63, 185, 80, 0.3); }
+        100% { background-color: rgba(63, 185, 80, 0); }
+      }
+      @keyframes paramAmberBreathing {
+        0% { border-color: rgba(210, 153, 34, 0.5); box-shadow: 0 0 4px rgba(210, 153, 34, 0.2); }
+        50% { border-color: rgba(210, 153, 34, 1); box-shadow: 0 0 12px rgba(210, 153, 34, 0.6); }
+        100% { border-color: rgba(210, 153, 34, 0.5); box-shadow: 0 0 4px rgba(210, 153, 34, 0.2); }
+      }
+      .btn-primary {
+        padding: 8px 16px;
+        background: var(--success);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: var(--font-md);
+        font-weight: 600;
+      }
+      .btn-small {
+        padding: 4px 10px;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 10px;
+      }
+      .btn-danger-small {
+        padding: 4px 10px;
+        background: var(--danger);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 10px;
+      }
+      .form-input {
+        width: 100%;
+        padding: 8px 10px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: var(--font-sm);
+        outline: none;
+        box-sizing: border-box;
+      }
+      .form-label {
+        display: block;
+        font-size: 10px;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+      .modal-content {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        width: 100%;
+        border: 1px solid var(--border);
+      }
+      .form-section {
+        background: var(--bg-primary);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+      }
+      .form-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // 注册Service Worker（PWA支持）
+      // 彻底注销 Service Worker 并清理 CacheStorage 缓存（防止局域网 IP 缓存旧页面）
+      if ('serviceWorker' in navigator) {
+        if (window.caches) {
+          caches.keys().then(keys => {
+            keys.forEach(key => caches.delete(key));
+          });
+        }
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister().then(success => {
+              if (success) {
+                console.log('[SW] 已成功注销 Service Worker，刷新页面...');
+                window.location.reload();
+              }
+            });
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

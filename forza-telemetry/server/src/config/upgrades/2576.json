@@ -1,0 +1,131 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2005 Hot Wheels Ford Mustang",
+  "basePi": 819,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 489,
+    "torqueNm": 621,
+    "massKg": 1497,
+    "topSpeedKph": 298,
+    "rearTireWidthMm": 295
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "pds",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_526",
+          "label": "5.2L V8 · 526 马力",
+          "sourceValue": "526",
+          "engineName": "5.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "5.2L V8",
+              "sourceVehicle": "Ford Shelby GT350R",
+              "powerHp": 526,
+              "torqueLbFt": 429,
+              "aspiration": "na",
+              "priceCredits": 25000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 37
+        },
+        {
+          "id": "engine_800",
+          "label": "7.7L V12 · 800 马力",
+          "sourceValue": "800",
+          "engineName": "7.7L V12",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "7.7L V12",
+              "sourceVehicle": "TVR Cerbera Speed 12",
+              "powerHp": 800,
+              "torqueLbFt": 649,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 12,
+          "performanceScore": 311
+        },
+        {
+          "id": "engine_850",
+          "label": "Racing 7.2L V8 · 850 马力",
+          "sourceValue": "850",
+          "engineName": "Racing 7.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "Racing 7.2L V8",
+              "sourceVehicle": "RJ Pro 2 Truck",
+              "powerHp": 850,
+              "torqueLbFt": 640,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 14,
+          "performanceScore": 361
+        },
+        {
+          "id": "engine_1500",
+          "label": "8.9L V8 DSC · 1500 马力",
+          "sourceValue": "1500",
+          "engineName": "8.9L V8 DSC",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "8.9L V8 DSC",
+              "sourceVehicle": "Hot Wheels Monster Trucks Bone Shaker",
+              "powerHp": 1500,
+              "torqueLbFt": 1100,
+              "aspiration": "ps",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 40,
+          "performanceScore": 1011
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

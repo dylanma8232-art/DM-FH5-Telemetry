@@ -1,0 +1,182 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2022 Ferrari 296 GTB",
+  "basePi": 892,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 818,
+    "torqueNm": 8989,
+    "massKg": 1575,
+    "topSpeedKph": 359,
+    "rearTireWidthMm": 305
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.076Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_562v8",
+          "label": "4.5L V8 · 562 马力",
+          "sourceValue": "562v8",
+          "engineName": "4.5L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.5L V8",
+              "sourceVehicle": "Ferrari 458 Italia",
+              "powerHp": 562,
+              "torqueLbFt": 398,
+              "aspiration": "na",
+              "priceCredits": 46000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": -10,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_711",
+          "label": "3.9L V8-TT · 711 马力",
+          "sourceValue": "711",
+          "engineName": "3.9L V8-TT",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "3.9L V8-TT",
+              "sourceVehicle": "Ferrari 488 Pista",
+              "powerHp": 711,
+              "torqueLbFt": 567,
+              "aspiration": "2t",
+              "priceCredits": 50000,
+              "added": "Series 24"
+            }
+          ],
+          "piEstimate": -4,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_750",
+          "label": "Racing V12 或 2.1L I4T，待核验",
+          "sourceValue": "750",
+          "engineName": null,
+          "engineNameStatus": "ambiguous",
+          "engineCandidates": [
+            {
+              "name": "Racing V12",
+              "sourceVehicle": "Ferrari F50 GT",
+              "powerHp": 750,
+              "torqueLbFt": 383,
+              "aspiration": "na",
+              "priceCredits": 50000,
+              "added": "Series 0"
+            },
+            {
+              "name": "2.1L I4T",
+              "sourceVehicle": "Hoonigan Ford RS200 Evolution",
+              "powerHp": 750,
+              "torqueLbFt": 590,
+              "aspiration": "1t",
+              "priceCredits": 50000,
+              "added": "Series 18"
+            }
+          ],
+          "piEstimate": -3,
+          "performanceScore": 0
+        },
+        {
+          "id": "engine_1036",
+          "label": "6.3L V12 Hybrid · 1036 马力",
+          "sourceValue": "1036",
+          "engineName": "6.3L V12 Hybrid",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.3L V12 Hybrid",
+              "sourceVehicle": "Ferrari FXX K",
+              "powerHp": 1036,
+              "torqueLbFt": 664,
+              "aspiration": "na",
+              "priceCredits": 75000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 9,
+          "performanceScore": 218
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

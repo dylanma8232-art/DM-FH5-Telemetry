@@ -1,0 +1,66 @@
+{
+  "version": 3,
+  "exportedAt": "2026-07-19T00:00:00.000Z",
+  "generator": "forza-telemetry-tune-import-template",
+  "compatibility": "v1,v2,v3",
+  "tune": {
+    "name": "请改为你的方案名称",
+    "tags": [
+      "Road"
+    ],
+    "vehicleId": "412",
+    "tires": {
+      "frontPressure": null,
+      "rearPressure": null,
+      "frontCamber": null,
+      "rearCamber": null,
+      "frontToe": null,
+      "rearToe": null,
+      "frontCaster": null
+    },
+    "suspension": {
+      "frontSpring": null,
+      "rearSpring": null,
+      "frontDamping": null,
+      "rearDamping": null,
+      "frontRebound": null,
+      "rearRebound": null,
+      "frontBump": null,
+      "rearBump": null,
+      "frontARB": null,
+      "rearARB": null,
+      "frontRideHeight": null,
+      "rearRideHeight": null
+    },
+    "drivetrain": {
+      "frontDiffAccel": null,
+      "frontDiffDecel": null,
+      "rearDiffAccel": null,
+      "rearDiffDecel": null,
+      "diffCenter": null,
+      "finalDrive": null,
+      "gear1": null,
+      "gear2": null,
+      "gear3": null,
+      "gear4": null,
+      "gear5": null,
+      "gear6": null,
+      "gear7": null,
+      "gear8": null,
+      "gear9": null,
+      "gear10": null
+    },
+    "aero": {
+      "frontDownforce": null,
+      "rearDownforce": null
+    },
+    "parts": {
+      "drivetrain_swap": {
+        "optionId": "stock"
+      },
+      "tires_compound": {
+        "optionId": "stock"
+      }
+    }
+  }
+}

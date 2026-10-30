@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "tune": {
+    "name": "请改为你的方案名称",
+    "tags": ["Road"],
+    "vehicleId": "412",
+    "tires": {},
+    "suspension": {},
+    "drivetrain": {},
+    "aero": {},
+    "parts": {}
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1997 Formula Drift #777 Nissan 240SX",
+  "basePi": 826,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 1251,
+    "torqueNm": 1516,
+    "massKg": 1406,
+    "topSpeedKph": 292,
+    "rearTireWidthMm": 295
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "cs",
+  "stockAdjustableAeroFront": true,
+  "stockAdjustableAeroRear": true,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.077Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}

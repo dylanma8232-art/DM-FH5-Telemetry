@@ -1,0 +1,90 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2003 Nissan Donut Media 350Z 'Hi Car'",
+  "basePi": 792,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 373,
+    "torqueNm": 521,
+    "massKg": 1615,
+    "topSpeedKph": 292,
+    "rearTireWidthMm": 275
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.080Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_430",
+          "label": "6.2L V8 Crate Engine · 430 马力",
+          "sourceValue": "430",
+          "engineName": "6.2L V8 Crate Engine",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8 Crate Engine",
+              "sourceVehicle": null,
+              "powerHp": 430,
+              "torqueLbFt": 417,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 22"
+            }
+          ],
+          "piEstimate": 2,
+          "performanceScore": 57
+        }
+      ]
+    },
+    {
+      "id": "upgrade_preset",
+      "label": "升级预设",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "不使用预设",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_preset",
+          "label": "可用升级预设",
+          "sourceValue": "Preset",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

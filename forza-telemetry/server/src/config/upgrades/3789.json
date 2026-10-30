@@ -1,0 +1,102 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2022 Wuling Hongguang Mini EV Macaron",
+  "basePi": 136,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 27,
+    "torqueNm": 85,
+    "massKg": 700,
+    "topSpeedKph": 102,
+    "frontTireWidthMm": 145,
+    "rearTireWidthMm": 145
+  },
+  "commonTemplate": "electric_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "e",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.083Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_235",
+          "label": "235BHP Motor · 235 马力",
+          "sourceValue": "235",
+          "engineName": "235BHP Motor",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "235BHP Motor",
+              "sourceVehicle": null,
+              "powerHp": 235,
+              "torqueLbFt": 173,
+              "aspiration": "e",
+              "priceCredits": 20000,
+              "added": "Series 30"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 208
+        },
+        {
+          "id": "engine_670",
+          "label": "670 马力，名称待核验",
+          "sourceValue": "670",
+          "engineName": null,
+          "engineNameStatus": "unknown",
+          "engineCandidates": [],
+          "piEstimate": 26,
+          "performanceScore": 643
+        }
+      ]
+    },
+    {
+      "id": "widebody",
+      "label": "宽体与车身套件",
+      "group": "置换",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "保持原厂车身",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_widebody",
+          "label": "可用宽体或车身套件",
+          "sourceValue": "WB",
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

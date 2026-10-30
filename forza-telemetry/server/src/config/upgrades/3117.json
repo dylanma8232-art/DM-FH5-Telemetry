@@ -1,0 +1,122 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2018 Porsche 718 Cayman GTS",
+  "basePi": 785,
+  "baseDriveType": "rwd",
+  "stockSpecs": {
+    "powerHp": 361,
+    "torqueNm": 430,
+    "massKg": 1422,
+    "topSpeedKph": 289,
+    "rearTireWidthMm": 265
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "source_explicit"
+    },
+    "track_width_rear": {
+      "availability": "source_explicit"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.080Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_493_34k",
+          "label": "4.0L F6 · 493 马力",
+          "sourceValue": "493(34k)",
+          "engineName": "4.0L F6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 34000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 5,
+          "performanceScore": 132
+        }
+      ]
+    },
+    {
+      "id": "front_aero",
+      "label": "前部空气动力学",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂前部",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调前部件",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    },
+    {
+      "id": "rear_aero",
+      "label": "尾翼",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "replaceCommonOptions": true,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂尾翼",
+          "piEstimate": 0
+        },
+        {
+          "id": "adjustable",
+          "label": "可调尾翼",
+          "sourceValue": "Forza",
+          "adjustable": true,
+          "confidence": "source_explicit"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

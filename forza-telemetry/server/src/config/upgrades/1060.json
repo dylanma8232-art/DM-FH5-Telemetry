@@ -1,0 +1,140 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "2008 SUBARU Impreza WRX STI",
+  "basePi": 649,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 305,
+    "torqueNm": 454,
+    "massKg": 1540,
+    "topSpeedKph": 253,
+    "frontTireWidthMm": 245,
+    "rearTireWidthMm": 245
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "t",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.081Z"
+    }
+  ],
+  "slots": [
+    {
+      "id": "engine_swap",
+      "label": "引擎置换",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "tierSystem": false,
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂引擎",
+          "piEstimate": 0
+        },
+        {
+          "id": "engine_415",
+          "label": "6.2L V8 · 415 马力",
+          "sourceValue": "415",
+          "engineName": "6.2L V8",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "6.2L V8",
+              "sourceVehicle": "Chevrolet Super Sport",
+              "powerHp": 415,
+              "torqueLbFt": 415,
+              "aspiration": "na",
+              "priceCredits": 20000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 4,
+          "performanceScore": 110
+        },
+        {
+          "id": "engine_330",
+          "label": "2.0L F4 - Turbo Rally · 330 马力",
+          "sourceValue": "330",
+          "engineName": "2.0L F4 - Turbo Rally",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "2.0L F4 - Turbo Rally",
+              "sourceVehicle": "Subaru WRX STI VT15R Rally Car",
+              "powerHp": 330,
+              "torqueLbFt": 480,
+              "aspiration": "1t",
+              "priceCredits": 28000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 1,
+          "performanceScore": 25
+        },
+        {
+          "id": "engine_493_34k",
+          "label": "4.0L F6 · 493 马力",
+          "sourceValue": "493(34k)",
+          "engineName": "4.0L F6",
+          "engineNameStatus": "power_unique",
+          "engineCandidates": [
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS 4.0",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 30000,
+              "added": "Series 0"
+            },
+            {
+              "name": "4.0L F6",
+              "sourceVehicle": "Porsche 911 GT3 RS",
+              "powerHp": 493,
+              "torqueLbFt": 339,
+              "aspiration": "na",
+              "priceCredits": 34000,
+              "added": "Series 0"
+            }
+          ],
+          "piEstimate": 8,
+          "performanceScore": 188
+        }
+      ]
+    },
+    {
+      "id": "appearance_options",
+      "label": "外观改装",
+      "group": "车辆专属",
+      "scope": "vehicle_specific",
+      "options": [
+        {
+          "id": "stock",
+          "label": "原厂外观",
+          "piEstimate": 0
+        },
+        {
+          "id": "listed_appearance",
+          "label": "已知有外观选项，细项待核验",
+          "sourceValue": "Rally lights",
+          "confidence": "category_only"
+        }
+      ]
+    }
+  ],
+  "tuneParameters": []
+}

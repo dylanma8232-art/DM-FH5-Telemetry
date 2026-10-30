@@ -1,0 +1,42 @@
+{
+  "status": "partial",
+  "piStatus": "formula_v1",
+  "name": "1965 Hoonigan Ford \"Hoonicorn\" Mustang",
+  "basePi": 951,
+  "baseDriveType": "awd",
+  "stockSpecs": {
+    "powerHp": 1400,
+    "torqueNm": 1627,
+    "massKg": 1360,
+    "topSpeedKph": 408,
+    "rearTireWidthMm": 295
+  },
+  "commonTemplate": "combustion_road",
+  "commonSlotOverrides": {
+    "front_aero": {
+      "availability": "verified_absent"
+    },
+    "rear_aero": {
+      "availability": "verified_absent"
+    },
+    "track_width_front": {
+      "availability": "verified_absent"
+    },
+    "track_width_rear": {
+      "availability": "verified_absent"
+    }
+  },
+  "stockAspiration": "tt",
+  "stockAdjustableAeroFront": false,
+  "stockAdjustableAeroRear": false,
+  "gameVersion": "FH5 Series 24（公开表）",
+  "source": [
+    {
+      "type": "公开车辆表",
+      "url": "https://www.manteomax.com/",
+      "importedAt": "2026-07-17T09:52:24.078Z"
+    }
+  ],
+  "slots": [],
+  "tuneParameters": []
+}
