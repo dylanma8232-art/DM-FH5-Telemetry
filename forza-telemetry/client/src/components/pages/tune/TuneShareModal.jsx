@@ -93,6 +93,11 @@ export const TuneShareModal = React.memo(function TuneShareModal(props) {
                     {importPreview.drivetrain ? Object.entries(importPreview.drivetrain).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
                   </div>
 
+                  <div style={{ color: 'var(--text-secondary)' }}>刹车参数</div>
+                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9 }}>
+                    {importPreview.brakes ? Object.entries(importPreview.brakes).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
+                  </div>
+
                   <div style={{ color: 'var(--text-secondary)' }}>空力参数</div>
                   <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 9 }}>
                     {importPreview.aero ? Object.entries(importPreview.aero).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}
