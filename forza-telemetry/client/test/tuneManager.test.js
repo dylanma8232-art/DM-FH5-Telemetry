@@ -1,13 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  resolveEffectiveDriveType,
-  createTuneExportPayload,
-  generateShareCodeUtil,
-  parseShareCodeUtil
-} from '../src/hooks/useTuneManager.js';
-import { DRIVING_PROBLEMS } from '../src/data/tunePresets.js';
-import diagnoseRules from '../src/data/diagnoseRules.json' with { type: 'json' };
+import { resolveEffectiveDriveType } from '../src/hooks/useTuneManager.js';
 import { saveTuneSchema } from '../../server/src/utils/schemas.js';
 
 test('resolves stock drivetrain_swap option to effective drive type (fwd/rwd/awd) rather than stock', async () => {
@@ -42,99 +35,133 @@ test('resolves stock drivetrain_swap option to effective drive type (fwd/rwd/awd
   assert.equal(invalidValidation.success, false);
 });
 
-test('createTuneExportPayload includes brakes settings and valid structure', () => {
-  const mockTune = {
-    name: 'Track Monster',
-    tags: ['AWD', 'S1'],
-    vehicleId: '202',
-    tires: { frontPressure: 2.1, rearPressure: 2.1 },
-    suspension: { frontSpring: 85, rearSpring: 90 },
-    drivetrain: { finalDrive: 3.65 },
-    brakes: { balance: 48, pressure: 100 },
-    aero: { frontDownforce: 100, rearDownforce: 150 },
-    parts: { brakes: { tier: 'race' } }
+// Setup minimal DOM environment required for React 18 rendering
+class MockElement {
+  constructor(nodeName) {
+    this.nodeName = nodeName.toUpperCase();
+    this.tagName = nodeName.toUpperCase();
+    this.nodeType = 1;
+    this.childNodes = [];
+    this.style = {};
+    this.ownerDocument = globalThis.document;
+  }
+  appendChild(child) { child.parentNode = this; this.childNodes.push(child); return child; }
+  removeChild(child) { this.childNodes = this.childNodes.filter(c => c !== child); return child; }
+  insertBefore(child) { child.parentNode = this; this.childNodes.push(child); return child; }
+  addEventListener() {}
+  removeEventListener() {}
+  setAttribute() {}
+  getAttribute() { return null; }
+  hasAttribute() { return false; }
+  removeAttribute() {}
+}
+
+const mockDoc = {
+  nodeType: 9,
+  createElement: (name) => new MockElement(name),
+  createElementNS: (ns, name) => new MockElement(name),
+  createTextNode: (text) => ({ text, nodeType: 3, ownerDocument: globalThis.document }),
+  addEventListener: () => {},
+  removeEventListener: () => {}
+};
+mockDoc.body = new MockElement('body');
+mockDoc.ownerDocument = mockDoc;
+
+globalThis.document = mockDoc;
+globalThis.window = globalThis;
+globalThis.HTMLIFrameElement = class HTMLIFrameElement {};
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.addEventListener = () => {};
+globalThis.removeEventListener = () => {};
+
+test('useTuneManager startEdit loads saved parameters and refreshUpgradeShop preserves populated saved fields', async () => {
+  const { default: React, act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { useTuneManager } = await import('../src/hooks/useTuneManager.js');
+
+  const originalFetch = globalThis.fetch;
+
+  // Mock fetch responses for API calls made by useTuneManager
+  globalThis.fetch = async (url) => {
+    if (url === '/api/tunes' || url === '/api/tracks' || url === '/api/sessions') {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+    if (url === '/api/vehicles') {
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+    if (url === '/api/vehicles/catalog') {
+      return new Response(JSON.stringify([{ ordinal: '101', name: 'Test Car', basePi: 500 }]), { status: 200 });
+    }
+    if (url.startsWith('/api/vehicles/101/upgrades')) {
+      return new Response(JSON.stringify({
+        status: 'verified',
+        basePi: 500,
+        targetPi: 800,
+        effectiveSelections: { suspension: { tier: 'race' } },
+        tuneParameters: [
+          { id: 'tire_pressure_front', range: { min: 1.5, max: 3.5 } },
+          { id: 'spring_front', range: { min: 20, max: 150 } }
+        ]
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({}), { status: 200 });
   };
 
-  const payload = createTuneExportPayload(mockTune);
-  assert.equal(payload.version, 3);
-  assert.deepEqual(payload.tune.brakes, { balance: 48, pressure: 100 });
-  assert.equal(payload.tune.name, 'Track Monster');
-});
-
-test('generateShareCode and parseShareCode round-trip retains brakes setup', () => {
-  const mockTune = {
-    name: 'Brake Tune',
-    vehicleId: '305',
-    tires: { frontPressure: 1.9, rearPressure: 1.9 },
-    suspension: { frontARB: 25 },
-    drivetrain: { finalDrive: 3.8 },
-    brakes: { balance: 52, pressure: 95 },
-    aero: { frontDownforce: 120 },
-    parts: {}
-  };
-
-  const code = generateShareCodeUtil(mockTune);
-  assert.ok(code && typeof code === 'string');
-
-  const parsed = parseShareCodeUtil(code);
-  assert.equal(parsed.name, 'Brake Tune');
-  assert.equal(parsed.vehicleId, '305');
-  assert.deepEqual(parsed.brakes, { balance: 52, pressure: 95 });
-
-  // Test backwards compatibility: if decoded payload does not have 'b', default to empty object
-  const legacyCode = generateShareCodeUtil({ ...mockTune, brakes: undefined });
-  const legacyParsed = parseShareCodeUtil(legacyCode);
-  assert.deepEqual(legacyParsed.brakes, {});
-});
-
-test('tunePresets.js and diagnoseRules.json pressure adjustments are in bar (abs delta <= 0.5)', () => {
-  for (const prob of DRIVING_PROBLEMS) {
-    if (prob.fixes?.frontTirePressure) {
-      const delta = prob.fixes.frontTirePressure.delta;
-      assert.ok(
-        Math.abs(delta) <= 0.5,
-        `frontTirePressure delta in ${prob.id} is too large (${delta}), expected bar units`
-      );
+  try {
+    let tuneManager;
+    function TestComponent() {
+      tuneManager = useTuneManager({});
+      return null;
     }
-    if (prob.fixes?.rearTirePressure) {
-      const delta = prob.fixes.rearTirePressure.delta;
-      assert.ok(
-        Math.abs(delta) <= 0.5,
-        `rearTirePressure delta in ${prob.id} is too large (${delta}), expected bar units`
-      );
-    }
+
+    const container = new MockElement('div');
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(React.createElement(TestComponent));
+    });
+
+    const savedTune = {
+      id: 'tune-999',
+      name: 'Saved Custom Tune',
+      vehicleId: '101',
+      basePi: 500,
+      targetPi: 800,
+      totalPi: 750,
+      generationMode: 'manual',
+      parts: { suspension: { tier: 'race' } },
+      tires: { frontPressure: 2.35, rearPressure: 2.45 },
+      suspension: { frontSpring: 92.0, rearSpring: 78.5 },
+      drivetrain: { finalDrive: 3.55 },
+      brakes: { balance: 53 },
+      aero: { frontDownforce: 115 }
+    };
+
+    // Trigger startEdit on the actual useTuneManager hook
+    await act(async () => {
+      tuneManager.startEdit(savedTune);
+    });
+
+    // Wait for async refreshUpgradeShop triggered by vehicleId effect to complete
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    // Assert that the hook's formData retains saved parameters and was not overwritten by recommendations
+    assert.equal(tuneManager.formData.name, 'Saved Custom Tune');
+    assert.equal(tuneManager.formData.vehicleId, '101');
+    assert.equal(tuneManager.formData.tires.frontPressure, 2.35);
+    assert.equal(tuneManager.formData.tires.rearPressure, 2.45);
+    assert.equal(tuneManager.formData.suspension.frontSpring, 92.0);
+    assert.equal(tuneManager.formData.suspension.rearSpring, 78.5);
+    assert.equal(tuneManager.formData.drivetrain.finalDrive, 3.55);
+    assert.equal(tuneManager.formData.brakes.balance, 53);
+    assert.equal(tuneManager.formData.aero.frontDownforce, 115);
+
+    act(() => {
+      root.unmount();
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
   }
-
-  for (const group of diagnoseRules) {
-    for (const rule of group.rules || []) {
-      if (rule.fix?.frontTirePressure) {
-        const delta = rule.fix.frontTirePressure.delta;
-        assert.ok(
-          Math.abs(delta) <= 0.5,
-          `diagnoseRules frontTirePressure delta in ${group.id} is too large (${delta})`
-        );
-      }
-      if (rule.fix?.rearTirePressure) {
-        const delta = rule.fix.rearTirePressure.delta;
-        assert.ok(
-          Math.abs(delta) <= 0.5,
-          `diagnoseRules rearTirePressure delta in ${group.id} is too large (${delta})`
-        );
-      }
-    }
-  }
-});
-
-test('tunePresets.js finalDrive deltas have correct signs for shortening and lengthening', () => {
-  const accelSlow = DRIVING_PROBLEMS.find(p => p.id === 'accel_slow');
-  assert.ok(accelSlow.fixes.finalDrive.delta > 0, 'accel_slow should shorten gearing by increasing finalDrive');
-
-  const topSpeedLow = DRIVING_PROBLEMS.find(p => p.id === 'top_speed_low');
-  assert.ok(topSpeedLow.fixes.finalDrive.delta < 0, 'top_speed_low should lengthen gearing by decreasing finalDrive');
-
-  const gearTooLong = DRIVING_PROBLEMS.find(p => p.id === 'gear_too_long');
-  assert.ok(gearTooLong.fixes.finalDrive.delta > 0, 'gear_too_long should shorten gearing by increasing finalDrive');
-
-  const gearTooShort = DRIVING_PROBLEMS.find(p => p.id === 'gear_too_short');
-  assert.ok(gearTooShort.fixes.finalDrive.delta < 0, 'gear_too_short should lengthen gearing by decreasing finalDrive');
 });

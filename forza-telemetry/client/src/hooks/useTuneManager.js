@@ -18,119 +18,6 @@ import {
   isPiClassCap,
   nextPiClassCap
 } from '../utils/tuneForm.js'
-
-export const SHARE_CODE_VERSION = 2
-
-export const uint8ToBase64Util = (bytes) => {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return btoa(binary)
-}
-
-export const base64ToUint8Util = (base64) => {
-  const cleanBase64 = String(base64 || '').replace(/[^A-Za-z0-9+/=]/g, '')
-  const binary = atob(cleanBase64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-export const simpleChecksumUtil = (str) => {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + c
-    hash |= 0
-  }
-  return Math.abs(hash) % 1000
-}
-
-export const generateShareCodeUtil = (tune) => {
-  const compact = {
-    v: SHARE_CODE_VERSION,
-    n: tune.name,
-    vid: tune.vehicleId,
-    t: tune.tires,
-    s: tune.suspension,
-    d: tune.drivetrain,
-    b: tune.brakes,
-    a: tune.aero,
-    p: tune.parts
-  }
-  try {
-    const jsonStr = JSON.stringify(compact)
-    const encoder = new TextEncoder()
-    const bytes = encoder.encode(jsonStr)
-    const cs = simpleChecksumUtil(jsonStr)
-    return uint8ToBase64Util(bytes) + '.' + String(cs).padStart(3, '0')
-  } catch (e) {
-    return null
-  }
-}
-
-export const parseShareCodeUtil = (code) => {
-  try {
-    const parts = code.trim().split('.')
-    const base64Part = parts[0]
-    const checksum = parts.length > 1 ? parseInt(parts[1], 10) : null
-
-    const bytes = base64ToUint8Util(base64Part)
-    const decoder = new TextDecoder()
-    const jsonStr = decoder.decode(bytes)
-    const decoded = JSON.parse(jsonStr)
-
-    if (checksum !== null) {
-      const expectedCs = simpleChecksumUtil(jsonStr)
-      if (expectedCs !== checksum) {
-        return { error: '分享码校验失败，可能复制不完整，请重新复制' }
-      }
-    }
-
-    const version = decoded.v || 1
-    if (version > SHARE_CODE_VERSION) {
-      return { error: `分享码版本 v${version} 高于当前支持的 v${SHARE_CODE_VERSION}，请更新软件` }
-    }
-
-    return {
-      name: decoded.n || '导入的调校',
-      tags: [],
-      vehicleId: decoded.vid || decoded.carOrdinal || '',
-      tires: decoded.t || {},
-      suspension: decoded.s || {},
-      drivetrain: decoded.d || {},
-      brakes: decoded.b || {},
-      aero: decoded.a || {},
-      parts: decoded.p || {}
-    }
-  } catch (e) {
-    return { error: '分享码格式无效，请检查后重试' }
-  }
-}
-
-export function createTuneExportPayload(tune) {
-  return {
-    version: 3,
-    exportedAt: new Date().toISOString(),
-    generator: 'forza-telemetry-tune-export',
-    compatibility: 'v1,v2,v3',
-    tune: {
-      name: tune.name,
-      tags: tune.tags || [],
-      vehicleId: tune.vehicleId,
-      tires: tune.tires,
-      suspension: tune.suspension,
-      drivetrain: tune.drivetrain,
-      brakes: tune.brakes,
-      aero: tune.aero,
-      parts: tune.parts
-    }
-  }
-}
-
 export function resolveEffectiveDriveType(parts, aiDrive, shop, vehicle) {
   const swap = parts?.drivetrain_swap?.optionId?.toLowerCase()
   if (swap && ['fwd', 'rwd', 'awd'].includes(swap)) return swap
@@ -348,27 +235,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
         }
       }
 
-      // 改装配件或能力变更后，自动实时更新参数推荐
-      if (resolved?.tuneParameters?.length) {
-        const mergedShop = {
-          ...resolved,
-          targetPi: targetPi || basePi || resolved.targetPi || resolved.basePi,
-          parts: resolved.effectiveSelections || parts,
-          capabilities: tuningCapabilities || resolved.capabilities,
-          effectiveDriveType: driveType || resolved.effectiveDriveType || resolved.baseDriveType
-        }
-        const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
-        if (recommended) {
-          setFormData(prev => ({
-            ...prev,
-            tires: { ...prev.tires, ...recommended.tires },
-            suspension: { ...prev.suspension, ...recommended.suspension },
-            drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
-            brakes: { ...prev.brakes, ...recommended.brakes },
-            aero: { ...prev.aero, ...recommended.aero }
-          }))
-        }
-      }
     } catch (_) {
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop({ status: 'unverified', message: '无法读取该车辆的改装资料。', slots: [], tuneParameters: [] })
@@ -597,88 +463,151 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
 
 
-  const saveTune = async () => {
-    if (!formData.name.trim()) {
-      alert('请输入调校名称')
+  const saveTune = async (overrideData = null) => {
+    const isOverride = Boolean(overrideData)
+    const data = isOverride ? overrideData : formData
+    const name = (data.name || '').trim()
+
+    if (!name) {
+      const msg = '请输入调校名称'
+      if (isOverride) throw new Error(msg)
+      alert(msg)
       return
     }
 
-    if (!formData.vehicleId) {
-      alert('请先选择一辆车辆。')
+    if (!data.vehicleId) {
+      const msg = '请先选择一辆车辆。'
+      if (isOverride) throw new Error(msg)
+      alert(msg)
       return
     }
 
-    if (buildMode === 'capability' && solutionPi === null) {
-      alert('自动调教需要当前车辆在游戏内显示的实际 PI。')
-      return
-    }
-
-    try {
-      await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
-    } catch (e) {
-      alert(e.message || '所选改装件不适用于当前车辆。');
-      return;
-    }
-
-    const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
-    if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
-      alert('方案 PI 必须是 100 到 999 之间的整数。')
-      return
-    }
-
-    const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
-      const constraint = tuneConstraints[`${category}.${field}`]
-      if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
-      let value = Number(raw)
-      if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
-        value *= 0.0689476
+    if (!isOverride) {
+      if (buildMode === 'capability' && solutionPi === null) {
+        alert('自动调教需要当前车辆在游戏内显示的实际 PI。')
+        return
       }
-      const step = Number(constraint.step)
-      if (step > 0) value = constraint.min + Math.round((value - constraint.min) / step) * step
-      value = Math.min(constraint.max, Math.max(constraint.min, value))
-      return [field, Number(value.toFixed(6))]
-    }))
-    const normalizedTune = {
-      tires: normalizeGroup('tires', formData.tires),
-      suspension: normalizeGroup('suspension', formData.suspension),
-      drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
-      brakes: normalizeGroup('brakes', formData.brakes),
-      aero: normalizeGroup('aero', formData.aero)
-    }
-    setFormData(prev => ({ ...prev, ...normalizedTune }))
 
-    const payload = {
-      name: formData.name.trim(),
-      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-      vehicleId: formData.vehicleId || null,
-      basePi,
-      targetPi: buildMode === 'ai' ? targetPi : null,
-      totalPi: confirmedPi,
-      piConfirmed: solutionPi !== null,
-      generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
-      raceType: buildMode === 'ai' ? aiRaceType : null,
-      segmentType: buildMode === 'ai' ? segmentType : null,
-      driveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]),
-      ...normalizedTune,
-      parts: { ...formData.parts },
-      tuningCapabilities: formData.tuningCapabilities,
-      freeMode: !!formData.freeMode,
-      notes: formData.notes || ''
-    }
-
-    setLoading(true)
-    try {
-      if (editingTune) {
-        await api.tunes.update(editingTune, payload);
-      } else {
-        await api.tunes.create(payload);
+      try {
+        await api.vehicles.validateUpgrades(formData.vehicleId, { parts: formData.parts });
+      } catch (e) {
+        alert(e.message || '所选改装件不适用于当前车辆。');
+        return;
       }
-      await loadTunes()
-      closeModal()
-    } catch (e) { /* 保存调校失败 */
-      alert(`保存失败：${e.message}`)
-    } finally {
-      setLoading(false)
+
+      const confirmedPi = Number(solutionPi === null ? totalPi : solutionPi)
+      if (!Number.isInteger(confirmedPi) || confirmedPi < 100 || confirmedPi > 999) {
+        alert('方案 PI 必须是 100 到 999 之间的整数。')
+        return
+      }
+
+      const normalizeGroup = (category, values) => Object.fromEntries(Object.entries(values || {}).map(([field, raw]) => {
+        const constraint = tuneConstraints[`${category}.${field}`]
+        if (raw === '' || raw === null || raw === undefined || !constraint || constraint.locked || !Number.isFinite(Number(raw))) return [field, raw]
+        let value = Number(raw)
+        if (category === 'tires' && (field === 'frontPressure' || field === 'rearPressure') && value > constraint.max * 2) {
+          value *= 0.0689476
+        }
+        const step = Number(constraint.step)
+        if (step > 0) value = constraint.min + Math.round((value - constraint.min) / step) * step
+        value = Math.min(constraint.max, Math.max(constraint.min, value))
+        return [field, Number(value.toFixed(6))]
+      }))
+      const normalizedTune = {
+        tires: normalizeGroup('tires', formData.tires),
+        suspension: normalizeGroup('suspension', formData.suspension),
+        drivetrain: normalizeGroup('drivetrain', formData.drivetrain),
+        brakes: normalizeGroup('brakes', formData.brakes),
+        aero: normalizeGroup('aero', formData.aero)
+      }
+      setFormData(prev => ({ ...prev, ...normalizedTune }))
+
+      const payload = {
+        name: formData.name.trim(),
+        tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : (Array.isArray(formData.tags) ? formData.tags : []),
+        vehicleId: formData.vehicleId || null,
+        basePi,
+        targetPi: buildMode === 'ai' ? targetPi : null,
+        totalPi: confirmedPi,
+        piConfirmed: solutionPi !== null,
+        generationMode: buildMode === 'capability' ? 'assisted' : (buildMode === 'ai' ? 'ai' : 'manual'),
+        raceType: buildMode === 'ai' ? aiRaceType : null,
+        segmentType: buildMode === 'ai' ? segmentType : null,
+        driveType: resolveEffectiveDriveType(formData.parts, aiDriveType, upgradeShop, vehicles[formData.vehicleId]),
+        ...normalizedTune,
+        parts: { ...formData.parts },
+        tuningCapabilities: formData.tuningCapabilities,
+        freeMode: !!formData.freeMode,
+        notes: formData.notes || ''
+      }
+
+      setLoading(true)
+      try {
+        let res
+        if (editingTune) {
+          res = await api.tunes.update(editingTune, payload);
+        } else {
+          res = await api.tunes.create(payload);
+        }
+        await loadTunes()
+        closeModal()
+        return res
+      } catch (e) { /* 保存调校失败 */
+        alert(`保存失败：${e.message}`)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      const targetId = overrideData.id || overrideData.tuneId
+      const parsedTags = Array.isArray(overrideData.tags)
+        ? overrideData.tags
+        : (typeof overrideData.tags === 'string'
+            ? overrideData.tags.split(',').map(t => t.trim()).filter(Boolean)
+            : [])
+
+      const rawDriveType = overrideData.driveType || overrideData.parts?.drivetrain_swap?.optionId || null
+      const validDriveType = ['fwd', 'rwd', 'awd'].includes(rawDriveType?.toLowerCase()) ? rawDriveType.toLowerCase() : null
+
+      const payload = {
+        name,
+        description: overrideData.description || '',
+        tags: parsedTags,
+        vehicleId: overrideData.vehicleId || null,
+        carOrdinal: overrideData.carOrdinal || overrideData.vehicleId || null,
+        basePi: overrideData.basePi || null,
+        targetPi: overrideData.targetPi || null,
+        totalPi: Number.isFinite(Number(overrideData.totalPi)) ? Number(overrideData.totalPi) : null,
+        piConfirmed: overrideData.piConfirmed === true,
+        generationMode: overrideData.generationMode || 'manual',
+        raceType: overrideData.raceType || null,
+        segmentType: overrideData.segmentType || null,
+        driveType: validDriveType,
+        tires: overrideData.tires || null,
+        suspension: overrideData.suspension || null,
+        drivetrain: overrideData.drivetrain || null,
+        brakes: overrideData.brakes || null,
+        aero: overrideData.aero || null,
+        parts: overrideData.parts || {},
+        tuningCapabilities: overrideData.tuningCapabilities || null,
+        freeMode: !!overrideData.freeMode,
+        notes: overrideData.notes || ''
+      }
+
+      setLoading(true)
+      try {
+        let res
+        if (targetId) {
+          res = await api.tunes.update(targetId, payload)
+        } else {
+          res = await api.tunes.create(payload)
+        }
+        await loadTunes()
+        return res
+      } catch (e) {
+        throw e
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -1392,7 +1321,22 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   // 导出调校为JSON文件
   const exportTune = (tune) => {
-    const payload = createTuneExportPayload(tune)
+    const payload = {
+      version: 3,  // Round 4: 升级版本号到3
+      exportedAt: new Date().toISOString(),
+      generator: 'forza-telemetry-tune-export',
+      compatibility: 'v1,v2,v3',
+      tune: {
+        name: tune.name,
+        tags: tune.tags || [],
+        vehicleId: tune.vehicleId,
+        tires: tune.tires,
+        suspension: tune.suspension,
+        drivetrain: tune.drivetrain,
+        aero: tune.aero,
+        parts: tune.parts
+      }
+    }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1403,11 +1347,100 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   // Round 4: 分享码工具函数（TextEncoder支持中文）
-  const uint8ToBase64 = uint8ToBase64Util
-  const base64ToUint8 = base64ToUint8Util
-  const simpleChecksum = simpleChecksumUtil
-  const generateShareCode = generateShareCodeUtil
-  const parseShareCode = parseShareCodeUtil
+  const SHARE_CODE_VERSION = 2
+  const uint8ToBase64 = (bytes) => {
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return btoa(binary)
+  }
+  const base64ToUint8 = (base64) => {
+    const cleanBase64 = String(base64 || '').replace(/[^A-Za-z0-9+/=]/g, '')
+    const binary = atob(cleanBase64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return bytes
+  }
+  const simpleChecksum = (str) => {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + c
+      hash |= 0
+    }
+    return Math.abs(hash) % 1000
+  }
+
+  // 生成分享码（TextEncoder编码 + 校验和）
+  const generateShareCode = (tune) => {
+    const compact = {
+      v: SHARE_CODE_VERSION,
+      n: tune.name,
+      vid: tune.vehicleId,
+      t: tune.tires,
+      s: tune.suspension,
+      d: tune.drivetrain,
+      a: tune.aero,
+      p: tune.parts
+    }
+    try {
+      const jsonStr = JSON.stringify(compact)
+      const encoder = new TextEncoder()
+      const bytes = encoder.encode(jsonStr)
+      // 校验和：对原始JSON字符串计算
+      const cs = simpleChecksum(jsonStr)
+      // 格式: base64(payload) + '.' + 3位校验和
+      return uint8ToBase64(bytes) + '.' + String(cs).padStart(3, '0')
+    } catch (e) {
+      return null
+    }
+  }
+
+  // 解析分享码（含校验和验证）
+  const parseShareCode = (code) => {
+    try {
+      const parts = code.trim().split('.')
+      const base64Part = parts[0]
+      const checksum = parts.length > 1 ? parseInt(parts[1], 10) : null
+
+      const bytes = base64ToUint8(base64Part)
+      const decoder = new TextDecoder()
+      const jsonStr = decoder.decode(bytes)
+      const decoded = JSON.parse(jsonStr)
+
+      // 校验和验证
+      if (checksum !== null) {
+        const expectedCs = simpleChecksum(jsonStr)
+        if (expectedCs !== checksum) {
+          return { error: '分享码校验失败，可能复制不完整，请重新复制' }
+        }
+      }
+
+      // 版本兼容性检查
+      const version = decoded.v || 1
+      if (version > SHARE_CODE_VERSION) {
+        return { error: `分享码版本 v${version} 高于当前支持的 v${SHARE_CODE_VERSION}，请更新软件` }
+      }
+
+      return {
+        name: decoded.n || '导入的调校',
+        tags: [],
+        // B06：`v` 是分享码协议版本号（通常为 1），严禁当作车型 ID 兜底；
+        // 旧码没有 vid 时保留空车型，由用户手动选择。
+        vehicleId: decoded.vid || decoded.carOrdinal || '',
+        tires: decoded.t || {},
+        suspension: decoded.s || {},
+        drivetrain: decoded.d || {},
+        aero: decoded.a || {},
+        parts: decoded.p || {}
+      }
+    } catch (e) {
+      return { error: '分享码格式无效，请检查后重试' }
+    }
+  }
 
   // 从文件导入调校
   const handleImportFile = async (e) => {
