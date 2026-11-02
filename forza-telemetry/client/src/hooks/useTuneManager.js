@@ -18,7 +18,6 @@ import {
   isPiClassCap,
   nextPiClassCap
 } from '../utils/tuneForm.js'
-
 export function resolveEffectiveDriveType(parts, aiDrive, shop, vehicle) {
   const swap = parts?.drivetrain_swap?.optionId?.toLowerCase()
   if (swap && ['fwd', 'rwd', 'awd'].includes(swap)) return swap
@@ -236,27 +235,6 @@ export function useTuneManager({ onNavigate, navIntent }) {
         }
       }
 
-      // 改装配件或能力变更后，自动实时更新参数推荐
-      if (resolved?.tuneParameters?.length) {
-        const mergedShop = {
-          ...resolved,
-          targetPi: targetPi || basePi || resolved.targetPi || resolved.basePi,
-          parts: resolved.effectiveSelections || parts,
-          capabilities: tuningCapabilities || resolved.capabilities,
-          effectiveDriveType: driveType || resolved.effectiveDriveType || resolved.baseDriveType
-        }
-        const recommended = getInitialParameterRecommendations(mergedShop, aiRaceType, segmentType)
-        if (recommended) {
-          setFormData(prev => ({
-            ...prev,
-            tires: { ...prev.tires, ...recommended.tires },
-            suspension: { ...prev.suspension, ...recommended.suspension },
-            drivetrain: { ...prev.drivetrain, ...recommended.drivetrain },
-            brakes: { ...prev.brakes, ...recommended.brakes },
-            aero: { ...prev.aero, ...recommended.aero }
-          }))
-        }
-      }
     } catch (_) {
       if (requestId !== upgradeRequestRef.current) return
       setUpgradeShop({ status: 'unverified', message: '无法读取该车辆的改装资料。', slots: [], tuneParameters: [] })
