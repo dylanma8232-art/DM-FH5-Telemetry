@@ -204,3 +204,65 @@
 - forza-telemetry/server/src/storage/save-worker.js
 - forza-telemetry/server/src/storage/sqlite-db.js
 - forza-telemetry/server/test/sqlite-save-failure.test.js
+
+## 2026-11-02 09:19 迭代
+
+- **PR**：52 Fix rewind lap detection and TrackMaps heatmap channels
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/52
+- **改动文件**：
+- forza-telemetry/client/src/components/pages/session/TrackMaps.jsx
+- forza-telemetry/client/test/trackMapsHeatmap.test.js
+- forza-telemetry/client/test/tuneManager.test.js
+- forza-telemetry/server/src/routes/record.js
+- forza-telemetry/server/test/record-rewind.test.js
+
+## 2026-11-02 09:29 迭代
+
+- **PR**：43 Fix circle-center fitting denominator and best lap alignment
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/43
+- **改动文件**：
+- forza-telemetry/server/src/services/physics/scoring.js
+- forza-telemetry/server/src/services/track/track-math.js
+- forza-telemetry/server/test/track-math-scoring.test.js
+
+## 2026-11-02 09:30 迭代
+
+- **PR**：44 修复 DashScope API Key 接口未鉴权越权修改与换行注入
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/44
+- **改动文件**：
+- forza-telemetry/server/src/routes/system.js
+- forza-telemetry/server/test/settings-dashscope.test.js
+
+## 2026-11-02 09:32 迭代
+
+- **PR**：45 Fix SessionStore SQLite cleanup and routes summary cache usage
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/45
+- **改动文件**：
+- forza-telemetry/server/src/routes/leaderboard.js
+- forza-telemetry/server/src/routes/tunes.js
+- forza-telemetry/server/src/storage/session-store.js
+- forza-telemetry/server/test/leaderboard-and-tunes-cache.test.js
+- forza-telemetry/server/test/session-store.test.js
+
+## 2026-11-02 09:34 迭代
+
+- **PR**：46 修复闭合赛道路书连贯播报死循环与预览画布缓存失效
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/46
+- **改动文件**：
+- forza-telemetry/client/src/components/dashboard/PaceNotesPanel.jsx
+- forza-telemetry/client/src/components/pages/TrackManagerPage.jsx
+- forza-telemetry/client/src/components/pages/session/TrackMaps.jsx
+- forza-telemetry/client/test/paceNotesCascade.test.js
+- forza-telemetry/client/test/trackMapCacheKey.test.js
+
+## 2026-11-02 09:38 迭代
+
+- **PR**：48 fix: 修复调校刹车导出遗漏与预设推荐胎压传动比数值正负号
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/48
+- **改动文件**：
+- CODEMAP.md
+- forza-telemetry/client/src/components/pages/SessionHistoryPage.jsx
+- forza-telemetry/client/src/components/pages/session/SessionChartsPanel.jsx
+- forza-telemetry/client/src/components/pages/tune/TuneShareModal.jsx
+- forza-telemetry/client/src/data/diagnoseRules.json
+- forza-telemetry/client/src/data/tunePresets.js

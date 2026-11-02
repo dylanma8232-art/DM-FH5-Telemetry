@@ -130,8 +130,12 @@ export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlight
       pts = sampled;
     }
 
-    // 采样后的静态线（路面 + 中心线）与热力段构建 Path2D，几何/缩放窗口不变时跨渲染复用
-    const cacheKey = `${drawPositions.length}|${w}x${h}|${hasActiveZoom ? `${activePt.x},${activePt.z}` : 'full'}|${channelsData?.channels?.length || 0}|${pts.length}`;
+    // 采样后的静态线（路面 + 中心线）与热力段构建 Path2D，几何/缩放窗口不变时跨渲染复用。
+    // 纳入赛道标识、采样点几何签名与投影范围，赛道切换或视口变动时正确失效。
+    const midIdx = Math.floor(drawPositions.length / 2);
+    const geomSig = `${drawPositions[0]?.x?.toFixed(1)},${drawPositions[0]?.z?.toFixed(1)}_${drawPositions[midIdx]?.x?.toFixed(1)},${drawPositions[midIdx]?.z?.toFixed(1)}_${drawPositions[drawPositions.length - 1]?.x?.toFixed(1)},${drawPositions[drawPositions.length - 1]?.z?.toFixed(1)}`;
+    const boundsKey = `${minX.toFixed(2)},${maxX.toFixed(2)},${minZ.toFixed(2)},${maxZ.toFixed(2)}|${sc.toFixed(4)},${ox.toFixed(2)},${oz.toFixed(2)}`;
+    const cacheKey = `${trackId || ''}|${drawPositions.length}|${w}x${h}|${boundsKey}|${geomSig}|${hasActiveZoom ? `${activePt.x},${activePt.z}` : 'full'}|${channelsData?.channels?.length || 0}|${pts.length}`;
     if (staticPathsRef.current?.key !== cacheKey) {
       const roadPath = new Path2D();
       pts.forEach((p, i) => {
@@ -156,22 +160,26 @@ export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlight
           const currPt = { x: cx, y: cz };
 
           if (prevPt) {
-            // 锁死 (刹车>100 且 任意轮胎滑移<-0.15)
-            const isLockup = c.brake > 100 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
+            // 锁死 (刹车>40 且 任意轮胎滑移<-0.15)
+            const isLockup = (c.brake || 0) > 40 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
             if (isLockup) {
               lockupPath.moveTo(prevPt.x, prevPt.y);
               lockupPath.lineTo(currPt.x, currPt.y);
             }
 
-            // 打滑 (油门>100 且 任意轮胎滑移>0.15)
-            const isSlip = c.accel > 100 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
+            // 打滑 (油门>40 且 任意轮胎滑移>0.15)
+            const isSlip = (c.throttle || 0) > 40 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
             if (isSlip) {
               slipPath.moveTo(prevPt.x, prevPt.y);
               slipPath.lineTo(currPt.x, currPt.y);
             }
 
             // 托底 (归一化悬挂行程<0.05)
-            const isBottoming = c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05;
+            const suspFL = c.suspensionNormFL ?? c.suspFL ?? 1.0;
+            const suspFR = c.suspensionNormFR ?? c.suspFR ?? 1.0;
+            const suspRL = c.suspensionNormRL ?? c.suspRL ?? 1.0;
+            const suspRR = c.suspensionNormRR ?? c.suspRR ?? 1.0;
+            const isBottoming = suspFL < 0.05 || suspFR < 0.05 || suspRL < 0.05 || suspRR < 0.05;
             if (isBottoming) {
               bottomingPath.moveTo(prevPt.x, prevPt.y);
               bottomingPath.lineTo(currPt.x, currPt.y);

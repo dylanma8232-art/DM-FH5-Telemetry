@@ -916,9 +916,18 @@ export const TrackManagerPage = React.memo(function TrackManagerPage({ onNavigat
       };
     }
 
-    // 静态层 Path2D 缓存：仅当几何/画布尺寸/弯道边界变化时重建
+    // 静态层 Path2D 缓存：纳入几何唯一标识/版本、采样点签名、投影范围及弯道边界，
+    // 避免赛道切换时因点数或弯道范围相同而错误复用旧路网 Path2D。
     const turns = track.turns || [];
-    const cacheKey = `${points.length}|${canvas.width}x${canvas.height}|${candidatePoints ? candidatePoints.length : 0}|${turns.map(t => `${t.startIdx}-${t.endIdx}`).join(',')}`;
+    const trackIdKey = track.id || selectedTrack || '';
+    const trackVerKey = track.version || track.updatedAt || track.lastModified || '';
+    const boundsKey = `${minX.toFixed(2)},${maxX.toFixed(2)},${minZ.toFixed(2)},${maxZ.toFixed(2)}|${sc.toFixed(4)},${ox.toFixed(2)},${oz.toFixed(2)}`;
+    const midIdx = Math.floor(points.length / 2);
+    const geomSig = `${points[0]?.x?.toFixed(1)},${points[0]?.z?.toFixed(1)}_${points[midIdx]?.x?.toFixed(1)},${points[midIdx]?.z?.toFixed(1)}_${points[points.length - 1]?.x?.toFixed(1)},${points[points.length - 1]?.z?.toFixed(1)}`;
+    const candSig = candidatePoints ? `${candidatePoints.length}_${candidatePoints[0]?.x?.toFixed(1)},${candidatePoints[candidatePoints.length - 1]?.z?.toFixed(1)}` : 'none';
+    const turnsKey = turns.map(t => `${t.startIdx}-${t.endIdx}`).join(',');
+    const cacheKey = `${trackIdKey}|${trackVerKey}|${isLoop}|${points.length}|${canvas.width}x${canvas.height}|${boundsKey}|${geomSig}|${candSig}|${turnsKey}`;
+
     if (staticPathsRef.current?.key !== cacheKey) {
       staticPathsRef.current = {
         key: cacheKey,
