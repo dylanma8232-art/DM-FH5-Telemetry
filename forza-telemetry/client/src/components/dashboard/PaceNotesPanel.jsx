@@ -24,6 +24,38 @@ export const SPEECH_LOOKAHEAD_SECONDS = 3.5;
 /** 复合弯合并阈值（米）：相邻两弯直道距离小于此值时合并为一句连贯播报 */
 export const SPEECH_CASCADE_GAP_METERS = 120;
 
+/**
+ * 计算连贯播报级联弯道索引与附加文本。
+ * 限制遍历至单圈上限并记录已访问弯道，避免闭合环形赛道死循环。
+ */
+export function getCascadedTurnIndices(turnNotes, startIdx, isLoop, maxGap = SPEECH_CASCADE_GAP_METERS) {
+  if (!turnNotes || turnNotes.length <= 1 || startIdx < 0 || startIdx >= turnNotes.length) {
+    return [];
+  }
+  const cascadeIdxs = [];
+  const visited = new Set([startIdx]);
+  let cursor = startIdx;
+
+  while (visited.size < turnNotes.length) {
+    const cascadeNextIdx = (cursor + 1) % turnNotes.length;
+    if (visited.has(cascadeNextIdx)) break;
+
+    const currNote = turnNotes[cursor];
+    const cascadeNext = turnNotes[cascadeNextIdx];
+    if (
+      !cascadeNext ||
+      currNote.distanceToNext >= maxGap ||
+      (!isLoop && cascadeNextIdx <= cursor)
+    ) break;
+
+    visited.add(cascadeNextIdx);
+    cascadeIdxs.push(cascadeNextIdx);
+    cursor = cascadeNextIdx;
+  }
+
+  return cascadeIdxs;
+}
+
 // ==================== 工具函数 ====================
 
 /** 推荐速度 -> 推荐档位（与 TurnWarningHUD 保持一致） */
@@ -757,20 +789,10 @@ export function PaceNotesPanel({
 
           // 复合弯连贯播报：链式合并所有与前一弯直道距离不足 120 米的后续弯，
           // 连续弯不再逐句抢播，合并为“左3，接右4，接左2”一句连贯播完。
-          const cascadeIdxs = [];
-          let cursor = nextUnspokenIdx;
-          while (true) {
-            const cascadeNextIdx = (cursor + 1) % turnNotes.length;
-            const currNote = turnNotes[cursor];
-            const cascadeNext = turnNotes[cascadeNextIdx];
-            if (
-              !cascadeNext ||
-              currNote.distanceToNext >= SPEECH_CASCADE_GAP_METERS ||
-              (!trackData.isLoop && cascadeNextIdx <= cursor)
-            ) break;
-            text += `，接${getWrcLabel(cascadeNext)}`;
-            cascadeIdxs.push(cascadeNextIdx);
-            cursor = cascadeNextIdx;
+          // 限制遍历至单圈上限并记录已访问弯道，避免闭合环形赛道死循环。
+          const cascadeIdxs = getCascadedTurnIndices(turnNotes, nextUnspokenIdx, trackData.isLoop === true);
+          for (const cascadeNextIdx of cascadeIdxs) {
+            text += `，接${getWrcLabel(turnNotes[cascadeNextIdx])}`;
           }
 
           // 地形与坡度描述
