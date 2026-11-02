@@ -76,7 +76,12 @@ test('备份导出包含 telemetry.db 且恢复后能正常从 SQLite 读取会�
   const restoreRoute = systemRouter.stack.find(layer => layer.route && layer.route.path === '/backup/restore' && layer.route.methods.post);
   assert.ok(restoreRoute, 'POST /backup/restore 路由已注册');
 
-  const restoreReq = { method: 'POST', originalUrl: '/backup/restore', body: exportedBuffer };
+  const restoreReq = {
+    method: 'POST',
+    originalUrl: '/backup/restore',
+    headers: { 'content-type': 'application/gzip' },
+    body: exportedBuffer
+  };
   let restoreResult = null;
 
   await new Promise((resolve) => {
