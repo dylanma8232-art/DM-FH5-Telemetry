@@ -33,8 +33,8 @@ export const DRIVING_PROBLEMS = [
     description: '入弯时车头不肯转，推头明显',
     symptoms: '弯道中需要多打方向盘才能过弯，前轮抓地力不足',
     fixes: {
-      frontTirePressure: { delta: -2, reason: '降低前胎压增加接地面积，提升前轮弯道抓地力' },
-      rearTirePressure: { delta: 1, reason: '适当提高后胎压，减少后轮抓地力以平衡前后' },
+      frontTirePressure: { delta: -0.2, reason: '降低前胎压增加接地面积，提升前轮弯道抓地力' },
+      rearTirePressure: { delta: 0.1, reason: '适当提高后胎压，减少后轮抓地力以平衡前后' },
       frontCamber: { delta: -0.5, reason: '增加前轮负外倾角，增强弯道中前轮接地面积' },
       frontARB: { delta: -3, reason: '减小前防倾杆硬度，让前轮在弯道中更灵活接地' },
       frontSpring: { delta: -1, reason: '稍微降低前弹簧硬度，增加前轮载荷转移' },
@@ -65,8 +65,8 @@ export const DRIVING_PROBLEMS = [
     description: '入弯时车尾外甩',
     symptoms: '入弯瞬间车尾突然失去抓地力向外滑出',
     fixes: {
-      rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积，提升后轮抓地力' },
-      frontTirePressure: { delta: 1, reason: '适当提高前胎压，增加前轮响应速度' },
+      rearTirePressure: { delta: -0.2, reason: '降低后胎压增加接地面积，提升后轮抓地力' },
+      frontTirePressure: { delta: 0.1, reason: '适当提高前胎压，增加前轮响应速度' },
       rearCamber: { delta: 0.3, reason: '减小后轮负外倾角(趋于0)，提升直线/入弯时的后轮抓地' },
       rearARB: { delta: -3, reason: '减小后防倾杆，让后轮在入弯时保持更好的接地' },
       rearSpring: { delta: -1, reason: '适当降低后弹簧硬度，改善入弯载荷转移' },
@@ -84,7 +84,7 @@ export const DRIVING_PROBLEMS = [
       diffAccel: { delta: 10, reason: '提高加速差速锁，增加内轮扭矩传递减少出弯打滑' },
       rearSpring: { delta: 2, reason: '增加后弹簧硬度，减少出弯加油时的后部下蹲' },
       rearARB: { delta: 2, reason: '增加后防倾杆，抑制出弯时后部侧倾引起的甩尾' },
-      rearTirePressure: { delta: -1, reason: '降低后胎压增加出弯时后轮接地面积' },
+      rearTirePressure: { delta: -0.1, reason: '降低后胎压增加出弯时后轮接地面积' },
       rearDamping: { delta: 1, reason: '增加后阻尼回弹速度，更快稳定出弯车身姿态' }
     },
     requiresParts: ['sport_tires', 'sport_suspension', 'sport_diff']
@@ -97,7 +97,7 @@ export const DRIVING_PROBLEMS = [
     symptoms: '大油门输出超出后轮抓地极限，后轮空转甩尾',
     fixes: {
       diffAccel: { delta: 15, reason: '大幅提高加速差速锁，减少动力造成的内轮打滑' },
-      rearTirePressure: { delta: -2, reason: '降低后胎压，最大化后轮接地面积' },
+      rearTirePressure: { delta: -0.2, reason: '降低后胎压，最大化后轮接地面积' },
       rearSpring: { delta: 3, reason: '增加后弹簧硬度，减少大油门时后部下蹲带来的载荷变化' },
       rearDamping: { delta: 1.5, reason: '增加后回弹阻尼，更快抑制动力引起的车身摆动' },
       rearRideHeight: { delta: 1, reason: '适当抬高后部，改善加速时的重量转移分布' }
@@ -129,8 +129,8 @@ export const DRIVING_PROBLEMS = [
     symptoms: '重刹时轮胎突然抱死，方向盘失去控制力，刹车距离反而增加',
     fixes: {
       brakeBias: { delta: -3, reason: '将刹车偏置向前移，平衡前后刹车力度' },
-      frontTirePressure: { delta: -1, reason: '降低前胎压增加接触面积，减少锁死概率' },
-      rearTirePressure: { delta: -1, reason: '降低后胎压增加接触面积' },
+      frontTirePressure: { delta: -0.1, reason: '降低前胎压增加接触面积，减少锁死概率' },
+      rearTirePressure: { delta: -0.1, reason: '降低后胎压增加接触面积' },
       frontDamping: { delta: 1, reason: '增加前压缩阻尼，让刹车载荷转移更平滑' },
       rearSpring: { delta: 1, reason: '稍微增加后弹簧硬度，减少后部在刹车时过度抬起导致的载荷集中前轮' }
     },
@@ -228,8 +228,8 @@ export const DRIVING_PROBLEMS = [
     description: '加速/弯道中轮胎容易打滑',
     symptoms: '加速时轮胎空转，弯道中轮胎尖叫明显，整体抓地力感觉不够',
     fixes: {
-      frontTirePressure: { delta: -2, reason: '降低前胎压，增加接地面积提升抓地力' },
-      rearTirePressure: { delta: -2, reason: '降低后胎压，增加接地面积提升抓地力' },
+      frontTirePressure: { delta: -0.2, reason: '降低前胎压，增加接地面积提升抓地力' },
+      rearTirePressure: { delta: -0.2, reason: '降低后胎压，增加接地面积提升抓地力' },
       frontCamber: { delta: -0.3, reason: '微调前轮负外倾角，优化弯道接地面积' },
       rearCamber: { delta: -0.5, reason: '增加后轮负外倾角，改善后轮弯道抓地力' },
       frontARB: { delta: -2, reason: '减小前防倾杆，让前轮在颠簸路面保持接地' },
@@ -286,7 +286,7 @@ export const DRIVING_PROBLEMS = [
       rearARB: { delta: -3, reason: '减小后防倾杆，让后轮在突变工况下保持更渐进的滑动特性' },
       rearDamping: { delta: -1, reason: '减小后回弹阻尼，让后悬挂在突变时更柔和地响应' },
       rearSpring: { delta: -2, reason: '降低后弹簧硬度，增加后轮在突变时的容错空间' },
-      rearTirePressure: { delta: -2, reason: '降低后胎压增加接地面积，提供更多抓地裕量' }
+      rearTirePressure: { delta: -0.2, reason: '降低后胎压增加接地面积，提供更多抓地裕量' }
     },
     requiresParts: ['sport_tires', 'sport_suspension', 'sport_diff']
   },
@@ -300,8 +300,8 @@ export const DRIVING_PROBLEMS = [
     symptoms: '起步瞬间轮胎空转，动力无法有效传递到地面，起步加速慢',
     fixes: {
       diffAccel: { delta: 20, reason: '大幅提高加速差速锁，将扭矩更均匀地分配到左右轮' },
-      frontTirePressure: { delta: -2, reason: '降低前胎压增加起步接地面积（适用于前驱/四驱）' },
-      rearTirePressure: { delta: -2, reason: '降低后胎压增加起步接地面积（适用于后驱/四驱）' },
+      frontTirePressure: { delta: -0.2, reason: '降低前胎压增加起步接地面积（适用于前驱/四驱）' },
+      rearTirePressure: { delta: -0.2, reason: '降低后胎压增加起步接地面积（适用于后驱/四驱）' },
       rearSpring: { delta: 3, reason: '增加后弹簧硬度，减少起步时后部下蹲导致的载荷过度集中' },
       rearDamping: { delta: 1, reason: '增加后压缩阻尼，控制起步时的悬挂压缩速度' }
     },
@@ -314,7 +314,7 @@ export const DRIVING_PROBLEMS = [
     description: '油门踩到底加速慢',
     symptoms: '全油门加速时感觉动力输出不足，加速G力低',
     fixes: {
-      finalDrive: { delta: -0.3, reason: '缩短最终传动比，提升每个档位的加速G力（牺牲尾速）' },
+      finalDrive: { delta: 0.3, reason: '缩短最终传动比，提升每个档位的加速G力（牺牲尾速）' },
       rearRideHeight: { delta: -1, reason: '降低后部高度，减少空气阻力提升加速效率' },
       frontRideHeight: { delta: -1, reason: '降低前部高度，减少迎风面积' },
       tireCompound: { delta: 1, reason: '更高等级轮胎提供更好的加速抓地力' }
@@ -331,7 +331,7 @@ export const DRIVING_PROBLEMS = [
     description: '直道尾速低于预期',
     symptoms: '长直道尾段速度不够高，被对手在直道超越',
     fixes: {
-      finalDrive: { delta: 0.3, reason: '加长最终传动比，降低各档转速让引擎在更高速域发力' },
+      finalDrive: { delta: -0.3, reason: '加长最终传动比，降低各档转速让引擎在更高速域发力' },
       rearDownforce: { delta: -10, reason: '减少后部下压力，降低高速空气阻力' },
       frontDownforce: { delta: -5, reason: '减少前部下压力，降低整体阻力' },
       frontRideHeight: { delta: 2, reason: '抬高前部，减少前部气流阻塞降低风阻' },
@@ -348,7 +348,7 @@ export const DRIVING_PROBLEMS = [
     description: '某档位加速区间太短就到红线',
     fixes: {
       gearAdjustment: { delta: 'shorten', reason: '该档位齿比过长(数值太小)，需要缩短齿比(增大数值)让加速区间更长' },
-      finalDrive: { delta: -0.2, reason: '配合缩短最终传动比，让每个档位在更合适的转速区间发力' }
+      finalDrive: { delta: 0.2, reason: '配合缩短最终传动比，让每个档位在更合适的转速区间发力' }
     },
     requiresParts: ['sport_trans'],
     upgradeAdvice: '需要跑车级或更高等级变速箱才能自定义齿比'
@@ -360,7 +360,7 @@ export const DRIVING_PROBLEMS = [
     description: '某档位到达红线时速度不够',
     fixes: {
       gearAdjustment: { delta: 'lengthen', reason: '该档位齿比过短(数值太大)，需要加长齿比(减小数值)让该档位能拉到更高速度' },
-      finalDrive: { delta: 0.2, reason: '配合加长最终传动比，让每个档位覆盖更宽的速度范围' }
+      finalDrive: { delta: -0.2, reason: '配合加长最终传动比，让每个档位覆盖更宽的速度范围' }
     },
     requiresParts: ['sport_trans'],
     upgradeAdvice: '需要跑车级或更高等级变速箱才能自定义齿比'
