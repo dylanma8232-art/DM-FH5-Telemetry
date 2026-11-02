@@ -62,7 +62,9 @@ jobs:
             BRANCH=$(printf '%s' "$PR_JSON" | jq -r '.head.ref')
             {
               echo "BODY<<AM_EOF"
-              printf '%s' "$BODY"
+              # printf 不带换行会让 AM_EOF 与正文末行拼到同一行，导致
+              # runner 报 "Matching delimiter not found"（实测 run 41411750638）。
+              printf '%s\n' "$BODY"
               echo "AM_EOF"
               echo "BRANCH=$BRANCH"
             } >> "$GITHUB_ENV"
