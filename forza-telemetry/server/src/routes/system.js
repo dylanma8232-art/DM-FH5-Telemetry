@@ -75,6 +75,17 @@ function writeDirRecursive(dir, data, baseDir = dir) {
   }
 }
 
+function isLocalAddress(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  const cleanIp = ip.replace(/^::ffff:/, '');
+  return cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('127.');
+}
+
+function isLocalRequest(req) {
+  const remoteAddr = req.socket?.remoteAddress || req.connection?.remoteAddress;
+  return isLocalAddress(remoteAddr);
+}
+
 const getMaskedKey = (key) => key ? (key.length > 4 ? '*'.repeat(key.length - 4) + key.slice(-4) : '****') : '';
 
 const handleGetDashscopeKey = (req, res) => {
@@ -86,12 +97,46 @@ const handleGetDashscopeKey = (req, res) => {
 };
 
 const handleSetDashscopeKey = asyncHandler(async (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: '仅允许从本地访问修改配置' });
+  }
 
-  let { apiKey, baseUrl, model } = req.body;
-  if (!apiKey) return res.status(400).json({ error: 'API Key 不能为空' });
+  let { apiKey, baseUrl, model } = req.body || {};
+  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+    return res.status(400).json({ error: 'API Key 不能为空' });
+  }
 
-  if (apiKey === getMaskedKey(process.env.DASHSCOPE_API_KEY)) {
-    apiKey = process.env.DASHSCOPE_API_KEY;
+  const containsNewline = (str) => typeof str === 'string' && (/[\r\n]/.test(str));
+  if (containsNewline(apiKey) || containsNewline(baseUrl) || containsNewline(model)) {
+    return res.status(400).json({ error: '参数不能包含换行符' });
+  }
+
+  const currentKey = process.env.DASHSCOPE_API_KEY || '';
+  const currentMasked = getMaskedKey(currentKey);
+  const currentBaseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+
+  const isMaskedKey = apiKey === currentMasked || apiKey.includes('*');
+
+  if (isMaskedKey) {
+    if (baseUrl && baseUrl !== currentBaseUrl) {
+      return res.status(400).json({ error: '修改 baseUrl 时必须提供真实完整 Key' });
+    }
+    apiKey = currentKey;
+  }
+
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API Key 不能为空' });
+  }
+
+  if (baseUrl) {
+    try {
+      const parsedUrl = new URL(baseUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).json({ error: 'baseUrl 必须使用 http 或 https 协议' });
+      }
+    } catch {
+      return res.status(400).json({ error: 'baseUrl 格式不合法' });
+    }
   }
 
   process.env.DASHSCOPE_API_KEY = apiKey;
