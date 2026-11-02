@@ -215,3 +215,12 @@
 - forza-telemetry/client/test/tuneManager.test.js
 - forza-telemetry/server/src/routes/record.js
 - forza-telemetry/server/test/record-rewind.test.js
+
+## 2026-11-02 09:29 迭代
+
+- **PR**：43 Fix circle-center fitting denominator and best lap alignment
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/43
+- **改动文件**：
+- forza-telemetry/server/src/services/physics/scoring.js
+- forza-telemetry/server/src/services/track/track-math.js
+- forza-telemetry/server/test/track-math-scoring.test.js
