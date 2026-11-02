@@ -12,47 +12,90 @@ if (!fs.existsSync(DATA_DIR)) {
 
 const dbPath = path.join(DATA_DIR, 'telemetry.db');
 let db = null;
-try {
-  db = new Database(dbPath);
-  // 开启 WAL 极速写入模式，优化高频小写入性能
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
-} catch (err) {
-  console.warn('[SQLite Storage] better-sqlite3 模块不可用，系统将自动降级使用纯文件系统存取:', err.message);
+
+function initDb() {
+  if (db) return;
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  try {
+    db = new Database(dbPath);
+    // 开启 WAL 极速写入模式，优化高频小写入性能
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions_detail (
+        id TEXT PRIMARY KEY,
+        hifi_data_br BLOB,
+        lowfi_data_br BLOB,
+        updated_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_sessions_detail_updated ON sessions_detail(updated_at);
+
+      CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
+        vehicle_id TEXT,
+        slot_id TEXT,
+        option_id TEXT,
+        bias_pi INTEGER,
+        PRIMARY KEY (vehicle_id, slot_id, option_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS vehicle_pi_observations (
+        vehicle_id TEXT,
+        signature TEXT,
+        confirmed_pi INTEGER NOT NULL,
+        estimated_pi INTEGER,
+        source TEXT,
+        observed_at TEXT,
+        PRIMARY KEY (vehicle_id, signature)
+      );
+    `);
+  } catch (err) {
+    console.warn('[SQLite Storage] better-sqlite3 模块不可用，系统将自动降级使用纯文件系统存取:', err.message);
+  }
 }
 
-if (db) {
-  // 初始化表结构
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions_detail (
-      id TEXT PRIMARY KEY,
-      hifi_data_br BLOB,
-      lowfi_data_br BLOB,
-      updated_at TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_sessions_detail_updated ON sessions_detail(updated_at);
-
-    CREATE TABLE IF NOT EXISTS vehicle_pi_calibrations (
-      vehicle_id TEXT,
-      slot_id TEXT,
-      option_id TEXT,
-      bias_pi INTEGER,
-      PRIMARY KEY (vehicle_id, slot_id, option_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS vehicle_pi_observations (
-      vehicle_id TEXT,
-      signature TEXT,
-      confirmed_pi INTEGER NOT NULL,
-      estimated_pi INTEGER,
-      source TEXT,
-      observed_at TEXT,
-      PRIMARY KEY (vehicle_id, signature)
-    );
-  `);
-}
+initDb();
 
 export const sqliteDb = {
+  /**
+   * 将 WAL 缓冲区强行刷回主数据库文件 telemetry.db 并截断 WAL
+   */
+  checkpoint: () => {
+    if (!db) return;
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch (e) {
+      console.error('[sqliteDb] wal_checkpoint 失败:', e.message);
+    }
+  },
+
+  /**
+   * 安全关闭数据库连接
+   */
+  close: () => {
+    if (!db) return;
+    try {
+      db.close();
+    } catch (e) {
+      console.error('[sqliteDb] 关闭数据库失败:', e.message);
+    } finally {
+      db = null;
+    }
+  },
+
+  /**
+   * 重新打开数据库连接 (例如备份恢复完成后)
+   */
+  reopen: () => {
+    if (db) {
+      try {
+        db.close();
+      } catch (e) {}
+      db = null;
+    }
+    initDb();
+  },
   /**
    * 保存特定车型某个改装件的 PI 偏置校准值 (SQLite 增量自学习偏置)
    */
