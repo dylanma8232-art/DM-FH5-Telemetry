@@ -10,7 +10,7 @@
     "test:server": "cd server && npm test",
     "lint:dead": "cd client && npm run lint:dead",
     "verify": "npm run test:server && npm run test:client && npm run build:client",
-    "test": "cd server && node src/test-sender.js",
+    "test": "npm run test:server && npm run test:client",
     "build:map": "python3 scripts/generate_codemap.py",
     "rebuild:tracks": "node scripts/rebuild_tracks.mjs",
     "normalize:data": "node scripts/normalize_runtime_data.mjs --apply"
