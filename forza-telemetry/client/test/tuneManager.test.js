@@ -33,7 +33,7 @@ test('resolves stock drivetrain_swap option to effective drive type (fwd/rwd/awd
   const invalidPayload = { ...tunePayload, driveType: 'stock' };
   const invalidValidation = saveTuneSchema.safeParse(invalidPayload);
   assert.equal(invalidValidation.success, false);
-
+});
 
 // Setup minimal DOM environment required for React 18 rendering
 class MockElement {
@@ -50,6 +50,10 @@ class MockElement {
   insertBefore(child) { child.parentNode = this; this.childNodes.push(child); return child; }
   addEventListener() {}
   removeEventListener() {}
+  setAttribute() {}
+  getAttribute() { return null; }
+  hasAttribute() { return false; }
+  removeAttribute() {}
 }
 
 const mockDoc = {
@@ -70,11 +74,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.addEventListener = () => {};
 globalThis.removeEventListener = () => {};
 
-import React, { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { useTuneManager } from '../src/hooks/useTuneManager.js';
-
 test('useTuneManager startEdit loads saved parameters and refreshUpgradeShop preserves populated saved fields', async () => {
+  const { default: React, act } = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { useTuneManager } = await import('../src/hooks/useTuneManager.js');
+
   const originalFetch = globalThis.fetch;
 
   // Mock fetch responses for API calls made by useTuneManager
@@ -160,4 +164,4 @@ test('useTuneManager startEdit loads saved parameters and refreshUpgradeShop pre
   } finally {
     globalThis.fetch = originalFetch;
   }
-
+});
