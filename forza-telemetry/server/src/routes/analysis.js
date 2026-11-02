@@ -37,6 +37,17 @@ export function invalidateAnalysisCache(sessionId) {
   return removed;
 }
 
+// 测试钩子：让契约测试能真实填充/读取内存分析缓存，验证删除流程的清理行为。
+export function __seedAnalysisCacheForTest(entries) {
+  for (const [key, value] of entries) {
+    setToCache(key, value);
+  }
+}
+
+export function __readAnalysisCacheForTest(key) {
+  return getFromCache(key);
+}
+
 function setToCache(key, data) {
   if (analysisCache.size > MAX_CACHE_SIZE) {
     const firstKey = analysisCache.keys().next().value;
