@@ -234,9 +234,10 @@ export const TuneManagerPage = React.memo(function TuneManagerPage({ onNavigate,
   const handleConfirmSaveFixPreview = async () => {
     if (!previewFixData) return;
     try {
-      await saveTune(previewFixData.tune);
+      const res = await saveTune(previewFixData.tune);
+      const savedTune = res?.tune || previewFixData.tune;
       setUnlockToast(`✅ 参数修正已成功写入并保存至数据库！（修改了 ${previewFixData.items.length} 项物理参数）`);
-      setDiagnosisModalTune(previewFixData.tune);
+      setDiagnosisModalTune(savedTune);
       setPreviewFixData(null);
     } catch (e) {
       setUnlockToast('❌ 保存失败: ' + (e.message || '系统错误'));
