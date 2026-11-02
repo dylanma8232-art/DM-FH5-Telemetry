@@ -154,73 +154,74 @@ jobs:
           # - 有失败：不合并，退出
           # - 未完成：继续等待
           # 额外容错：SHA 上暂时没有任何 check-run 时，等 CI workflow 被调度起来。
+          # 关键 3：合并判定。gh pr view --json mergeable 对冲突 PR 返回 null（REST
+          # 的 mergeable=null 表示未知/冲突），所以统一用 jq `(.mergeable // "false")`
+          # 把 null/false 归一化为 "false"，true 保持 "true"。
           wait_for_ci() {
             local i=0
             while [ "$i" -lt 80 ]; do
-              PR_STATE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable,mergeStateStatus -q '[.state, .mergeable, .mergeStateStatus] | @tsv')
+              local ST
+              ST=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable -q '[.state, (.mergeable // "false")] | @tsv')
+              local STATE
+              STATE=$(printf '%s' "$ST" | cut -f1)
+              local MERGEABLE
+              MERGEABLE=$(printf '%s' "$ST" | cut -f2)
 
               # 期间被合并/关闭则直接成功退出
-              STATE=$(printf '%s' "$PR_STATE" | cut -f1)
               if [ "$STATE" != "OPEN" ]; then
                 echo "PR state is $STATE, nothing to merge."
                 return 0
               fi
 
-              MERGEABLE=$(printf '%s' "$PR_STATE" | cut -f2)
-              MERGEABLE_STATE=$(printf '%s' "$PR_STATE" | cut -f3)
-
-              # dirty: 与 main 有冲突。先尝试自动更新分支（update_pull_request_branch
-              # 对无真实冲突、只是 base 前移的 PR 有效；真实冲突则保持失败等待人工）。
-              if [ "$MERGEABLE" = "false" ]; then
-                echo "PR is conflicted (state=$MERGEABLE_STATE); trying update_pull_request_branch..."
+              # 冲突/不可合并：先尝试自动更新分支。update_pull_request_branch 对
+              # 「base 前移、无真实冲突」有效；真实冲突则仍不可合并，返回失败等人工。
+              if [ "$MERGEABLE" != "true" ]; then
+                echo "PR mergeable=$MERGEABLE; trying update_pull_request_branch..."
                 gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/update-branch" -f update_method="merge" >/dev/null 2>&1 || true
                 sleep 10
-                NEW_STATE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable,mergeStateStatus -q '[.state, .mergeable, .mergeStateStatus] | @tsv')
-                NEW_MERGEABLE=$(printf '%s' "$NEW_STATE" | cut -f2)
-                if [ "$NEW_MERGEABLE" = "false" ]; then
-                  echo "::error::Branch update did not resolve conflicts; needs manual resolution."
+                local ST2
+                ST2=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable -q '[.state, (.mergeable // "false")] | @tsv')
+                local M2
+                M2=$(printf '%s' "$ST2" | cut -f2)
+                if [ "$M2" != "true" ]; then
+                  echo "::error::Branch update did not resolve conflicts (mergeable=$M2); needs manual resolution."
                   return 3
                 fi
-                # 更新后 head SHA 变化，重新取
                 SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" -q '.head.sha')
                 echo "Branch updated, new sha=$SHA; continuing to wait for CI..."
               fi
 
-              # blocked：一般是 required check 未通过或等待中，落到底部继续按 check 判断
-              # unstable：有 failing/pending 的非 required check —— 需要看具体结论
-              if [ "$MERGEABLE_STATE" = "CLEAN" ] || [ "$MERGEABLE_STATE" = "HAS_HOOKS" ] || [ "$MERGEABLE_STATE" = "UNSTABLE" ] || [ "$MERGEABLE_STATE" = "BLOCKED" ]; then
-                CHECKS_JSON=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" 2>/dev/null || echo '{"check_runs":[]}')
-                # 只看 GitHub Actions 产生的 check-run（app.slug == github-actions），
-                # 排除 auto-merge 自身与第三方 App（如 Entire Gates）的 neutral/自定义状态
-                CONC=$(printf '%s' "$CHECKS_JSON" | jq -r '
-                  [.check_runs[]
-                    | select(.app.slug == "github-actions")
-                    | select(.name != "auto-merge")
-                    | select(.status == "completed")
-                    | .conclusion] as $c
-                  | if (($c | length) == 0) then
-                      "pending"
-                    elif (($c | map(select(. == "success" or . == "neutral" or . == "skipped")) | length) == ($c | length)) then
-                      "success"
-                    else
-                      "failure"
-                    end')
-                case "$CONC" in
-                  success)
-                    echo "All GitHub Actions checks passed (mergeable_state=$MERGEABLE_STATE)."
-                    return 0
-                    ;;
-                  failure)
-                    echo "::error::CI concluded with failures; not merging."
-                    return 1
-                    ;;
-                  *)
-                    echo "CI still pending (poll $((i+1))/80, mergeable_state=$MERGEABLE_STATE)..."
-                    ;;
-                esac
-              else
-                echo "mergeable_state=$MERGEABLE_STATE (poll $((i+1))/80), waiting..."
-              fi
+              # mergeable==true：只看 GitHub Actions check-runs 聚合结论（排除
+              # auto-merge 自身与第三方 App）。success/neutral/skipped 视为通过。
+              local CHECKS_JSON
+              CHECKS_JSON=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" 2>/dev/null || echo '{"check_runs":[]}')
+              local CONC
+              CONC=$(printf '%s' "$CHECKS_JSON" | jq -r '
+                [.check_runs[]
+                  | select(.app.slug == "github-actions")
+                  | select(.name != "auto-merge")
+                  | select(.status == "completed")
+                  | .conclusion] as $c
+                | if (($c | length) == 0) then
+                    "pending"
+                  elif (($c | map(select(. == "success" or . == "neutral" or . == "skipped")) | length) == ($c | length)) then
+                    "success"
+                  else
+                    "failure"
+                  end')
+              case "$CONC" in
+                success)
+                  echo "All GitHub Actions checks passed (mergeable=$MERGEABLE)."
+                  return 0
+                  ;;
+                failure)
+                  echo "::error::CI concluded with failures; not merging."
+                  return 1
+                  ;;
+                *)
+                  echo "CI still pending (poll $((i+1))/80, mergeable=$MERGEABLE)..."
+                  ;;
+              esac
 
               i=$((i+1))
               sleep 20
@@ -235,34 +236,28 @@ jobs:
             exit "$RESULT"
           fi
 
-          # 关键 4：合并前尝试自动更新分支。多个 Jules PR 排队合并时，
-          # 前一个 squash 会让 main 前移，后一个 PR 即使无真实冲突也可能
-          # 需要更新（CHANGELOG 等追加型冲突在此自动消化）。
-          # update_pull_request_branch 能自动合并 base 进 head（无冲突时）。
-          MERGEABLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '.mergeable')
-          BASE_SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" -q '.base.sha')
-          if [ "$MERGEABLE" = "false" ]; then
+          # 关键 4：合并前再兜底一次 update-branch（多个 PR 排队合并时，前一个
+          # squash 会让 main 前移，后一个即使无真实冲突也可能需要更新）。
+          MERGEABLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '(.mergeable // "false")')
+          if [ "$MERGEABLE" != "true" ]; then
             echo "PR became conflicted; trying update_pull_request_branch..."
             gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/update-branch" -f update_method="merge" || true
-            gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '.mergeable' | grep -q true || {
+            gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '(.mergeable // "false")' | grep -q true || {
               echo "::error::Branch update did not resolve conflicts; needs manual resolution."
               exit 3
             }
-            # 更新后 head SHA 变化，重新等新 CI
             SHA=$(gh api "repos/$REPO/pulls/$PR_NUMBER" -q '.head.sha')
             echo "Branch updated, new sha=$SHA; waiting for CI again..."
             wait_for_ci || exit $?
           fi
 
           echo "Merging PR #$PR_NUMBER..."
-          # --admin 兜底：即使将来误配了 required review / branch protection 也能合并；
-          # squash 保留单 PR 单 commit 的线性历史。
           if gh pr merge "$PR_NUMBER" -R "$REPO" --squash --delete-branch --admin; then
             echo "Merged."
             exit 0
           fi
 
-          # 合并失败的兜底：常见于合并瞬间 main 又前移（如另一个进程 push 了 CHANGELOG）。
+          # 合并失败兜底：合并瞬间 main 又前移（如 CHANGELOG push）。
           echo "Merge attempt failed; updating branch and retrying once..."
           gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/update-branch" -f update_method="merge" || true
           sleep 15
