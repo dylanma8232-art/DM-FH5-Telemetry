@@ -380,14 +380,21 @@ const DATA_DIR = stateManager.DATA_DIR;
 
         if (isPositionValid) {
           const currLapTime = telemetry.currentLap || 0;
-          // 倒转 (Rewind) 实时防护：当圈时间回退超过 0.5 秒时，自动裁剪倒转期间多余的轨迹打点
+          const currLapNum = telemetry.lapNumber || 0;
+          // 倒转 (Rewind) 实时防护：增加圈号感知（lapNum-aware），正常跨圈重置计时器不再误触发轨迹裁剪
           if (autoRacePositions.length > 0 && currLapTime > 0) {
-            const lastPtLap = autoRacePositions[autoRacePositions.length - 1].lapTime || 0;
-            if (lastPtLap > 0 && currLapTime < lastPtLap - 0.5) {
-              console.log(`[自动录制] 检测到玩家触发倒转 (${lastPtLap.toFixed(2)}s ➡️ ${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
+            const lastPt = autoRacePositions[autoRacePositions.length - 1];
+            const lastPtLap = lastPt.lapTime || 0;
+            const lastPtLapNum = lastPt.lapNum || 0;
+            const isSameLapRewind = (currLapNum === lastPtLapNum) && (lastPtLap > 0) && (currLapTime < lastPtLap - 0.5);
+            const isLapRollback = currLapNum < lastPtLapNum;
+
+            if (isSameLapRewind || isLapRollback) {
+              console.log(`[自动录制] 检测到玩家触发倒转 (圈${lastPtLapNum}:${lastPtLap.toFixed(2)}s ➡️ 圈${currLapNum}:${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
               while (autoRacePositions.length > 0) {
                 const topPt = autoRacePositions[autoRacePositions.length - 1];
-                if (topPt.lapTime && topPt.lapTime > currLapTime) {
+                const topLapNum = topPt.lapNum || 0;
+                if (topLapNum > currLapNum || (topLapNum === currLapNum && topPt.lapTime && topPt.lapTime > currLapTime)) {
                   autoRacePositions.pop();
                 } else {
                   break;
@@ -526,7 +533,7 @@ const DATA_DIR = stateManager.DATA_DIR;
   router.get('/record/positions', (req, res) => res.json(manualRacePositions));
 
   // 独立看门狗：防止游戏闪退或关闭导致永远卡在 RECORDING
-  setInterval(() => {
+  const watchdogTimer = setInterval(() => {
     const now = Date.now();
     if (autoRecordState !== 'IDLE' && autoRecordStartTime) {
       // 如果最后一包是比赛中（可能是暂停），给更宽容的超时时间（比如 40 秒）
@@ -542,6 +549,9 @@ const DATA_DIR = stateManager.DATA_DIR;
       }
     }
   }, 2000);
+  if (watchdogTimer && typeof watchdogTimer.unref === 'function') {
+    watchdogTimer.unref();
+  }
 
   // 将辅助参数与核心逻辑包导给外部
   export default {
@@ -563,13 +573,20 @@ const DATA_DIR = stateManager.DATA_DIR;
         }
         if (telemetry.position && (telemetry.position.x !== 0 || telemetry.position.z !== 0)) {
           const currLapTime = telemetry.currentLap || 0;
+          const currLapNum = telemetry.lapNumber || 0;
           if (manualRacePositions.length > 0 && currLapTime > 0) {
-            const lastPtLap = manualRacePositions[manualRacePositions.length - 1].lapTime || 0;
-            if (lastPtLap > 0 && currLapTime < lastPtLap - 0.5) {
-              console.log(`[手动录制] 检测到玩家触发倒转 (${lastPtLap.toFixed(2)}s ➡️ ${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
+            const lastPt = manualRacePositions[manualRacePositions.length - 1];
+            const lastPtLap = lastPt.lapTime || 0;
+            const lastPtLapNum = lastPt.lapNum || 0;
+            const isSameLapRewind = (currLapNum === lastPtLapNum) && (lastPtLap > 0) && (currLapTime < lastPtLap - 0.5);
+            const isLapRollback = currLapNum < lastPtLapNum;
+
+            if (isSameLapRewind || isLapRollback) {
+              console.log(`[手动录制] 检测到玩家触发倒转 (圈${lastPtLapNum}:${lastPtLap.toFixed(2)}s ➡️ 圈${currLapNum}:${currLapTime.toFixed(2)}s)，自动回裁剪倒转打结点...`);
               while (manualRacePositions.length > 0) {
                 const topPt = manualRacePositions[manualRacePositions.length - 1];
-                if (topPt.lapTime && topPt.lapTime > currLapTime) {
+                const topLapNum = topPt.lapNum || 0;
+                if (topLapNum > currLapNum || (topLapNum === currLapNum && topPt.lapTime && topPt.lapTime > currLapTime)) {
                   manualRacePositions.pop();
                 } else {
                   break;

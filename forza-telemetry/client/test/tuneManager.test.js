@@ -69,6 +69,13 @@ mockDoc.ownerDocument = mockDoc;
 
 globalThis.document = mockDoc;
 globalThis.window = globalThis;
+if (!globalThis.navigator) {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: 'Node' },
+    configurable: true,
+    writable: true
+  });
+}
 globalThis.HTMLIFrameElement = class HTMLIFrameElement {};
 // Node 20 无 navigator 全局（Node 21+ 才有），react-dom 初始化依赖它
 if (typeof globalThis.navigator === 'undefined') {
