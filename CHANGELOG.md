@@ -243,3 +243,14 @@
 - forza-telemetry/server/src/storage/session-store.js
 - forza-telemetry/server/test/leaderboard-and-tunes-cache.test.js
 - forza-telemetry/server/test/session-store.test.js
+
+## 2026-11-02 09:34 迭代
+
+- **PR**：46 修复闭合赛道路书连贯播报死循环与预览画布缓存失效
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/46
+- **改动文件**：
+- forza-telemetry/client/src/components/dashboard/PaceNotesPanel.jsx
+- forza-telemetry/client/src/components/pages/TrackManagerPage.jsx
+- forza-telemetry/client/src/components/pages/session/TrackMaps.jsx
+- forza-telemetry/client/test/paceNotesCascade.test.js
+- forza-telemetry/client/test/trackMapCacheKey.test.js
