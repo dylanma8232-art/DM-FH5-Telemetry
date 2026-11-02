@@ -149,7 +149,7 @@ const ALLOWED_RESTORE_CONTENT_TYPES = [
 ];
 
 const handleBackupRestore = asyncHandler(async (req, res) => {
-  const contentType = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  const contentType = (req.headers?.['content-type'] || '').split(';')[0].trim().toLowerCase();
   if (!contentType || !ALLOWED_RESTORE_CONTENT_TYPES.includes(contentType)) {
     return res.status(400).json({ error: 'Invalid or missing Content-Type' });
   }
