@@ -69,9 +69,9 @@ mockDoc.ownerDocument = mockDoc;
 
 globalThis.document = mockDoc;
 globalThis.window = globalThis;
-if (!globalThis.navigator) {
+if (typeof globalThis.navigator === 'undefined') {
   Object.defineProperty(globalThis, 'navigator', {
-    value: { userAgent: 'Node' },
+    value: { userAgent: 'node' },
     configurable: true,
     writable: true
   });
