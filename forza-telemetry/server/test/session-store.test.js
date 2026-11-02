@@ -18,6 +18,7 @@ import {
   deleteSessionFiles,
   detailPaths
 } from '../src/storage/session-store.js';
+import { sqliteDb } from '../src/storage/sqlite-db.js';
 
 async function withTempDataDirectory(run) {
   const base = await fs.mkdtemp(path.join(os.tmpdir(), 'forza-session-store-'));
@@ -87,6 +88,21 @@ test('删除会话文件覆盖摘要与全部明细形态，并如实返回是�
       await assert.rejects(fs.access(filePath));
     }
     assert.equal(deleteSessionFiles('session_7', base), false);
+  });
+});
+
+test('deleteSessionFiles 同步清理 SQLite 中的会话明细记录', async () => {
+  await withTempDataDirectory(async (base) => {
+    const sessionId = 'session_sqlite_test_' + Date.now();
+    sqliteDb.saveSessionDetail(sessionId, Buffer.from('hifi_test'), Buffer.from('lowfi_test'));
+    assert.ok(sqliteDb.getSessionDetail(sessionId));
+
+    const sessions = path.join(base, 'sessions');
+    await fs.writeFile(path.join(sessions, `${sessionId}_summary.json`), '{}');
+
+    const deleted = deleteSessionFiles(sessionId, base);
+    assert.equal(deleted, true);
+    assert.equal(sqliteDb.getSessionDetail(sessionId), undefined);
   });
 });
 
