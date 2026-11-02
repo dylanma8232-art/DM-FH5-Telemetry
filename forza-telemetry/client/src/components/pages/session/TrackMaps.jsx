@@ -156,22 +156,26 @@ export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlight
           const currPt = { x: cx, y: cz };
 
           if (prevPt) {
-            // 锁死 (刹车>100 且 任意轮胎滑移<-0.15)
-            const isLockup = c.brake > 100 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
+            // 锁死 (刹车>40 且 任意轮胎滑移<-0.15)
+            const isLockup = (c.brake || 0) > 40 && (c.slipFL < -0.15 || c.slipFR < -0.15 || c.slipRL < -0.15 || c.slipRR < -0.15);
             if (isLockup) {
               lockupPath.moveTo(prevPt.x, prevPt.y);
               lockupPath.lineTo(currPt.x, currPt.y);
             }
 
-            // 打滑 (油门>100 且 任意轮胎滑移>0.15)
-            const isSlip = c.accel > 100 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
+            // 打滑 (油门>40 且 任意轮胎滑移>0.15)
+            const isSlip = (c.throttle || 0) > 40 && (c.slipFL > 0.15 || c.slipFR > 0.15 || c.slipRL > 0.15 || c.slipRR > 0.15);
             if (isSlip) {
               slipPath.moveTo(prevPt.x, prevPt.y);
               slipPath.lineTo(currPt.x, currPt.y);
             }
 
             // 托底 (归一化悬挂行程<0.05)
-            const isBottoming = c.suspFL < 0.05 || c.suspFR < 0.05 || c.suspRL < 0.05 || c.suspRR < 0.05;
+            const suspFL = c.suspensionNormFL ?? c.suspFL ?? 1.0;
+            const suspFR = c.suspensionNormFR ?? c.suspFR ?? 1.0;
+            const suspRL = c.suspensionNormRL ?? c.suspRL ?? 1.0;
+            const suspRR = c.suspensionNormRR ?? c.suspRR ?? 1.0;
+            const isBottoming = suspFL < 0.05 || suspFR < 0.05 || suspRL < 0.05 || suspRR < 0.05;
             if (isBottoming) {
               bottomingPath.moveTo(prevPt.x, prevPt.y);
               bottomingPath.lineTo(currPt.x, currPt.y);
