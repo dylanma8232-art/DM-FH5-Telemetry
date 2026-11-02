@@ -254,3 +254,15 @@
 - forza-telemetry/client/src/components/pages/session/TrackMaps.jsx
 - forza-telemetry/client/test/paceNotesCascade.test.js
 - forza-telemetry/client/test/trackMapCacheKey.test.js
+
+## 2026-11-02 09:38 迭代
+
+- **PR**：48 fix: 修复调校刹车导出遗漏与预设推荐胎压传动比数值正负号
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/48
+- **改动文件**：
+- CODEMAP.md
+- forza-telemetry/client/src/components/pages/SessionHistoryPage.jsx
+- forza-telemetry/client/src/components/pages/session/SessionChartsPanel.jsx
+- forza-telemetry/client/src/components/pages/tune/TuneShareModal.jsx
+- forza-telemetry/client/src/data/diagnoseRules.json
+- forza-telemetry/client/src/data/tunePresets.js
