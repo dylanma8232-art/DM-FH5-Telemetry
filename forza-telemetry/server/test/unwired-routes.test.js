@@ -36,8 +36,30 @@ test('车辆关联调校查询路由已注册（B07 删除确认用）', () => {
 });
 
 test('删除会话会清空该会话的分析缓存（Q4）', async () => {
-  const { invalidateAnalysisCache } = await import('../src/routes/analysis.js');
-  // 该函数是纯内存操作：对不存在的 session 返回 0，不抛错（存在性由删除流程先判定）
+  const { invalidateAnalysisCache, __seedAnalysisCacheForTest, __readAnalysisCacheForTest } =
+    await import('../src/routes/analysis.js');
+
+  // 真实填充：按路由实际使用的 key 前缀写入多条派生缓存
+  __seedAnalysisCacheForTest([
+    ['overview_sess-A', { sessionId: 'sess-A' }],
+    ['turns_sess-A', { turns: [] }],
+    ['ai_stats_sess-A', { drivingScore: 0 }],
+    ['overview_sess-B', { sessionId: 'sess-B' }],
+  ]);
+
+  // 删除前缓存确实存在
+  assert.ok(__readAnalysisCacheForTest('overview_sess-A'));
+  assert.ok(__readAnalysisCacheForTest('overview_sess-B'));
+
+  // 删除 sess-A 应清掉它名下的全部派生缓存，且不影响 sess-B
+  const removed = invalidateAnalysisCache('sess-A');
+  assert.equal(removed, 3);
+  assert.equal(__readAnalysisCacheForTest('overview_sess-A'), null);
+  assert.equal(__readAnalysisCacheForTest('turns_sess-A'), null);
+  assert.equal(__readAnalysisCacheForTest('ai_stats_sess-A'), null);
+  assert.ok(__readAnalysisCacheForTest('overview_sess-B'));
+
+  // 对不存在/空的 session 仍返回 0，不抛错（存在性由删除流程先判定）
   assert.equal(invalidateAnalysisCache('not-exists-session'), 0);
   assert.equal(invalidateAnalysisCache(null), 0);
 });
