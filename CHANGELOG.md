@@ -204,3 +204,14 @@
 - forza-telemetry/server/src/storage/save-worker.js
 - forza-telemetry/server/src/storage/sqlite-db.js
 - forza-telemetry/server/test/sqlite-save-failure.test.js
+
+## 2026-11-02 09:19 迭代
+
+- **PR**：52 Fix rewind lap detection and TrackMaps heatmap channels
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/52
+- **改动文件**：
+- forza-telemetry/client/src/components/pages/session/TrackMaps.jsx
+- forza-telemetry/client/test/trackMapsHeatmap.test.js
+- forza-telemetry/client/test/tuneManager.test.js
+- forza-telemetry/server/src/routes/record.js
+- forza-telemetry/server/test/record-rewind.test.js
