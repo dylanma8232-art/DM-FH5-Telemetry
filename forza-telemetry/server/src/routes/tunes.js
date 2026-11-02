@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { sqliteDb } from '../storage/sqlite-db.js';
+import { listSummaryFileNames, readSummaries } from '../storage/session-store.js';
 
 const router = express.Router();
 
@@ -169,16 +170,22 @@ router.get('/compare', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Tunes must be for the same car' });
   }
 
-  const sessionsDir = DATA_DIR + '/sessions';
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
   const carOrdinal = tuneA.carOrdinal;
 
   const sessionsA = [];
   const sessionsB = [];
 
-  files.forEach((f) => {
+  let files = [];
+  try {
+    files = await listSummaryFileNames();
+  } catch {
+    files = [];
+  }
+  const summaryEntries = await readSummaries(files);
+
+  summaryEntries.forEach(({ data }) => {
+    if (!data) return;
     try {
-      const data = JSON.parse(fs.readFileSync(sessionsDir + '/' + f, 'utf8'));
       if (data.trackId !== trackId) return;
       const sessionCarOrdinal = data.vehicle ? data.vehicle.ordinal || data.carOrdinal : null;
       if (sessionCarOrdinal !== carOrdinal) return;
@@ -188,9 +195,9 @@ router.get('/compare', asyncHandler(async (req, res) => {
         sessionsB.push(data);
       }
     } catch (e) {
-
       // ignore
-    }});
+    }
+  });
 
   const calcStats = (sessions) => {
     const validLaps = sessions.filter((s) => s.laps && s.laps.best > 0);
