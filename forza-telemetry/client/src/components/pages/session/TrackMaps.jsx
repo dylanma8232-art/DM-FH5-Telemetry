@@ -130,8 +130,12 @@ export function InteractiveTrackMap({ trackId, fallbackPositions = [], highlight
       pts = sampled;
     }
 
-    // 采样后的静态线（路面 + 中心线）与热力段构建 Path2D，几何/缩放窗口不变时跨渲染复用
-    const cacheKey = `${drawPositions.length}|${w}x${h}|${hasActiveZoom ? `${activePt.x},${activePt.z}` : 'full'}|${channelsData?.channels?.length || 0}|${pts.length}`;
+    // 采样后的静态线（路面 + 中心线）与热力段构建 Path2D，几何/缩放窗口不变时跨渲染复用。
+    // 纳入赛道标识、采样点几何签名与投影范围，赛道切换或视口变动时正确失效。
+    const midIdx = Math.floor(drawPositions.length / 2);
+    const geomSig = `${drawPositions[0]?.x?.toFixed(1)},${drawPositions[0]?.z?.toFixed(1)}_${drawPositions[midIdx]?.x?.toFixed(1)},${drawPositions[midIdx]?.z?.toFixed(1)}_${drawPositions[drawPositions.length - 1]?.x?.toFixed(1)},${drawPositions[drawPositions.length - 1]?.z?.toFixed(1)}`;
+    const boundsKey = `${minX.toFixed(2)},${maxX.toFixed(2)},${minZ.toFixed(2)},${maxZ.toFixed(2)}|${sc.toFixed(4)},${ox.toFixed(2)},${oz.toFixed(2)}`;
+    const cacheKey = `${trackId || ''}|${drawPositions.length}|${w}x${h}|${boundsKey}|${geomSig}|${hasActiveZoom ? `${activePt.x},${activePt.z}` : 'full'}|${channelsData?.channels?.length || 0}|${pts.length}`;
     if (staticPathsRef.current?.key !== cacheKey) {
       const roadPath = new Path2D();
       pts.forEach((p, i) => {
