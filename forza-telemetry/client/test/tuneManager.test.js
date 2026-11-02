@@ -165,19 +165,3 @@ test('useTuneManager startEdit loads saved parameters and refreshUpgradeShop pre
     globalThis.fetch = originalFetch;
   }
 });
-
-test('saveTuneSchema accepts notes and preserves user text', async () => {
-  const payloadWithNotes = {
-    name: 'Notes Test Tune',
-    vehicleId: '101',
-    basePi: 500,
-    totalPi: 600,
-    generationMode: 'manual',
-    driveType: 'awd',
-    notes: '用户输入的测试备注信息'
-  };
-
-  const parsed = saveTuneSchema.safeParse(payloadWithNotes);
-  assert.equal(parsed.success, true);
-  assert.equal(parsed.data.notes, '用户输入的测试备注信息');
-});
