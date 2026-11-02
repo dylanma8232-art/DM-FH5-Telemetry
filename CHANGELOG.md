@@ -232,3 +232,14 @@
 - **改动文件**：
 - forza-telemetry/server/src/routes/system.js
 - forza-telemetry/server/test/settings-dashscope.test.js
+
+## 2026-11-02 09:32 迭代
+
+- **PR**：45 Fix SessionStore SQLite cleanup and routes summary cache usage
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/45
+- **改动文件**：
+- forza-telemetry/server/src/routes/leaderboard.js
+- forza-telemetry/server/src/routes/tunes.js
+- forza-telemetry/server/src/storage/session-store.js
+- forza-telemetry/server/test/leaderboard-and-tunes-cache.test.js
+- forza-telemetry/server/test/session-store.test.js
