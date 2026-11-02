@@ -95,8 +95,8 @@ function fitArcToPoints(points) {
   const F = n * sumX2Z + n * sumZ3 - (sumX2 + sumZ2) * sumZ;
   const det = A * E - B * D;
   if (Math.abs(det) < 1e-10) return null;
-  const cx = (C * E - F * B) / det;
-  const cz = (A * F - C * D) / det;
+  const cx = (C * E - F * B) / (2 * det);
+  const cz = (A * F - C * D) / (2 * det);
   let radius = 0;
   for (const p of points) {
     radius += Math.sqrt((p.x - cx) ** 2 + (p.z - cz) ** 2);

@@ -205,16 +205,16 @@ export function calculateDrivingScore(session) {
 export function getBestLapNum(data) {
   if (!data || data.length === 0) return 0;
   let minBestLap = Infinity;
-  let bestLapNum = 0;
+  let bestLapNum = null;
   for (const d of data) {
     const bl = d.bestLap || 0;
     const ln = d.lapNumber || d.lapNum || 0;
     if (bl > 0 && bl < minBestLap) {
       minBestLap = bl;
-      bestLapNum = ln;
+      bestLapNum = Math.max(0, ln - 1);
     }
   }
-  if (bestLapNum === 0) {
+  if (bestLapNum === null) {
     const laps = data.map(d => d.lapNumber || d.lapNum || 0).filter(l => l > 0);
     if (laps.length > 0) {
       const counts = {};
@@ -224,7 +224,7 @@ export function getBestLapNum(data) {
       bestLapNum = 0;
     }
   }
-  return bestLapNum;
+  return bestLapNum ?? 0;
 }
 
 // 空间最接近点匹配辅助函数
