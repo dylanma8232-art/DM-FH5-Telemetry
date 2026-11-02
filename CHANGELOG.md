@@ -266,3 +266,14 @@
 - forza-telemetry/client/src/components/pages/tune/TuneShareModal.jsx
 - forza-telemetry/client/src/data/diagnoseRules.json
 - forza-telemetry/client/src/data/tunePresets.js
+
+## 2026-11-02 09:42 迭代
+
+- **PR**：47 fix: resolve tunes API session loading, notes persistence and shortcut stale closure
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/47
+- **改动文件**：
+- forza-telemetry/client/src/hooks/useTuneManager.js
+- forza-telemetry/client/test/tuneManager.test.js
+- forza-telemetry/server/src/routes/system.js
+- forza-telemetry/server/src/routes/tunes.js
+- forza-telemetry/server/test/tunes-routes.test.js
