@@ -1,38 +1,34 @@
-import { asyncHandler } from "../utils/asyncHandler.js";import { analyzeSectors } from '../services/physics-analyzer.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { analyzeSectors } from '../services/physics-analyzer.js';
 import { stateManager } from '../services/state-manager.js';
 import { loadSession } from '../storage/session-db.js';
+import { listSummaryFileNames, readSummaries } from '../storage/session-store.js';
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 
 const router = express.Router();
 
-
-
-const DATA_DIR = stateManager.DATA_DIR;
 const LEADERBOARD_CACHE_TTL = 30000;
 
 async function buildLeaderboard() {
-  const cached = stateManager.getLeaderboardCache ? stateManager.getLeaderboardCache() : null;
-  const cacheTime = stateManager.getLeaderboardCacheTime ? stateManager.getLeaderboardCacheTime() : 0;
+  const cached = stateManager.getLeaderboardCache();
+  const cacheTime = stateManager.getLeaderboardCacheTime();
   if (cached && Date.now() - cacheTime < LEADERBOARD_CACHE_TTL) {
     return cached;
   }
 
-  const sessionsDir = path.join(DATA_DIR, 'sessions');
-  if (!fs.existsSync(sessionsDir)) return [];
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
+  let files = [];
+  try {
+    files = await listSummaryFileNames();
+  } catch {
+    return [];
+  }
 
   const groups = new Map();
+  const summaryEntries = await readSummaries(files);
 
-  const fileContents = await Promise.all(
-    files.map(f => fs.promises.readFile(sessionsDir + '/' + f, 'utf8').catch(() => null))
-  );
-
-  fileContents.forEach((content) => {
-    if (!content) return;
+  summaryEntries.forEach(({ data: s }) => {
+    if (!s) return;
     try {
-      const s = JSON.parse(content);
       const trackId = s.trackId || 'unknown';
       const vehicleOrdinal = s.vehicle?.ordinal || 'unknown';
       const key = trackId + '_' + vehicleOrdinal;
@@ -133,9 +129,7 @@ async function buildLeaderboard() {
   });
 
   result.sort((a, b) => new Date(b.lastSessionAt) - new Date(a.lastSessionAt));
-  if (stateManager.setLeaderboardCache) {
-    stateManager.setLeaderboardCache(result);
-  }
+  stateManager.setLeaderboardCache(result);
   return result;
 }
 
@@ -166,18 +160,24 @@ router.get('/trend', asyncHandler(async (req, res) => {
   const entry = lb.find((d) => d.trackId === trackId && String(d.vehicleOrdinal) === String(vehicleOrdinal));
   if (!entry) return res.json({ sessions: [], bestLap: 0, avgBestLap: 0 });
 
-  const sessionsDir = path.join(DATA_DIR, 'sessions');
   const sessions = [];
   const allSectorData = [];
 
-  const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('_summary.json'));
-  files.forEach((f) => {
+  let files = [];
+  try {
+    files = await listSummaryFileNames();
+  } catch {
+    files = [];
+  }
+  const summaryEntries = await readSummaries(files);
+
+  summaryEntries.forEach(({ data: summary }) => {
+    if (!summary) return;
     try {
-      const sessionId = f.replace('_summary.json', '');
-      const s = loadSession(sessionId);
+      if (summary.trackId !== trackId) return;
+      if (String(summary.vehicle?.ordinal) !== String(vehicleOrdinal)) return;
+      const s = loadSession(summary.id);
       if (!s) return;
-      if (s.trackId !== trackId) return;
-      if (String(s.vehicle?.ordinal) !== String(vehicleOrdinal)) return;
       const sectorResult = analyzeSectors(s.positions || [], 3, s.laps?.best || 0);
       const totalSectorTime = sectorResult ? sectorResult.sectors.reduce((sum, se) => sum + se.sectorTime, 0) : 0;
       const isValid = sectorResult && totalSectorTime > 20;

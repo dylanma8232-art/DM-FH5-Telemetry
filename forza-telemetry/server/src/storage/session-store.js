@@ -12,6 +12,7 @@ import fsp from 'fs/promises';
 import path from 'path';
 import { DATA_DIR } from '../config/constants.js';
 import { writeJsonAsync } from './file-db.js';
+import { sqliteDb } from './sqlite-db.js';
 
 const SUMMARY_SUFFIX = '_summary.json';
 
@@ -166,7 +167,7 @@ export function writeSummaryByFileName(filename, data, baseDir = DATA_DIR) {
   return writeJsonAsync(path.join(sessionsDir(baseDir), filename), data);
 }
 
-/** 删除一条会话的全部落盘文件，返回是否真的删除了任一文件 */
+/** 删除一条会话的全部落盘文件与 SQLite 明细记录，返回是否真的删除了任一文件或记录 */
 export function deleteSessionFiles(sessionId, baseDir = DATA_DIR) {
   const paths = [summaryPath(sessionId, baseDir), ...Object.values(detailPaths(sessionId, baseDir))];
   let deleted = false;
@@ -175,6 +176,11 @@ export function deleteSessionFiles(sessionId, baseDir = DATA_DIR) {
       fs.unlinkSync(filePath);
       deleted = true;
     }
+  }
+  try {
+    sqliteDb.deleteSessionDetail(sessionId);
+  } catch (err) {
+    console.warn(`[deleteSessionFiles] 删除 SQLite 会话明细失败 ${sessionId}:`, err.message);
   }
   return deleted;
 }
