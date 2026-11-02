@@ -224,3 +224,11 @@
 - forza-telemetry/server/src/services/physics/scoring.js
 - forza-telemetry/server/src/services/track/track-math.js
 - forza-telemetry/server/test/track-math-scoring.test.js
+
+## 2026-11-02 09:30 迭代
+
+- **PR**：44 修复 DashScope API Key 接口未鉴权越权修改与换行注入
+- **链接**：https://github.com/dylanma8232-art/DM-FH5-Telemetry/pull/44
+- **改动文件**：
+- forza-telemetry/server/src/routes/system.js
+- forza-telemetry/server/test/settings-dashscope.test.js
