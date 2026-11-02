@@ -154,14 +154,14 @@ jobs:
           # - 有失败：不合并，退出
           # - 未完成：继续等待
           # 额外容错：SHA 上暂时没有任何 check-run 时，等 CI workflow 被调度起来。
-          # 关键 3：合并判定。gh pr view --json mergeable 对冲突 PR 返回 null（REST
-          # 的 mergeable=null 表示未知/冲突），所以统一用 jq `(.mergeable // "false")`
-          # 把 null/false 归一化为 "false"，true 保持 "true"。
+          # 关键 3：合并判定。gh pr view --json mergeable 映射到 GraphQL
+          # MergeableState 枚举：MERGEABLE / CONFLICTING / UNKNOWN（不是布尔）。
+          # 实测 run 41416355405 打印 mergeable=MERGEABLE 证明这一点。
           wait_for_ci() {
             local i=0
             while [ "$i" -lt 80 ]; do
               local ST
-              ST=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable -q '[.state, (.mergeable // "false")] | @tsv')
+              ST=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable -q '[.state, (.mergeable // "UNKNOWN")] | @tsv')
               local STATE
               STATE=$(printf '%s' "$ST" | cut -f1)
               local MERGEABLE
@@ -173,17 +173,15 @@ jobs:
                 return 0
               fi
 
-              # 冲突/不可合并：先尝试自动更新分支。update_pull_request_branch 对
-              # 「base 前移、无真实冲突」有效；真实冲突则仍不可合并，返回失败等人工。
-              if [ "$MERGEABLE" != "true" ]; then
+              # CONFLICTING / UNKNOWN：先尝试自动更新分支。update_pull_request_branch
+              # 对「base 前移、无真实冲突」有效；真实冲突则仍不可合并，返回失败等人工。
+              if [ "$MERGEABLE" != "MERGEABLE" ]; then
                 echo "PR mergeable=$MERGEABLE; trying update_pull_request_branch..."
                 gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/update-branch" -f update_method="merge" >/dev/null 2>&1 || true
                 sleep 10
-                local ST2
-                ST2=$(gh pr view "$PR_NUMBER" -R "$REPO" --json state,mergeable -q '[.state, (.mergeable // "false")] | @tsv')
                 local M2
-                M2=$(printf '%s' "$ST2" | cut -f2)
-                if [ "$M2" != "true" ]; then
+                M2=$(gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '.mergeable // "UNKNOWN"')
+                if [ "$M2" != "MERGEABLE" ]; then
                   echo "::error::Branch update did not resolve conflicts (mergeable=$M2); needs manual resolution."
                   return 3
                 fi
@@ -191,8 +189,8 @@ jobs:
                 echo "Branch updated, new sha=$SHA; continuing to wait for CI..."
               fi
 
-              # mergeable==true：只看 GitHub Actions check-runs 聚合结论（排除
-              # auto-merge 自身与第三方 App）。success/neutral/skipped 视为通过。
+              # mergeable==MERGEABLE：只看 GitHub Actions check-runs 聚合结论
+              # （排除 auto-merge 自身与第三方 App）。success/neutral/skipped 视为通过。
               local CHECKS_JSON
               CHECKS_JSON=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" 2>/dev/null || echo '{"check_runs":[]}')
               local CONC
@@ -238,11 +236,11 @@ jobs:
 
           # 关键 4：合并前再兜底一次 update-branch（多个 PR 排队合并时，前一个
           # squash 会让 main 前移，后一个即使无真实冲突也可能需要更新）。
-          MERGEABLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '(.mergeable // "false")')
-          if [ "$MERGEABLE" != "true" ]; then
+          MERGEABLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '.mergeable // "UNKNOWN"')
+          if [ "$MERGEABLE" != "MERGEABLE" ]; then
             echo "PR became conflicted; trying update_pull_request_branch..."
             gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/update-branch" -f update_method="merge" || true
-            gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '(.mergeable // "false")' | grep -q true || {
+            gh pr view "$PR_NUMBER" -R "$REPO" --json mergeable -q '.mergeable // "UNKNOWN"' | grep -q MERGEABLE || {
               echo "::error::Branch update did not resolve conflicts; needs manual resolution."
               exit 3
             }
