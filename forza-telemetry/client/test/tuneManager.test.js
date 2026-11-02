@@ -77,6 +77,16 @@ if (typeof globalThis.navigator === 'undefined') {
   });
 }
 globalThis.HTMLIFrameElement = class HTMLIFrameElement {};
+// Node 20 无 navigator 全局（Node 21+ 才有），react-dom 初始化依赖它
+if (typeof globalThis.navigator === 'undefined') {
+  globalThis.navigator = {
+    userAgent: 'node-test',
+    platform: process.platform,
+    language: 'zh-CN',
+    languages: ['zh-CN', 'zh'],
+    onLine: true
+  };
+}
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.addEventListener = () => {};
 globalThis.removeEventListener = () => {};
