@@ -3,6 +3,8 @@ import { stateManager } from '../services/state-manager.js';
 import { saveJSON, loadJSON } from '../utils/helpers.js';
 import { validateTunePayload } from '../services/upgrade-catalog.js';
 import { saveTuneSchema, formatZodError } from '../utils/schemas.js';
+import { loadSession } from '../storage/session-db.js';
+import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -43,10 +45,13 @@ const loadUpgradeProfile = vehicleId => {
   return fs.existsSync(profilePath) ? { ...loadJSON(profilePath), id: String(vehicleId) } : null;
 };
 
-import { generateTelemetryTuningRecommendations } from '../services/physics/telemetry-tuning-recommendations.js';
-
 function loadSessionData(sessionId) {
   if (!sessionId) return null;
+  // 优先通过统一的 session-db API 加载（支持 _summary.json + SQLite 架构）
+  const session = loadSession(sessionId, stateManager.tracks);
+  if (session) return session;
+
+  // 兼容单文件历史归档（如测试用例或旧文件尚未迁移的情形）
   const dataDir = stateManager.DATA_DIR || path.join(process.cwd(), 'data');
   const sessionPath = path.join(dataDir, 'sessions', `${sessionId}.json`);
   if (fs.existsSync(sessionPath)) {
@@ -56,7 +61,7 @@ function loadSessionData(sessionId) {
       console.warn('[tunes] 读取 Session 数据失败:', e.message);
     }
   }
-  return stateManager.sessions?.find(s => String(s.id) === String(sessionId)) || null;
+  return null;
 }
 
 router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
@@ -76,9 +81,10 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
     if (session) {
       const rawData = session.data || [];
       const physicsAnalysis = generateTelemetryTuningRecommendations(rawData);
+      const bestLapVal = session.bestLapTime || session.laps?.best;
       sessionTelemetryMetrics = {
         track: session.trackName || session.track || '未知赛道',
-        bestLap: session.bestLapTime ? `${session.bestLapTime}s` : '有效',
+        bestLap: bestLapVal ? `${bestLapVal}s` : '有效',
         sensorEvidence: physicsAnalysis.recommendations?.map(r => `【${r.title}】${r.evidence}`) || [],
         summary: physicsAnalysis.summary
       };
@@ -267,6 +273,8 @@ router.post('/', express.json(), asyncHandler(async (req, res) => {
     drivetrain: body.drivetrain || null,
     brakes: body.brakes || null,
     aero: body.aero || null,
+    notes: body.notes || '',
+    freeMode: body.freeMode,
     parts: validation.normalizedParts,
     tuningCapabilities: body.tuningCapabilities || null
   };

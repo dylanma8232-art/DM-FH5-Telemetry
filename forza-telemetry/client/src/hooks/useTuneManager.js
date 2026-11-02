@@ -1578,6 +1578,9 @@ export function useTuneManager({ onNavigate, navIntent }) {
     if (Number.isFinite(Number(upgradeShop?.basePi))) setBasePi(Number(upgradeShop.basePi));
   };
 
+  const saveTuneRef = useRef(saveTune);
+  saveTuneRef.current = saveTune;
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!showModal) return;
@@ -1589,7 +1592,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 's' || e.key === 'S') {
           e.preventDefault();
-          saveTune();
+          saveTuneRef.current?.();
         }
       }
     };
