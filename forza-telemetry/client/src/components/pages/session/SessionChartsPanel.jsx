@@ -775,7 +775,7 @@ export const SessionChartsPanel = React.memo(function SessionChartsPanel(props) 
                                             frontDownforce: '前空气下压力', rearDownforce: '后空气下压力'
                                           };
                                           const unitMap = {
-                                            frontTirePressure: ' PSI', rearTirePressure: ' PSI',
+                                    frontTirePressure: ' bar', rearTirePressure: ' bar',
                                             frontCamber: '°', rearCamber: '°', frontToe: '°', rearToe: '°',
                                             frontRideHeight: ' cm', rearRideHeight: ' cm',
                                             diffAccel: '%', diffDecel: '%', diffCenter: '%',

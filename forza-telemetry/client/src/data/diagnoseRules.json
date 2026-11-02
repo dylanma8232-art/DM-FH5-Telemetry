@@ -42,7 +42,7 @@
           "diffAccel": { "delta": -15, "reason": "大幅降低加速差速锁分配比例允许更多差速，防范双轮同时打滑" },
           "rearARB": { "delta": -3, "reason": "减小后防倾杆硬度以增加车尾外侧车轮在出弯时的接地重力" },
           "rearSpring": { "delta": -2, "reason": "减小后弹簧硬度增加重心转移后的车尾接地抓地力" },
-          "rearTirePressure": { "delta": -2, "reason": "降低后胎压增加出弯时后胎面接地宽度" }
+          "rearTirePressure": { "delta": -0.2, "reason": "降低后胎压增加出弯时后胎面接地宽度" }
         }
       },
       {
@@ -67,8 +67,8 @@
         "details": "重刹时疑似锁死帧占比 {lockRatioPct}%，重制动极易抱死失控，严重影响刹车效能",
         "fix": {
           "brakeBias": { "delta": -3, "reason": "前移刹车偏置（偏向车头），避免载荷前移时后轮率先锁死" },
-          "frontTirePressure": { "delta": -1, "reason": "适当降低前胎压增加前轮接地面积防范抱死" },
-          "rearTirePressure": { "delta": -1, "reason": "降低后胎压增加抓地容错" }
+          "frontTirePressure": { "delta": -0.1, "reason": "适当降低前胎压增加前轮接地面积防范抱死" },
+          "rearTirePressure": { "delta": -0.1, "reason": "降低后胎压增加抓地容错" }
         }
       },
       {
@@ -146,7 +146,7 @@
         "details": "起步加速阶段打滑帧占比 {spinRatioPct}%，起步驱动轮过度空转，严重阻碍弹射加速",
         "fix": {
           "diffAccel": { "delta": 20, "reason": "大幅提高加速差速锁限制起步单轮空转造成的动力流失" },
-          "rearTirePressure": { "delta": -2, "reason": "降低后胎压增加静止起步接地面积" },
+          "rearTirePressure": { "delta": -0.2, "reason": "降低后胎压增加静止起步接地面积" },
           "rearSpring": { "delta": 3, "reason": "增加后弹簧硬度抑制起步时的重心过度下蹲" }
         }
       },
@@ -156,7 +156,7 @@
         "details": "起步加速阶段打滑帧占比 {spinRatioPct}%，起步时有可感知的轮胎空转",
         "fix": {
           "diffAccel": { "delta": 10, "reason": "适当提高加速差速锁" },
-          "rearTirePressure": { "delta": -1, "reason": "轻微降低后胎压增加抓地" }
+          "rearTirePressure": { "delta": -0.1, "reason": "轻微降低后胎压增加抓地" }
         }
       }
     ]
@@ -198,8 +198,8 @@
         "severity": "high",
         "details": "过热帧占比 {overheatRatioPct}%，最高胎温达 {overallMaxTemp}°C，胎温过高极易加剧抓地力断崖衰减",
         "fix": {
-          "frontTirePressure": { "delta": 2, "reason": "提高前胎压增加胎体刚度，减少高载荷侧倾下的变形生热" },
-          "rearTirePressure": { "delta": 2, "reason": "提高后胎压减少胎面生热" },
+          "frontTirePressure": { "delta": 0.2, "reason": "提高前胎压增加胎体刚度，减少高载荷侧倾下的变形生热" },
+          "rearTirePressure": { "delta": 0.2, "reason": "提高后胎压减少胎面生热" },
           "frontCamber": { "delta": 0.3, "reason": "减小前轮负外倾角（使趋向0），让前胎面在直线和刹车时接地更均匀，降低内侧过热" },
           "rearCamber": { "delta": 0.3, "reason": "减小后轮负外倾角减少内侧生热" },
           "frontARB": { "delta": -2, "reason": "减小前防倾杆降低前轮抓地负荷" }
@@ -210,8 +210,8 @@
         "severity": "medium",
         "details": "过热帧占比 {overheatRatioPct}%，最高胎温 {overallMaxTemp}°C，轮胎局部发热偏高，影响长期耐磨性",
         "fix": {
-          "frontTirePressure": { "delta": 1, "reason": "稍微提高前胎压减少变形生热" },
-          "rearTirePressure": { "delta": 1, "reason": "稍微提高后胎压" }
+          "frontTirePressure": { "delta": 0.1, "reason": "稍微提高前胎压减少变形生热" },
+          "rearTirePressure": { "delta": 0.1, "reason": "稍微提高后胎压" }
         }
       }
     ]

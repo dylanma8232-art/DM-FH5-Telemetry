@@ -19,6 +19,118 @@ import {
   nextPiClassCap
 } from '../utils/tuneForm.js'
 
+export const SHARE_CODE_VERSION = 2
+
+export const uint8ToBase64Util = (bytes) => {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+export const base64ToUint8Util = (base64) => {
+  const cleanBase64 = String(base64 || '').replace(/[^A-Za-z0-9+/=]/g, '')
+  const binary = atob(cleanBase64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+export const simpleChecksumUtil = (str) => {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + c
+    hash |= 0
+  }
+  return Math.abs(hash) % 1000
+}
+
+export const generateShareCodeUtil = (tune) => {
+  const compact = {
+    v: SHARE_CODE_VERSION,
+    n: tune.name,
+    vid: tune.vehicleId,
+    t: tune.tires,
+    s: tune.suspension,
+    d: tune.drivetrain,
+    b: tune.brakes,
+    a: tune.aero,
+    p: tune.parts
+  }
+  try {
+    const jsonStr = JSON.stringify(compact)
+    const encoder = new TextEncoder()
+    const bytes = encoder.encode(jsonStr)
+    const cs = simpleChecksumUtil(jsonStr)
+    return uint8ToBase64Util(bytes) + '.' + String(cs).padStart(3, '0')
+  } catch (e) {
+    return null
+  }
+}
+
+export const parseShareCodeUtil = (code) => {
+  try {
+    const parts = code.trim().split('.')
+    const base64Part = parts[0]
+    const checksum = parts.length > 1 ? parseInt(parts[1], 10) : null
+
+    const bytes = base64ToUint8Util(base64Part)
+    const decoder = new TextDecoder()
+    const jsonStr = decoder.decode(bytes)
+    const decoded = JSON.parse(jsonStr)
+
+    if (checksum !== null) {
+      const expectedCs = simpleChecksumUtil(jsonStr)
+      if (expectedCs !== checksum) {
+        return { error: '分享码校验失败，可能复制不完整，请重新复制' }
+      }
+    }
+
+    const version = decoded.v || 1
+    if (version > SHARE_CODE_VERSION) {
+      return { error: `分享码版本 v${version} 高于当前支持的 v${SHARE_CODE_VERSION}，请更新软件` }
+    }
+
+    return {
+      name: decoded.n || '导入的调校',
+      tags: [],
+      vehicleId: decoded.vid || decoded.carOrdinal || '',
+      tires: decoded.t || {},
+      suspension: decoded.s || {},
+      drivetrain: decoded.d || {},
+      brakes: decoded.b || {},
+      aero: decoded.a || {},
+      parts: decoded.p || {}
+    }
+  } catch (e) {
+    return { error: '分享码格式无效，请检查后重试' }
+  }
+}
+
+export function createTuneExportPayload(tune) {
+  return {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    generator: 'forza-telemetry-tune-export',
+    compatibility: 'v1,v2,v3',
+    tune: {
+      name: tune.name,
+      tags: tune.tags || [],
+      vehicleId: tune.vehicleId,
+      tires: tune.tires,
+      suspension: tune.suspension,
+      drivetrain: tune.drivetrain,
+      brakes: tune.brakes,
+      aero: tune.aero,
+      parts: tune.parts
+    }
+  }
+}
+
 export function resolveEffectiveDriveType(parts, aiDrive, shop, vehicle) {
   const swap = parts?.drivetrain_swap?.optionId?.toLowerCase()
   if (swap && ['fwd', 'rwd', 'awd'].includes(swap)) return swap
@@ -1280,22 +1392,7 @@ export function useTuneManager({ onNavigate, navIntent }) {
 
   // 导出调校为JSON文件
   const exportTune = (tune) => {
-    const payload = {
-      version: 3,  // Round 4: 升级版本号到3
-      exportedAt: new Date().toISOString(),
-      generator: 'forza-telemetry-tune-export',
-      compatibility: 'v1,v2,v3',
-      tune: {
-        name: tune.name,
-        tags: tune.tags || [],
-        vehicleId: tune.vehicleId,
-        tires: tune.tires,
-        suspension: tune.suspension,
-        drivetrain: tune.drivetrain,
-        aero: tune.aero,
-        parts: tune.parts
-      }
-    }
+    const payload = createTuneExportPayload(tune)
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1306,100 +1403,11 @@ export function useTuneManager({ onNavigate, navIntent }) {
   }
 
   // Round 4: 分享码工具函数（TextEncoder支持中文）
-  const SHARE_CODE_VERSION = 2
-  const uint8ToBase64 = (bytes) => {
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return btoa(binary)
-  }
-  const base64ToUint8 = (base64) => {
-    const cleanBase64 = String(base64 || '').replace(/[^A-Za-z0-9+/=]/g, '')
-    const binary = atob(cleanBase64)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i)
-    }
-    return bytes
-  }
-  const simpleChecksum = (str) => {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + c
-      hash |= 0
-    }
-    return Math.abs(hash) % 1000
-  }
-
-  // 生成分享码（TextEncoder编码 + 校验和）
-  const generateShareCode = (tune) => {
-    const compact = {
-      v: SHARE_CODE_VERSION,
-      n: tune.name,
-      vid: tune.vehicleId,
-      t: tune.tires,
-      s: tune.suspension,
-      d: tune.drivetrain,
-      a: tune.aero,
-      p: tune.parts
-    }
-    try {
-      const jsonStr = JSON.stringify(compact)
-      const encoder = new TextEncoder()
-      const bytes = encoder.encode(jsonStr)
-      // 校验和：对原始JSON字符串计算
-      const cs = simpleChecksum(jsonStr)
-      // 格式: base64(payload) + '.' + 3位校验和
-      return uint8ToBase64(bytes) + '.' + String(cs).padStart(3, '0')
-    } catch (e) {
-      return null
-    }
-  }
-
-  // 解析分享码（含校验和验证）
-  const parseShareCode = (code) => {
-    try {
-      const parts = code.trim().split('.')
-      const base64Part = parts[0]
-      const checksum = parts.length > 1 ? parseInt(parts[1], 10) : null
-
-      const bytes = base64ToUint8(base64Part)
-      const decoder = new TextDecoder()
-      const jsonStr = decoder.decode(bytes)
-      const decoded = JSON.parse(jsonStr)
-
-      // 校验和验证
-      if (checksum !== null) {
-        const expectedCs = simpleChecksum(jsonStr)
-        if (expectedCs !== checksum) {
-          return { error: '分享码校验失败，可能复制不完整，请重新复制' }
-        }
-      }
-
-      // 版本兼容性检查
-      const version = decoded.v || 1
-      if (version > SHARE_CODE_VERSION) {
-        return { error: `分享码版本 v${version} 高于当前支持的 v${SHARE_CODE_VERSION}，请更新软件` }
-      }
-
-      return {
-        name: decoded.n || '导入的调校',
-        tags: [],
-        // B06：`v` 是分享码协议版本号（通常为 1），严禁当作车型 ID 兜底；
-        // 旧码没有 vid 时保留空车型，由用户手动选择。
-        vehicleId: decoded.vid || decoded.carOrdinal || '',
-        tires: decoded.t || {},
-        suspension: decoded.s || {},
-        drivetrain: decoded.d || {},
-        aero: decoded.a || {},
-        parts: decoded.p || {}
-      }
-    } catch (e) {
-      return { error: '分享码格式无效，请检查后重试' }
-    }
-  }
+  const uint8ToBase64 = uint8ToBase64Util
+  const base64ToUint8 = base64ToUint8Util
+  const simpleChecksum = simpleChecksumUtil
+  const generateShareCode = generateShareCodeUtil
+  const parseShareCode = parseShareCodeUtil
 
   // 从文件导入调校
   const handleImportFile = async (e) => {
