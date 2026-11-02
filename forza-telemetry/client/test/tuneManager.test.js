@@ -69,6 +69,13 @@ mockDoc.ownerDocument = mockDoc;
 
 globalThis.document = mockDoc;
 globalThis.window = globalThis;
+if (typeof globalThis.navigator === 'undefined') {
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { userAgent: 'node' },
+    configurable: true,
+    writable: true
+  });
+}
 globalThis.HTMLIFrameElement = class HTMLIFrameElement {};
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.addEventListener = () => {};
