@@ -38,22 +38,29 @@ Chasing lap times, running night rally stages, or dialing in suspension setups i
 Switch instantaneously across five specialized workspaces via top tabs or hotkeys `1`–`5` (UI labels follow a clean Chinese motorsport layout):
 
 <p align="center">
-  <img src="assets/cockpit-overview.png" alt="Live Second-Screen Telemetry Cockpit" width="100%">
+  <img src="assets/cockpit-overview.png" alt="Live Second-Screen Telemetry Cockpit screenshot" width="100%">
   <br>
-  <sub><b>1. Live Telemetry Cockpit</b>: Speed/gear, 12-LED shift bar, G-force friction circle, 4-corner tire temps/pressures/suspension travel, and 800m throttle/brake trace</sub>
+  <sub><b>1. Live Telemetry Cockpit (Actual UI)</b>: Gear/speed/RPM & pedal inputs, live rally pace-note callout, longitudinal/lateral G-loads, active car spec, and S1/S2/S3 sector splits</sub>
 </p>
 
 <table>
 <tr>
 <td width="50%" valign="top">
-  <img src="assets/track-pacenotes.png" alt="60fps Path2D Track Editor & Dynamic Rally Pace Notes" width="100%">
+  <img src="assets/track-pacenotes.png" alt="Track Manager & Rally Pace Notes screenshot" width="100%">
   <br>
-  <sub><b>2. Track Manager & Rally Pace Notes</b>: Pre-compiled <code>Path2D</code> 60fps zoomable track map, manual apex table, compound corner phrasing, and priority-queued TTS callouts</sub>
+  <sub><b>2. Track Manager & Rally Pace Notes</b>: <code>Path2D</code> 60fps zoomable track canvas, track quality score, editable corner severity/angle list, and voice preview</sub>
 </td>
 <td width="50%" valign="top">
-  <img src="assets/tuning-ai-workshop.png" alt="700+ Vehicle Spec Lock Matrix & AI Race Engineer" width="100%">
+  <img src="assets/session-analysis.png" alt="Session Center & Lap Stability Analysis screenshot" width="100%">
   <br>
-  <sub><b>5. Tuning Workshop & AI Race Engineer</b>: Per-car legal engine swaps, 4-state part lock matrix, PI class safety checks, and telemetry-backed setup prescriptions</sub>
+  <sub><b>3. Session Center & Stint Review</b>: Best vs. theoretical optimal lap breakdown, recoverable time, lap consistency trend chart, and CSV / HTML / PDF exports</sub>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+  <img src="assets/tuning-ai-workshop.png" alt="Tuning Workshop & Race Engineering Diagnostic Workbench screenshot" width="100%">
+  <br>
+  <sub><b>5. Tuning Workshop & Engineering Diagnostic Workbench</b>: Bind real track sessions for 1-click full-car telemetry health scans and targeted handling diagnostics</sub>
 </td>
 </tr>
 </table>
