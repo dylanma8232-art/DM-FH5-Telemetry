@@ -39,31 +39,7 @@ Switch instantaneously across five specialized workspaces via top tabs or hotkey
 
 <p align="center">
   <img src="assets/cockpit-overview.png" alt="Live Second-Screen Telemetry Cockpit screenshot" width="100%">
-  <br>
-  <sub><b>1. Live Telemetry Cockpit (Actual UI)</b>: Gear/speed/RPM & pedal inputs, live rally pace-note callout, longitudinal/lateral G-loads, active car spec, and S1/S2/S3 sector splits</sub>
 </p>
-
-<table>
-<tr>
-<td width="50%" valign="top">
-  <img src="assets/track-pacenotes.png" alt="Track Manager & Rally Pace Notes screenshot" width="100%">
-  <br>
-  <sub><b>2. Track Manager & Rally Pace Notes</b>: <code>Path2D</code> 60fps zoomable track canvas, track quality score, editable corner severity/angle list, and voice preview</sub>
-</td>
-<td width="50%" valign="top">
-  <img src="assets/session-analysis.png" alt="Session Center & Lap Stability Analysis screenshot" width="100%">
-  <br>
-  <sub><b>3. Session Center & Stint Review</b>: Best vs. theoretical optimal lap breakdown, recoverable time, lap consistency trend chart, and CSV / HTML / PDF exports</sub>
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top">
-  <img src="assets/tuning-ai-workshop.png" alt="Tuning Workshop & Race Engineering Diagnostic Workbench screenshot" width="100%">
-  <br>
-  <sub><b>5. Tuning Workshop & Engineering Diagnostic Workbench</b>: Bind real track sessions for 1-click full-car telemetry health scans and targeted handling diagnostics</sub>
-</td>
-</tr>
-</table>
 
 | Workspace (Hotkey) | Key Capabilities |
 |---|---|

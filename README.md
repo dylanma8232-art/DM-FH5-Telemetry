@@ -39,31 +39,7 @@
 
 <p align="center">
   <img src="assets/cockpit-overview.png" alt="实时副屏遥测仪表盘实机截图：档位车速、油门刹车输入、实时拉力路书、纵横向 G 值与分段计时" width="100%">
-  <br>
-  <sub><b>1. 实时遥测仪表盘（实机截图）</b>：档位/车速/转速与踏板输入、实时动态路书提示、底盘纵横向过载 G 值及单圈 S1/S2/S3 分段计时</sub>
 </p>
-
-<table>
-<tr>
-<td width="50%" valign="top">
-  <img src="assets/track-pacenotes.png" alt="赛道管理与拉力路书实机截图：轨迹画布、赛道质量评分与弯道严重度编辑列表" width="100%">
-  <br>
-  <sub><b>2. 赛道管理与动态拉力路书</b>：<code>Path2D</code> 无损缩放轨迹画布、赛道采样质量评分、弯道方向/角度精修列表与语音试听</sub>
-</td>
-<td width="50%" valign="top">
-  <img src="assets/session-analysis.png" alt="比赛中心实机截图：单场摘要、可追回时间、分段损失与圈速稳定性趋势曲线" width="100%">
-  <br>
-  <sub><b>3. 比赛中心与单场遥测复盘</b>：最快圈与理论最佳拆解、可追回时间评估、圈速稳定性趋势图及 CSV / HTML / PDF 报告导出</sub>
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top">
-  <img src="assets/tuning-ai-workshop.png" alt="调教工坊与赛车工程诊断工作台实机截图：绑定赛道遥测比赛并执行全车物理健康扫描" width="100%">
-  <br>
-  <sub><b>5. 调教工坊与赛车工程诊断台</b>：绑定实跑比赛记录一键执行全车遥测健康扫描（悬挂触底/滑移率/锁死率/温差），联动驾驶感受定向攻坚</sub>
-</td>
-</tr>
-</table>
 
 | 工作台（快捷键） | 核心功能亮点 |
 |---|---|
