@@ -2,7 +2,7 @@
 
 # DM-FH5-Telemetry
 
-**Second-screen 60Hz telemetry cockpit, speed-adaptive rally pace notes & AI tuning workshop for Forza Horizon 5**
+**Smart telemetry platform for Forza Horizon 5 — auto track mapping, speed-adaptive rally pace notes, corner-by-corner replay, AI setup tuning & second-screen HUD**
 
 <p>
   <a href="README.md"><img alt="简体中文" src="https://img.shields.io/badge/语言-简体中文-2b2927?style=flat-square"></a>
@@ -38,8 +38,19 @@ Chasing lap times, running night rally stages, or dialing in suspension setups i
 Switch instantaneously across five specialized workspaces via top tabs or hotkeys `1`–`5` (UI labels follow a clean Chinese motorsport layout):
 
 <p align="center">
-  <img src="assets/cockpit-overview.png" alt="Live Second-Screen Telemetry Cockpit screenshot" width="100%">
+  <img src="assets/highlight-track-pacenotes.png" alt="Auto Track Mapping and Speed-Adaptive Rally Pace Notes" width="100%">
 </p>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+  <img src="assets/highlight-telemetry-replay.png" alt="Corner-by-Corner Telemetry Replay & Second-Screen HUD" width="100%">
+</td>
+<td width="50%" valign="top">
+  <img src="assets/highlight-ai-tuning.png" alt="700+ Official Vehicle Spec Database & AI Race Engineer" width="100%">
+</td>
+</tr>
+</table>
 
 | Workspace (Hotkey) | Key Capabilities |
 |---|---|
@@ -120,4 +131,4 @@ flowchart LR
 
 ## Author
 
-Built by **[Dylan.ma](https://github.com/dylanma8232-art)** · **[Visit profile for more open-source projects →](https://github.com/dylanma8232-art)**
+Built by **[dylanma8232-art](https://github.com/dylanma8232-art)** · **[Visit profile for more open-source projects →](https://github.com/dylanma8232-art)**
