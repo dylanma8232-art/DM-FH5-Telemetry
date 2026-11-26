@@ -178,6 +178,7 @@ export const api = {
     getCurrent: () => get('/api/current'),
     getAiConfig: () => get('/api/system/settings/ai-config'),
     setAiConfig: (body) => post('/api/system/settings/ai-config', body),
+    testAiConfig: (body) => post('/api/system/settings/ai-config/test', body),
     getDashscopeKey: () => get('/api/system/settings/dashscope-key'),
     setDashscopeKey: (body) => post('/api/system/settings/dashscope-key', body)
   }

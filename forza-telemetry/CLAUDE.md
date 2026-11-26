@@ -527,6 +527,7 @@ DashboardPage → 各子组件渲染
 |------|------|------|
 | GET | `/api/settings/ai-config` | 获取当前 AI 配置（密钥掩码返回） |
 | POST | `/api/settings/ai-config` | 保存 AI 密钥、端点与模型（兼容任意 OpenAI 格式服务） |
+| POST | `/api/settings/ai-config/test` | 连通性自检：用请求体里的端点/模型/密钥实测一次，返回延迟与真实模型名，失败时返回准确原因 |
 | GET | `/api/settings/dashscope-key` | 旧路径别名，与 `ai-config` 同义 |
 | POST | `/api/settings/dashscope-key` | 旧路径别名，与 `ai-config` 同义 |
 

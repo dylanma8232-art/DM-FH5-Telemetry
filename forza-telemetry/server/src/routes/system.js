@@ -11,7 +11,8 @@ import {
   DEFAULT_AI_MODEL,
   getAiConfig,
   isLocalAiEndpoint,
-  normalizeBaseUrl
+  normalizeBaseUrl,
+  testAiConnection
 } from '../services/ai-client.js';
 import express from 'express';
 import fs from 'fs';
@@ -182,6 +183,45 @@ const handleSetAiConfig = asyncHandler(async (req, res) => {
   res.json({ status: 'ok' });
 });
 
+const handleTestAiConfig = asyncHandler(async (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: '仅允许从本地访问测试配置' });
+  }
+
+  const body = req.body || {};
+  const asText = (value) => (typeof value === 'string' ? value.trim() : '');
+
+  const overrides = {
+    apiKey: asText(body.apiKey),
+    baseUrl: asText(body.baseUrl),
+    model: asText(body.model)
+  };
+
+  if (overrides.baseUrl) {
+    try {
+      const parsedUrl = new URL(overrides.baseUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return res.status(400).json({ error: '端点必须使用 http 或 https 协议' });
+      }
+    } catch {
+      return res.status(400).json({ error: '端点地址格式不合法' });
+    }
+  }
+
+  try {
+    const result = await testAiConnection({ overrides });
+    res.json({ status: 'ok', ...result });
+  } catch (err) {
+    console.warn('[AI 自检] 连通性测试失败:', err.message);
+    res.json({
+      status: 'error',
+      error: err.message || '连通性测试失败',
+      code: err.code || null,
+      httpStatus: err.status || null
+    });
+  }
+});
+
 const handleBackupExport = asyncHandler(async (req, res) => {
   sqliteDb.checkpoint();
   const dataDir = getDataDir();
@@ -271,14 +311,18 @@ const restoreRawParser = express.raw({ type: ALLOWED_RESTORE_CONTENT_TYPES, limi
 // A2：同一批 handler 只实现一次，分别注册到单职责路由器，避免同一 router 被多次挂载
 router.get('/settings/ai-config', handleGetAiConfig);
 router.post('/settings/ai-config', express.json(), handleSetAiConfig);
+router.post('/settings/ai-config/test', express.json(), handleTestAiConfig);
 router.get('/settings/dashscope-key', handleGetAiConfig);
 router.post('/settings/dashscope-key', express.json(), handleSetAiConfig);
+router.post('/settings/dashscope-key/test', express.json(), handleTestAiConfig);
 router.get('/backup/export', handleBackupExport);
 router.post('/backup/restore', restoreRawParser, handleBackupRestore);
 settingsRouter.get('/ai-config', handleGetAiConfig);
 settingsRouter.post('/ai-config', express.json(), handleSetAiConfig);
+settingsRouter.post('/ai-config/test', express.json(), handleTestAiConfig);
 settingsRouter.get('/dashscope-key', handleGetAiConfig);
 settingsRouter.post('/dashscope-key', express.json(), handleSetAiConfig);
+settingsRouter.post('/dashscope-key/test', express.json(), handleTestAiConfig);
 backupRouter.get('/export', handleBackupExport);
 backupRouter.post('/restore', restoreRawParser, handleBackupRestore);
 

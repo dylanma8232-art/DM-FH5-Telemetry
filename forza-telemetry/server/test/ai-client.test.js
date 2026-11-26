@@ -111,3 +111,31 @@ test('callChatCompletion 在服务端拒绝 json_object 时自动降级重试并
     assert.equal(res.content, '{"ok":true}');
   });
 });
+
+test('网络层失败被转换成可读提示（拒绝连接 / 域名解析失败）', async () => {
+  await withAiEnv({
+    AI_API_KEY: '{{SECRET_abcd1234}}',
+    AI_BASE_URL: 'http://127.0.0.1:11434/v1',
+    AI_MODEL: 'qwen2.5:14b'
+  }, async () => {
+    const refused = async () => {
+      const err = new TypeError('fetch failed');
+      err.cause = { code: 'ECONNREFUSED' };
+      throw err;
+    };
+    await assert.rejects(
+      callChatCompletion({ messages: [{ role: 'user', content: 'hi' }], fetchImpl: refused }),
+      error => error.status === 502 && /拒绝连接/.test(error.message)
+    );
+
+    const dns = async () => {
+      const err = new TypeError('fetch failed');
+      err.cause = { code: 'ENOTFOUND' };
+      throw err;
+    };
+    await assert.rejects(
+      callChatCompletion({ messages: [{ role: 'user', content: 'hi' }], fetchImpl: dns }),
+      error => error.status === 502 && /域名无法解析/.test(error.message)
+    );
+  });
+});

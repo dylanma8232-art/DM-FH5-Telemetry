@@ -118,6 +118,8 @@ Built-in presets:
 
 > Legacy `DASHSCOPE_API_KEY` / `DASHSCOPE_BASE_URL` / `DASHSCOPE_MODEL` variables remain fully supported with no migration required.
 
+The settings panel includes a **Test connection** button: it sends one minimal real request using the endpoint, model and key you typed in, then reports the measured latency, the model id actually served, and the model's reply. On failure it tells you whether the key is invalid, the model does not exist, the port is not listening, or the host cannot be resolved - no need to save first and wait for a diagnosis to fail.
+
 ---
 
 ## Architecture & UDP Protocol

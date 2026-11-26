@@ -216,3 +216,27 @@ test('AI 配置保存失败时透传服务端错误信息', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('AI 连通性自检使用 test 子端点并透传当前表单配置', async () => {
+  let request;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(JSON.stringify({ status: 'ok', latencyMs: 321, servedModel: 'deepseek-chat', reply: '连通' }), { status: 200 });
+  };
+
+  try {
+    const result = await api.system.testAiConfig({ apiKey: 'sk-test', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' });
+    assert.equal(request.url, '/api/system/settings/ai-config/test');
+    assert.equal(request.options.method, 'POST');
+    assert.deepEqual(JSON.parse(request.options.body), {
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.deepseek.com/v1',
+      model: 'deepseek-chat'
+    });
+    assert.equal(result.status, 'ok');
+    assert.equal(result.latencyMs, 321);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -45,6 +45,8 @@ export function SettingsPanel({ onClose }) {
   const [model, setModel] = useState('qwen3.7-plus');
   const [savingKey, setSavingKey] = useState(false);
   const [loadingKey, setLoadingKey] = useState(false);
+  const [testingKey, setTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'ai') {
@@ -67,11 +69,38 @@ export function SettingsPanel({ onClose }) {
 
   const handleProviderChange = (nextId) => {
     setProviderId(nextId);
+    setTestResult(null);
     const preset = AI_PROVIDER_PRESETS.find(p => p.id === nextId);
     if (!preset) return;
     if (preset.baseUrl) setBaseUrl(preset.baseUrl);
     if (preset.defaultModel) setModel(preset.defaultModel);
     if (nextId === 'ollama') setApiKey('');
+  };
+
+  const handleTestAiConfig = async () => {
+    const trimmedUrl = baseUrl.trim();
+    const trimmedModel = model.trim();
+    if (!trimmedUrl || !trimmedModel) {
+      toast('请先填写接口端点与模型名称', 'error');
+      return;
+    }
+    setTestingKey(true);
+    setTestResult(null);
+    try {
+      const result = await api.system.testAiConfig({
+        apiKey: apiKey.trim(),
+        baseUrl: trimmedUrl,
+        model: trimmedModel
+      });
+      setTestResult(result);
+      if (result.status === 'ok') toast(`连通成功，耗时 ${result.latencyMs} ms`, 'success');
+      else toast('连通性测试失败', 'error');
+    } catch (err) {
+      setTestResult({ status: 'error', error: err.message || '连通性测试失败' });
+      toast(err.message || '连通性测试失败', 'error');
+    } finally {
+      setTestingKey(false);
+    }
   };
 
   const handleSaveAiConfig = async (e) => {
@@ -597,6 +626,58 @@ export function SettingsPanel({ onClose }) {
                 >
                   {savingKey ? '正在保存...' : '保存 AI 配置'}
                 </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleTestAiConfig}
+                    disabled={testingKey}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 4,
+                      color: 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: 11,
+                      cursor: testingKey ? 'wait' : 'pointer',
+                      opacity: testingKey ? 0.7 : 1
+                    }}
+                  >
+                    {testingKey ? '正在实测连通性...' : '测试连通性'}
+                  </button>
+                </div>
+                {testResult && (
+                  <div
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 4,
+                      fontSize: 10.5,
+                      lineHeight: 1.6,
+                      border: `1px solid ${testResult.status === 'ok' ? 'var(--success, #3fb950)' : 'var(--danger, #f85149)'}`,
+                      background: testResult.status === 'ok' ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)',
+                      color: testResult.status === 'ok' ? 'var(--success, #3fb950)' : 'var(--danger, #f85149)'
+                    }}
+                  >
+                    {testResult.status === 'ok' ? (
+                      <>
+                        <div style={{ fontWeight: 700 }}>✓ 连接成功 · 耗时 {testResult.latencyMs} ms</div>
+                        <div style={{ color: 'var(--text-secondary)', marginTop: 2 }}>
+                          实际模型：{testResult.servedModel || testResult.requestedModel}
+                          {testResult.servedModel && testResult.servedModel !== testResult.requestedModel ? `（请求 ${testResult.requestedModel}）` : ''}
+                        </div>
+                        {testResult.reply ? (
+                          <div style={{ color: 'var(--text-secondary)' }}>模型回复：{testResult.reply}</div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontWeight: 700 }}>✕ 连接失败</div>
+                        <div style={{ marginTop: 2, wordBreak: 'break-all' }}>{testResult.error}</div>
+                      </>
+                    )}
+                  </div>
+                )}
               </form>
             )}
           </div>

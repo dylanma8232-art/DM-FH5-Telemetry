@@ -242,3 +242,95 @@ test('支持通过 /api/settings/ai-config 配置 DeepSeek 或本地 Ollama 免�
     assert.equal(process.env.AI_MODEL, 'qwen2.5:14b');
   });
 });
+
+test('连通性自检接口：真实调用成功时返回延迟与模型，失败时返回准确原因', async () => {
+  await withSettingsServer(async ({ baseUrl }) => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (url, init) => {
+        const target = String(url);
+        // 只拦截服务端发往大模型的出站请求，放行测试自身发往本地服务的入站请求
+        if (!/\/chat\/completions$/.test(target)) return originalFetch(url, init);
+        const body = JSON.parse(init.body);
+        if (body.model === 'bad-model') {
+          return new Response(JSON.stringify({ error: { message: 'model not found' } }), { status: 404 });
+        }
+        return new Response(JSON.stringify({
+          model: body.model,
+          choices: [{ message: { content: '连通' } }]
+        }), { status: 200 });
+      };
+
+      const okRes = await fetch(`${baseUrl}/api/settings/ai-config/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: '{{SECRET_zgkqcxcb}}',
+          baseUrl: 'https://api.deepseek.com/v1/',
+          model: 'deepseek-chat'
+        })
+      });
+      assert.equal(okRes.status, 200);
+      const okBody = await okRes.json();
+      assert.equal(okBody.status, 'ok');
+      assert.equal(okBody.baseUrl, 'https://api.deepseek.com/v1');
+      assert.equal(okBody.servedModel, 'deepseek-chat');
+      assert.equal(okBody.reply, '连通');
+      assert.equal(typeof okBody.latencyMs, 'number');
+
+      const failRes = await fetch(`${baseUrl}/api/settings/ai-config/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: '{{SECRET_zgkqcxcb}}',
+          baseUrl: 'https://api.deepseek.com/v1',
+          model: 'bad-model'
+        })
+      });
+      assert.equal(failRes.status, 200);
+      const failBody = await failRes.json();
+      assert.equal(failBody.status, 'error');
+      assert.match(failBody.error, /model not found/);
+      assert.equal(failBody.httpStatus, 404);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+test('连通性自检：端点协议非法时直接 400，非本地来源被拒绝', async () => {
+  await withSettingsServer(async ({ baseUrl }) => {
+    const badRes = await fetch(`${baseUrl}/api/settings/ai-config/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: 'k', baseUrl: 'file:///etc/passwd', model: 'm' })
+    });
+    assert.equal(badRes.status, 400);
+
+    const savedKeys = {
+      AI_API_KEY: process.env.AI_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      DASHSCOPE_API_KEY: process.env.DASHSCOPE_API_KEY
+    };
+    delete process.env.AI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.DASHSCOPE_API_KEY;
+    const originalFetch = globalThis.fetch;
+    try {
+      const localRes = await fetch(`${baseUrl}/api/settings/ai-config/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: '', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' })
+      });
+      const localBody = await localRes.json();
+      assert.equal(localBody.status, 'error');
+      assert.match(localBody.error, /密钥/);
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of Object.entries(savedKeys)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+});
