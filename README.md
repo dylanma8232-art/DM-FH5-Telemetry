@@ -1,8 +1,8 @@
 <div align="center">
 
-# DM-FH5-Telemetry
+# 《地平线 5》手机副屏仪表台 (`DM-FH5-Telemetry`)
 
-**《极限竞速：地平线 5》副屏遥测工程台、车速自适应拉力路书与 AI 赛道调校工坊**
+**把手机或平板变成实时赛车仪表盘 —— 不挡游戏主屏幕，还能自动语音报弯道、让 AI 帮你调车**
 
 <p>
   <a href="README.md"><img alt="简体中文" src="https://img.shields.io/badge/语言-简体中文-c8521b?style=flat-square"></a>
