@@ -175,3 +175,44 @@ test('单弯道建议速度契约使用 PUT /api/tracks/:id/turns/:index/speedHi
     globalThis.fetch = originalFetch;
   }
 });
+
+test('AI 配置读写使用通用 ai-config 端点，方法与请求体保持契约', async () => {
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return new Response(JSON.stringify({ apiKey: '****1234', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }), { status: 200 });
+  };
+
+  try {
+    const config = await api.system.getAiConfig();
+    assert.equal(requests[0].url, '/api/system/settings/ai-config');
+    assert.equal(requests[0].options?.method ?? 'GET', 'GET');
+    assert.equal(config.model, 'deepseek-chat');
+
+    await api.system.setAiConfig({ apiKey: 'sk-real', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' });
+    assert.equal(requests[1].url, '/api/system/settings/ai-config');
+    assert.equal(requests[1].options.method, 'POST');
+    assert.deepEqual(JSON.parse(requests[1].options.body), {
+      apiKey: 'sk-real',
+      baseUrl: 'https://api.deepseek.com/v1',
+      model: 'deepseek-chat'
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('AI 配置保存失败时透传服务端错误信息', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: '参数不能包含换行符' }), { status: 400 });
+
+  try {
+    await assert.rejects(
+      api.system.setAiConfig({ apiKey: 'a\nb' }),
+      error => error.status === 400 && error.message === '参数不能包含换行符'
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

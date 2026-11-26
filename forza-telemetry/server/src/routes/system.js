@@ -6,6 +6,13 @@ import { loadJSON } from '../utils/helpers.js';
 import { loadTracksDatabase } from '../storage/session-db.js';
 import { invalidateSummaryCache } from '../storage/session-store.js';
 import { sqliteDb } from '../storage/sqlite-db.js';
+import {
+  DEFAULT_AI_BASE_URL,
+  DEFAULT_AI_MODEL,
+  getAiConfig,
+  isLocalAiEndpoint,
+  normalizeBaseUrl
+} from '../services/ai-client.js';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -88,44 +95,33 @@ function isLocalRequest(req) {
 
 const getMaskedKey = (key) => key ? (key.length > 4 ? '*'.repeat(key.length - 4) + key.slice(-4) : '****') : '';
 
-const handleGetDashscopeKey = (req, res) => {
+const handleGetAiConfig = (req, res) => {
+  const { apiKey, baseUrl, model } = getAiConfig();
   res.json({
-    apiKey: getMaskedKey(process.env.DASHSCOPE_API_KEY),
-    baseUrl: process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus'
+    apiKey: getMaskedKey(apiKey),
+    baseUrl,
+    model
   });
 };
 
-const handleSetDashscopeKey = asyncHandler(async (req, res) => {
+const upsertEnvVar = (content, key, value) => {
+  const pattern = new RegExp(`^${key}=.*$`, 'm');
+  if (pattern.test(content)) {
+    return content.replace(pattern, `${key}=${value}`);
+  }
+  return content ? `${content.replace(/\n+$/, '')}\n${key}=${value}\n` : `${key}=${value}\n`;
+};
+
+const handleSetAiConfig = asyncHandler(async (req, res) => {
   if (!isLocalRequest(req)) {
     return res.status(403).json({ error: '仅允许从本地访问修改配置' });
   }
 
   let { apiKey, baseUrl, model } = req.body || {};
-  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-    return res.status(400).json({ error: 'API Key 不能为空' });
-  }
 
   const containsNewline = (str) => typeof str === 'string' && (/[\r\n]/.test(str));
   if (containsNewline(apiKey) || containsNewline(baseUrl) || containsNewline(model)) {
     return res.status(400).json({ error: '参数不能包含换行符' });
-  }
-
-  const currentKey = process.env.DASHSCOPE_API_KEY || '';
-  const currentMasked = getMaskedKey(currentKey);
-  const currentBaseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-
-  const isMaskedKey = apiKey === currentMasked || apiKey.includes('*');
-
-  if (isMaskedKey) {
-    if (baseUrl && baseUrl !== currentBaseUrl) {
-      return res.status(400).json({ error: '修改 baseUrl 时必须提供真实完整 Key' });
-    }
-    apiKey = currentKey;
-  }
-
-  if (!apiKey) {
-    return res.status(400).json({ error: 'API Key 不能为空' });
   }
 
   if (baseUrl) {
@@ -139,40 +135,51 @@ const handleSetDashscopeKey = asyncHandler(async (req, res) => {
     }
   }
 
+  const currentConfig = getAiConfig();
+  const currentKey = currentConfig.apiKey;
+  const currentMasked = getMaskedKey(currentKey);
+  const currentBaseUrl = currentConfig.baseUrl;
+  const finalUrl = baseUrl ? normalizeBaseUrl(baseUrl) : currentBaseUrl || DEFAULT_AI_BASE_URL;
+  const isLocalModel = isLocalAiEndpoint(finalUrl);
+
+  const rawKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+  const isMaskedKey = rawKey !== '' && (rawKey === currentMasked || rawKey.includes('*'));
+
+  if (isMaskedKey) {
+    if (baseUrl && finalUrl !== currentBaseUrl) {
+      return res.status(400).json({ error: '修改 baseUrl 时必须提供真实完整 Key' });
+    }
+    apiKey = currentKey;
+  } else {
+    apiKey = rawKey;
+  }
+
+  if (!apiKey && !isLocalModel) {
+    return res.status(400).json({ error: 'API Key 不能为空' });
+  }
+
+  const finalModel = (typeof model === 'string' && model.trim()) ? model.trim() : (currentConfig.model || DEFAULT_AI_MODEL);
+
+  process.env.AI_API_KEY = apiKey;
+  process.env.AI_BASE_URL = finalUrl;
+  process.env.AI_MODEL = finalModel;
   process.env.DASHSCOPE_API_KEY = apiKey;
-  if (baseUrl) process.env.DASHSCOPE_BASE_URL = baseUrl;
-  if (model) process.env.DASHSCOPE_MODEL = model;
+  process.env.DASHSCOPE_BASE_URL = finalUrl;
+  process.env.DASHSCOPE_MODEL = finalModel;
 
   const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env');
   let envContent = '';
   if (fs.existsSync(envPath)) envContent = fs.readFileSync(envPath, 'utf8');
 
-  if (envContent.includes('DASHSCOPE_API_KEY=')) {
-    envContent = envContent.replace(/DASHSCOPE_API_KEY=.*/, `DASHSCOPE_API_KEY=${apiKey}`);
-  } else {
-    envContent += `\nDASHSCOPE_API_KEY=${apiKey}`;
-  }
-
-  const finalUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-  if (envContent.includes('DASHSCOPE_BASE_URL=')) {
-    envContent = envContent.replace(/DASHSCOPE_BASE_URL=.*/, `DASHSCOPE_BASE_URL=${finalUrl}`);
-  } else {
-    envContent += `\nDASHSCOPE_BASE_URL=${finalUrl}`;
-  }
-
-  const finalModel = model || 'qwen3.7-plus';
-  if (envContent.includes('DASHSCOPE_MODEL=')) {
-    envContent = envContent.replace(/DASHSCOPE_MODEL=.*/, `DASHSCOPE_MODEL=${finalModel}`);
-  } else {
-    envContent += `\nDASHSCOPE_MODEL=${finalModel}`;
-  }
+  envContent = upsertEnvVar(envContent, 'AI_API_KEY', apiKey);
+  envContent = upsertEnvVar(envContent, 'AI_BASE_URL', finalUrl);
+  envContent = upsertEnvVar(envContent, 'AI_MODEL', finalModel);
+  envContent = upsertEnvVar(envContent, 'DASHSCOPE_API_KEY', apiKey);
+  envContent = upsertEnvVar(envContent, 'DASHSCOPE_BASE_URL', finalUrl);
+  envContent = upsertEnvVar(envContent, 'DASHSCOPE_MODEL', finalModel);
 
   fs.writeFileSync(envPath, envContent, 'utf8');
   res.json({ status: 'ok' });
-
-
-
-
 });
 
 const handleBackupExport = asyncHandler(async (req, res) => {
@@ -262,12 +269,16 @@ const handleBackupRestore = asyncHandler(async (req, res) => {
 const restoreRawParser = express.raw({ type: ALLOWED_RESTORE_CONTENT_TYPES, limit: '100mb' });
 
 // A2：同一批 handler 只实现一次，分别注册到单职责路由器，避免同一 router 被多次挂载
-router.get('/settings/dashscope-key', handleGetDashscopeKey);
-router.post('/settings/dashscope-key', express.json(), handleSetDashscopeKey);
+router.get('/settings/ai-config', handleGetAiConfig);
+router.post('/settings/ai-config', express.json(), handleSetAiConfig);
+router.get('/settings/dashscope-key', handleGetAiConfig);
+router.post('/settings/dashscope-key', express.json(), handleSetAiConfig);
 router.get('/backup/export', handleBackupExport);
 router.post('/backup/restore', restoreRawParser, handleBackupRestore);
-settingsRouter.get('/dashscope-key', handleGetDashscopeKey);
-settingsRouter.post('/dashscope-key', express.json(), handleSetDashscopeKey);
+settingsRouter.get('/ai-config', handleGetAiConfig);
+settingsRouter.post('/ai-config', express.json(), handleSetAiConfig);
+settingsRouter.get('/dashscope-key', handleGetAiConfig);
+settingsRouter.post('/dashscope-key', express.json(), handleSetAiConfig);
 backupRouter.get('/export', handleBackupExport);
 backupRouter.post('/restore', restoreRawParser, handleBackupRestore);
 

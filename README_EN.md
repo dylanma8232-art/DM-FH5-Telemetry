@@ -95,14 +95,28 @@ npm start
 
 ## Optional AI Coach & Voice Configuration
 
-Copy [`.env.example`](.env.example) to `.env` in the repo root (or configure directly inside the in-app Settings modal via `Ctrl+E`):
+Copy [`.env.example`](.env.example) to `.env` in the repo root (or configure directly inside the in-app Settings modal via `Ctrl+E`). A built-in provider preset switcher lets you connect most mainstream LLMs in one click:
 
 | Variable | Required | Description |
 |---|---|---|
-| `DASHSCOPE_API_KEY` | Optional | Unlocks post-stint AI setup diagnostics and upgrade solving via DashScope / OpenAI-compatible LLMs |
-| `DASHSCOPE_BASE_URL` | Optional | Defaults to `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `DASHSCOPE_MODEL` | Optional | Defaults to `qwen3.7-plus` |
+| `AI_API_KEY` | Optional | Any mainstream LLM API key. Unlocks post-stint AI setup diagnostics and AI upgrade solving |
+| `AI_BASE_URL` | Optional | Standard OpenAI-compatible endpoint, defaults to `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `AI_MODEL` | Optional | Model id, defaults to `qwen3.7-plus`; any model id is accepted |
 | Voice Callout Engine | Built-in | Works out of the box via Web Speech API, with optional Xiaomi Mimo TTS cloud voice support |
+
+Built-in presets:
+
+| Provider | Endpoint | Typical models |
+|---|---|---|
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat`, `deepseek-reasoner` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o`, `gpt-4o-mini` |
+| Alibaba DashScope | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus`, `qwen-max` |
+| SiliconFlow | `https://api.siliconflow.cn/v1` | `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1` |
+| Moonshot Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| Ollama (local) | `http://localhost:11434/v1` | `qwen2.5:14b`, `deepseek-r1:14b` (keyless, fully offline) |
+| Custom | Any | Third-party gateways, self-hosted or any OpenAI-compatible service |
+
+> Legacy `DASHSCOPE_API_KEY` / `DASHSCOPE_BASE_URL` / `DASHSCOPE_MODEL` variables remain fully supported with no migration required.
 
 ---
 

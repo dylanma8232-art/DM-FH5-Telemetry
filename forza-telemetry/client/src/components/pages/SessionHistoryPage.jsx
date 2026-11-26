@@ -10,6 +10,7 @@ import { DRIVING_PROBLEMS, PROBLEM_CATEGORIES } from '../../data/tunePresets';
 import { api } from '../../services/api';
 import { TrackThumbnail, InteractiveTrackMap } from './session/TrackMaps';
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
+import { AI_PROVIDER_PRESETS, detectProviderPreset, isLocalAiUrl } from '../../data/aiProviders';
 
 
 
@@ -169,9 +170,10 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
   const selectedSessionRef = useRef(null);
 
   // AI 配置输入状态
+  const [providerId, setProviderId] = useState('deepseek');
   const [apiKey, setApiKey] = useState('');
-  const [baseUrl] = useState('https://dashscope.aliyuncs.com/compatible-mode/v1');
-  const [model] = useState('qwen3.7-plus');
+  const [baseUrl, setBaseUrl] = useState('https://api.deepseek.com/v1');
+  const [model, setModel] = useState('deepseek-chat');
   const [savingKey, setSavingKey] = useState(false);
 
   // 趣言轮播计时器
@@ -264,7 +266,7 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
       console.error('AI 诊断失败:', e);
       if (e.status === 403) {
         setKeyConfigured(false);
-        toast('请配置您的百炼 API Key', 'error');
+        toast('请先配置 AI 接口密钥或本地模型', 'error');
       } else {
         toast(e.message || '大模型请求失败，请稍后重试', 'error');
       }
@@ -277,20 +279,36 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
     }
   };
 
+  const handleProviderPresetChange = (nextId) => {
+    setProviderId(nextId);
+    const preset = AI_PROVIDER_PRESETS.find(p => p.id === nextId);
+    if (!preset) return;
+    if (preset.baseUrl) setBaseUrl(preset.baseUrl);
+    if (preset.defaultModel) setModel(preset.defaultModel);
+    if (nextId === 'ollama') setApiKey('');
+  };
+
   const handleSaveApiKey = async (e) => {
     e.preventDefault();
-    if (!apiKey.trim()) {
-      toast('请输入 API Key', 'error');
+    const trimmedUrl = baseUrl.trim();
+    const trimmedKey = apiKey.trim();
+    const trimmedModel = model.trim();
+    if (!trimmedUrl || !trimmedModel) {
+      toast('请填写接口端点与模型名称', 'error');
+      return;
+    }
+    if (!trimmedKey && !isLocalAiUrl(trimmedUrl)) {
+      toast('请输入 API 密钥', 'error');
       return;
     }
     setSavingKey(true);
     try {
-      await api.system.setDashscopeKey({
-        apiKey: apiKey.trim(),
-        baseUrl: baseUrl.trim(),
-        model: model.trim()
+      await api.system.setAiConfig({
+        apiKey: trimmedKey,
+        baseUrl: trimmedUrl,
+        model: trimmedModel
       });
-      toast('API 配置保存成功！', 'success');
+      toast('AI 配置保存成功！', 'success');
       setKeyConfigured(true);
       setApiKey('');
       handleStartAiDiagnosis();
@@ -1913,21 +1931,48 @@ export const SessionHistoryPage = React.memo(function SessionHistoryPage({ onNav
                       <div style={{ maxWidth: 460, margin: '20px auto', padding: 20, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8 }}>
                         <div style={{ textAlign: 'center', marginBottom: 16 }}>
                           <span style={{ fontSize: 24 }}>🔑</span>
-                          <h4 style={{ fontSize: 12, fontWeight: 700, margin: '10px 0 4px' }}>未检测到 API Key，请进行配置</h4>
+                          <h4 style={{ fontSize: 12, fontWeight: 700, margin: '10px 0 4px' }}>未检测到 AI 服务配置</h4>
                           <p style={{ fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                            AI 诊断需要使用阿里云百炼 API Key。请在下方保存您的密钥以启用此功能（保存后将立刻触发诊断）。
+                            支持接入 DeepSeek、OpenAI、阿里云百炼、硅基流动或本地 Ollama 模型，保存后将立刻开始诊断。
                           </p>
                         </div>
                         <form onSubmit={handleSaveApiKey} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <select
+                            value={providerId}
+                            onChange={e => handleProviderPresetChange(e.target.value)}
+                            style={inputStyle}
+                          >
+                            {AI_PROVIDER_PRESETS.map(preset => (
+                              <option key={preset.id} value={preset.id}>{preset.label}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={baseUrl}
+                            onChange={e => {
+                              const nextUrl = e.target.value;
+                              setBaseUrl(nextUrl);
+                              setProviderId(detectProviderPreset(nextUrl));
+                            }}
+                            placeholder="兼容接口端点地址"
+                            style={inputStyle}
+                          />
+                          <input
+                            type="text"
+                            value={model}
+                            onChange={e => setModel(e.target.value)}
+                            placeholder="模型名称，例如 deepseek-chat"
+                            style={inputStyle}
+                          />
                           <input
                             type="password"
                             value={apiKey}
                             onChange={e => setApiKey(e.target.value)}
-                            placeholder={API_KEY_PLACEHOLDER}
+                            placeholder={isLocalAiUrl(baseUrl) ? '本地模型可留空' : API_KEY_PLACEHOLDER}
                             style={inputStyle}
                           />
                           <button type="submit" disabled={savingKey} style={{ padding: '6px 12px', background: 'var(--accent)', border: 'none', borderRadius: 4, color: '#000', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}>
-                            {savingKey ? '正在保存...' : '保存密钥并开始诊断'}
+                            {savingKey ? '正在保存...' : '保存配置并开始诊断'}
                           </button>
                         </form>
                       </div>

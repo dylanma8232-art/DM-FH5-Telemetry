@@ -71,9 +71,8 @@ export function useTuneDiagnosis({
       }
       const result = await api.tunes.aiDiagnose(tuneId || 'draft', payload)
       setAiDiagnosis(result.diagnosis || 'AI 多项驾驶问题诊断完毕。')
-    } catch (error) { 
-      const names = targetProblems.map(p => p.name).join(' + ')
-      setAiDiagnosis(`🤖 AI 联合诊断分析（针对复合现象「${names}」）：\n当前车辆构型在出现上述多项碰撞不平衡时，主要原因为悬挂/差速器载荷转移不均。建议点击下方生成对比预览方案。`) 
+    } catch (error) {
+      setAiDiagnosis(`⚠️ AI 诊断请求失败：${error.message || '请检查 AI 接口配置与网络连接'}`)
     }
     finally { setAiDiagnosing(false) }
   }
@@ -85,8 +84,8 @@ export function useTuneDiagnosis({
       setAiDiagnosing(true); setAiDiagnosis(null)
       const result = await api.analysis.generateAiDiagnosis(selectedSessionId, { tuneId, formData })
       setAiDiagnosis(result.diagnosis || 'AI 遥测分析完成，建议针对跑圈数据一键应用修正方案。')
-    } catch (error) { 
-      setAiDiagnosis(`AI 遥测诊断已生成基础建议：比赛记录集中存在轴向推头/打滑迹象，推荐应用下方的解法修正。`) 
+    } catch (error) {
+      setAiDiagnosis(`⚠️ AI 遥测诊断失败：${error.message || '请检查 AI 接口配置与网络连接'}`)
     }
     finally { setAiDiagnosing(false) }
   }

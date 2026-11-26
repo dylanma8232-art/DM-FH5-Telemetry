@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { resolveUpgradeProfile, resolveTuningCapabilities, solveFormulaBuild, validateBuild, validateTunePayload } from '../services/upgrade-catalog.js';
+import { callChatCompletion, isAiConfigured, parseJsonFromAiContent } from '../services/ai-client.js';
 
 const router = express.Router();
 
@@ -141,8 +142,7 @@ router.post('/:id/upgrades/ai-solve', express.json(), asyncHandler(async (req, r
   const vehicleId = String(req.params.id);
   const profile = loadSingleUpgradeProfile(vehicleId);
   if (!profile) return res.status(404).json({ error: '该车辆缺少改装资料，暂不能使用 AI 改装。' });
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) return res.status(403).json({ error: '尚未配置 AI 密钥，请先在设置中的 AI 配置里填写。' });
+  if (!isAiConfigured()) return res.status(403).json({ error: '尚未配置 AI 密钥，请先在设置中的 AI 配置里填写。' });
 
   const body = req.body || {};
   const targetPi = Math.min(999, Number(body.targetPi) || 800);
@@ -166,33 +166,27 @@ router.post('/:id/upgrades/ai-solve', express.json(), asyncHandler(async (req, r
   if (!compactSlots.length) {
     return res.status(422).json({ error: '该车尚无 PI 已实测或已校准的可升级配件，AI 不会用公式猜测方案。请手动改装后填写游戏实测 PI。' });
   }
-  const baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-  const modelName = process.env.DASHSCOPE_MODEL || 'qwen3.7-plus';
   const prompt = `你是 Forza Horizon 5 改装规划器。请为以下车辆选择目标 PI 内性价比最高的改装组合。
 只能使用给出的 slot id 和 option id，禁止创造新 ID；未列出的选项不能选择。
 必须输出严格 JSON，不要 Markdown：{"parts":{"slotId":{"optionId":"optionId"}},"reason":"中文简短说明"}
 车辆：${profile.name}，原厂 PI：${profile.basePi}，目标 PI：${targetPi}，赛事：${raceType}，驱动：${driveType}
 可用选项：${JSON.stringify(compactSlots)}`;
-  const apiResponse = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: modelName,
+  let completion;
+  try {
+    completion = await callChatCompletion({
       temperature: 0.1,
-      response_format: { type: 'json_object' },
+      jsonMode: true,
       messages: [
         { role: 'system', content: '你只负责在给定候选配件中做约束选择。不要估算或编造游戏不存在的配件。' },
         { role: 'user', content: prompt }
       ]
-    })
-  });
-  if (!apiResponse.ok) return res.status(apiResponse.status).json({ error: `AI 改装请求失败：${apiResponse.statusText}` });
-  const json = await apiResponse.json();
-  const content = json.choices?.[0]?.message?.content || '';
+    });
+  } catch (err) {
+    return res.status(err.status || 502).json({ error: err.message || 'AI 改装请求失败' });
+  }
   let aiPlan;
   try {
-    const text = String(content).replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-    aiPlan = JSON.parse(text);
+    aiPlan = parseJsonFromAiContent(completion.content);
   } catch (_) {
     return res.status(502).json({ error: 'AI 返回的改装方案不是有效 JSON，未应用任何配件。' });
   }

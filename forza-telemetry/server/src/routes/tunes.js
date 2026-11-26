@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { sqliteDb } from '../storage/sqlite-db.js';
 import { listSummaryFileNames, readSummaries } from '../storage/session-store.js';
+import { callChatCompletion, isAiConfigured, stripThinkingTags } from '../services/ai-client.js';
 
 const router = express.Router();
 
@@ -94,8 +95,7 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
 
   const problemNamesStr = problems.map(p => p.name).join(' + ');
 
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) {
+  if (!isAiConfigured()) {
     const evidenceText = sessionTelemetryMetrics?.sensorEvidence?.length > 0
       ? `• **遥测传感器实测物理证据**：\n  ${sessionTelemetryMetrics.sensorEvidence.join('\n  ')}\n`
       : '• **遥测比赛数据**：未绑定遥测记录（已基于该车已有已调物理参数分析）\n';
@@ -122,14 +122,18 @@ router.post('/:tuneId/ai-diagnosis', express.json(), asyncHandler(async (req, re
     `【允许建议调整的字段】: ${JSON.stringify(editable)}\n\n` +
     `请作为顶尖 FH5 赛车工程师，严格基于上述已有调校参数${sessionTelemetryMetrics ? '以及赛道遥测传感器的真实物理数据' : ''}，针对玩家选择的这 ${problems.length} 项复合驾驶问题进行权衡与深度物理分析，并给出兼顾这几项症状的权衡参数调整推荐。格式：\n1. 复合现象与物理原因分析\n2. 具体参数调整推荐（字段、当前值、建议值、调整依据）。`;
 
-  const response = await fetch(`${process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}/chat/completions`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: process.env.DASHSCOPE_MODEL || 'qwen3.7-plus', temperature: 0.2, messages: [{ role: 'system', content: '你是专业赛车工程调教诊断助手。只评估当前方案参数与遥测传感器特征，不重做改装。' }, { role: 'user', content: prompt }] })
-  });
-
-  if (!response.ok) return res.status(response.status).json({ error: `AI 诊断请求失败：${response.statusText}` });
-  const json = await response.json();
-  res.json({ diagnosis: json.choices?.[0]?.message?.content || 'AI 未返回诊断内容。' });
+  try {
+    const completion = await callChatCompletion({
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: '你是专业赛车工程调教诊断助手。只评估当前方案参数与遥测传感器特征，不重做改装。' },
+        { role: 'user', content: prompt }
+      ]
+    });
+    res.json({ diagnosis: stripThinkingTags(completion.content) || 'AI 未返回诊断内容。' });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message || 'AI 诊断请求失败' });
+  }
 }));
 
 const nestedTuneKeys = ['tires', 'suspension', 'drivetrain', 'brakes', 'aero'];

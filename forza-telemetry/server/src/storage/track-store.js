@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import zlib from 'zlib';
 import { promisify } from 'util';
 
@@ -18,7 +19,7 @@ import { createTrackDetailCache } from './track-detail-cache.js';
  */
 
 // 获取数据根目录 (相对于此文件)
-export const DATA_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../data');
+export const DATA_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
 
 // 赛道详情进程内 LRU：30s TTL + 文件 stat 双重校验（外部/worker 写入会被 stat 自然失效）
 function statTrackFile(filePath) {

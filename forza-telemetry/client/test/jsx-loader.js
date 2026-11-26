@@ -10,8 +10,9 @@ export async function resolve(specifier, context, nextResolve) {
       const parentURL = new URL(context.parentURL);
       const url = new URL(specifier, parentURL);
       const extensions = ['.js', '.jsx', '/index.js', '/index.jsx'];
+      const urlPath = fileURLToPath(url);
       for (const ext of extensions) {
-        if (fs.existsSync(url.pathname + ext)) {
+        if (fs.existsSync(urlPath + ext)) {
           return {
             shortCircuit: true,
             url: new URL(specifier + ext, parentURL).href,

@@ -525,8 +525,12 @@ DashboardPage → 各子组件渲染
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/settings/dashscope-key` | 获取 DashScope API Key |
-| POST | `/api/settings/dashscope-key` | 设置 DashScope API Key |
+| GET | `/api/settings/ai-config` | 获取当前 AI 配置（密钥掩码返回） |
+| POST | `/api/settings/ai-config` | 保存 AI 密钥、端点与模型（兼容任意 OpenAI 格式服务） |
+| GET | `/api/settings/dashscope-key` | 旧路径别名，与 `ai-config` 同义 |
+| POST | `/api/settings/dashscope-key` | 旧路径别名，与 `ai-config` 同义 |
+
+> AI 配置优先级：`AI_*` → `OPENAI_*` → `DASHSCOPE_*`。本地端点（`localhost` / `127.0.0.1`）允许免密钥接入。
 
 ---
 

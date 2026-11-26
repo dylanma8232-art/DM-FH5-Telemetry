@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readCarsDatabase, carsDatabasePath } from '../src/storage/reference-store.js';
 import { readDiagnosisCache, writeDiagnosisCache, diagnosisCachePath, diagnosisDir } from '../src/storage/diagnosis-store.js';
 
@@ -21,7 +22,7 @@ test('车型总库读取返回对象并在未变更时复用同一缓存', () =>
   assert.equal(typeof first, 'object');
   assert.equal(first, second);
   assert.ok(Object.keys(first).length > 0);
-  assert.equal(carsDatabasePath(), path.resolve(path.dirname(new URL(import.meta.url).pathname), '../src/config/cars-database.json'));
+  assert.equal(carsDatabasePath(), path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/config/cars-database.json'));
 });
 
 test('诊断缓存缺失或损坏时返回 null', async () => {

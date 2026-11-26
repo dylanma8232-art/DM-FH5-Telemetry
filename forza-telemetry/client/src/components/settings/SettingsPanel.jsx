@@ -3,6 +3,7 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { themes } from '../../themes';
 import { api } from '../../services/api';
 import { API_KEY_PLACEHOLDER } from '../../utils/constants';
+import { AI_PROVIDER_PRESETS, detectProviderPreset, isLocalAiUrl } from '../../data/aiProviders';
 import { toast } from '../shared/Toast';
 
 const fieldControlStyle = {
@@ -38,6 +39,7 @@ export function SettingsPanel({ onClose }) {
   });
 
   // AI 环境变量配置状态
+  const [providerId, setProviderId] = useState('dashscope');
   const [apiKey, setApiKey] = useState('');
   const [baseUrl, setBaseUrl] = useState('https://dashscope.aliyuncs.com/compatible-mode/v1');
   const [model, setModel] = useState('qwen3.7-plus');
@@ -47,11 +49,13 @@ export function SettingsPanel({ onClose }) {
   useEffect(() => {
     if (activeTab === 'ai') {
       setLoadingKey(true);
-      api.system.getDashscopeKey()
+      api.system.getAiConfig()
         .then(data => {
+          const loadedUrl = data.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
           setApiKey(data.apiKey || '');
-          setBaseUrl(data.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+          setBaseUrl(loadedUrl);
           setModel(data.model || 'qwen3.7-plus');
+          setProviderId(detectProviderPreset(loadedUrl));
         })
         .catch(err => {
           console.error('获取 API 配置失败:', err);
@@ -61,19 +65,39 @@ export function SettingsPanel({ onClose }) {
     }
   }, [activeTab]);
 
+  const handleProviderChange = (nextId) => {
+    setProviderId(nextId);
+    const preset = AI_PROVIDER_PRESETS.find(p => p.id === nextId);
+    if (!preset) return;
+    if (preset.baseUrl) setBaseUrl(preset.baseUrl);
+    if (preset.defaultModel) setModel(preset.defaultModel);
+    if (nextId === 'ollama') setApiKey('');
+  };
+
   const handleSaveAiConfig = async (e) => {
     e.preventDefault();
-    if (!apiKey.trim()) {
-      toast('请输入 API Key', 'error');
+    const trimmedUrl = baseUrl.trim();
+    const trimmedKey = apiKey.trim();
+    const trimmedModel = model.trim();
+    if (!trimmedUrl) {
+      toast('请输入接口端点地址', 'error');
+      return;
+    }
+    if (!trimmedModel) {
+      toast('请输入或选择模型名称', 'error');
+      return;
+    }
+    if (!trimmedKey && !isLocalAiUrl(trimmedUrl)) {
+      toast('请输入 API 密钥', 'error');
       return;
     }
     setSavingKey(true);
     try {
-      await api.system.setDashscopeKey({ apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() });
-      toast('AI 密钥配置已成功保存！', 'success');
+      await api.system.setAiConfig({ apiKey: trimmedKey, baseUrl: trimmedUrl, model: trimmedModel });
+      toast('AI 服务配置已成功保存！', 'success');
     } catch (err) {
       console.error('[Settings] 保存配置失败:', err);
-      toast(err.status ? '配置保存失败' : '请求失败，请稍后重试', 'error');
+      toast(err.message || '配置保存失败，请稍后重试', 'error');
     } finally {
       setSavingKey(false);
     }
@@ -462,8 +486,8 @@ export function SettingsPanel({ onClose }) {
 
         {activeTab === 'ai' && (
           <div>
-            <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)' }}>
-              阿里云百炼平台大模型服务密钥与参数配置。在此配置后，AI 驾驶教练诊断将在本机会话中直接生效并存入本地 .env 环境变量。
+            <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              兼容主流大模型接入，支持 DeepSeek、OpenAI、阿里云百炼、硅基流动、Ollama 本地模型及任意标准兼容接口。保存后在本机会话立即生效并写入本地配置。
             </div>
             {loadingKey ? (
               <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -473,50 +497,86 @@ export function SettingsPanel({ onClose }) {
               <form onSubmit={handleSaveAiConfig} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    百炼 API 密钥
+                    服务商预设
+                  </label>
+                  <select
+                    value={providerId}
+                    onChange={e => handleProviderChange(e.target.value)}
+                    style={{
+                      ...fieldControlStyle,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {AI_PROVIDER_PRESETS.map(preset => (
+                      <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    接口密钥
                   </label>
                   <input
                     type="password"
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
-                    placeholder={API_KEY_PLACEHOLDER}
+                    placeholder={isLocalAiUrl(baseUrl) ? '本地模型服务可留空' : API_KEY_PLACEHOLDER}
                     style={fieldControlStyle}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    百炼兼容接口端点
+                    兼容接口端点
                   </label>
                   <input
                     type="text"
                     value={baseUrl}
-                    onChange={e => setBaseUrl(e.target.value)}
-                    placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    onChange={e => {
+                      const nextUrl = e.target.value;
+                      setBaseUrl(nextUrl);
+                      setProviderId(detectProviderPreset(nextUrl));
+                    }}
+                    placeholder="https://api.deepseek.com/v1"
                     style={fieldControlStyle}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    默认评估模型
+                    模型名称
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={model}
                     onChange={e => setModel(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: 8,
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 4,
-                      color: 'var(--text-primary)',
-                      fontSize: 11,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="qwen3.7-plus">qwen3.7-plus (最新智能体推理模型，推荐)</option>
-                    <option value="qwen-plus">qwen-plus (中端高性价比模型)</option>
-                    <option value="qwen-max">qwen-max (旗舰最高智能模型)</option>
-                  </select>
+                    placeholder="例如 deepseek-chat、gpt-4o、qwen3.7-plus"
+                    style={fieldControlStyle}
+                  />
+                  {(() => {
+                    const activePreset = AI_PROVIDER_PRESETS.find(p => p.id === providerId);
+                    if (!activePreset || !activePreset.recommendedModels.length) return null;
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                        {activePreset.recommendedModels.map(rec => (
+                          <button
+                            key={rec}
+                            type="button"
+                            onClick={() => setModel(rec)}
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: 10,
+                              borderRadius: 4,
+                              border: '1px solid var(--border)',
+                              background: model === rec ? 'var(--accent)' : 'var(--bg-secondary)',
+                              color: model === rec ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {rec}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button
                   type="submit"

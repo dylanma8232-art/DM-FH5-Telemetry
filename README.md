@@ -98,14 +98,28 @@ npm start
 
 ## 可选进阶配置（AI 调车与语音播报）
 
-基础遥测、自动录赛道、浏览器原生语音报路书与赛后复盘**开箱即用，无需配置任何密钥**。如需开启大模型 AI 调车问诊，可将 [`.env.example`](.env.example) 复制为 `.env`（或在页面右上角设置面板中直接填写）：
+基础遥测、自动录赛道、浏览器原生语音报路书与赛后复盘**开箱即用，无需配置任何密钥**。如需开启大模型 AI 调车问诊，可将 [`.env.example`](.env.example) 复制为 `.env`（或在页面右上角设置面板的「AI 配置」中直接填写，内置服务商预设一键切换）：
 
 | 配置项 | 是否必填 | 说明 |
 |---|---|---|
-| `DASHSCOPE_API_KEY` | 可选 | 填入阿里云百炼（或任意兼容接口）密钥后，即可在「调教工坊」与「比赛中心」启用 AI 底盘问诊 |
-| `DASHSCOPE_BASE_URL` | 可选 | 默认使用百炼兼容地址，也可切换为其他兼容大模型服务商地址 |
-| `DASHSCOPE_MODEL` | 可选 | 默认使用 `qwen3.7-plus`，可按需更换推理模型 |
+| `AI_API_KEY` | 可选 | 任意主流大模型的接口密钥。填写后即可在「调教工坊」与「比赛中心」启用 AI 底盘问诊与 AI 改装求解 |
+| `AI_BASE_URL` | 可选 | 标准 OpenAI 兼容接口端点，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `AI_MODEL` | 可选 | 模型名称，默认 `qwen3.7-plus`，可自由填写任意模型 ID |
 | 语音播报引擎 | 免配即用 | 默认启用浏览器本地低延迟语音播报，支持在设置面板调节语速、提前系数或接入云端语音 |
+
+已内置一键预设，点击即可切换接入服务商：
+
+| 服务商 | 兼容端点 | 常用模型 |
+|---|---|---|
+| DeepSeek 官方 | `https://api.deepseek.com/v1` | `deepseek-chat`、`deepseek-reasoner` |
+| OpenAI 官方 | `https://api.openai.com/v1` | `gpt-4o`、`gpt-4o-mini` |
+| 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus`、`qwen-max` |
+| 硅基流动 | `https://api.siliconflow.cn/v1` | `deepseek-ai/DeepSeek-V3`、`deepseek-ai/DeepSeek-R1` |
+| 月之暗面 Kimi | `https://api.moonshot.cn/v1` | `moonshot-v1-8k` |
+| Ollama 本地模型 | `http://localhost:11434/v1` | `qwen2.5:14b`、`deepseek-r1:14b`（免密钥、完全离线） |
+| 自定义兼容接口 | 任意 | 第三方中转、企业内网或其他 OpenAI 格式服务 |
+
+> 旧版 `DASHSCOPE_API_KEY` / `DASHSCOPE_BASE_URL` / `DASHSCOPE_MODEL` 仍然完全兼容，无需迁移。
 
 ---
 

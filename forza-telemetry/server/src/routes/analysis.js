@@ -9,6 +9,7 @@ import { formatTuneParamsForPrompt, pickTuneForPrompt } from '../services/tune-p
 import { readSummaries, listSummaryFileNames } from '../storage/session-store.js';
 import { readCarsDatabase } from '../storage/reference-store.js';
 import { readDiagnosisCache, writeDiagnosisCache } from '../storage/diagnosis-store.js';
+import { callChatCompletion, isAiConfigured, stripThinkingTags } from '../services/ai-client.js';
 
 const router = express.Router();
 
@@ -742,7 +743,7 @@ function calculateTireAnalysisStats(rawData) {
 // AI 赛后智能诊断缓存读取接口
 router.get('/:sessionId/ai-diagnosis', asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
-  const keyConfigured = !!process.env.DASHSCOPE_API_KEY;
+  const keyConfigured = isAiConfigured();
   const cached = readDiagnosisCache(sessionId);
 
   if (cached) {
@@ -752,15 +753,12 @@ router.get('/:sessionId/ai-diagnosis', asyncHandler(async (req, res) => {
   res.json({ status: 'empty', keyConfigured });
 }));
 
-// AI 赛后智能诊断生成接口 (阿里云百炼平台)
+// AI 赛后智能诊断生成接口 (兼容主流 OpenAI 格式大模型)
 router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req, res) => {
   const { sessionId } = req.params;
   const { problemId, customQuestion, problemDetails } = req.body || {};
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  const baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-  const modelName = process.env.DASHSCOPE_MODEL || 'qwen3.7-plus';
 
-  if (!apiKey) {
+  if (!isAiConfigured()) {
     return res.status(403).json({ error: 'api_key_missing' });
   }
 
@@ -846,29 +844,20 @@ router.post('/:sessionId/ai-diagnosis', express.json(), asyncHandler(async (req,
   - 全部使用 Markdown 格式输出。
   `;
 
-  const apiResponse = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: modelName,
+  let completion;
+  try {
+    completion = await callChatCompletion({
       messages: [
         { role: 'system', content: '你是一位顶尖的模拟赛车调校大师与教练。你的任务是直奔主题，针对遥测数据中发现的具体操控问题，直接给出极其具体、可操作的定量参数修改对比表（当前值->推荐目标值），拒绝泛泛无用的文字总结。' },
         { role: 'user', content: promptContent }
       ]
-    })
-  });
-
-  if (!apiResponse.ok) {
-    const errorText = await apiResponse.text();
-    console.error('DashScope API 错误回复:', errorText);
-    return res.status(apiResponse.status).json({ error: `大模型 API 请求失败: ${apiResponse.statusText}` });
+    });
+  } catch (err) {
+    console.error('AI 诊断 API 错误:', err.message);
+    return res.status(err.status || 502).json({ error: err.message || '大模型 API 请求失败' });
   }
 
-  const json = await apiResponse.json();
-  const diagnosis = json.choices?.[0]?.message?.content || '生成报告为空';
+  const diagnosis = stripThinkingTags(completion.content) || '生成报告为空';
 
   const cachedDiagnosis = {
     diagnosis,

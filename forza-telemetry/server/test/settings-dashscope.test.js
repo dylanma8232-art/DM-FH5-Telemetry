@@ -19,9 +19,12 @@ async function withSettingsServer(run) {
   const port = server.address().port;
   const baseUrl = `http://127.0.0.1:${port}`;
 
-  const savedEnvKey = process.env.DASHSCOPE_API_KEY;
-  const savedEnvUrl = process.env.DASHSCOPE_BASE_URL;
-  const savedEnvModel = process.env.DASHSCOPE_MODEL;
+  const envVars = [
+    'AI_API_KEY', 'AI_BASE_URL', 'AI_MODEL',
+    'OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL',
+    'DASHSCOPE_API_KEY', 'DASHSCOPE_BASE_URL', 'DASHSCOPE_MODEL'
+  ];
+  const savedEnv = Object.fromEntries(envVars.map((k) => [k, process.env[k]]));
   let savedEnvFileContent = null;
   if (fs.existsSync(envPath)) {
     savedEnvFileContent = fs.readFileSync(envPath, 'utf8');
@@ -31,17 +34,15 @@ async function withSettingsServer(run) {
     await run({ baseUrl, app, server });
   } finally {
     server.close();
-    if (savedEnvKey !== undefined) process.env.DASHSCOPE_API_KEY = savedEnvKey;
-    else delete process.env.DASHSCOPE_API_KEY;
-
-    if (savedEnvUrl !== undefined) process.env.DASHSCOPE_BASE_URL = savedEnvUrl;
-    else delete process.env.DASHSCOPE_BASE_URL;
-
-    if (savedEnvModel !== undefined) process.env.DASHSCOPE_MODEL = savedEnvModel;
-    else delete process.env.DASHSCOPE_MODEL;
+    for (const k of envVars) {
+      if (savedEnv[k] !== undefined) process.env[k] = savedEnv[k];
+      else delete process.env[k];
+    }
 
     if (savedEnvFileContent !== null) {
       fs.writeFileSync(envPath, savedEnvFileContent, 'utf8');
+    } else if (fs.existsSync(envPath)) {
+      fs.unlinkSync(envPath);
     }
   }
 }
@@ -209,5 +210,35 @@ test('非法协议或畸形 baseUrl 被拒绝返回 400', async () => {
 
       assert.equal(res.status, 400);
     }
+  });
+});
+
+test('支持通过 /api/settings/ai-config 配置 DeepSeek 或本地 Ollama 免密钥模型', async () => {
+  await withSettingsServer(async ({ baseUrl }) => {
+    const deepseekRes = await fetch(`${baseUrl}/api/settings/ai-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: 'sk-deepseek-test-1234',
+        baseUrl: 'https://api.deepseek.com/v1/',
+        model: 'deepseek-chat'
+      })
+    });
+    assert.equal(deepseekRes.status, 200);
+    assert.equal(process.env.AI_BASE_URL, 'https://api.deepseek.com/v1');
+    assert.equal(process.env.AI_MODEL, 'deepseek-chat');
+
+    const ollamaRes = await fetch(`${baseUrl}/api/settings/ai-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        apiKey: '',
+        baseUrl: 'http://localhost:11434/v1',
+        model: 'qwen2.5:14b'
+      })
+    });
+    assert.equal(ollamaRes.status, 200);
+    assert.equal(process.env.AI_BASE_URL, 'http://localhost:11434/v1');
+    assert.equal(process.env.AI_MODEL, 'qwen2.5:14b');
   });
 });
